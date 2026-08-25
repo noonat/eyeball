@@ -120,11 +120,11 @@ required_commands:
   a table's rows name their fields one per line
 - [x] `named-gomega`: an assertion goes through a named gomega, and
   `gomega-in-subtest`: the closure creates its own rather than reaching out
-- [ ] `packages-listed`: every package under `internal/` and `tool/` appears in
+- [x] `packages-listed`: every package under `internal/` and `tool/` appears in
   the layout block in `docs/architecture.md`
-- [ ] `test-names`: a test names a package-level identifier, a method of one, or
+- [/] `test-names`: a test names a package-level identifier, a method of one, or
   the package, with any description segment starting lowercase
-- [ ] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
+- [/] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
   with an empty segment first, which is not the same as sorting the strings
 - [ ] A `testdata/` fixture per check and a test asserting each check flags its
   own fixture, so no check is trusted without having been seen to fail

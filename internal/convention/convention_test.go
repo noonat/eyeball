@@ -41,3 +41,10 @@ func Test_eachCheckFlagsItsFixture(t *testing.T) {
 		})
 	}
 }
+
+func Test_packagesAreListed(t *testing.T) {
+	g := NewWithT(t)
+	found, err := convention.PackagesListed()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeEmpty())
+}
