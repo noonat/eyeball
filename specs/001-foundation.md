@@ -122,9 +122,9 @@ required_commands:
   `gomega-in-subtest`: the closure creates its own rather than reaching out
 - [x] `packages-listed`: every package under `internal/` and `tool/` appears in
   the layout block in `docs/architecture.md`
-- [/] `test-names`: a test names a package-level identifier, a method of one, or
+- [x] `test-names`: a test names a package-level identifier, a method of one, or
   the package, with any description segment starting lowercase
-- [/] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
+- [x] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
   with an empty segment first, which is not the same as sorting the strings
 - [ ] A `testdata/` fixture per check and a test asserting each check flags its
   own fixture, so no check is trusted without having been seen to fail

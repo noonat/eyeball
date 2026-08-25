@@ -9,24 +9,6 @@ import (
 	"github.com/noonat/eyeball/internal/convention"
 )
 
-func Test_repoFollowsItsOwnConventions(t *testing.T) {
-	g := NewWithT(t)
-	fset := token.NewFileSet()
-	pkgs, err := convention.ParseRepo(fset)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(pkgs).NotTo(BeEmpty())
-
-	var found []string
-	for _, pkg := range pkgs {
-		for _, check := range convention.Checks {
-			for _, f := range check.Run(fset, pkg.Files) {
-				found = append(found, f.String())
-			}
-		}
-	}
-	g.Expect(found).To(BeEmpty())
-}
-
 func Test_eachCheckFlagsItsFixture(t *testing.T) {
 	setup := NewWithT(t)
 	setup.Expect(convention.Checks).NotTo(BeEmpty())
@@ -46,5 +28,23 @@ func Test_packagesAreListed(t *testing.T) {
 	g := NewWithT(t)
 	found, err := convention.PackagesListed()
 	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeEmpty())
+}
+
+func Test_repoFollowsItsOwnConventions(t *testing.T) {
+	g := NewWithT(t)
+	fset := token.NewFileSet()
+	pkgs, err := convention.ParseRepo(fset)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(pkgs).NotTo(BeEmpty())
+
+	var found []string
+	for _, pkg := range pkgs {
+		for _, check := range convention.Checks {
+			for _, f := range check.Run(fset, pkg.Files) {
+				found = append(found, f.String())
+			}
+		}
+	}
 	g.Expect(found).To(BeEmpty())
 }

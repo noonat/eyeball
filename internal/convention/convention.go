@@ -49,6 +49,8 @@ var Checks = []Check{
 	{Name: "keyed-rows", Run: keyedRows},
 	{Name: "named-gomega", Run: namedGomega},
 	{Name: "gomega-in-subtest", Run: gomegaInSubtest},
+	{Name: "test-names", Run: testNames},
+	{Name: "test-order", Run: testOrder},
 }
 
 // at renders a position as file:line, with the path relative to the repository
