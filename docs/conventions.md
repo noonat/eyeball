@@ -380,6 +380,21 @@ them renders as a space, so oxfmt moves the `>` to the next line rather than
 break between the elements. The markup renders the same and is far harder to
 edit by hand, which is what a tearout is for. No width setting avoids it.
 
+**Enforced by `internal/convention`.** No first or second person in committed
+markdown. This is the voice rule broken most often by accident, because the
+person writing is the one the rule is about and the pronoun arrives without
+being chosen.
+
+**Enforced by `internal/convention`.** No em dash in committed markdown. A
+comma, a colon or a period says the same thing, and the character arrives
+without being typed, from a keyboard substitution or from text pasted in.
+
+Both rules read prose only. A fenced block is code, an inline code span names
+something rather than says it, and a blockquote is quoted material, which covers
+the annotations backlog writes into a spec. A double-quoted example is exempt
+too, which is how `docs/voice.md` states the rule against the first person
+without breaking it.
+
 **A reference table is sorted by its key.** The dependency table in
 `docs/architecture.md` sorts on the full module path, not the short name, so
 `htmx.org` falls after the `github.com/` entries where a reader looking it up

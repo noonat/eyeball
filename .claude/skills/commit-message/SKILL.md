@@ -27,8 +27,8 @@ have to catch them by hand every time.
    paragraph, and add a second only when part of the why goes missing without
    it.
 5. **Say why, not what.** The reader has the diff.
-6. **No word you invented.** A new name for something the code, the schema or
-   the documents already name is a word the reader has to learn first. Use the
+6. **No invented words.** A new name for something the code, the schema or the
+   documents already name is a word the reader has to learn first. Use the
    column, the type, or the function's own name.
 
 ## Figures of speech to replace
@@ -156,7 +156,7 @@ message after recording changes the hash and the commit is refused again, which
 is the point.
 
 **The gate writes the record itself, as the last thing it does on a PASS.**
-There is no step here for you to run, which is deliberate. When there was one,
+There is no step here to run by hand, which is deliberate. When there was one,
 it was run without a gate having happened, five minutes after the hook was
 written, by the person who had just argued for the hook. A record that can be
 written without a gate run is a record that will be.

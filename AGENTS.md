@@ -31,7 +31,7 @@ into a manual stops being read, and the things in it stop being followed.
   `commit-message` skill first. A `PreToolUse` hook refuses a commit whose
   message the skill's gate has not passed. The gate records its own pass, so
   there is nothing to run by hand.
-- All prose — documentation, comments, specs, commit messages — follows
+- All prose (documentation, comments, specs, commit messages) follows
   [docs/voice.md](docs/voice.md). Read it before writing any.
 - The prose voice is shared and has no per-developer override.
 - A session's conversational voice is `.claude/voice.md`, injected by a

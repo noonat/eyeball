@@ -130,6 +130,12 @@ required_commands:
 - [x] A `testdata/` fixture per check and a test asserting each check flags its
       own fixture, so no check is trusted without having been seen to fail
 
+> **Completed** 2026-08-25 22:04 UTC
+>
+> - acks: reviewed
+> - `make check` — 615ms
+> - `go test ./internal/convention -run Test_eachCheckFlagsItsFixture` — 247ms
+
 ## Iteration 3: The prose rules, checked and formatted
 
 ```backlog
@@ -138,14 +144,20 @@ required_commands:
   - go test ./internal/convention -run Test_eachCheckFlagsItsFixture
 ```
 
-- [ ] Oxfmt wired into `lint` and `fmt` over every committed markdown file, at
+- [x] Oxfmt wired into `lint` and `fmt` over every committed markdown file, at
       80 columns with `proseWrap: always`, specs included
-- [ ] `prose-person`: no first or second person in any committed markdown, which
+- [x] `prose-person`: no first or second person in any committed markdown, which
       is the voice rule most often broken by accident
-- [ ] `prose-dashes`: no em dash in any committed markdown, which the voice
+- [x] `prose-dashes`: no em dash in any committed markdown, which the voice
       document bans and which arrives without being typed
-- [ ] A fixture per prose check, flagged by the same test that covers the Go
+- [x] A fixture per prose check, flagged by the same test that covers the Go
       checks, so both kinds are proved the same way
+
+> **Completed** 2026-08-25 22:49 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.3s
+> - `go test ./internal/convention -run Test_eachCheckFlagsItsFixture` — 252ms
 
 ## Iteration 4: The tearout checks
 

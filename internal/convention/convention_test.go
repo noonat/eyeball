@@ -24,6 +24,16 @@ func Test_eachCheckFlagsItsFixture(t *testing.T) {
 			g.Expect(check.Run(fset, pkg.Files)).NotTo(BeEmpty())
 		})
 	}
+
+	setup.Expect(convention.ProseChecks).NotTo(BeEmpty())
+	for _, check := range convention.ProseChecks {
+		t.Run(check.Name, func(t *testing.T) {
+			g := NewWithT(t)
+			path, body, err := convention.ProseFixture(check.Name)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(check.Run(path, body)).NotTo(BeEmpty())
+		})
+	}
 }
 
 func Test_everyFixtureHasACheck(t *testing.T) {
@@ -39,6 +49,9 @@ func Test_everyFixtureHasACheck(t *testing.T) {
 	}
 	registered := map[string]struct{}{}
 	for _, check := range convention.Checks {
+		registered[check.Name] = struct{}{}
+	}
+	for _, check := range convention.ProseChecks {
 		registered[check.Name] = struct{}{}
 	}
 	g.Expect(onDisk).To(Equal(registered))
@@ -67,4 +80,20 @@ func Test_repoFollowsItsOwnConventions(t *testing.T) {
 		}
 	}
 	g.Expect(found).To(BeEmpty())
+
+	files, err := convention.MarkdownFiles()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(files).NotTo(BeEmpty())
+
+	var prose []string
+	for _, name := range files {
+		body, err := convention.ReadMarkdown(name)
+		g.Expect(err).NotTo(HaveOccurred())
+		for _, check := range convention.ProseChecks {
+			for _, f := range check.Run(name, body) {
+				prose = append(prose, f.String())
+			}
+		}
+	}
+	g.Expect(prose).To(BeEmpty())
 }
