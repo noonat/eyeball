@@ -154,8 +154,16 @@ closing paren is a **syntax error**: a line ending in a string literal ends in a
 terminating token, so Go inserts a semicolon and the expression closes before
 the `)` is reached.
 
-**Judgment.** Wrap a call chain after the dot, with the chain indented, rather
-than by breaking the argument list.
+**Judgment.** Name an argument rather than wrapping the call it sits in. A long
+expression inside an assertion reads better as two statements:
+
+```go
+docPath := filepath.Join(doc, "architecture.md")
+g.Expect(os.WriteFile(docPath, []byte(layout), 0o644)).To(Succeed())
+```
+
+When a chain does have to wrap, break after the dot with the chain indented,
+never by breaking the argument list.
 
 **Judgment.** An enum's values carry its name: `KindMarkdown`, not `Markdown`.
 At the point of use a bare `Markdown` reads as a variable, and nothing says
