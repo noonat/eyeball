@@ -115,6 +115,8 @@ required_commands:
       different lines, with function literals exempt
 - [x] `argument-wrapping`: an argument list wraps all or nothing, and the first
       break falls after the open paren
+- [x] `signature-lines`: a function definition never wraps, since a signature
+      too long for one line needs fewer parameters rather than more lines
 - [x] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
       a table's rows name their fields one per line
 - [x] `named-gomega`: an assertion goes through a named gomega, and

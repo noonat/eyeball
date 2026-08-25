@@ -45,10 +45,11 @@ var Checks = []Check{
 	{Name: "doc-comments", Run: docComments},
 	{Name: "brace-lines", Run: braceLines},
 	{Name: "argument-wrapping", Run: argumentWrapping},
+	{Name: "signature-lines", Run: signatureLines},
+	{Name: "gomega-in-subtest", Run: gomegaInSubtest},
+	{Name: "named-gomega", Run: namedGomega},
 	{Name: "range-literal", Run: rangeLiteral},
 	{Name: "keyed-rows", Run: keyedRows},
-	{Name: "named-gomega", Run: namedGomega},
-	{Name: "gomega-in-subtest", Run: gomegaInSubtest},
 	{Name: "test-names", Run: testNames},
 	{Name: "test-order", Run: testOrder},
 }

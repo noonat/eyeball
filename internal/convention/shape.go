@@ -34,6 +34,36 @@ func braceLines(fset *token.FileSet, files []*ast.File) []Finding {
 	return out
 }
 
+// signatureLines reports a function definition whose signature spans more than
+// one line.
+//
+// A signature too long for one line has too many parameters, and wrapping it
+// hides that rather than fixing it. The fix is a smaller signature: a named type
+// for a callback, or a struct for arguments that always travel together.
+//
+// This walks declarations only, so a function literal passed as an argument is
+// exempt, on the same grounds as braceLines.
+func signatureLines(fset *token.FileSet, files []*ast.File) []Finding {
+	var out []Finding
+	for _, file := range files {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			if fset.Position(fn.Pos()).Line == fset.Position(fn.Type.End()).Line {
+				continue
+			}
+			out = append(out, Finding{
+				At:    at(fset, fn.Pos()),
+				Check: "signature-lines",
+				What:  "func " + fn.Name.Name + " wraps its signature; give it fewer parameters instead",
+			})
+		}
+	}
+	return out
+}
+
 // argumentWrapping reports an argument list that wraps some of the way.
 //
 // If a newline falls between two arguments then every argument goes on its own

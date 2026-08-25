@@ -131,6 +131,19 @@ not because of its length, and the fix for that is to split the logic into named
 steps. Folding the same expression onto more lines makes it longer without
 making it simpler.
 
+**Enforced by `internal/convention`.** Never wrap a function definition. A
+signature too long to read on one line has too many parameters, and it needs a
+different signature rather than more lines. A callback parameter is the usual
+cause; giving it a named type shortens every definition that takes it and gives
+the parameter somewhere to be documented.
+
+```go
+// reporter receives one declaration for the doc-comment check.
+type reporter func(pos token.Pos, kind string, names []string, doc *ast.CommentGroup)
+
+func reportGen(d *ast.GenDecl, report reporter) {
+```
+
 **Judgment.** A composite literal goes on one line, or gives every field its own
 line. The half-wrapped form, where some fields share a line inside a literal
 that is already broken, fails for the same reason a half-wrapped argument list
