@@ -110,11 +110,11 @@ required_commands:
   - go test ./internal/convention -run Test_eachCheckFlagsItsFixture
 ```
 
-- [ ] `doc-comments`: every exported type, function, method, struct field and
+- [x] `doc-comments`: every exported type, function, method, struct field and
   package-level value carries a comment starting with one of its names
-- [ ] `brace-lines`: a declared function opens and closes its braces on
+- [x] `brace-lines`: a declared function opens and closes its braces on
   different lines, with function literals exempt
-- [ ] `argument-wrapping`: an argument list wraps all or nothing, and the first
+- [x] `argument-wrapping`: an argument list wraps all or nothing, and the first
   break falls after the open paren
 - [ ] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
   a table's rows name their fields one per line

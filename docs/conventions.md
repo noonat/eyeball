@@ -23,6 +23,10 @@ One declaration can bind several names, and a comment starting with any of them
 satisfies the rule, since starting with all of them is impossible. Two fields
 declared separately are two declarations and need a comment each.
 
+A function the testing toolchain calls is exempt: `Test`, `Benchmark`, `Fuzz`
+and `Example`. Its name is already required to say what is under test, so a
+comment would be a second copy of that to keep in step.
+
 ```go
 // Old and New are the line numbers, blank where the line exists on one side.
 Old, New int
