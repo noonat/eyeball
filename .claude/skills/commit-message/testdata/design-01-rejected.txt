@@ -1,0 +1,16 @@
+design: settle the surface as tearouts before building it
+
+Prose about an interface cannot be judged. A paragraph describing a screen
+can be reasonable and wrong at the same time, and nothing in it separates
+the two.
+
+These are real markup and real styling with fixture content, no backend and
+no JavaScript, so look and interaction are settled in cheap static pages
+rather than discovered halfway through building the real thing. Rendering
+them found defects that reading the same markup had not: a passage marker
+clipped out of existence inside a card, a link unreadable in one theme, a
+phone layout stretched to a desktop column.
+
+The checker covers what a browser will not complain about. An unstyled class
+still renders text and a dead link still looks like a link, so each of those
+failures arrives looking plausible.

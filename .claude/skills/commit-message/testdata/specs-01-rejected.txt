@@ -1,0 +1,11 @@
+specs: plan the foundation
+
+Six iterations, each gating on make check and on a review that only a person
+can give. Three add a required command that proves what the iteration claims
+rather than asserting it: the fixture test behind every convention check, and
+a diff against the committed stylesheet for the icon generator, which is what
+makes the port from Python verifiable instead of trusted.
+
+TODO.md holds what is not being worked on. Neither a person nor an agent
+holds a project's outstanding work in their head, and only one of them gets
+a nagging feeling about it.

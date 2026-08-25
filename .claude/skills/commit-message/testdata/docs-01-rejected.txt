@@ -1,0 +1,12 @@
+docs: state what eyeball is, how it is built, and how it is written
+
+Four documents before any code, in a deliberate order. product.md answers
+what the thing does and architecture.md is derived from it, and neither
+could have been written second: choosing between a server-rendered surface
+and a client one depends on whether a comment has to survive being offline,
+which is a product question wearing an engineering costume.
+
+conventions.md and voice.md exist because a rule that is only understood
+gets violated. Both mark which of their rules a machine can check, so the
+checks written later cite a rule instead of inventing one at the moment of
+enforcing it.

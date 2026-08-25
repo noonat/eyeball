@@ -1,0 +1,19 @@
+chore(repo): add the module, the layout, and the make check gate
+
+make check is build, lint and test, and every later iteration closes on it,
+so it has to exist before the work that will use it.
+
+The gofmt target reads git ls-files --cached --others rather than the index
+alone. Reading the index means a new package stays invisible until it is
+added, and in a tree with nothing committed the target checks zero files and
+reports success. It also fails outright when the file list comes back empty,
+because the failure worth guarding against here is a check that passes while
+checking nothing.
+
+Each linter was made to fail on a planted violation before being trusted: a
+misformatted file, a Printf verb that does not match its argument, and a
+comparison to a boolean constant.
+
+PATH takes GOPATH/bin from go env rather than a guessed install location, so
+make finds tool binaries from a non-interactive shell with no profile
+sourced. backlog runs required commands that way.
