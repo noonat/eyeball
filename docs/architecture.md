@@ -404,18 +404,18 @@ closes.
 
 ## Dependencies
 
-| Dependency                   | Why                                                               |
-| ---------------------------- | ----------------------------------------------------------------- |
-| `modernc.org/sqlite`         | pure Go SQLite, so the binary stays static                        |
-| `tailscale.com/tsnet`        | the tailnet node is the process, and it brings the certificate    |
-| `evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
-| htmx (vendored)              | the interactions, as server-rendered fragments                    |
-| `alecthomas/chroma`          | syntax highlighting, server side                                  |
-| `yuin/goldmark`              | markdown                                                          |
-| `SherClockHolmes/webpush-go` | push payload encryption                                           |
-| `cockroachdb/errors`         | a stack at the point an error was constructed                     |
-| `urfave/cli/v3`              | flags in any position, confined to the CLI package                |
-| `onsi/gomega` (test)         | assertions                                                        |
+| Dependency                              | Why                                                               |
+| --------------------------------------- | ----------------------------------------------------------------- |
+| `github.com/alecthomas/chroma`          | syntax highlighting, server side                                  |
+| `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                     |
+| `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
+| `github.com/onsi/gomega` (test)         | assertions                                                        |
+| `github.com/SherClockHolmes/webpush-go` | push payload encryption                                           |
+| `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                |
+| `github.com/yuin/goldmark`              | markdown                                                          |
+| `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                    |
+| `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                        |
+| `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate    |
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.

@@ -375,6 +375,12 @@ stylesheet, which is why it is worth having.
 columns with `proseWrap: always`. A wrap is the tool's job and never a
 hand-adjusted line.
 
+**A reference table is sorted by its key.** The dependency table in
+`docs/architecture.md` sorts on the full module path, not the short name, so
+`htmx.org` falls after the `github.com/` entries where a reader looking it up
+would expect it. A table nobody can predict the order of has to be read start to
+finish.
+
 **Specs are formatted like anything else.** backlog derives a todo's id by
 hashing its text, so formatting changes ids, and so does editing a todo at all.
 The answer is backlog's own: never cache an id, and re-run `backlog spec list`
