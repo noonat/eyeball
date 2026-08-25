@@ -113,6 +113,12 @@ Step 6. List every paragraph that names two or more separate parts of the change
 
 Step 7. Report FAIL if any earlier step found anything. Otherwise report PASS.
 
+Step 8. Only if step 7 said PASS, run this from the repository root and report
+  what it printed:
+    python3 .claude/hooks/commit-gate.py record <PATH>
+  Never run it after a FAIL. It is what lets the commit through, so running it
+  on a failing message defeats every step above.
+
 Rules for you:
   - Flag when unsure. A wrong flag costs one rewrite. A missed one ships.
   - Do not say the message is clear, plain, fine or good. Report only failures.
@@ -136,10 +142,27 @@ wc -w <PATH>
 
 Numbers that disagree void the run. Run it again.
 
-## Then ask
+## The pass records itself
 
-Show the message in the reply. Tool output does not count. Offer the choice:
-commit it, commit the subject alone, do not commit, change something.
+A `PreToolUse` hook refuses `git commit` for a message with no record. The
+record is the sha256 of the message, kept in `.git/eyeball-gate`, so **nothing
+is added to the message itself**: what lands in git is byte for byte what was
+gated, and the no-trailers rule is not bent to carry a receipt. Editing the
+message after recording changes the hash and the commit is refused again, which
+is the point.
+
+**The gate writes the record itself, as the last thing it does on a PASS.**
+There is no step here for you to run, which is deliberate. When there was one,
+it was run without a gate having happened, five minutes after the hook was
+written, by the person who had just argued for the hook. A record that can be
+written without a gate run is a record that will be.
+
+So: launch the gate, and when it reports PASS the record already exists. Commit
+in a separate call, because the hook runs before the command and cannot see a
+record written by that same call.
+
+Then show the message in the reply. Tool output does not count. Offer the
+choice: commit it, commit the subject alone, do not commit, change something.
 
 ## Keeping the gate honest
 
@@ -176,8 +199,8 @@ Four faults, each one designed out above rather than left to be rediscovered:
   why it now asks for a list like steps 2 and 3 do.
 - **A verdict can cover part of the input.** Hence step 0 and the counts.
 - **Strictness needs a limit.** Told to reject anything a changed file also
-  says, the gate fails every paragraph, because a well-commented change
-  explains itself twice by design. Enumeration is the test that holds.
+  says, the gate fails every paragraph, because a well-commented change explains
+  itself twice by design. Enumeration is the test that holds.
 - **A rule that cannot see the code guesses.** Step 4 asks whether a noun is
   what the code calls something, and the gate has only the one sentence
   describing the change. On the first run here it called `layout`, `gate` and

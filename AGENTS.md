@@ -25,6 +25,10 @@ into a manual stops being read, and the things in it stop being followed.
   against.
 - Code follows [docs/conventions.md](docs/conventions.md), which says of each
   rule whether it is enforced or left to judgment.
+- Never commit or push without asking, and draft the message with the
+  `commit-message` skill first. A `PreToolUse` hook refuses a commit whose
+  message the skill's gate has not passed. The gate records its own pass, so
+  there is nothing to run by hand.
 - All prose — documentation, comments, specs, commit messages — follows
   [docs/voice.md](docs/voice.md). Read it before writing any.
 - The prose voice is shared and has no per-developer override.
