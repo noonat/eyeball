@@ -369,11 +369,16 @@ same code. A test pinning one function against another passes on a shared
 mistake. The icon generator's test compares its output to the committed
 stylesheet, which is why it is worth having.
 
-## Prose formatting
+## Formatting outside Go
 
-**Enforced by `make lint`.** Oxfmt formats every committed markdown file at 80
-columns with `proseWrap: always`. A wrap is the tool's job and never a
-hand-adjusted line.
+**Enforced by `make lint`.** Oxfmt formats every committed markdown, CSS and
+JSON file at 80 columns with `proseWrap: always`. Go is gofmt's, and Python and
+text are left alone. A wrap is the tool's job and never a hand-adjusted line.
+
+**HTML is excluded.** A tearout nests inline spans, and a newline between two of
+them renders as a space, so oxfmt moves the `>` to the next line rather than
+break between the elements. The markup renders the same and is far harder to
+edit by hand, which is what a tearout is for. No width setting avoids it.
 
 **A reference table is sorted by its key.** The dependency table in
 `docs/architecture.md` sorts on the full module path, not the short name, so
@@ -382,11 +387,20 @@ would expect it. A table nobody can predict the order of has to be read start to
 finish.
 
 **Specs are formatted like anything else.** backlog derives a todo's id by
-hashing its text, so formatting changes ids, and so does editing a todo at all.
-The answer is backlog's own: never cache an id, and re-run `backlog spec list`
-when a command reports one it cannot find. Nothing outside the spec file holds
-an id, state lives in the checkbox, and a review comment anchors to a line in a
-frozen capture rather than to text still being edited.
+hashing its text as wrapped, so moving a line break changes the id and reflowing
+a spec churns every todo it rewraps. Editing a todo changes it too. Indentation
+alone does not: leading whitespace is stripped before hashing. The answer is
+backlog's own: never cache an id, and re-run `backlog spec list` when a command
+reports one it cannot find. Nothing outside the spec file holds an id, state
+lives in the checkbox, and a review comment anchors to a line in a frozen
+capture rather than to text still being edited.
+
+**Run `make fmt` after a backlog command.** The in-progress marker `[/]` is not
+a GFM checkbox, which allows only `[ ]` and `[x]`, so oxfmt reads it as ordinary
+text and indents the continuation lines two spaces rather than six. A todo left
+`[/]` fails `make lint` until it is reformatted. Closing an iteration also
+appends its annotation with a blank line oxfmt removes. Both are cosmetic and
+neither touches an id.
 
 ## TypeScript
 
@@ -494,6 +508,13 @@ code and the documents are the long-term source of truth.
 `go test ./internal/convention` checks this repository's own source, prose and
 tearout markup against the rules above that can be checked mechanically. It is
 part of `make check`.
+
+The file lists come from `git ls-files --cached --others --exclude-standard`
+rather than from walking the tree. A new package is untracked until it is added,
+so a list read from the index alone checks nothing in a fresh tree and reports
+success. `testdata/` is then dropped from the Go list by hand: two fixtures
+break formatting to prove their rule, and a formatter would delete the violation
+each exists to show.
 
 Every check has a fixture under `testdata/` that it must flag, so no check is
 trusted without having been watched fail. `testdata/` is ignored by the go tool,

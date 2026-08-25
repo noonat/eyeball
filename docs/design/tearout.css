@@ -32,7 +32,11 @@ body {
   margin: 0;
   background: #6f6a63;
   color: #f4f2ef;
-  font: 400 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  font:
+    400 15px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
     sans-serif;
   padding: 28px 20px 80px;
 }
@@ -105,7 +109,11 @@ body {
 }
 
 .spec > h2 .tag {
-  font: 700 10px/1.9 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    700 10px/1.9 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 0 7px;
@@ -146,7 +154,11 @@ body {
 }
 
 .frame > figcaption {
-  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    700 10px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgb(255 255 255 / 60%);
@@ -243,7 +255,11 @@ body {
   padding: 8px 14px;
   background: #16150f;
   color: #fff;
-  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 12px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   flex: none;
@@ -324,7 +340,11 @@ body {
 .ic .nm {
   display: block;
   margin-top: 5px;
-  font: 500 9.5px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    500 9.5px/1.3 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   color: var(--ink-dim);
   word-break: break-all;
 }
@@ -354,7 +374,11 @@ body {
 
 .sw .lbl {
   padding: 5px 7px;
-  font: 600 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 10px/1.35 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   color: var(--ink-dim);
   word-break: break-all;
 }
@@ -368,7 +392,11 @@ body {
 }
 
 .typerow .meta {
-  font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font:
+    600 10px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   color: var(--ink-faint);
   white-space: nowrap;
   width: 74px;

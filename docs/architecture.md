@@ -394,7 +394,8 @@ either alone.
 closes.
 
 - `gofmt`, `go vet`, `staticcheck` on the Go.
-- `oxfmt --check` on every committed markdown file, at 80 columns.
+- `oxfmt --check` on every committed markdown, CSS and JSON file, at 80 columns.
+  HTML is excluded, for the reason in docs/conventions.md.
 - `tsc --noEmit` and `oxlint --type-aware` on the TypeScript, once there is any.
 - `go test ./...`, which includes `internal/convention`.
 - The tearout checker, which today is `docs/design/check.py` and becomes a Go
