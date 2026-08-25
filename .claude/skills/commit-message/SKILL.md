@@ -65,8 +65,11 @@ Check a commit message against fixed rules. Do not judge whether it reads well.
 The message is at: <PATH>
 The change it describes: <ONE PLAIN SENTENCE>
 
-Step 0. Report how many paragraphs the body has and how many words. Work
-  through every paragraph. Skipping one is not allowed.
+Step 0. Report how many paragraphs the body has and how many words. If the body
+  has no paragraphs, steps 1 to 6 have nothing to examine and find nothing: say
+  so for each and go straight to step 7. A message that is a subject line alone
+  is the normal case here, not a fault. Otherwise work through every paragraph.
+  Skipping one is not allowed.
 
 Step 1. Number every sentence in the body.
 
@@ -94,10 +97,11 @@ Step 4. Look at the body only, never the subject line. List every noun the body
   things, and the name of any tool, command or program, whether or not the
   change adds it.
 
-Step 4b. Would a developer reading this in the history have stopped to ask the
-  question the body answers? If the body explains something nobody would have
-  asked, it fails. A change that adds a file, a package, a document or a screen
-  explains itself.
+Step 4b. List every paragraph that answers a question a developer reading this
+  in the history would not have stopped to ask. A change that adds a file, a
+  package, a document or a screen explains itself, so a paragraph explaining one
+  belongs on the list. Every paragraph you list is a failure. List nothing if no
+  paragraph does this, and list nothing when there is no body.
 
 Step 5. The why is the reason the change named in the subject line was made at
   all. For each paragraph after the first, name the part of THAT why which goes

@@ -1,0 +1,1 @@
+feat(convention): check that a function definition does not wrap

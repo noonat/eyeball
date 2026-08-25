@@ -1,0 +1,1 @@
+docs(repo): wait for a review before committing

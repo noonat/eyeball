@@ -16,6 +16,12 @@ only evidence of what a rule actually means.
 | `design-02.txt`              | PASS          | subject only                                                                                                                              |
 | `specs-02.txt`               | PASS          | subject only                                                                                                                              |
 | `foundation-02.txt`          | PASS          | subject only                                                                                                                              |
+| `convention-01.txt`          | PASS          | subject only                                                                                                                              |
+| `convention-02.txt`          | PASS          | subject only                                                                                                                              |
+| `repo-01.txt`                | PASS          | subject only                                                                                                                              |
+| `conventions-01.txt`         | PASS          | subject only                                                                                                                              |
+| `skill-01-rejected.txt`      | FAIL          | "a reader asked whether a body was wanted will supply one" is malformed, which step 2c catches as a phrase nobody would say out loud      |
+| `skill-02.txt`               | PASS          | the same message with the clause rewritten                                                                                                |
 
 ## The run that shaped the prompt
 
@@ -37,3 +43,40 @@ so that finding something is the failure.
 
 After those three fixes, the two disagreements were re-run and both passed. All
 eight now match.
+
+## The run that fixed the empty body
+
+Five subject-only messages were run through the prompt at once. Two passed and
+three failed, all on step 4b, with the same reasoning each time: the body is
+empty, so a developer would have unanswered questions, so it fails. The messages
+were structurally identical, which makes the split a fault in the prompt rather
+than a judgement about the messages.
+
+Step 4b was still phrased as a question, the fault step 6 had. Asked whether a
+developer would have wanted a body, a reader supplies one. It now asks for a
+list of paragraphs, so an empty body can only produce an empty list.
+
+Step 0 also short-circuits now. With no body there is nothing for steps 1 to 6
+to examine, and leaving that undefined is what let the reader invent a rule that
+every change needs a body. Rule 4 says the opposite, and the four oldest passing
+fixtures are all subject-only.
+
+The three rejected messages are kept as `convention-01`, `convention-02` and
+`repo-01`.
+
+All twelve fixtures were re-run after the fix and all twelve verdicts match. The
+four rejected ones still fail, which is the half of the check that matters: a
+prompt edited until the author's own messages pass is worth less than the broken
+one it replaced.
+
+Two of those four failed for reasons this table does not record.
+`specs-01-rejected` failed on step 4b rather than on the figures of speech named
+above, and `design-01-rejected` found one of its two. The verdicts are right and
+the coverage moved, which is the same instability that made a subject-only
+message pass twice and fail three times. A verdict is worth more than the
+reasoning under it.
+
+`skill-01-rejected` is the first fixture that fails on grammar rather than on a
+figure of speech or an over-explaining body. Step 2c already covered it, as a
+phrase nobody would say out loud, and nothing else in this directory exercises
+that reading of the step.
