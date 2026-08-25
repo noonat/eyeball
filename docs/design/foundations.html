@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eyeball tearout: foundations</title>
+<link rel="stylesheet" href="tearout.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <h1>Foundations</h1>
+  <p>The shell, the type scale, the palette, and every primitive the other
+  tearouts reuse. Both themes side by side. Frames are 390&nbsp;&times;&nbsp;800,
+  a real phone viewport rather than a shrunken preview, so proportion is
+  judged at true scale.</p>
+  <nav>
+    <a class="here" href="foundations.html">Foundations</a>
+    <a href="queue.html">Queue</a>
+    <a href="review.html">Review</a>
+    <a href="widening.html">Widening</a>
+    <a href="project.html">Project</a>
+    <a href="README.md">Readme</a>
+  </nav>
+</header>
+
+<!-- ============================================================ palette -->
+<section class="spec" id="palette">
+  <h2>Palette <span class="tag">tokens</span></h2>
+  <p>Two tones per semantic hue. The plain tone reads as text, the
+  <code>-vivid</code> tone fills dots, rules and borders. One value cannot do
+  both in light mode, because an amber dark enough to read as text is brown.
+  Additions are teal and removals are clay, never red against green, which is
+  the one pair some readers cannot separate at all.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="swatches">
+          <div class="sw"><div class="chipbox" style="background:var(--bg)"></div><div class="lbl">--bg</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--panel)"></div><div class="lbl">--panel</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--bg-sunk)"></div><div class="lbl">--bg-sunk</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--line-strong)"></div><div class="lbl">--line-strong</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ink)"></div><div class="lbl">--ink</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ink-dim)"></div><div class="lbl">--ink-dim</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ink-faint)"></div><div class="lbl">--ink-faint</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--accent-vivid)"></div><div class="lbl">--accent-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ok-vivid)"></div><div class="lbl">--ok-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--warn-vivid)"></div><div class="lbl">--warn-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--danger-vivid)"></div><div class="lbl">--danger-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--add-vivid)"></div><div class="lbl">--add-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--add-wash)"></div><div class="lbl">--add-wash</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--add-word)"></div><div class="lbl">--add-word</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--del-vivid)"></div><div class="lbl">--del-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--del-wash)"></div><div class="lbl">--del-wash</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--del-word)"></div><div class="lbl">--del-word</div></div>
+        </div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="swatches">
+          <div class="sw"><div class="chipbox" style="background:var(--bg)"></div><div class="lbl">--bg</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--panel)"></div><div class="lbl">--panel</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--bg-sunk)"></div><div class="lbl">--bg-sunk</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--line-strong)"></div><div class="lbl">--line-strong</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ink)"></div><div class="lbl">--ink</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ink-dim)"></div><div class="lbl">--ink-dim</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ink-faint)"></div><div class="lbl">--ink-faint</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--accent-vivid)"></div><div class="lbl">--accent-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--ok-vivid)"></div><div class="lbl">--ok-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--warn-vivid)"></div><div class="lbl">--warn-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--danger-vivid)"></div><div class="lbl">--danger-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--add-vivid)"></div><div class="lbl">--add-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--add-wash)"></div><div class="lbl">--add-wash</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--add-word)"></div><div class="lbl">--add-word</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--del-vivid)"></div><div class="lbl">--del-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--del-wash)"></div><div class="lbl">--del-wash</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--del-word)"></div><div class="lbl">--del-word</div></div>
+        </div>
+      </div></div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>Teal and clay separate on the blue-yellow axis</b>, which survives
+    both common forms of red-green color blindness. Hue is still never the only
+    signal: a changed row carries a sign in the gutter and a tinted background.</li>
+    <li><b>The light background is warm off-white, not pure white.</b> Reviews
+    happen outdoors on a phone at full brightness, where white panels on a white
+    page lose their edges.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- =============================================================== type -->
+<section class="spec" id="type">
+  <h2>Type <span class="tag">scale</span></h2>
+  <p>Two families and no more: the system sans for everything a person reads as
+  language, and the system mono for anything with a column position that
+  matters. No web fonts, so nothing waits on a network and nothing reflows
+  after paint.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="typerow"><span class="meta">xl / 21</span><span style="font-size:var(--t-xl);font-weight:640;letter-spacing:-.02em">Product doc, second pass</span></div>
+        <div class="typerow"><span class="meta">lg / 17</span><span style="font-size:var(--t-lg);font-weight:620">Reading the change</span></div>
+        <div class="typerow"><span class="meta">md / 15</span><span style="font-size:var(--t-md)">A round is frozen at request time.</span></div>
+        <div class="typerow"><span class="meta">sm / 13</span><span style="font-size:var(--t-sm)">Rewrote the widening section; the compare control is new.</span></div>
+        <div class="typerow"><span class="meta">xs / 11</span><span style="font-size:var(--t-xs);color:var(--ink-faint)">eyeball &middot; docs &middot; round 2</span></div>
+        <div class="typerow"><span class="meta">mono / 13</span><span style="font-family:var(--mono);font-size:var(--t-code)">docs/product.md:214</span></div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="typerow"><span class="meta">xl / 21</span><span style="font-size:var(--t-xl);font-weight:640;letter-spacing:-.02em">Product doc, second pass</span></div>
+        <div class="typerow"><span class="meta">lg / 17</span><span style="font-size:var(--t-lg);font-weight:620">Reading the change</span></div>
+        <div class="typerow"><span class="meta">md / 15</span><span style="font-size:var(--t-md)">A round is frozen at request time.</span></div>
+        <div class="typerow"><span class="meta">sm / 13</span><span style="font-size:var(--t-sm)">Rewrote the widening section; the compare control is new.</span></div>
+        <div class="typerow"><span class="meta">xs / 11</span><span style="font-size:var(--t-xs);color:var(--ink-faint)">eyeball &middot; docs &middot; round 2</span></div>
+        <div class="typerow"><span class="meta">mono / 13</span><span style="font-family:var(--mono);font-size:var(--t-code)">docs/product.md:214</span></div>
+      </div></div></div>
+    </figure>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================== icons -->
+<section class="spec" id="icons">
+  <h2>Icons <span class="tag">lucide</span></h2>
+  <p><b>Lucide</b>, ISC licensed, drawn on a 24 unit grid with a 2 unit stroke.
+  Each icon is inlined into <code>app.css</code> as a CSS mask, so
+  <code>currentColor</code> paints it and it takes the color of whatever text it
+  sits beside. Eighteen icons come to about 5.7KB of stylesheet, with no font
+  file, no second request, and no load state. The names in
+  <code>icons.txt</code> are the names on lucide.dev.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="icongrid">
+          <div class="ic"><span class="i i-chevron-left" aria-hidden="true"></span><span class="nm">chevron-left</span></div>
+          <div class="ic"><span class="i i-chevron-right" aria-hidden="true"></span><span class="nm">chevron-right</span></div>
+          <div class="ic"><span class="i i-folder" aria-hidden="true"></span><span class="nm">folder</span></div>
+          <div class="ic"><span class="i i-bot" aria-hidden="true"></span><span class="nm">bot</span></div>
+          <div class="ic"><span class="i i-message-square" aria-hidden="true"></span><span class="nm">message-square</span></div>
+          <div class="ic"><span class="i i-check" aria-hidden="true"></span><span class="nm">check</span></div>
+          <div class="ic"><span class="i i-x" aria-hidden="true"></span><span class="nm">x</span></div>
+          <div class="ic"><span class="i i-pencil" aria-hidden="true"></span><span class="nm">pencil</span></div>
+          <div class="ic"><span class="i i-trash-2" aria-hidden="true"></span><span class="nm">trash-2</span></div>
+          <div class="ic"><span class="i i-refresh-cw" aria-hidden="true"></span><span class="nm">refresh-cw</span></div>
+          <div class="ic"><span class="i i-info" aria-hidden="true"></span><span class="nm">info</span></div>
+          <div class="ic"><span class="i i-triangle-alert" aria-hidden="true"></span><span class="nm">triangle-alert</span></div>
+          <div class="ic"><span class="i i-circle-alert" aria-hidden="true"></span><span class="nm">circle-alert</span></div>
+          <div class="ic"><span class="i i-bell" aria-hidden="true"></span><span class="nm">bell</span></div>
+          <div class="ic spare"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">file-text</span></div>
+          <div class="ic spare"><span class="i i-clock" aria-hidden="true"></span><span class="nm">clock</span></div>
+          <div class="ic spare"><span class="i i-chevron-down" aria-hidden="true"></span><span class="nm">chevron-down</span></div>
+          <div class="ic"><span class="i i-maximize-2" aria-hidden="true"></span><span class="nm">maximize-2</span></div>
+        </div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark &mdash; size and color</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <p class="hint">Inline with text at three sizes:
+        <span class="i i-message-square" aria-hidden="true"></span> 11px meta,
+        <span class="i i-message-square" aria-hidden="true"
+              style="font-size:15px"></span> 15px body,
+        <span class="i i-message-square lg" aria-hidden="true"></span> 22px
+        step. The mask sizes in <code>em</code>, so an icon follows the text it
+        sits in without being told twice.</p>
+        <div class="btnrow">
+          <a class="btn primary" href="#icons"><span class="i i-check" aria-hidden="true"></span>Approve</a>
+          <a class="btn danger" href="#icons"><span class="i i-triangle-alert" aria-hidden="true"></span>Request changes</a>
+          <a class="btn ghost" href="#icons"><span class="i i-x" aria-hidden="true"></span>Cancel</a>
+        </div>
+        <p class="hint">Color is inherited, never set on the icon. A button and
+        a notice each tint their own text, and the glyph follows without a
+        second rule. Pills keep their dot instead: two marks on one small pill
+        is one more than it can carry.</p>
+        <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Neutral.</span></div>
+        <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span>Wants attention.</span></div>
+        <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span>Something did not land.</span></div>
+      </div></div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A mask rather than a font, and rather than inline SVG in the
+    markup.</b> A font would have to ship a thousand icons or add a subsetting
+    step, and its failure mode is the worst available: a ligature icon font
+    renders the literal word <code>check</code> mid-sentence wherever the shaper
+    does not cooperate, after looking correct everywhere it was tested. Inline
+    SVG at the use site is correct and puts eighteen blocks of path data into
+    the markup. A mask keeps one table in the stylesheet and a readable class at
+    the use site.</li>
+    <li><b>Presentation attributes are stripped from each SVG and declared once
+    in the <code>.i</code> rule.</b> Stroke weight is one number rather than
+    eighteen, so making every icon heavier at small sizes is a single edit.</li>
+    <li><b>Stroke icons at 2 units read light at 11px.</b> That is the real cost
+    of this family against a filled one, and it is the thing to judge on the
+    phone rather than here. The fix, if it is needed, is the stroke width in
+    that one rule.</li>
+    <li><b>Two icons are bound to <code>:root</code> as well.</b> A file&rsquo;s
+    disclosure caret and the finished setup step are drawn by generated content,
+    which cannot carry a class, so those two masks need a variable a
+    pseudo-element can reach.</li>
+    <li><b>The diff gutter keeps its <code>+</code> and <code>&minus;</code> as
+    text.</b> Those characters sit in a monospace column and have to align with
+    the code beside them. An icon there is a different width and breaks the
+    grid.</li>
+    <li><b>Three icons are in the table and not yet on a screen.</b> They cost
+    about 900 bytes together, which is less than the interruption of regenerating
+    the table mid-implementation.</li>
+  </ul>
+
+  <ul class="note-list">
+    <li><b>chevron-left</b> &mdash; Back to the queue</li>
+    <li><b>chevron-right</b> &mdash; A file's disclosure marker, rotated when open</li>
+    <li><b>folder</b> &mdash; The project a review belongs to</li>
+    <li><b>bot</b> &mdash; The agent that asked for it</li>
+    <li><b>message-square</b> &mdash; The tally on the decision bar</li>
+    <li><b>check</b> &mdash; A settled verdict, a finished setup step</li>
+    <li><b>x</b> &mdash; Abandon a comment being written</li>
+    <li><b>pencil</b> &mdash; Change a comment before the verdict</li>
+    <li><b>trash-2</b> &mdash; Drop one before the verdict</li>
+    <li><b>refresh-cw</b> &mdash; Retry a comment that has not sent</li>
+    <li><b>info</b> &mdash; A neutral notice</li>
+    <li><b>triangle-alert</b> &mdash; A verdict refused for want of anything to act on</li>
+    <li><b>circle-alert</b> &mdash; A comment that has not reached the server</li>
+    <li><b>bell</b> &mdash; Setup, and a lapsed subscription</li>
+    <li><b>file-text</b> &mdash; A file named where no caret marks it <em>not yet on a screen</em></li>
+    <li><b>clock</b> &mdash; How long a review has waited <em>not yet on a screen</em></li>
+    <li><b>chevron-down</b> &mdash; A control that opens downward <em>not yet on a screen</em></li>
+    <li><b>maximize-2</b> &mdash; Expand, on this sheet only</li>
+  </ul>
+</section>
+
+<!-- ============================================================== state -->
+<section class="spec" id="state">
+  <h2>State <span class="tag">pills, stripes, rows</span></h2>
+  <p>Four states, each with a pill and a stripe down the left edge of its row.
+  Two signals rather than one, because the pill is small and the stripe reads
+  at arm's length. The row below shows the awkward content on purpose: a long
+  title that wraps, and an agent name long enough to need truncating.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="levels">
+          <span class="pill waiting">Waiting</span>
+          <span class="pill working">Working</span>
+          <span class="pill approved">Approved</span>
+          <span class="pill changes">Changes</span>
+          <span class="pill plain">Round 3</span>
+        </div>
+        <div class="rows">
+          <a class="row waiting" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+            <span class="age">12m</span>
+            <span class="title">Product doc, second pass</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+          </a>
+          <a class="row waiting" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/026-index-migration</span></span></span>
+            <span class="age">3h</span>
+            <span class="title">Spec 018: bulk import for the tag index, additive and idempotent</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 3</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+          </a>
+          <a class="row working" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+            <span class="age">4m</span>
+            <span class="title">Queue screen markup</span>
+            <span class="meta"><span class="pill working">Working</span><span>Changes requested</span></span>
+          </a>
+          <a class="row approved" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+            <span class="age">2h</span>
+            <span class="title">Delta sync watermark</span>
+            <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+          </a>
+        </div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="levels">
+          <span class="pill waiting">Waiting</span>
+          <span class="pill working">Working</span>
+          <span class="pill approved">Approved</span>
+          <span class="pill changes">Changes</span>
+          <span class="pill plain">Round 3</span>
+        </div>
+        <div class="rows">
+          <a class="row waiting" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+            <span class="age">12m</span>
+            <span class="title">Product doc, second pass</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+          </a>
+          <a class="row waiting" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/026-index-migration</span></span></span>
+            <span class="age">3h</span>
+            <span class="title">Spec 018: bulk import for the tag index, additive and idempotent</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 3</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+          </a>
+          <a class="row working" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+            <span class="age">4m</span>
+            <span class="title">Queue screen markup</span>
+            <span class="meta"><span class="pill working">Working</span><span>Changes requested</span></span>
+          </a>
+          <a class="row approved" href="#state">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+            <span class="age">2h</span>
+            <span class="title">Delta sync watermark</span>
+            <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+          </a>
+        </div>
+      </div></div></div>
+    </figure>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- =============================================================== diff -->
+<section class="spec" id="diff">
+  <h2>The diff <span class="tag">unified</span></h2>
+  <p>Unified, never side by side. Two columns of code on a 390px screen leaves
+  about twenty characters each, which is not reading. The code block owns its
+  horizontal overflow so the page never scrolls sideways and takes the decision
+  bar with it. Word marks appear only where a run of removals pairs one to one
+  with the additions replacing it.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <details class="file" open>
+          <summary><span class="path"><bdi>internal/store/round.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span></span></summary>
+          <div class="code narrow">
+            <table>
+              <tr class="hunkhead"><td colspan="3">@@ 88,6 +88,11 @@ func (s *Store) Freeze</td></tr>
+              <tr><td class="ln">88</td><td class="sign"></td><td class="src">	<span class="c">// Capture before the reply, so a crash cannot</span></td></tr>
+              <tr><td class="ln">89</td><td class="sign"></td><td class="src">	<span class="c">// leave a round with no content.</span></td></tr>
+              <tr class="del"><td class="ln">90</td><td class="sign">&minus;</td><td class="src">	<span class="k">if</span> err := s.<span class="f">capture</span>(<span class="w">ctx</span>, id); err != <span class="k">nil</span> {</td></tr>
+              <tr class="add"><td class="ln">90</td><td class="sign">+</td><td class="src">	<span class="k">if</span> err := s.<span class="f">capture</span>(<span class="w">ctx, base</span>, id); err != <span class="k">nil</span> {</td></tr>
+              <tr><td class="ln">91</td><td class="sign"></td><td class="src">		<span class="k">return</span> errors.<span class="f">Wrap</span>(err, <span class="s">"capture round"</span>)</td></tr>
+              <tr><td class="ln">92</td><td class="sign"></td><td class="src">	}</td></tr>
+              <tr class="add"><td class="ln">93</td><td class="sign">+</td><td class="src"></td></tr>
+              <tr class="add"><td class="ln">94</td><td class="sign">+</td><td class="src">	<span class="c">// A round with no note is a round nobody can act on.</span></td></tr>
+              <tr class="add"><td class="ln">95</td><td class="sign">+</td><td class="src">	<span class="k">if</span> strings.<span class="f">TrimSpace</span>(note) == <span class="s">""</span> {</td></tr>
+              <tr class="add"><td class="ln">96</td><td class="sign">+</td><td class="src">		<span class="k">return</span> ErrNoteRequired</td></tr>
+              <tr class="add"><td class="ln">97</td><td class="sign">+</td><td class="src">	}</td></tr>
+              <tr><td class="ln">98</td><td class="sign"></td><td class="src">	<span class="k">return</span> <span class="k">nil</span></td></tr>
+            </table>
+          </div>
+        </details>
+
+        <details class="file">
+          <summary><span class="path"><bdi>internal/store/round_test.go</bdi></span><span class="counts"><span class="plus">+31</span> <span class="minus">&minus;0</span></span></summary>
+        </details>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <details class="file" open>
+          <summary><span class="path"><bdi>internal/store/round.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span></span></summary>
+          <div class="code narrow">
+            <table>
+              <tr class="hunkhead"><td colspan="3">@@ 88,6 +88,11 @@ func (s *Store) Freeze</td></tr>
+              <tr><td class="ln">88</td><td class="sign"></td><td class="src">	<span class="c">// Capture before the reply, so a crash cannot</span></td></tr>
+              <tr><td class="ln">89</td><td class="sign"></td><td class="src">	<span class="c">// leave a round with no content.</span></td></tr>
+              <tr class="del"><td class="ln">90</td><td class="sign">&minus;</td><td class="src">	<span class="k">if</span> err := s.<span class="f">capture</span>(<span class="w">ctx</span>, id); err != <span class="k">nil</span> {</td></tr>
+              <tr class="add"><td class="ln">90</td><td class="sign">+</td><td class="src">	<span class="k">if</span> err := s.<span class="f">capture</span>(<span class="w">ctx, base</span>, id); err != <span class="k">nil</span> {</td></tr>
+              <tr><td class="ln">91</td><td class="sign"></td><td class="src">		<span class="k">return</span> errors.<span class="f">Wrap</span>(err, <span class="s">"capture round"</span>)</td></tr>
+              <tr><td class="ln">92</td><td class="sign"></td><td class="src">	}</td></tr>
+              <tr class="add"><td class="ln">93</td><td class="sign">+</td><td class="src"></td></tr>
+              <tr class="add"><td class="ln">94</td><td class="sign">+</td><td class="src">	<span class="c">// A round with no note is a round nobody can act on.</span></td></tr>
+              <tr class="add"><td class="ln">95</td><td class="sign">+</td><td class="src">	<span class="k">if</span> strings.<span class="f">TrimSpace</span>(note) == <span class="s">""</span> {</td></tr>
+              <tr class="add"><td class="ln">96</td><td class="sign">+</td><td class="src">		<span class="k">return</span> ErrNoteRequired</td></tr>
+              <tr class="add"><td class="ln">97</td><td class="sign">+</td><td class="src">	}</td></tr>
+              <tr><td class="ln">98</td><td class="sign"></td><td class="src">	<span class="k">return</span> <span class="k">nil</span></td></tr>
+            </table>
+          </div>
+        </details>
+
+        <details class="file">
+          <summary><span class="path"><bdi>internal/store/round_test.go</bdi></span><span class="counts"><span class="plus">+31</span> <span class="minus">&minus;0</span></span></summary>
+        </details>
+      </div></div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The line-number column is hidden under 720px and returns above it.</b>
+    Four digits is a tenth of the readable width on a phone, and the reviewer
+    never has to read one: a comment carries its own line range to the agent.</li>
+    <li><b>Five syntax roles, not twenty.</b> Keyword, string, comment, number,
+    name. More colors than that at 13px on a phone reads as noise, and the
+    reviewer is looking for what changed rather than for a syntax error.</li>
+    <li><b>A collapsed file still shows its counts</b>, which is what makes a
+    file list scannable when a change is too big to open expanded.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================== prose -->
+<section class="spec" id="prose">
+  <h2>Rendered prose <span class="tag">markdown</span></h2>
+  <p>Markdown opens as a document, because a patch of a paragraph is a poor way
+  to read a paragraph. A changed passage gets a rule beside it rather than a
+  wash through it, so a heavily edited document stays readable as a document.
+  Tapping a marked passage shows what it replaced without leaving the rendered
+  view.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="prose">
+          <div class="blk"><h2>A round is frozen</h2></div>
+          <div class="blk"><p>Every round captures the content it is asking
+          about, at the moment it asks. The reviewer reads that capture.</p></div>
+          <div class="blk changed"><p>The cost is storage, and it is small:
+          captures are content addressed, so a round that changes four files
+          stores four new blobs and a list of names.</p></div>
+          <div class="blk changed was"><p>A review&rsquo;s first round needs
+          something to change against. In a git repository the base is HEAD by
+          default, and the agent can name a different one.</p>
+          <span class="was-text">The base of a first round is always the empty
+          tree.</span></div>
+          <div class="blk"><ul>
+            <li>Nothing moves under the reviewer.</li>
+            <li>A comment points at an exact line and never drifts.</li>
+          </ul></div>
+        </div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="prose">
+          <div class="blk"><h2>A round is frozen</h2></div>
+          <div class="blk"><p>Every round captures the content it is asking
+          about, at the moment it asks. The reviewer reads that capture.</p></div>
+          <div class="blk changed"><p>The cost is storage, and it is small:
+          captures are content addressed, so a round that changes four files
+          stores four new blobs and a list of names.</p></div>
+          <div class="blk changed was"><p>A review&rsquo;s first round needs
+          something to change against. In a git repository the base is HEAD by
+          default, and the agent can name a different one.</p>
+          <span class="was-text">The base of a first round is always the empty
+          tree.</span></div>
+          <div class="blk"><ul>
+            <li>Nothing moves under the reviewer.</li>
+            <li>A comment points at an exact line and never drifts.</li>
+          </ul></div>
+        </div>
+      </div></div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A teal rule marks a changed passage, an amber rule marks one that is
+    showing what it replaced.</b> Two states of the same control, so the reader
+    can tell an expanded passage from a collapsed one while scrolling past.</li>
+    <li><b>Nothing is marked when the base is empty.</b> A document written from
+    scratch is entirely new, and marking every passage marks none of them.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- =========================================================== comments -->
+<section class="spec" id="comments">
+  <h2>Comments <span class="tag">four levels</span></h2>
+  <p>A comment attaches to a line or range, to a passage, to a file, or to the
+  review itself. The review level is the one with nowhere else to go, and it
+  carries the most important comment anybody writes, so it is never behind a
+  menu. Whatever the reviewer selected, the agent receives a path, a line
+  range, and the quoted text.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="levels">
+          <a class="chip" href="#comments" aria-pressed="true">This review</a>
+          <a class="chip" href="#comments">This file</a>
+          <a class="chip" href="#comments">Lines 90&ndash;97</a>
+        </div>
+
+        <div class="composer">
+          <div class="anchor">internal/store/round.go:90&ndash;97</div>
+          <div class="field">The note check belongs in the request path, not in Freeze. Freeze is called from replay too, and an old round with no note would fail to restore.</div>
+          <div class="foot">
+            <span class="hint">Saved as you type</span>
+            <span class="acts"><a class="btn small ghost" href="#comments"><span class="i i-x" aria-hidden="true"></span>Cancel</a><a class="btn small accent" href="#comments">Add</a></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="comment">
+            <div class="anchor"><span class="where">docs/product.md:214&ndash;219</span></div>
+            <blockquote class="quoted">Widening is one control, not a navigation.</blockquote>
+            <p>This reads as a rule but the section never says what the control looks like. Name it.</p>
+            <div class="acts"><a href="#comments"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comments"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+          </div>
+          <div class="comment unsent">
+            <div class="anchor"><span class="where">This review</span></div>
+            <p>The whole ordering is wrong. Deciding should come before commenting, because the bar is what a reviewer reaches for first.</p>
+            <div class="acts"><a href="#comments"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a href="#comments"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+          </div>
+        </div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="levels">
+          <a class="chip" href="#comments" aria-pressed="true">This review</a>
+          <a class="chip" href="#comments">This file</a>
+          <a class="chip" href="#comments">Lines 90&ndash;97</a>
+        </div>
+
+        <div class="composer">
+          <div class="anchor">internal/store/round.go:90&ndash;97</div>
+          <div class="field">The note check belongs in the request path, not in Freeze. Freeze is called from replay too, and an old round with no note would fail to restore.</div>
+          <div class="foot">
+            <span class="hint">Saved as you type</span>
+            <span class="acts"><a class="btn small ghost" href="#comments"><span class="i i-x" aria-hidden="true"></span>Cancel</a><a class="btn small accent" href="#comments">Add</a></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="comment">
+            <div class="anchor"><span class="where">docs/product.md:214&ndash;219</span></div>
+            <blockquote class="quoted">Widening is one control, not a navigation.</blockquote>
+            <p>This reads as a rule but the section never says what the control looks like. Name it.</p>
+            <div class="acts"><a href="#comments"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comments"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+          </div>
+          <div class="comment unsent">
+            <div class="anchor"><span class="where">This review</span></div>
+            <p>The whole ordering is wrong. Deciding should come before commenting, because the bar is what a reviewer reaches for first.</p>
+            <div class="acts"><a href="#comments"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a href="#comments"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+          </div>
+        </div>
+      </div></div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A comment that failed to save says so and keeps its text.</b> The
+    server is what makes a comment durable, so until it answers, the surface
+    holds what was typed rather than claiming to have stored it. Retry and delete
+    are both on the comment, because a failed save is either worth another
+    attempt or was not worth keeping.</li>
+    <li><b>Editing and deleting stay available until the verdict.</b> Nothing has
+    been released, so a point that turned out wrong by the end of the reading is
+    removed rather than explained away.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================ actions -->
+<section class="spec" id="actions">
+  <h2>Actions <span class="tag">buttons, bar, notices</span></h2>
+  <p>The decision bar is pinned to the bottom of a review, because approving a
+  long document must not require scrolling to the end of it. Three of its states
+  are here: nothing said yet, comments waiting to go, and the round already
+  decided. Refusing to request changes with nothing to act on is a notice, not a
+  disabled button with no explanation.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="btnrow">
+          <a class="btn primary" href="#actions">Approve</a>
+          <a class="btn danger" href="#actions">Request changes</a>
+          <a class="btn" href="#actions">Open file</a>
+          <a class="btn ghost" href="#actions"><span class="i i-x" aria-hidden="true"></span>Cancel</a>
+          <a class="btn small" href="#actions">Whole file</a>
+        </div>
+
+        <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Round 1 was approved 4 days ago. This round changes 2 of the 3 files it covered.</span></div>
+        <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
+        <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>1 comment did not save.</strong> Retry it, or delete it, before deciding.</span></div>
+
+        <div class="segmented">
+          <a href="#actions" aria-current="true">Since round 1</a>
+          <a href="#actions">Whole review</a>
+        </div>
+
+        <div class="empty">
+          <span class="headline">Nothing waiting</span>
+          <p>Three agents are working across eyeball, harbor and field-notes.</p>
+        </div>
+      </div>
+      <div class="decide">
+        <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">3 comments</span><span>Ready to send</span></div>
+        <div class="buttons"><a class="btn danger" href="#actions">Request changes</a><a class="btn primary" href="#actions">Approve</a></div>
+      </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="btnrow">
+          <a class="btn primary" href="#actions">Approve</a>
+          <a class="btn danger" href="#actions">Request changes</a>
+          <a class="btn" href="#actions">Open file</a>
+          <a class="btn ghost" href="#actions"><span class="i i-x" aria-hidden="true"></span>Cancel</a>
+          <a class="btn small" href="#actions">Whole file</a>
+        </div>
+
+        <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Round 1 was approved 4 days ago. This round changes 2 of the 3 files it covered.</span></div>
+        <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
+        <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>1 comment did not save.</strong> Retry it, or delete it, before deciding.</span></div>
+
+        <div class="segmented">
+          <a href="#actions" aria-current="true">Since round 1</a>
+          <a href="#actions">Whole review</a>
+        </div>
+
+        <div class="empty">
+          <span class="headline">Nothing waiting</span>
+          <p>Three agents are working across eyeball, harbor and field-notes.</p>
+        </div>
+      </div>
+      <div class="decide">
+        <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">3 comments</span><span>Ready to send</span></div>
+        <div class="buttons"><a class="btn danger" href="#actions">Request changes</a><a class="btn primary" href="#actions">Approve</a></div>
+      </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>Approve is the filled button and sits on the right</b>, under the
+    thumb. Request changes is outlined rather than filled: it is the common
+    verdict, and two filled buttons of equal weight make the reviewer read both
+    before acting.</li>
+    <li><b>A notice is for what could not have been prevented.</b> It is never a
+    refusal of something the screen offered and then declined, which is why the
+    warn notice above appears beside the bar rather than replacing it.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="connection">
+  <h2>Losing the connection <span class="tag">stated, never implied</span></h2>
+  <p>The surface does not work offline and it does have to say when it is
+  offline. A server-rendered page whose server is gone answers a tap by doing
+  nothing, and the control looks identical before and after, so the reviewer taps
+  again, holds, and concludes they missed. Nothing separates an unreachable
+  server from a mis-aimed thumb.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; reading still works</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <span class="wordmark">eyeball</span>
+          <span class="pill waiting">3 waiting</span>
+        </div>
+        <div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" href="#connection">Retry</a></div>
+        <div class="scroll"><div class="page">
+          <div class="section">
+            <h2>Waiting on you <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="#connection">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title">Product doc, second pass</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span></span>
+              </a>
+              <a class="row waiting" href="#connection">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span></span>
+              </a>
+            </div>
+          </div>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>What is on screen was loaded before the connection dropped. Reading it is fine.</span></div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a write that could not land</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#connection"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Product doc</h1>
+        </div>
+        <div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" href="#connection">Retry</a></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+          <div class="composer">
+            <div class="anchor">docs/product.md:214</div>
+            <div class="field">The compare control needs naming, not describing.</div>
+            <div class="foot">
+              <span class="hint">Not saved</span>
+              <span class="acts"><a class="btn small ghost" href="#connection"><span class="i i-x" aria-hidden="true"></span>Discard</a><a class="btn small accent" href="#connection"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry</a></span>
+            </div>
+            <span class="failed"><span class="i i-circle-alert" aria-hidden="true"></span><span>Could not reach eyeball. The text is still here.</span></span>
+          </div>
+        </div>
+        <div class="decide">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span></div>
+          <div class="buttons">
+            <a class="btn danger" href="#connection" aria-disabled="true">Request changes</a>
+            <a class="btn primary" href="#connection" aria-disabled="true">Approve</a>
+          </div>
+          <span class="why-not">A verdict needs eyeball. Both become available when the connection is back.</span>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The notice sits under the top bar and stays for as long as the
+    condition does.</b> It is amber rather than red: nothing has been lost, and
+    what is already on screen is still worth reading.</li>
+    <li><b>Nothing appears while the connection is healthy.</b> A permanent
+    indicator is furniture within a day and stops being read, which leaves the
+    reviewer with no signal at the moment one matters.</li>
+    <li><b>Write controls say why they cannot be used, on themselves.</b> Dimming
+    a button and leaving the reason to be inferred is the same failure in a
+    quieter voice.</li>
+    <li><b>A request that failed reports on the control that made it.</b> The
+    banner says the connection is gone; this says what happened to the thing that
+    was just attempted, which is a different question.</li>
+    <li><b>The typed text is still there.</b> Retry and Discard are both offered,
+    because a failed save is either worth another attempt or was not worth
+    keeping, and only the reviewer knows which.</li>
+  </ul>
+</section>
+
+<!-- ========================================================== first run -->
+<section class="spec" id="firstrun">
+  <h2>First run <span class="tag">install, permission, badge</span></h2>
+  <p>Notifications do not arrive until the surface is installed to the home
+  screen and granted permission. That makes it the one setup step that has to be
+  impossible to miss rather than something found later in a settings screen. The
+  badge on the installed icon is what answers &ldquo;is anything waiting&rdquo;
+  without opening anything.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app"><div class="page">
+        <div class="iconrow">
+          <span class="badgeicon">e<span class="badge">3</span></span>
+          <p>Three reviews waiting, answered from the home screen without opening anything.</p>
+        </div>
+        <div class="steps">
+          <div class="step done">
+            <span class="mark"><span class="i i-check" aria-hidden="true"></span></span>
+            <span class="what">Installed to the home screen</span>
+            <span class="why">iOS delivers web push only to an installed page.</span>
+          </div>
+          <div class="step">
+            <span class="mark">2</span>
+            <span class="what">Allow notifications</span>
+            <a class="btn small accent" href="#firstrun">Allow</a>
+            <span class="why">One request per review. Comments and verdicts send none.</span>
+          </div>
+        </div>
+        <div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications stopped arriving.</strong> This device&rsquo;s subscription lapsed 2 days ago. <a href="#firstrun">Re-subscribe</a></span></div>
+      </div></div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app"><div class="page">
+        <div class="iconrow">
+          <span class="badgeicon">e<span class="badge">3</span></span>
+          <p>Three reviews waiting, answered from the home screen without opening anything.</p>
+        </div>
+        <div class="steps">
+          <div class="step done">
+            <span class="mark"><span class="i i-check" aria-hidden="true"></span></span>
+            <span class="what">Installed to the home screen</span>
+            <span class="why">iOS delivers web push only to an installed page.</span>
+          </div>
+          <div class="step">
+            <span class="mark">2</span>
+            <span class="what">Allow notifications</span>
+            <a class="btn small accent" href="#firstrun">Allow</a>
+            <span class="why">One request per review. Comments and verdicts send none.</span>
+          </div>
+        </div>
+        <div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications stopped arriving.</strong> This device&rsquo;s subscription lapsed 2 days ago. <a href="#firstrun">Re-subscribe</a></span></div>
+      </div></div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A lapsed subscription is a state the surface reports, not one it
+    hides.</b> A queue that looks empty because nothing is arriving is the
+    failure this exists to prevent, and it is silent by nature.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

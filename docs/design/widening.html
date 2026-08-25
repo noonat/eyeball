@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eyeball tearout: widening</title>
+<link rel="stylesheet" href="tearout.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <h1>Widening</h1>
+  <p>Three steps out from a hunk, each one control rather than a navigation. A
+  diff often refers to something it does not contain, and walking to a computer
+  to look it up ends the review, so every file is reachable as the agent had it.
+  That costs no extra storage: the capture holds what the agent changed, and git
+  already holds what nobody touched.</p>
+  <nav>
+    <a href="foundations.html">Foundations</a>
+    <a href="queue.html">Queue</a>
+    <a href="review.html">Review</a>
+    <a class="here" href="widening.html">Widening</a>
+    <a href="project.html">Project</a>
+    <a href="README.md">Readme</a>
+  </nav>
+</header>
+
+<section class="spec" id="hunk">
+  <h2>Step one: the hunk <span class="tag">where reading starts</span></h2>
+  <p>The change with enough surrounding lines to make sense of it. A reference
+  the hunk cannot show is a link rather than a note telling the reviewer to go
+  and look.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; a reference the hunk cannot show</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>Retry ladder</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 of 6 files</b></span>
+            <a class="btn small" href="#hunk"><span class="i i-maximize-2" aria-hidden="true"></span>Whole file</a>
+          </div>
+          <details class="file" open>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr><td class="ln">48</td><td class="sign"></td><td class="src">		<span class="k">if</span> err := w.<span class="f">once</span>(ctx, job); err == <span class="k">nil</span> {</td></tr>
+              </table>
+            </div>
+          </details>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span><code>backoff</code> is defined in <a href="#file">internal/upload/backoff.go</a>, which this review also changes.</span></div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>Retry ladder</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 of 6 files</b></span>
+            <a class="btn small" href="#hunk"><span class="i i-maximize-2" aria-hidden="true"></span>Whole file</a>
+          </div>
+          <details class="file" open>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr><td class="ln">48</td><td class="sign"></td><td class="src">		<span class="k">if</span> err := w.<span class="f">once</span>(ctx, job); err == <span class="k">nil</span> {</td></tr>
+              </table>
+            </div>
+          </details>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span><code>backoff</code> is defined in <a href="#file">internal/upload/backoff.go</a>, which this review also changes.</span></div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>The link out is in a notice, not buried in the code.</b> A tappable
+    identifier inside a monospace line is a target about eight pixels wide, and
+    the line has to keep its column alignment.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="whole">
+  <h2>Step two: the whole file <span class="tag">change still marked</span></h2>
+  <p>The same file with everything around the change, and the change still
+  tinted in place. <b>Marked</b> and <b>Plain</b> switch the tint off, for
+  reading the file as the agent left it rather than as a change.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Change</a>
+          <h1>worker.go</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/upload/</bdi></span><span class="name">worker.go</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#whole" aria-current="true">Marked</a><a href="#whole">Plain</a></span>
+          </div>
+          <div class="file">
+            <div class="code narrow">
+              <table>
+                <tr><td class="ln">33</td><td class="sign"></td><td class="src"><span class="c">// Worker drains the upload queue.</span></td></tr>
+                <tr><td class="ln">34</td><td class="sign"></td><td class="src"><span class="k">type</span> <span class="f">Worker</span> <span class="k">struct</span> {</td></tr>
+                <tr><td class="ln">35</td><td class="sign"></td><td class="src">	store *storage.Store</td></tr>
+                <tr><td class="ln">36</td><td class="sign"></td><td class="src">	max   <span class="k">int</span></td></tr>
+                <tr><td class="ln">37</td><td class="sign"></td><td class="src">}</td></tr>
+                <tr><td class="ln">38</td><td class="sign"></td><td class="src"></td></tr>
+                <tr><td class="ln">39</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">run</span>(ctx context.Context) <span class="k">error</span> {</td></tr>
+                <tr><td class="ln">40</td><td class="sign"></td><td class="src">	job := w.<span class="f">next</span>()</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr><td class="ln">48</td><td class="sign"></td><td class="src">		<span class="k">if</span> err := w.<span class="f">once</span>(ctx, job); err == <span class="k">nil</span> {</td></tr>
+                <tr><td class="ln">49</td><td class="sign"></td><td class="src">			<span class="k">return</span> <span class="k">nil</span></td></tr>
+                <tr><td class="ln">50</td><td class="sign"></td><td class="src">		}</td></tr>
+                <tr><td class="ln">51</td><td class="sign"></td><td class="src">	}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Change</a>
+          <h1>worker.go</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/upload/</bdi></span><span class="name">worker.go</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#whole" aria-current="true">Marked</a><a href="#whole">Plain</a></span>
+          </div>
+          <div class="file">
+            <div class="code narrow">
+              <table>
+                <tr><td class="ln">33</td><td class="sign"></td><td class="src"><span class="c">// Worker drains the upload queue.</span></td></tr>
+                <tr><td class="ln">34</td><td class="sign"></td><td class="src"><span class="k">type</span> <span class="f">Worker</span> <span class="k">struct</span> {</td></tr>
+                <tr><td class="ln">35</td><td class="sign"></td><td class="src">	store *storage.Store</td></tr>
+                <tr><td class="ln">36</td><td class="sign"></td><td class="src">	max   <span class="k">int</span></td></tr>
+                <tr><td class="ln">37</td><td class="sign"></td><td class="src">}</td></tr>
+                <tr><td class="ln">38</td><td class="sign"></td><td class="src"></td></tr>
+                <tr><td class="ln">39</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">run</span>(ctx context.Context) <span class="k">error</span> {</td></tr>
+                <tr><td class="ln">40</td><td class="sign"></td><td class="src">	job := w.<span class="f">next</span>()</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr><td class="ln">48</td><td class="sign"></td><td class="src">		<span class="k">if</span> err := w.<span class="f">once</span>(ctx, job); err == <span class="k">nil</span> {</td></tr>
+                <tr><td class="ln">49</td><td class="sign"></td><td class="src">			<span class="k">return</span> <span class="k">nil</span></td></tr>
+                <tr><td class="ln">50</td><td class="sign"></td><td class="src">		}</td></tr>
+                <tr><td class="ln">51</td><td class="sign"></td><td class="src">	}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>The counts stay in the toolbar and say what they count.</b> Out of
+    the diff, a bare pair of numbers reads as a property of the file rather than
+    of the round.</li>
+    <li><b>The path truncates from the left.</b> Directories are what repeat
+    across a project; the filename is what identifies this one.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="file">
+  <h2>Step three: any file at that round <span class="tag">context, not change</span></h2>
+  <p>A file the review does not touch, opened because the change refers to it.
+  It carries a banner saying so, and the reason is not politeness: a file opened
+  for context looks exactly like a file under review, and a reviewer who
+  confuses them either approves something unread or comments on something
+  unchanged. The banner also says <em>which</em> context it is, because a file
+  can arrive from three places and only two of them are exact.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>worker.go</a>
+          <h1>store.go</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/storage/</bdi></span><span class="name">store.go</span></div>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span><strong>Not part of this review.</strong> Unchanged since the commit round 1 was taken from.</span></div>
+          <div class="file">
+            <div class="code narrow">
+              <table>
+                <tr><td class="ln">88</td><td class="sign"></td><td class="src"><span class="c">// Next claims the oldest queued job.</span></td></tr>
+                <tr><td class="ln">89</td><td class="sign"></td><td class="src"><span class="k">func</span> (s *Store) <span class="f">Next</span>(ctx context.Context) (Job, <span class="k">error</span>) {</td></tr>
+                <tr><td class="ln">90</td><td class="sign"></td><td class="src">	tx, err := s.db.<span class="f">BeginTx</span>(ctx, <span class="k">nil</span>)</td></tr>
+                <tr><td class="ln">91</td><td class="sign"></td><td class="src">	<span class="k">if</span> err != <span class="k">nil</span> {</td></tr>
+                <tr><td class="ln">92</td><td class="sign"></td><td class="src">		<span class="k">return</span> Job{}, errors.<span class="f">Wrap</span>(err, <span class="s">"begin"</span>)</td></tr>
+                <tr><td class="ln">93</td><td class="sign"></td><td class="src">	}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>light &mdash; live fallback</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#file"><span class="i i-chevron-left" aria-hidden="true"></span>worker.go</a>
+          <h1>queue.go</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/upload/</bdi></span><span class="name">queue.go</span></div>
+          <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Live, not from this round.</strong> Nothing captured this file, so it is shown as it is on disk now and may have moved.</span></div>
+          <div class="file">
+            <div class="code narrow">
+              <table>
+                <tr><td class="ln">12</td><td class="sign"></td><td class="src"><span class="c">// next returns the oldest queued job.</span></td></tr>
+                <tr><td class="ln">13</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">next</span>() Job {</td></tr>
+                <tr><td class="ln">14</td><td class="sign"></td><td class="src">	w.mu.<span class="f">Lock</span>()</td></tr>
+                <tr><td class="ln">15</td><td class="sign"></td><td class="src">	<span class="k">defer</span> w.mu.<span class="f">Unlock</span>()</td></tr>
+                <tr><td class="ln">16</td><td class="sign"></td><td class="src">	<span class="k">return</span> w.pending[<span class="n">0</span>]</td></tr>
+                <tr><td class="ln">17</td><td class="sign"></td><td class="src">}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; an image, shown as an image</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Files</a>
+          <h1>plate-04.jpg</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>testdata/</bdi></span><span class="name">plate-04.jpg</span></div>
+          <div class="file">
+            <div class="filefacts">
+              <span class="kind">JPEG image</span>
+              <span class="size">1.4 MB</span>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>Nothing extra is stored to make this work.</b> A capture holds the
+    base commit and the files that differ from it. A file the agent never
+    touched is byte for byte what the base commit already holds, so it comes out
+    of git and costs nothing. A file the agent did touch is in the capture, in
+    scope or not. Either way the reviewer sees what the agent had.</li>
+    <li><b>Three sources, three banners.</b> The capture is frozen and needs no
+    banner beyond saying the file is not under review. The base commit is exact,
+    and says so. The working copy is neither, and warns rather than informs,
+    because it is the one a reviewer can draw a wrong conclusion from.</li>
+    <li><b>The live fallback exists so browsing never dead-ends.</b> A reviewer
+    who cannot look up a definition goes to a computer, and the review ends
+    there. A labeled approximation beats a blank page, and this is the only
+    place in the surface where that trade is taken.</li>
+    <li><b>A file under review never comes from the working copy.</b> It is
+    always in the capture, so no verdict is ever given against a live reading.
+    That boundary is what makes the trade above acceptable.</li>
+    <li><b>A file this surface cannot render says so.</b> An empty panel reads
+    as a failure to load, and the reviewer retries it.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="rendered">
+  <h2>Files a browser can display <span class="tag">page, image, neither</span></h2>
+  <p>Reading every file as text makes the surface useless for whole categories of
+  work. A design mockup is an HTML file, and reviewing one means looking at the
+  page. So is a chart, an icon, a screenshot on a bug. Markdown already renders;
+  this is the same rule applied to everything else that has a rendering.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; a page, with its source one tap away</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#rendered"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>queue.html</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>docs/design/</bdi></span><span class="name">queue.html</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#rendered" aria-current="true">Page</a><a href="#rendered">Source</a></span>
+          </div>
+          <div class="preview">
+            <div class="cap"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Sandboxed</span><span class="dim">390 &times; 800</span></div>
+            <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 190'><rect width='320' height='190' fill='%23faf8f5'/><rect x='18' y='18' width='120' height='9' rx='4' fill='%232b2724'/><rect x='18' y='38' width='250' height='6' rx='3' fill='%232b2724' opacity='.5'/><rect x='18' y='52' width='214' height='6' rx='3' fill='%232b2724' opacity='.5'/><rect x='18' y='78' width='284' height='94' rx='7' fill='%232b2724' opacity='.22'/><text x='160' y='170' font-family='monospace' font-size='11' fill='%232b2724' text-anchor='middle' opacity='.75'>rendered page</text></svg>" alt="">
+          </div>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Runs with no access to this surface. A page an agent wrote is a program, not a document.</span></div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a changed image, before over after</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#rendered"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>icon-192.png</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>web/icons/</bdi></span><span class="name">icon-192.png</span></div>
+          <div class="beforeafter">
+            <div class="preview was">
+              <div class="cap"><span>Before</span><span class="dim">192 &times; 192 &middot; 8.1 kB</span></div>
+              <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%231d2430'/><rect x='18' y='18' width='120' height='9' rx='4' fill='%238aabff'/><rect x='18' y='38' width='250' height='6' rx='3' fill='%238aabff' opacity='.5'/><rect x='18' y='52' width='214' height='6' rx='3' fill='%238aabff' opacity='.5'/><rect x='18' y='78' width='284' height='24' rx='7' fill='%238aabff' opacity='.22'/><text x='160' y='100' font-family='monospace' font-size='11' fill='%238aabff' text-anchor='middle' opacity='.75'>previous</text></svg>" alt="">
+            </div>
+            <div class="preview now">
+              <div class="cap"><span>After</span><span class="dim">192 &times; 192 &middot; 7.4 kB</span></div>
+              <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%2312312e'/><rect x='18' y='18' width='120' height='9' rx='4' fill='%2355d6c4'/><rect x='18' y='38' width='250' height='6' rx='3' fill='%2355d6c4' opacity='.5'/><rect x='18' y='52' width='214' height='6' rx='3' fill='%2355d6c4' opacity='.5'/><rect x='18' y='78' width='284' height='24' rx='7' fill='%2355d6c4' opacity='.22'/><text x='160' y='100' font-family='monospace' font-size='11' fill='%2355d6c4' text-anchor='middle' opacity='.75'>current</text></svg>" alt="">
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>light &mdash; neither</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#rendered"><span class="i i-chevron-left" aria-hidden="true"></span>Files</a>
+          <h1>capture-03.mov</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>testdata/</bdi></span><span class="name">capture-03.mov</span></div>
+          <div class="file">
+            <div class="filefacts">
+              <span class="kind">QuickTime video</span>
+              <span class="size">214 MB</span>
+              <span class="hint">Too large to send over a phone connection.</span>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A page an agent wrote is a program, and it renders in a sandbox from
+    another origin.</b> Without that, a file in a review can read the queue, post
+    comments and approve itself, and the agent that wrote it has every reason to.
+    The frame says so rather than leaving it to be assumed, because the reviewer
+    is about to trust what is inside it.</li>
+    <li><b>SVG belongs on the page side of that line, not the image side.</b> It
+    is a document format that can carry script and is routinely filed with the
+    image formats. Shown through an image element it cannot execute. Opened as a
+    page it can.</li>
+    <li><b>Before over after, at one width.</b> Two images across a phone screen
+    are two thumbnails, which is the same reason diffs are unified. The tint on
+    each frame is the diff palette, so the pair reads the same way a changed line
+    does.</li>
+    <li><b>Dimensions and bytes are on the caption of each.</b> Half of what a
+    reviewer wants from an icon change is whether it got bigger.</li>
+    <li><b>A file that is neither says what it is and stops.</b> Its kind and its
+    size are what the reviewer was actually asking, and a download onto a phone
+    is not something anybody reviews.</li>
+  </ul>
+</section>
+
+<section class="spec" id="browse">
+  <h2>Browsing, and the file that will not render <span class="tag">two states</span></h2>
+  <p>The tree is the project at the round under review. Files the review changes
+  are bold, so browsing for context never loses track of which files the verdict
+  is actually about.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>Files</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-folder" aria-hidden="true"></span><span class="dir"><bdi>harbor /</bdi></span><span class="name">internal</span></div>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>The project as the agent had it. Files this review changes are in bold.</span></div>
+          <div class="tree">
+            <a class="treerow" href="#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">migrations</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            <a class="treerow" href="#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">storage</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            <a class="treerow" href="#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">upload</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            <a class="treerow indent inscope" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">backoff.go</span><span class="counts"><span class="plus">+64</span></span></a>
+            <a class="treerow indent inscope" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">worker.go</span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></a>
+            <a class="treerow indent" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">queue.go</span></a>
+            <a class="treerow" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">doc.go</span></a>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>Files</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-folder" aria-hidden="true"></span><span class="dir"><bdi>harbor /</bdi></span><span class="name">internal</span></div>
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>The project as the agent had it. Files this review changes are in bold.</span></div>
+          <div class="tree">
+            <a class="treerow" href="#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">migrations</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            <a class="treerow" href="#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">storage</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            <a class="treerow" href="#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">upload</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            <a class="treerow indent inscope" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">backoff.go</span><span class="counts"><span class="plus">+64</span></span></a>
+            <a class="treerow indent inscope" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">worker.go</span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></a>
+            <a class="treerow indent" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">queue.go</span></a>
+            <a class="treerow" href="#browse"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">doc.go</span></a>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>Changed files carry their counts in the tree.</b> It is the same
+    information the file list on the review page carries, in the one place a
+    reviewer might otherwise lose it.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

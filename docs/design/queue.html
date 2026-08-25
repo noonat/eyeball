@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eyeball tearout: queue</title>
+<link rel="stylesheet" href="tearout.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <h1>Queue</h1>
+  <p>The home screen, which answers one question: what needs attention. Waiting
+  is the top of the screen and nothing competes with it. Shown populated across
+  three projects, empty, uninstalled, and with the awkward content that a real
+  week produces.</p>
+  <nav>
+    <a href="foundations.html">Foundations</a>
+    <a class="here" href="queue.html">Queue</a>
+    <a href="review.html">Review</a>
+    <a href="widening.html">Widening</a>
+    <a href="project.html">Project</a>
+    <a href="README.md">Readme</a>
+  </nav>
+</header>
+
+<!-- ========================================================== populated -->
+<section class="spec" id="populated">
+  <h2>Populated <span class="tag">three projects, four agents</span></h2>
+  <p>Project and agent are on every row rather than behind a filter, because
+  several of each feed one surface. A filter exists. Needing it in order to see
+  what is waiting would be the failure.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#full-queue"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <span class="wordmark">eyeball</span>
+          <span class="pill waiting">3 waiting</span>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="section">
+            <h2>Waiting on you <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title">Product doc, second pass</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+                <span class="age">3h</span>
+                <span class="title">Spec 018: bulk import for the tag index</span>
+                <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">4m</span>
+                <span class="title">Queue screen markup</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Settled <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row approved" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">2h</span>
+                <span class="title">Delta sync watermark</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+              </a>
+              <a class="row approved" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">Yesterday</span>
+                <span class="title">Voice, both kinds</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 1</span></span>
+              </a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <span class="wordmark">eyeball</span>
+          <span class="pill waiting">3 waiting</span>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="section">
+            <h2>Waiting on you <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title">Product doc, second pass</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+                <span class="age">3h</span>
+                <span class="title">Spec 018: bulk import for the tag index</span>
+                <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">4m</span>
+                <span class="title">Queue screen markup</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Settled <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row approved" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">2h</span>
+                <span class="title">Delta sync watermark</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+              </a>
+              <a class="row approved" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">Yesterday</span>
+                <span class="title">Voice, both kinds</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 1</span></span>
+              </a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The waiting count is in the top bar as well as on the icon badge.</b>
+    Arriving from a notification, the reviewer is on a review page, and this is
+    what tells them whether answering it empties the queue.</li>
+    <li><b>Working rows carry no size.</b> Nothing has been captured yet, so
+    lines added and removed would be a number about the working copy rather than
+    about anything a person will read.</li>
+    <li><b>Settled shows the age, not the size.</b> Finding a verdict given an
+    hour ago is the only reason to look, and the size answered a question that
+    is now closed.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================== empty -->
+<section class="spec" id="empty">
+  <h2>Empty, and uninstalled <span class="tag">two first states</span></h2>
+  <p>An empty queue says so plainly and names the projects eyeball knows about,
+  which is also how a project with a misconfigured root gets noticed. An
+  uninstalled surface leads with the two setup steps, because until they are
+  done no notification arrives and an empty queue means nothing.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; nothing waiting</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span></div>
+        <div class="scroll"><div class="page">
+          <div class="empty">
+            <span class="headline">Nothing waiting</span>
+            <p>Four agents are working across eyeball, harbor and field-notes.</p>
+          </div>
+          <div class="section">
+            <h2>Projects <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/eyeball</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/harbor</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span></span><span class="age">Idle</span><span class="meta"><span class="agent">~/src/field-notes</span></span></a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark &mdash; not installed yet</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span></div>
+        <div class="scroll"><div class="page">
+          <div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications are not set up.</strong> Nothing will reach this phone until both steps are done.</span></div>
+          <div class="steps">
+            <div class="step">
+            <span class="mark">1</span>
+              <span class="what">Add to Home Screen</span>
+              <span class="why">Share, then Add to Home Screen. iOS delivers web push only to an installed page.</span>
+            </div>
+            <div class="step">
+            <span class="mark">2</span>
+              <span class="what">Allow notifications</span>
+              <a class="btn small accent" href="#empty">Allow</a>
+              <span class="why">Available once the page is opened from the home screen.</span>
+            </div>
+          </div>
+          <div class="section">
+            <h2>Waiting on you <span class="count">1</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title">Product doc, second pass</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span></span>
+              </a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The setup notice sits above the queue rather than replacing it.</b>
+    The surface works without notifications, so blocking the reviews behind a
+    setup screen would withhold what already works to sell what does not.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================ awkward -->
+<section class="spec" id="awkward">
+  <h2>Awkward content <span class="tag">the week that breaks it</span></h2>
+  <p>Long titles that wrap to three lines, a path-shaped agent name, a review
+  waiting since Tuesday, an eleven-file change, and eight waiting at once.
+  Fixture content is real on purpose: lorem ipsum hides exactly the problems
+  these pages exist to find.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="pill waiting">8 waiting</span></div>
+        <div class="scroll"><div class="page">
+          <div class="section">
+            <h2>Waiting on you <span class="count">8</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/026-index-migration</span></span></span>
+                <span class="age">4d</span>
+                <span class="title">Spec 026: move the tag index out of the manifest and into its own table, with a migration that survives a half-written state</span>
+                <span class="meta"><span>Round 5</span><span class="dot-sep">11 files</span><span class="counts"><span class="plus">+1,284</span> <span class="minus">&minus;903</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">2d</span>
+                <span class="title">sha256 short ids collide at about 40k rows and nothing handles it</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;2</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">7h</span>
+                <span class="title">.claude/voice.local.md override, and the hook that prefers it</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">3 files</span><span class="counts"><span class="plus">+41</span> <span class="minus">&minus;9</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/write-lock</span></span></span>
+                <span class="age">6h</span>
+                <span class="title">busy_timeout on the write path</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+18</span> <span class="minus">&minus;4</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">5h</span>
+                <span class="title">Diff table markup</span>
+                <span class="meta"><span>Round 4</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+77</span> <span class="minus">&minus;140</span></span></span>
+              </a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="pill waiting">8 waiting</span></div>
+        <div class="scroll"><div class="page">
+          <div class="section">
+            <h2>Waiting on you <span class="count">8</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/026-index-migration</span></span></span>
+                <span class="age">4d</span>
+                <span class="title">Spec 026: move the tag index out of the manifest and into its own table, with a migration that survives a half-written state</span>
+                <span class="meta"><span>Round 5</span><span class="dot-sep">11 files</span><span class="counts"><span class="plus">+1,284</span> <span class="minus">&minus;903</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">2d</span>
+                <span class="title">sha256 short ids collide at about 40k rows and nothing handles it</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;2</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">7h</span>
+                <span class="title">.claude/voice.local.md override, and the hook that prefers it</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">3 files</span><span class="counts"><span class="plus">+41</span> <span class="minus">&minus;9</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/write-lock</span></span></span>
+                <span class="age">6h</span>
+                <span class="title">busy_timeout on the write path</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+18</span> <span class="minus">&minus;4</span></span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">5h</span>
+                <span class="title">Diff table markup</span>
+                <span class="meta"><span>Round 4</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+77</span> <span class="minus">&minus;140</span></span></span>
+              </a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A long agent name truncates, a long title wraps.</b> The title is what
+    the reviewer is choosing between, so it gets all the lines it needs. The
+    agent name is an address, and its tail is the part that repeats.</li>
+    <li><b>Age is coarse and stays coarse.</b> Minutes, hours, days, then a
+    weekday. The number a reviewer acts on is the order, and to-the-minute
+    precision on a four-day-old review is false detail.</li>
+    <li><b>Nothing sorts by project.</b> Waiting longest is first. Grouping by
+    project would put a fresh request above one that has been waiting since
+    Tuesday, which is the opposite of what the screen is for.</li>
+  </ul>
+</section>
+
+<!-- ================================================== expand: wide queue -->
+<div class="full" id="full-queue" data-theme="light">
+  <div class="closebar"><span>queue &mdash; wide layout, 860px column</span><a href="#populated">close</a></div>
+  <div class="app">
+    <div class="topbar"><span class="wordmark">eyeball</span><span class="pill waiting">3 waiting</span></div>
+    <div class="scroll"><div class="page">
+      <div class="section">
+        <h2>Waiting on you <span class="count">3</span></h2>
+        <div class="rows">
+          <a class="row waiting" href="#full-queue">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+            <span class="age">12m</span>
+            <span class="title">Product doc, second pass</span>
+            <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+          </a>
+          <a class="row waiting" href="#full-queue">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+            <span class="age">1h</span>
+            <span class="title">Upload worker and its retry ladder</span>
+            <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+          </a>
+          <a class="row waiting" href="#full-queue">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+            <span class="age">3h</span>
+            <span class="title">Spec 018: bulk import for the tag index</span>
+            <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+          </a>
+        </div>
+      </div>
+      <div class="section">
+        <h2>Working <span class="count">2</span></h2>
+        <div class="rows">
+          <a class="row working" href="#full-queue">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+            <span class="age">4m</span>
+            <span class="title">Queue screen markup</span>
+            <span class="meta"><span>Changes requested, round 2</span></span>
+          </a>
+          <a class="row working" href="#full-queue">
+            <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+            <span class="age">26m</span>
+            <span class="title">Offline outbox drainer</span>
+            <span class="meta"><span>Not requested yet</span></span>
+          </a>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1 @@
+chevron-left,chevron-right,folder,bot,message-square,check,x,pencil,trash-2,refresh-cw,info,triangle-alert,circle-alert,bell,file-text,clock,chevron-down,maximize-2

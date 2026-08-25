@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eyeball tearout: review</title>
+<link rel="stylesheet" href="tearout.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <h1>Review</h1>
+  <p>The page a notification opens. The brief before the work, the change
+  itself, and a pinned decision bar. Shown as a second round of a document, as a
+  large change that opens collapsed, as a first round with an empty base, with a
+  comment being written, and after the verdict.</p>
+  <nav>
+    <a href="foundations.html">Foundations</a>
+    <a href="queue.html">Queue</a>
+    <a class="here" href="review.html">Review</a>
+    <a href="widening.html">Widening</a>
+    <a href="project.html">Project</a>
+    <a href="README.md">Readme</a>
+  </nav>
+</header>
+
+<!-- ============================================================= round 2 -->
+<section class="spec" id="round2">
+  <h2>A second round <span class="tag">document, small change</span></h2>
+  <p>Under roughly ten files and a few hundred lines the whole change is on the
+  page and scrolling is reading. The note is third rather than buried, because
+  on a second round it says what was done about the first one, which is the
+  question the reviewer opens with.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#full-review"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Product doc</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now
+            names the control instead of describing the behavior, and the
+            base-is-empty case moved out of Open questions into A round is
+            frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the
+            one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#round2" aria-current="true">Since round 1</a><a href="#round2">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <div class="blk changed was"><p><strong>What the change is
+                measured against is one control with two settings.</strong> The
+                previous round is the default from round two onward and answers
+                what moved since the last reading.</p>
+                <span class="was-text">A control offers whatever bases exist.</span></div>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#round2">Request changes</a><a class="btn primary" href="#round2">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Product doc</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now
+            names the control instead of describing the behavior, and the
+            base-is-empty case moved out of Open questions into A round is
+            frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the
+            one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#round2" aria-current="true">Since round 1</a><a href="#round2">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <div class="blk changed was"><p><strong>What the change is
+                measured against is one control with two settings.</strong> The
+                previous round is the default from round two onward and answers
+                what moved since the last reading.</p>
+                <span class="was-text">A control offers whatever bases exist.</span></div>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#round2">Request changes</a><a class="btn primary" href="#round2">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The decision bar never scrolls away</b>, so the length of the document
+    has no bearing on the cost of answering it.</li>
+    <li><b>The tally is what is about to be sent.</b> Submitting is the moment a
+    reading becomes irreversible, and the reviewer should not have to remember
+    how many points they made.</li>
+    <li><b>Both verdicts sit on the bar at equal size, and only one is filled.</b>
+    Approve is filled and on the right, under the thumb.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ========================================================= large, code -->
+<section class="spec" id="large">
+  <h2>A large change <span class="tag">file list, one open</span></h2>
+  <p>Past the threshold the files come first with their counts and each expands
+  on a tap. Both failures are real: scrolling through four thousand lines to
+  find the interesting one, and tapping through eleven collapsed files to find
+  the same. Selecting a line is what opens the composer.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; line selected, composer open</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Retry ladder</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and
+            records the failure on the job. Measured against the staging bucket:
+            a cold connection takes 40s, so the first wait is 60s not 5s.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+              </table>
+            </div>
+            <div class="filecomposer">
+              <div class="composer">
+                <div class="anchor">internal/upload/worker.go:42</div>
+                <div class="field empty">Comment on line 42&hellip;</div>
+                <div class="foot">
+                  <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
+                  <a class="btn small accent" href="#large">Add</a>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span></summary></details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#large">Request changes</a><a class="btn primary" href="#large">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark &mdash; refused verdict</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Retry ladder</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and
+            records the failure on the job. Measured against the staging bucket:
+            a cold connection takes 40s, so the first wait is 60s not 5s.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+          </div>
+
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span></summary></details>
+
+        </div>
+        <div class="decide">
+          <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
+          <div class="buttons"><a class="btn danger" href="#large">Request changes</a><a class="btn primary" href="#large">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The composer opens under the line it is attached to</b>, so the code
+    it is about is still on screen while the comment is typed. The level chips
+    let the same text land on the file or the review instead, without
+    retyping.</li>
+    <li><b>The refusal appears on the bar, above the buttons.</b> Both buttons
+    stay live: approving with no comment is a valid verdict, and only requesting
+    changes needs something to act on.</li>
+    <li><b>A collapsed file list keeps the counts and the full path.</b> The path
+    truncates from the left, so the filename is what survives.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================= round 1 -->
+<section class="spec" id="fresh">
+  <h2>A first round with an empty base <span class="tag">nothing marked</span></h2>
+  <p>A document written from scratch is entirely new, and marking every passage
+  marks none of them. It reads as a document, which is the correct reading. The
+  toolbar has no compare control, because there is only one thing to compare
+  against and it is empty.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Spec 018</h1></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 3h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span></div>
+            <h2 class="title">Spec 018: bulk import for the tag index</h2>
+          </div>
+          <div class="note">
+            <span class="from">Note</span>
+            <p>New spec, nothing to diff against. The open question is iteration
+            3: whether an import that partially fails should roll back or report
+            per row.</p>
+          </div>
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file, new</b></span>
+            <a class="btn small" href="#fresh">Raw diff</a>
+          </div>
+          <div class="prose">
+            <div class="blk"><h1>Bulk import for the tag index</h1></div>
+            <div class="blk"><p>Tagging a season&rsquo;s worth of notes one at a
+            time is the reason the index sits half empty. Import takes a manifest
+            and adds what is missing.</p></div>
+            <div class="blk"><h2>Iteration 1: the manifest format</h2></div>
+            <div class="blk"><ul>
+              <li>Read a manifest from a path or from stdin</li>
+              <li>Skip a tag already present by name or by slug</li>
+              <li>Report added and skipped separately</li>
+            </ul></div>
+          </div>
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#fresh">Request changes</a><a class="btn primary" href="#fresh">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark &mdash; decided, and a late comment</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Delta sync</h1></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill approved">Approved 2h ago</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span></div>
+            <h2 class="title">Delta sync watermark</h2>
+          </div>
+          <div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> 3 comments and the verdict went out 2 hours ago.</span></div>
+          <div class="note">
+            <span class="from">Verdict note</span>
+            <p>Good. The clamp on a clock that has gone backwards is the part
+            that worried me, and the test covers it.</p>
+          </div>
+          <div class="composer">
+            <div class="anchor">This review</div>
+            <div class="field empty">One more thing&hellip;</div>
+            <div class="foot">
+              <span class="hint">Sends immediately</span>
+              <a class="btn small accent" href="#fresh">Send</a>
+            </div>
+          </div>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/sync.go</bdi></span><span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span></span></summary></details>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A decided round has no decision bar and keeps a comment box.</b>
+    Batching protects a reading in progress, and that reading is over, so a
+    comment written now goes out on its own immediately. The box says so rather
+    than leaving the reviewer to guess.</li>
+    <li><b>The verdict note is shown in the same shape as the agent&rsquo;s
+    note.</b> Both are somebody speaking about the whole thing rather than about
+    a line of it.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="history">
+  <h2>An earlier round <span class="tag">one tap away, out of the way</span></h2>
+  <p>Comments are done once a new round starts, so they are not on the screen
+  the reviewer opens. They are not dropped either. An earlier round keeps its
+  comments beside what the agent did about each one, which is the only place
+  that pairing exists.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; reached from the current round</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+          <div class="section">
+            <h2>Earlier rounds <span class="count">1</span></h2>
+            <div class="tree">
+              <a class="treerow" href="#history"><span class="i i-message-square" aria-hidden="true"></span><span class="nm">Round 1 &middot; changes requested</span><span class="hint">6h ago</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+            </div>
+          </div>
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now
+            names the control instead of describing the behavior.</p>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; round 1, closed</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>Round 1</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill changes">Changes requested</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Closed 6 hours ago. Round 2 is the current one.</span></div>
+
+          <div class="section">
+            <h2>Comments <span class="count">2</span></h2>
+            <div>
+              <div class="comment">
+                <div class="anchor"><span class="where">docs/product.md:214&ndash;219</span></div>
+                <blockquote class="quoted">Widening is one control, not a navigation.</blockquote>
+                <p>This reads as a rule but the section never says what the control looks like. Name it.</p>
+              </div>
+              <div class="comment">
+                <div class="anchor"><span class="where">This review</span></div>
+                <p>The base-is-empty case is buried in Open questions. It is a behavior, not a question.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>What was done <span class="count">2</span></h2>
+            <div>
+              <div class="comment">
+                <div class="anchor"><span class="where">docs/product.md:214&ndash;219</span></div>
+                <p>Named it. The section now describes a segmented control with two settings.</p>
+              </div>
+              <div class="comment">
+                <div class="anchor"><span class="where">This review</span></div>
+                <p>Moved into A round is frozen, with the cost of running outside git stated.</p>
+              </div>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A closed round has no decision bar and no comment box.</b> It is a
+    record. The only thing to do with it is read it, and the way back to the
+    current round is the way in.</li>
+    <li><b>The agent&rsquo;s replies are here and nowhere else.</b> The current
+    round carries one note saying what changed, because that is what the
+    reviewer opens with. Per-comment answers are detail, and detail belongs
+    where somebody went looking for it.</li>
+    <li><b>Earlier rounds are a list, not a timeline.</b> After four rounds the
+    reviewer wants one of them, not all of them, and a list of four rows is
+    faster to choose from than a scroll of four transcripts.</li>
+  </ul>
+</section>
+
+<!-- ================================================= expand: wide review -->
+<div class="full" id="full-review" data-theme="light">
+  <div class="closebar"><span>review &mdash; wide layout, line numbers return</span><a href="#round2">close</a></div>
+  <div class="app">
+    <div class="topbar"><a class="back" href="#full-review"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1></div>
+    <div class="scroll"><div class="page">
+      <div class="brief">
+        <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+        <h2 class="title">Product doc, second pass</h2>
+      </div>
+      <div class="note">
+        <span class="from">Note</span>
+        <p>Both comments from round 1 are done. The widening section now names
+        the control instead of describing the behavior, and the base-is-empty
+        case moved out of Open questions into A round is frozen.</p>
+      </div>
+      <div class="toolbar">
+        <span class="counts"><b class="files">2 files</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+        <span class="segmented"><a href="#full-review" aria-current="true">Since round 1</a><a href="#full-review">Whole review</a></span>
+      </div>
+      <details class="file" open>
+        <summary><span class="path"><bdi>internal/store/round.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span></span></summary>
+        <div class="code narrow">
+          <table>
+            <tr class="hunkhead"><td colspan="3">@@ 88,6 +88,11 @@ func (s *Store) Freeze</td></tr>
+            <tr><td class="ln">88</td><td class="sign"></td><td class="src">	<span class="c">// Capture before the reply, so a crash cannot leave a round with no content.</span></td></tr>
+            <tr class="del"><td class="ln">90</td><td class="sign">&minus;</td><td class="src">	<span class="k">if</span> err := s.<span class="f">capture</span>(<span class="w">ctx</span>, id); err != <span class="k">nil</span> {</td></tr>
+            <tr class="add"><td class="ln">90</td><td class="sign">+</td><td class="src">	<span class="k">if</span> err := s.<span class="f">capture</span>(<span class="w">ctx, base</span>, id); err != <span class="k">nil</span> {</td></tr>
+            <tr><td class="ln">91</td><td class="sign"></td><td class="src">		<span class="k">return</span> errors.<span class="f">Wrap</span>(err, <span class="s">"capture round"</span>)</td></tr>
+            <tr><td class="ln">92</td><td class="sign"></td><td class="src">	}</td></tr>
+            <tr class="add"><td class="ln">93</td><td class="sign">+</td><td class="src">	<span class="k">if</span> strings.<span class="f">TrimSpace</span>(note) == <span class="s">""</span> {</td></tr>
+            <tr class="add"><td class="ln">94</td><td class="sign">+</td><td class="src">		<span class="k">return</span> ErrNoteRequired</td></tr>
+            <tr class="add"><td class="ln">95</td><td class="sign">+</td><td class="src">	}</td></tr>
+          </table>
+        </div>
+      </details>
+    </div>
+    <div class="decide">
+      <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+      <div class="buttons"><a class="btn danger" href="#full-review">Request changes</a><a class="btn primary" href="#full-review">Approve</a></div>
+    </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

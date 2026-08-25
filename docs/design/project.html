@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eyeball tearout: project</title>
+<link rel="stylesheet" href="tearout.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <h1>Project</h1>
+  <p>One per project, reachable from the queue and from any review header. It
+  answers the step-back question: what is going on in this repository right now,
+  across every review and outside all of them.</p>
+  <nav>
+    <a href="foundations.html">Foundations</a>
+    <a href="queue.html">Queue</a>
+    <a href="review.html">Review</a>
+    <a href="widening.html">Widening</a>
+    <a class="here" href="project.html">Project</a>
+    <a href="README.md">Readme</a>
+  </nav>
+</header>
+
+<section class="spec" id="populated">
+  <h2>Open reviews over the working copy <span class="tag">two agents</span></h2>
+  <p>The reviews come first because they are the part that can be acted on. The
+  working copy is below them and is live rather than frozen, because showing the
+  present is its whole job.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>harbor</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="agent">~/src/harbor</span></div>
+            <h2 class="title">harbor</h2>
+          </div>
+
+          <div class="section">
+            <h2>Open reviews <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working copy <span class="count">5 files</span></h2>
+            <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Everything changed on disk right now, live. Read only: a verdict belongs to a review.</span></div>
+            <div class="tree">
+              <a class="treerow" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/upload/worker.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/upload/backoff.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow inscope" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain.go</span><span class="counts"><span class="plus">+120</span> <span class="minus">&minus;3</span></span></a>
+              <a class="treerow inscope" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain_test.go</span><span class="counts"><span class="plus">+64</span></span></a>
+              <a class="treerow inscope" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">docs/architecture.md</span><span class="counts"><span class="plus">+11</span> <span class="minus">&minus;4</span></span></a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>harbor</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="agent">~/src/harbor</span></div>
+            <h2 class="title">harbor</h2>
+          </div>
+
+          <div class="section">
+            <h2>Open reviews <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working copy <span class="count">5 files</span></h2>
+            <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Everything changed on disk right now, live. Read only: a verdict belongs to a review.</span></div>
+            <div class="tree">
+              <a class="treerow" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/upload/worker.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/upload/backoff.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow inscope" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain.go</span><span class="counts"><span class="plus">+120</span> <span class="minus">&minus;3</span></span></a>
+              <a class="treerow inscope" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain_test.go</span><span class="counts"><span class="plus">+64</span></span></a>
+              <a class="treerow inscope" href="#populated"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">docs/architecture.md</span><span class="counts"><span class="plus">+11</span> <span class="minus">&minus;4</span></span></a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>A changed file already claimed by a review is marked and carries no
+    counts.</b> Its numbers belong to the round that captured it, and the disk
+    has moved on since. Showing a live count next to a frozen review invites a
+    comparison that means nothing.</li>
+    <li><b>The unclaimed files are the interesting ones.</b> They are work no
+    agent has submitted, which is the thing this view exists to surface. They
+    keep their counts, because the disk is the only thing they are measured
+    against.</li>
+    <li><b>Nothing here is reviewable.</b> A verdict belongs to a review, and a
+    review is a question an agent asked. Commenting from this view would answer
+    a question nobody put.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="edge">
+  <h2>A clean tree, and a project git cannot see <span class="tag">two states</span></h2>
+  <p>A project whose work is all committed says so rather than showing an empty
+  panel. A directory that is not a git repository is a project eyeball can still
+  run reviews for, and this one view is what it loses.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; everything committed</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>field-notes</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="agent">~/src/field-notes</span></div>
+            <h2 class="title">field-notes</h2>
+          </div>
+          <div class="section">
+            <h2>Open reviews <span class="count">1</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+                <span class="age">3h</span>
+                <span class="title">Spec 018: bulk import for the tag index</span>
+                <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+              </a>
+            </div>
+          </div>
+          <div class="section">
+            <h2>Working copy</h2>
+            <div class="empty">
+              <span class="headline">Nothing changed on disk</span>
+              <p>Everything the open review covers is committed.</p>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; not a git repository</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>scratch</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="agent">~/work/scratch</span></div>
+            <h2 class="title">scratch</h2>
+          </div>
+          <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>No git repository here, and no marker file.</strong> A round has nothing to diff against, so a first request will show whole files.</span></div>
+          <div class="section">
+            <h2>Working copy</h2>
+            <div class="empty">
+              <span class="headline">Cannot be listed</span>
+              <p>What changed on disk is a question only git answers. Reviews still work; this view does not.</p>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>The warning names what is lost, not what is missing.</b> "No git
+    repository" alone reads as a failure. What matters to the reviewer is that a
+    first round will show whole files rather than a change.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>
