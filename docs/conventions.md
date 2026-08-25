@@ -121,9 +121,20 @@ literal. `db.ExecContext(ctx, "UPDATE ...")` is one statement and reads as one
 line. Wrapping starts to pay once there are parameters to line up under the
 query.
 
-**Judgment.** Do not wrap to hit a margin. Go tolerates long lines. Never break
-a string constant across lines for width: the reader then has to reassemble the
-message to know what it says.
+**Judgment.** Do not wrap to hit a margin. Go tolerates long lines, and what
+matters is whether a reader can scan the line, not how many columns it occupies.
+Never break a string constant across lines for width: the reader then has to
+reassemble the message to know what it says.
+
+A line that is genuinely hard to read is hard because of chaining or nesting,
+not because of its length, and the fix for that is to split the logic into named
+steps. Folding the same expression onto more lines makes it longer without
+making it simpler.
+
+**Judgment.** A composite literal goes on one line, or gives every field its own
+line. The half-wrapped form, where some fields share a line inside a literal
+that is already broken, fails for the same reason a half-wrapped argument list
+does.
 
 **Judgment.** A long HTML fragment is the exception, and it earns it past
 roughly a hundred characters, where one line stops being readable at all. Hoist
