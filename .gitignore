@@ -1,0 +1,14 @@
+# A developer's own conversational voice, which the UserPromptSubmit hook prefers
+# over the committed .claude/voice.md when it exists. Personal, so it is never
+# committed. The prose voice in docs/voice.md is shared and has no override.
+/.claude/voice.local.md
+
+# Python bytecode from the tearout helper scripts.
+__pycache__/
+
+# Binaries a bare `go build` drops in the working directory. Run from inside a
+# command's own directory it lands there instead, named for the directory.
+/eyeball
+/cmd/eyeball/eyeball
+/tool/icons/icons
+/tool/tearout/tearout

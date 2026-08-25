@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-.}/.claude\"; f=\"$d/voice.local.md\"; [ -f \"$f\" ] || f=\"$d/voice.md\"; [ -f \"$f\" ] && jq -Rs '{hookSpecificOutput:{hookEventName:\"UserPromptSubmit\",additionalContext:.}}' < \"$f\" || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

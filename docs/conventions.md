@@ -1,0 +1,444 @@
+# Conventions
+
+How code in this repository is written. Each entry says whether it is
+**enforced** or left to **judgment**, because the difference decides how much it
+can be relied on.
+
+A convention that is only written down gets violated. So where a rule can be
+checked mechanically it is, and this file says which.
+
+Prose is [voice.md](voice.md). Anything with a screen starts at
+[design/README.md](design/README.md).
+
+## Go
+
+**Enforced by `make lint`.** `gofmt`, `go vet`, `staticcheck`. No exceptions and
+no suppression comments. If staticcheck is wrong, say why in the code.
+
+**Enforced by `internal/convention`.** Every exported type, function, method,
+struct field and package-level value carries a doc comment starting with its
+name.
+
+One declaration can bind several names, and a comment starting with any of them
+satisfies the rule, since starting with all of them is impossible. Two fields
+declared separately are two declarations and need a comment each.
+
+```go
+// Old and New are the line numbers, blank where the line exists on one side.
+Old, New int
+
+// Base is the commit a round's capture was taken against.
+Base string
+// Files maps a path to the hash of its content at that round.
+Files map[string]string
+```
+
+**Enforced by `internal/convention`.** A declared function opens and closes its
+braces on different lines. A one-line body reads as a value rather than as code,
+so the next person adds a statement and reformats the whole thing, and the diff
+hides what changed. Function literals are exempt: a small transform passed as an
+argument is the one place the compact form is clearer.
+
+**Enforced by `internal/convention`.** An argument list wraps all or nothing. If
+a newline falls between two arguments, every argument goes on its own line and
+the first break is after the open paren. The half-wrapped form is what this
+rules out: the call's name and an argument share a line, so a reader has to find
+where the list starts, and adding an argument reflows the call.
+
+A newline *inside* an argument does not count, which keeps the common case
+legal:
+
+```go
+rounds = append(rounds, round{
+    id:   id,
+    base: base,
+})
+```
+
+This is stricter than it looks. Grouping the values onto a continuation line
+reads well and is still a violation, because the writer and the format string go
+on sharing a line with the call:
+
+```go
+// Bad
+fmt.Fprintf(&b, `<span class="meta">round %d, %d files</span>`,
+    n, len(files))
+
+// Good
+fmt.Fprintf(
+    &b,
+    `<span class="meta">round %d, %d files</span>`,
+    n,
+    len(files),
+)
+```
+
+**Enforced by `internal/convention`.** A new package is listed in the layout
+block in [architecture.md](architecture.md) in the change that creates it, with
+a one-line description. A list missing entries stops being read as a list of
+what exists.
+
+**Judgment.** Each package carries a `doc.go` with a terse package comment:
+purpose and package-scoped invariants, pointing at its counterpart in `docs/`
+for the narrative. The prose lives in `docs/`, not in `doc.go`.
+
+**Judgment.** `main` calls one function and reports what it returns:
+
+```go
+func main() {
+    if err := run(); err != nil {
+        fmt.Fprintf(os.Stderr, "eyeball: %+v\n", err)
+        os.Exit(1)
+    }
+}
+```
+
+`os.Exit` from wherever a call happened to fail skips every deferred close, so a
+half-written capture stays where a whole one was expected. It also scatters the
+decision about what a failure looks like across a dozen sites, one of which will
+drift.
+
+**Judgment.** A doc comment sits on the thing it describes, not on the const
+block above it, where a reader looking at the function never sees it.
+
+**Judgment.** A struct literal that does not fit on one line puts every field on
+its own line, keyed, with a trailing comma and the brace alone. The keyed form
+lets gofmt align the values, adding a field touches one line instead of
+reflowing the literal, and the closing brace shows where the value ends.
+
+**Judgment.** `if err := f(); err != nil` earns its compactness on a short call
+and loses it on a long one. Past about a hundred characters the reader has to
+find the semicolon before knowing what is being tested, so assign on one line
+and test on the next. The compact form stays where nothing is hidden, as in a
+close whose error is checked on the same line.
+
+**Judgment.** Do not wrap a call whose only arguments are a context and a string
+literal. `db.ExecContext(ctx, "UPDATE ...")` is one statement and reads as one
+line. Wrapping starts to pay once there are parameters to line up under the
+query.
+
+**Judgment.** Do not wrap to hit a margin. Go tolerates long lines. Never break
+a string constant across lines for width: the reader then has to reassemble the
+message to know what it says.
+
+**Judgment.** A long HTML fragment is the exception, and it earns it past
+roughly a hundred characters, where one line stops being readable at all. Hoist
+it to a named `const` above the function that formats it, with the parts joined
+by `+` and a doc comment naming the arguments in order:
+
+```go
+// rowHTML takes the href, the title, and the counts.
+const rowHTML = (`<a class="row" href=%q>` +
+    `<span class="title">%s</span>` +
+    `<span class="counts">%s</span></a>`)
+```
+
+The first part sits on the paren's line. That looks inconsistent and is the only
+form that survives gofmt. Breaking after the open paren and dedenting the
+closing paren is a **syntax error**: a line ending in a string literal ends in a
+terminating token, so Go inserts a semicolon and the expression closes before
+the `)` is reached.
+
+**Judgment.** Wrap a call chain after the dot, with the chain indented, rather
+than by breaking the argument list.
+
+**Judgment.** An enum's values carry its name: `KindMarkdown`, not `Markdown`.
+At the point of use a bare `Markdown` reads as a variable, and nothing says
+which of several sets it belongs to. Prose in comments keeps the name a reader
+will see elsewhere: the wire format writes `not_found`, so a comment says
+`not_found` and the constant is `CodeNotFound`.
+
+**Judgment.** A function that returns HTML leads with a verb. A constant holding
+a fragment ends in `HTML`. So `renderRow` builds the markup and `rowHTML` is the
+template it formats. No check enforces this: telling a noun phrase from a verb
+phrase needs a word list, and a check built on one is wrong at the edges.
+
+**Judgment.** Do not name a thing for its position in the code. `first` and
+`second` holding two captures say only which line declared them. Name what
+differs: `base` and `head`, `stored` and `incoming`. Where nothing differs,
+number them: `pass1`, `pass2`. An ordinal is fine when position is the meaning.
+
+**Judgment.** A set is `map[T]struct{}`, not `map[T]bool`. A bool implies that
+`false` means something, and a reader has to work out whether an absent key and
+a `false` value differ.
+
+**Judgment.** No `any` or `interface{}` in domain code. Generics where they fit.
+
+**Judgment.** Narrow interfaces declared at the point of use. The server
+declares the interface its handlers need, listing only the methods they call,
+satisfied by the concrete store. A package-wide store interface grows to the
+union of every caller and stops saying what any one handler depends on.
+
+## Dependencies and errors
+
+**Stdlib first.** `net/http` and `http.ServeMux` over a router framework,
+`database/sql` over an ORM, `encoding/json` over an external JSON library. The
+bar is "does this earn its keep", not "is this stdlib". Pure-Go dependencies
+keep the binary static and CGO free, which is what makes `go install` produce
+something that works.
+
+The dependency table lives in [architecture.md](architecture.md), with one line
+per entry saying what it buys. A dependency added without an entry there is a
+dependency nobody weighed.
+
+**Package-qualified, de-stuttered names.** `store.Open`, not `store.OpenStore`.
+The exception is a package's namesake type, which keeps the name: `blob.Store`,
+the `context.Context` idiom.
+
+**`cockroachdb/errors`, not stdlib `errors` or `fmt.Errorf`.** A stack at the
+earliest possible origination point, exactly once.
+
+For a foreign error that point is the boundary where it enters this code: wrap
+it on the first line, with `errors.Wrapf` when there is context worth adding and
+`errors.WithStack` when the error already names its operation. Context is
+lowercase and unpunctuated, as in `errors.Wrap(err, "open blob store")`, so a
+wrapped chain reads as a sentence.
+
+For an error originating here, that point is where the return chain starts.
+Attach the stack where the error is constructed, not where it is finally
+handled. By then the frames that would say which of eleven return points
+produced it are gone.
+
+Bare-return anything that already carries a stack, and re-wrap only to add
+context. Sentinels are `Err`-prefixed package vars. Branch with `errors.Is` and
+`errors.As`.
+
+**Handlers map failures to a response** with the right code. A store failure is
+`500`, a malformed request is `400`. Never leak a raw error string to a client.
+
+## Tests
+
+**Enforced by `internal/convention`.** A table test runs each row in its own
+`t.Run`, and creates its gomega instance **inside** the closure:
+
+```go
+for _, c := range cases {
+    t.Run(c.name, func(t *testing.T) {
+        g := NewWithT(t)
+        g.Expect(Kind(c.path)).To(Equal(c.want))
+    })
+}
+```
+
+Binding gomega to the parent `t` attributes the failure to the function instead
+of the row, hides the row's name, and stops the table at the first failure. The
+closure fixes all three for one line.
+
+What the check reports is a closure **reaching for** a gomega bound outside it.
+Binding one outside the loop is allowed when it is used out there, which setup
+running once before the loop needs.
+
+**Enforced by `internal/convention`.** An assertion goes through a named gomega,
+not one made in the same expression. `NewWithT(t).Expect(x)` reads as one thing
+and is two, and the next assertion has to either repeat the construction or
+rewrite the line.
+
+**Enforced by `internal/convention`.** Never range over an anonymous literal.
+Assign the slice or map to a variable first. The values otherwise sit between
+`range` and the loop body, so reading the loop means reading past them, and the
+loop's subject has no name to refer to. This holds for every literal, not only a
+table.
+
+```go
+// Bad
+for _, name := range []string{"a.md", "b.go", "c.png"} {
+
+// Good
+paths := []string{"a.md", "b.go", "c.png"}
+for _, path := range paths {
+```
+
+**Enforced by `internal/convention`.** A table's rows name their fields, one per
+line. Positional fields stop being readable past two of them, and adding a field
+silently reassigns every existing value in every row. The struct type is
+declared inline rather than as a named type. This is the one place an anonymous
+struct is preferred.
+
+**Enforced by `internal/convention`.** A test is named for what it tests, in the
+shape `go vet` already enforces for examples:
+
+| Name | Tests |
+| ---- | ----- |
+| `TestStore` | the package-level type or function `Store` |
+| `TestStore_Freeze` | the method `Freeze` on `Store` |
+| `TestStore_emptyBase` | `Store`, one narrow case the broad test does not cover |
+| `TestStore_Freeze_emptyBase` | `Freeze`, one narrow case |
+| `Test_replayIsDeterministic` | the package itself, where there is no identifier |
+
+`X` must resolve to a package-level type or function in the package under test,
+and `Y` to a method of `X`. A third segment is a description and starts
+lowercase, which is what keeps it from being read as a method:
+`TestStore_Freeze` names a method and `TestStore_freeze` names a case.
+
+Those are the rules `go vet` applies to `ExampleT`, `ExampleT_M` and
+`ExampleT_M_suffix`. It does not apply them to tests. Measured against Go 1.26:
+`TestStore_NoSuchMethod` and `TestNoSuchTypeAtAll` pass vet and run, while the
+example spellings of both are rejected. So the check is written here rather than
+delegated.
+
+Vet does catch one thing already, during `go test`'s own build: a name whose
+first letter after `Test` is lowercase. `Test_x` is legal, because an underscore
+is not a lowercase letter, which is what makes the package-level form usable.
+
+**Enforced by `internal/convention`.** Tests for one subject are kept together
+and ordered broader first. The order is the tuple `(X, Y, Z)` with an empty
+segment sorting first, which is not the same as sorting the names as strings:
+`_` sorts after the uppercase letters, so plain alphabetical puts
+`TestStore_Freeze` above `TestStore_emptyBase` and buries the type-level case
+under the methods.
+
+```go
+func TestStore(t *testing.T)                  {}
+func TestStore_emptyBase(t *testing.T)        {}
+func TestStore_Freeze(t *testing.T)           {}
+func TestStore_Freeze_emptyBase(t *testing.T) {}
+func TestStore_Open(t *testing.T)             {}
+```
+
+**Judgment.** The convention covers the test function's own name. Subtest names
+passed to `t.Run` are prose and describe the row.
+
+**Judgment.** A test passes `t.Context()`, not `context.Background()`. It is
+canceled when the test ends, so anything the test started stops with it.
+
+**Judgment.** A test helper that asserts takes the gomega, not the `*testing.T`.
+Taking `t` and constructing a gomega inside means every helper makes its own,
+and the caller already has one. `THelper` is a field on `WithT` holding
+`t.Helper`, so frame skipping still works. A helper that asserts nothing needs
+neither.
+
+**Judgment.** Prove each check can fail *individually*. `NewWithT` fails
+fatally, so a second assertion in the same subtest never runs once the first has
+failed.
+
+**Judgment.** Prove a new gate can fail before trusting a pass from it. Write
+the violation, watch the gate go red, then remove it. In `internal/convention`
+this is not a habit but a test: every check has a fixture it must flag.
+
+**Judgment.** Write that violation from the rule, not from the implementation. A
+gate proved against a violation of its author's choosing tests the author's
+reading of the rule.
+
+**Judgment.** When a test cannot fail, test something else. Check the package's
+import list instead, so adding to it is a decision somebody makes on purpose.
+
+**Judgment.** Cover the adversarial shapes, not only the happy path. For a
+capture: an empty base, a file that is only whitespace, a path with a newline in
+it, a round that changes nothing. For a diff: a file with no trailing newline,
+one line replaced by four, a rename. Combine them, because the bug lives in the
+combination.
+
+**Judgment.** Pin against an independent source, not against another copy of the
+same code. A test pinning one function against another passes on a shared
+mistake. The icon generator's test compares its output to the committed
+stylesheet, which is why it is worth having.
+
+## Prose formatting
+
+**Enforced by `make lint`.** Oxfmt formats every committed markdown file at 80
+columns with `proseWrap: always`. A wrap is the tool's job and never a
+hand-adjusted line.
+
+**Specs are formatted like anything else.** backlog derives a todo's id by
+hashing its text, so formatting changes ids, and so does editing a todo at all.
+The answer is backlog's own: never cache an id, and re-run `backlog spec list`
+when a command reports one it cannot find. Nothing outside the spec file holds
+an id, state lives in the checkbox, and a review comment anchors to a line in a
+frozen capture rather than to text still being edited.
+
+## TypeScript
+
+Arrives with the surface. The rules are settled and the toolchain beyond oxfmt
+is not installed until there is something to check.
+
+**`strict: true` and more.** `noUncheckedIndexedAccess`,
+`exactOptionalPropertyTypes`, `noImplicitOverride`,
+`noFallthroughCasesInSwitch`, `noUnusedLocals`, `noUnusedParameters`,
+`verbatimModuleSyntax`. `isolatedModules` is mandatory, because esbuild
+transforms one file at a time and cannot see across them.
+
+**One job each.** Oxfmt formats, Oxlint lints with its type-aware rules on, `tsc
+--noEmit` checks types. esbuild only transforms, so it is not a checker and
+never stands in for one.
+
+**Immutability by default.** `readonly` properties and `readonly T[]`, `as
+const` for literal tables, pure functions over in-place mutation.
+
+## Commits
+
+**Never commit or push without asking.** Approval of one commit is not approval
+of the next. A change to a drafted message is not approval either: redraft, then
+ask again.
+
+**Subject:** `type(scope): summary`, with a Conventional-Commits type (`feat`,
+`fix`, `refactor`, `chore`, `docs`, `test`, `perf`), imperative, under about 72
+characters. Scope is the area touched (`store`, `capture`, `diff`, `server`,
+`cli`, `design`, `docs`, `deps`, `repo`). Omit it only for a global change.
+
+**Body: usually none.** A subject line is the whole message for anything a
+developer reading the history would not stop to ask about. Adding a package, a
+document or a screen explains itself.
+
+Write a body only when the why is not obvious from the subject and the diff
+together: a constraint that is not visible in the code, a tradeoff that was
+weighed, an approach that was tried and abandoned. Then write one paragraph. If
+a paragraph would survive being replaced by `git show`, cut it, and if the
+reader would not have asked the question it answers, cut it too.
+
+**No trailers.** No `Co-Authored-By`, no `Signed-off-by`.
+
+**No references to specs, plans, tasks or issues,** unless the commit is that
+thing. Commits are permanent and those references rot.
+
+**State a correction as a correction.** If a commit reverses an earlier claim,
+name the claim and say why it was wrong. A silent reversal leaves two
+contradictory statements in the history and no way to tell which one won.
+
+**Ask with a choice, not an open question.** Offer the options: commit it,
+commit the subject alone, do not commit, change something. An open question
+invites a yes that was meant as a comment.
+
+**Prefer new commits over amending.** One branch per spec, `spec/NNN-name`, cut
+from the default branch and merged back with `--no-ff`.
+
+## Specs
+
+Non-trivial work is specced as markdown under `specs/NNN-description.md` and
+driven by the `backlog` CLI. Run `backlog doc` for the reference. Loose ideas
+that are not specs yet live in [specs/TODO.md](../specs/TODO.md).
+
+**Judgment.** A design document describes the target and is corrected when the
+target moves. It is speculative by construction, so a departure from it is a
+reason to change the document. A plan is the opposite: it records what was
+intended, so where the work went differently, the difference belongs with the
+plan.
+
+**Judgment.** Carry the design in the spec, with the rejected alternative named.
+An iteration that omits the reasoning invites the executor to reinvent a design
+its author had already rejected.
+
+**Judgment.** One iteration does one kind of work, and gates on commands
+wherever a command can prove it. Reserve an ack for what only a person can
+assert.
+
+**Judgment.** A todo is one outcome somebody can verify. The checkbox is the
+only part of a spec that survives as state rather than prose, so a box holding
+six test cases cannot record that four of them are written. Aim near thirty
+words, not two hundred.
+
+**Judgment.** Update todos in the same commits as the work, never batched at the
+end.
+
+**Judgment.** Decisions that outlive a spec get promoted into code, into a
+package's `doc.go`, or into `docs/` before it closes. The spec is ephemeral. The
+code and the documents are the long-term source of truth.
+
+## What is enforced rather than trusted
+
+`go test ./internal/convention` checks this repository's own source, prose and
+tearout markup against the rules above that can be checked mechanically. It is
+part of `make check`.
+
+Every check has a fixture under `testdata/` that it must flag, so no check is
+trusted without having been watched fail. `testdata/` is ignored by the go tool,
+so a file that deliberately breaks a rule never has to compile.
