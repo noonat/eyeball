@@ -22,6 +22,8 @@ only evidence of what a rule actually means.
 | `conventions-01.txt`         | PASS          | subject only                                                                                                                              |
 | `skill-01-rejected.txt`      | FAIL          | "a reader asked whether a body was wanted will supply one" is malformed, which step 2c catches as a phrase nobody would say out loud      |
 | `skill-02.txt`               | PASS          | the same message with the clause rewritten                                                                                                |
+| `design-03-rejected.txt`     | FAIL          | "fails the wrong way" and "introduced itself" are figures of speech, and "form" labels a pattern the code names `agent_span`              |
+| `design-04.txt`              | PASS          | subject only, after the body moved into the code comment                                                                                  |
 
 ## The run that shaped the prompt
 
@@ -80,3 +82,12 @@ reasoning under it.
 figure of speech or an over-explaining body. Step 2c already covered it, as a
 phrase nobody would say out loud, and nothing else in this directory exercises
 that reading of the step.
+
+`design-03-rejected` is the only fixture that fails step 4. The body called the
+compiled pattern a form, where the code names it `agent_span`, and a reader
+looking for that word in the file finds nothing.
+
+Its accepted version has no body at all. Three rounds each cut a real fault and
+the body still failed, which was the signal that it should not have existed: the
+reason was already in a comment beside the pattern, where somebody reading the
+code finds it without going through the history.

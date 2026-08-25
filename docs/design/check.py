@@ -104,15 +104,22 @@ def main():
     # An agent is displayed inside a .agent span. The same name appearing in a
     # sentence is a copy that nothing keeps in step, and renaming the agent
     # leaves the sentence behind.
+    #
+    # The patterns allow whitespace before each >, which hand-written markup
+    # does not use today. Matching only the tight form fails the wrong way: the
+    # strip below misses the span, and the name is then reported as prose, so
+    # the checker accuses the page of a fault the checker introduced.
+    agent_span = re.compile(r'<span class="agent"\s*>([^<]*)</span\s*>')
     agents = set()
     for path in pages:
         with open(path) as handle:
-            agents |= set(re.findall(r'<span class="agent">([^<]+)</span>', handle.read()))
-    agents = {a for a in agents if not a.startswith("~")}
+            agents |= set(agent_span.findall(handle.read()))
+    agents = {a.strip() for a in agents if not a.strip().startswith("~")}
+    agents.discard("")
     for path in pages:
         with open(path) as handle:
             body = handle.read()
-        body = re.sub(r'<span class="agent">[^<]*</span>', "", body)
+        body = agent_span.sub("", body)
         text = re.sub(r"<[^>]+>", " ", body)
         for agent in sorted(agents):
             if agent in text:
