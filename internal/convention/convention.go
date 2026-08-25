@@ -45,6 +45,10 @@ var Checks = []Check{
 	{Name: "doc-comments", Run: docComments},
 	{Name: "brace-lines", Run: braceLines},
 	{Name: "argument-wrapping", Run: argumentWrapping},
+	{Name: "range-literal", Run: rangeLiteral},
+	{Name: "keyed-rows", Run: keyedRows},
+	{Name: "named-gomega", Run: namedGomega},
+	{Name: "gomega-in-subtest", Run: gomegaInSubtest},
 }
 
 // at renders a position as file:line, with the path relative to the repository

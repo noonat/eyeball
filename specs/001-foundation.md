@@ -116,9 +116,9 @@ required_commands:
   different lines, with function literals exempt
 - [x] `argument-wrapping`: an argument list wraps all or nothing, and the first
   break falls after the open paren
-- [ ] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
+- [x] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
   a table's rows name their fields one per line
-- [ ] `named-gomega`: an assertion goes through a named gomega, and
+- [x] `named-gomega`: an assertion goes through a named gomega, and
   `gomega-in-subtest`: the closure creates its own rather than reaching out
 - [ ] `packages-listed`: every package under `internal/` and `tool/` appears in
   the layout block in `docs/architecture.md`
