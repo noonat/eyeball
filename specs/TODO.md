@@ -50,6 +50,10 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
       written.
 - [ ] product: what a marker file holds beyond naming a project root, if
       anything ever needs a second field.
+- [ ] product: say what an agent declares as its base commit once it has
+      committed its own work. A capture is the delta from the base, so a base of
+      `HEAD` after committing is an empty review and a base of the branch point
+      is not.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can

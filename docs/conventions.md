@@ -406,6 +406,15 @@ never stands in for one.
 of the next. A change to a drafted message is not approval either: redraft, then
 ask again.
 
+**Leave the work uncommitted until a human has reviewed it.** A commit records a
+change a person has already read. Asking is not review: a question answered
+before the diff was read approves nothing. Work up to one coherent change, run
+the checks, draft the message, and stop with the change still in the working
+tree, where `git diff` and `git status` show it whole.
+
+This bounds how large a change gets. A change too large to read in the working
+tree is too large to commit as one.
+
 **Subject:** `type(scope): summary`, with a Conventional-Commits type (`feat`,
 `fix`, `refactor`, `chore`, `docs`, `test`, `perf`), imperative, under about 72
 characters. Scope is the area touched (`store`, `capture`, `diff`, `server`,
@@ -434,8 +443,13 @@ contradictory statements in the history and no way to tell which one won.
 commit the subject alone, do not commit, change something. An open question
 invites a yes that was meant as a comment.
 
-**Prefer new commits over amending.** One branch per spec, `spec/NNN-name`, cut
-from the default branch and merged back with `--no-ff`.
+**Amend only a commit nobody has seen.** Once a commit has been shown, or
+reported as done, it is fixed, and a correction is a new commit. An amend
+replaces the state that was read and leaves no diff between it and the
+correction, so the change cannot be reviewed at all.
+
+One branch per spec, `spec/NNN-name`, cut from the default branch and merged
+back with `--no-ff`.
 
 ## Specs
 

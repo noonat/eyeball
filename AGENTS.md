@@ -25,6 +25,8 @@ into a manual stops being read, and the things in it stop being followed.
   against.
 - Code follows [docs/conventions.md](docs/conventions.md), which says of each
   rule whether it is enforced or left to judgment.
+- Work waits uncommitted until a human has reviewed it. Amend only a commit
+  nobody has seen; a correction to one already shown is a new commit.
 - Never commit or push without asking, and draft the message with the
   `commit-message` skill first. A `PreToolUse` hook refuses a commit whose
   message the skill's gate has not passed. The gate records its own pass, so
