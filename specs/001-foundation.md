@@ -126,7 +126,7 @@ required_commands:
   the package, with any description segment starting lowercase
 - [x] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
   with an empty segment first, which is not the same as sorting the strings
-- [ ] A `testdata/` fixture per check and a test asserting each check flags its
+- [x] A `testdata/` fixture per check and a test asserting each check flags its
   own fixture, so no check is trusted without having been seen to fail
 
 ## Iteration 3: The prose rules, checked and formatted

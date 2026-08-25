@@ -2,6 +2,8 @@ package convention_test
 
 import (
 	"go/token"
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -22,6 +24,24 @@ func Test_eachCheckFlagsItsFixture(t *testing.T) {
 			g.Expect(check.Run(fset, pkg.Files)).NotTo(BeEmpty())
 		})
 	}
+}
+
+func Test_everyFixtureHasACheck(t *testing.T) {
+	g := NewWithT(t)
+	dirs, err := os.ReadDir(filepath.Join("testdata"))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	onDisk := map[string]struct{}{}
+	for _, d := range dirs {
+		if d.IsDir() {
+			onDisk[d.Name()] = struct{}{}
+		}
+	}
+	registered := map[string]struct{}{}
+	for _, check := range convention.Checks {
+		registered[check.Name] = struct{}{}
+	}
+	g.Expect(onDisk).To(Equal(registered))
 }
 
 func Test_packagesAreListed(t *testing.T) {
