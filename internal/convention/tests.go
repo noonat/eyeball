@@ -41,15 +41,11 @@ func testNames(fset *token.FileSet, files []*ast.File) []Finding {
 		for _, fn := range testFuncs(file) {
 			s, err := parseSubject(fn.Name.Name)
 			if err != "" {
-				out = append(out, Finding{
-					At: at(fset, fn.Pos()), Check: "test-names", What: err,
-				})
+				out = append(out, Finding{At: at(fset, fn.Pos()), Check: "test-names", What: err})
 				continue
 			}
 			if what := resolve(s, d); what != "" {
-				out = append(out, Finding{
-					At: at(fset, fn.Pos()), Check: "test-names", What: what,
-				})
+				out = append(out, Finding{At: at(fset, fn.Pos()), Check: "test-names", What: what})
 			}
 		}
 	}
@@ -86,8 +82,7 @@ func parseSubject(name string) (subject, string) {
 	parts := strings.Split(rest, "_")
 	if parts[0] == "" {
 		if len(parts) != 2 || !startsLower(parts[1]) {
-			return subject{}, "package-level test should be Test_description, " +
-				"with the description starting lowercase"
+			return subject{}, "package-level test should be Test_description, with the description starting lowercase"
 		}
 		return subject{Z: parts[1]}, ""
 	}
@@ -143,8 +138,7 @@ func testOrder(fset *token.FileSet, files []*ast.File) []Finding {
 				out = append(out, Finding{
 					At:    at(fset, fn.Pos()),
 					Check: "test-order",
-					What: fn.Name.Name + " sorts before " + prevName +
-						", which is above it",
+					What:  fn.Name.Name + " sorts before " + prevName + ", which is above it",
 				})
 			}
 			prev, prevName = s, fn.Name.Name

@@ -66,6 +66,10 @@ func at(fset *token.FileSet, pos token.Pos) string {
 	return fmt.Sprintf("%s:%d", name, p.Line)
 }
 
+// reporter receives one declaration for the doc-comment check: where it is,
+// what kind of thing it is, the names it binds, and the comment above it.
+type reporter func(pos token.Pos, kind string, names []string, doc *ast.CommentGroup)
+
 // docComments reports an exported name with no doc comment, or one whose
 // comment does not start with a name it declares.
 //
@@ -101,8 +105,7 @@ func docComments(fset *token.FileSet, files []*ast.File) []Finding {
 		out = append(out, Finding{
 			At:    at(fset, pos),
 			Check: "doc-comments",
-			What: fmt.Sprintf(
-				"doc comment on %s %s starts with none of its names", kind, label),
+			What:  fmt.Sprintf("doc comment on %s %s starts with none of its names", kind, label),
 		})
 	}
 
@@ -147,10 +150,7 @@ func isTestFunc(name string) bool {
 // A grouped block can carry one comment for the group and one per spec. The
 // spec's own comment wins, and the group's stands in when a spec has none, which
 // is how a block of related constants is documented once.
-func reportGen(
-	d *ast.GenDecl,
-	report func(token.Pos, string, []string, *ast.CommentGroup),
-) {
+func reportGen(d *ast.GenDecl, report reporter) {
 	for _, spec := range d.Specs {
 		switch s := spec.(type) {
 		case *ast.TypeSpec:
@@ -178,10 +178,7 @@ func reportGen(
 //
 // Two fields declared separately are two declarations and need a comment each,
 // which is why this reports per field rather than per struct.
-func reportFields(
-	s *ast.TypeSpec,
-	report func(token.Pos, string, []string, *ast.CommentGroup),
-) {
+func reportFields(s *ast.TypeSpec, report reporter) {
 	if !ast.IsExported(s.Name.Name) {
 		return
 	}

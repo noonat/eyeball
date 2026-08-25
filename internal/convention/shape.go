@@ -27,8 +27,7 @@ func braceLines(fset *token.FileSet, files []*ast.File) []Finding {
 			out = append(out, Finding{
 				At:    at(fset, fn.Pos()),
 				Check: "brace-lines",
-				What: "func " + fn.Name.Name +
-					" opens and closes its braces on one line",
+				What:  "func " + fn.Name.Name + " opens and closes its braces on one line",
 			})
 		}
 	}
@@ -79,8 +78,7 @@ func wrapFindings(fset *token.FileSet, call *ast.CallExpr) []Finding {
 		out = append(out, Finding{
 			At:    at(fset, call.Lparen),
 			Check: "argument-wrapping",
-			What: "argument list wraps: break after the open paren so the " +
-				"first argument gets its own line",
+			What:  "argument list wraps: break after the open paren so the first argument gets its own line",
 		})
 	}
 	for i := 1; i < len(call.Args); i++ {
@@ -88,8 +86,7 @@ func wrapFindings(fset *token.FileSet, call *ast.CallExpr) []Finding {
 			out = append(out, Finding{
 				At:    at(fset, call.Args[i].Pos()),
 				Check: "argument-wrapping",
-				What: "argument list wraps all or nothing: this argument " +
-					"shares a line with the one before it",
+				What:  "argument list wraps all or nothing: this argument shares a line with the one before it",
 			})
 		}
 	}

@@ -37,8 +37,7 @@ func namedGomega(fset *token.FileSet, files []*ast.File) []Finding {
 			out = append(out, Finding{
 				At:    at(fset, call.Pos()),
 				Check: "named-gomega",
-				What: "assertion goes through a gomega built in the same " +
-					"expression; give it a name first",
+				What:  "assertion goes through a gomega built in the same expression; give it a name first",
 			})
 			return true
 		})
@@ -93,8 +92,7 @@ func gomegaInSubtest(fset *token.FileSet, files []*ast.File) []Finding {
 				out = append(out, Finding{
 					At:    at(fset, use.pos),
 					Check: "gomega-in-subtest",
-					What: "subtest uses " + use.name + " from outside the " +
-						"closure; create the gomega inside it",
+					What:  "subtest uses " + use.name + " from outside the closure; create the gomega inside it",
 				})
 			}
 			return true

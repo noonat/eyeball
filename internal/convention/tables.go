@@ -26,8 +26,7 @@ func rangeLiteral(fset *token.FileSet, files []*ast.File) []Finding {
 			out = append(out, Finding{
 				At:    at(fset, r.X.Pos()),
 				Check: "range-literal",
-				What: "range over an anonymous literal; " +
-					"assign it to a variable first",
+				What:  "range over an anonymous literal; assign it to a variable first",
 			})
 			return true
 		})
