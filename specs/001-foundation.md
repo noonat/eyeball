@@ -46,8 +46,8 @@ that the port is faithful. That is a required command rather than a claim.
 
 **Oxfmt owns prose width, so no check here does.** Formatting markdown to 80
 columns with `proseWrap: always` is a formatter's job, and writing a Go check
-for it would be a second implementation of one rule. `oxfmt --check` in `make
-lint` fails on prose that has drifted, which is the same gate by a shorter
+for it would be a second implementation of one rule. `oxfmt --check` in
+`make lint` fails on prose that has drifted, which is the same gate by a shorter
 route.
 
 That brings Node in earlier than the rest of the frontend toolchain, and the
@@ -84,23 +84,22 @@ free. A script would have to grow both.
 ## Iteration 1: The module and the gate
 
 - [x] `go.mod` at `github.com/noonat/eyeball` on Go 1.26, with `cmd/eyeball`
-  whose `main` calls one function and reports what it returns
+      whose `main` calls one function and reports what it returns
 - [x] The `internal/` packages the architecture layout names, each holding a
-  `doc.go` with its package comment and nothing else yet
+      `doc.go` with its package comment and nothing else yet
 - [x] A `Makefile` whose default target is help, with `build`, `lint`, `test`,
-  `fmt` and `check`, where `check` is build then lint then test
+      `fmt` and `check`, where `check` is build then lint then test
 - [x] `gofmt`, `go vet` and `staticcheck` wired into `lint`, with staticcheck
-  pinned by a `tool` directive rather than a version on the command line
+      pinned by a `tool` directive rather than a version on the command line
 - [x] `.gitignore` covering the binaries a bare `go build` drops in the working
-  directory and in each command's own directory
+      directory and in each command's own directory
 - [x] Each linter made to fail once on a deliberate violation, and the violation
-  removed, so the gate is known to be wired rather than assumed
+      removed, so the gate is known to be wired rather than assumed
 
 > **Completed** 2026-08-25 16:19 UTC
 >
 > - acks: reviewed
 > - `make check` — 290ms
-
 
 ## Iteration 2: The Go conventions this repo can check
 
@@ -111,23 +110,23 @@ required_commands:
 ```
 
 - [x] `doc-comments`: every exported type, function, method, struct field and
-  package-level value carries a comment starting with one of its names
+      package-level value carries a comment starting with one of its names
 - [x] `brace-lines`: a declared function opens and closes its braces on
-  different lines, with function literals exempt
+      different lines, with function literals exempt
 - [x] `argument-wrapping`: an argument list wraps all or nothing, and the first
-  break falls after the open paren
+      break falls after the open paren
 - [x] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
-  a table's rows name their fields one per line
+      a table's rows name their fields one per line
 - [x] `named-gomega`: an assertion goes through a named gomega, and
-  `gomega-in-subtest`: the closure creates its own rather than reaching out
+      `gomega-in-subtest`: the closure creates its own rather than reaching out
 - [x] `packages-listed`: every package under `internal/` and `tool/` appears in
-  the layout block in `docs/architecture.md`
+      the layout block in `docs/architecture.md`
 - [x] `test-names`: a test names a package-level identifier, a method of one, or
-  the package, with any description segment starting lowercase
+      the package, with any description segment starting lowercase
 - [x] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
-  with an empty segment first, which is not the same as sorting the strings
+      with an empty segment first, which is not the same as sorting the strings
 - [x] A `testdata/` fixture per check and a test asserting each check flags its
-  own fixture, so no check is trusted without having been seen to fail
+      own fixture, so no check is trusted without having been seen to fail
 
 ## Iteration 3: The prose rules, checked and formatted
 
@@ -138,13 +137,13 @@ required_commands:
 ```
 
 - [ ] Oxfmt wired into `lint` and `fmt` over every committed markdown file, at
-  80 columns with `proseWrap: always`, specs included
+      80 columns with `proseWrap: always`, specs included
 - [ ] `prose-person`: no first or second person in any committed markdown, which
-  is the voice rule most often broken by accident
+      is the voice rule most often broken by accident
 - [ ] `prose-dashes`: no em dash in any committed markdown, which the voice
-  document bans and which arrives without being typed
+      document bans and which arrives without being typed
 - [ ] A fixture per prose check, flagged by the same test that covers the Go
-  checks, so both kinds are proved the same way
+      checks, so both kinds are proved the same way
 
 ## Iteration 4: The tearout checks
 
@@ -155,17 +154,17 @@ required_commands:
 ```
 
 - [ ] A class used in a tearout is defined by a stylesheet, and a fragment link
-  points at an id that is on the page
+      points at an id that is on the page
 - [ ] Tags nest, an icon span carries a glyph class, and an icon span holds no
-  text of its own
+      text of its own
 - [ ] `icons.txt` and the generated mask table in `app.css` name the same set,
-  neither having an entry the other lacks
+      neither having an entry the other lacks
 - [ ] The load-bearing declarations `app.css` must keep, so a generator that
-  takes too much with it fails the build rather than the page
+      takes too much with it fails the build rather than the page
 - [ ] No agent name appears in prose on a page that also displays it, which is
-  the check that drifted twice before it existed
+      the check that drifted twice before it existed
 - [ ] A fixture per check, and `docs/design/check.py` deleted with the design
-  readme naming the Go command in its place
+      readme naming the Go command in its place
 
 ## Iteration 5: The icon generator
 
@@ -177,11 +176,11 @@ required_commands:
 ```
 
 - [ ] `tool/icons` fetches each name in `icons.txt` from Lucide and rewrites the
-  generated block in `app.css`, leaving everything outside it untouched
+      generated block in `app.css`, leaving everything outside it untouched
 - [ ] It refuses a name that is not a Lucide icon, and refuses to drop one that
-  a pseudo-element resolves through a root variable
+      a pseudo-element resolves through a root variable
 - [ ] `docs/design/icons.py` deleted, with the design readme naming the Go
-  command, having first confirmed the output is byte for byte the same
+      command, having first confirmed the output is byte for byte the same
 
 ## Iteration 6: The tearout server
 
@@ -192,8 +191,8 @@ required_acks:
 ```
 
 - [ ] `tool/tearout` serves `docs/design` on the tailnet address, sending
-  `Cache-Control: no-store` so an edited page is never shown stale
+      `Cache-Control: no-store` so an edited page is never shown stale
 - [ ] It prints the URLs to open and falls back to all interfaces when no
-  tailnet address is available
+      tailnet address is available
 - [ ] `docs/design/serve.py` deleted, with the design readme and every command
-  it names pointing at `tool/tearout`
+      it names pointing at `tool/tearout`

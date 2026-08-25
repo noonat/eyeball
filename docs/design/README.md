@@ -37,13 +37,13 @@ holds and the back button closes it.
 
 ## The tearouts
 
-| Tearout | Covers |
-| --- | --- |
+| Tearout                                  | Covers                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`foundations.html`](./foundations.html) | The shell, type scale, palette in both themes, and every reused primitive: state pills and row stripes, the unified diff with word marks and its five syntax roles, rendered prose with changed-passage rules, comment cards and the composer, level chips, buttons, the decision bar, notices, empty state, first-run steps, the icon badge |
-| [`queue.html`](./queue.html) | The home screen: populated across three projects, nothing waiting, not installed yet, and the awkward week that breaks it |
-| [`review.html`](./review.html) | The review page: a second round of a document, a large change as a file list with a comment being written, a first round against an empty base, a refused verdict, a round already decided, and an earlier round with the agent's replies |
-| [`widening.html`](./widening.html) | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, and a file too big to render |
-| [`project.html`](./project.html) | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see |
+| [`queue.html`](./queue.html)             | The home screen: populated across three projects, nothing waiting, not installed yet, and the awkward week that breaks it                                                                                                                                                                                                                    |
+| [`review.html`](./review.html)           | The review page: a second round of a document, a large change as a file list with a comment being written, a first round against an empty base, a refused verdict, a round already decided, and an earlier round with the agent's replies                                                                                                    |
+| [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, and a file too big to render                                                                                                                                                                                      |
+| [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                       |
 
 That is the whole surface the product document describes. A new screen gets a
 tearout before it gets code.
@@ -170,9 +170,9 @@ tearout before it gets code.
   `.app` keeps the default it would have in the real surface, or this sheet
   stops showing what it certifies.
 
-- **A default has to weigh nothing, so write it in `:where()`.** A plain `.app
-  a` rule outranks `.row`, `.treerow` and `.chip`, each of which sets its own
-  color, and every card on the queue turns into a blue link. A default that
+- **A default has to weigh nothing, so write it in `:where()`.** A plain
+  `.app a` rule outranks `.row`, `.treerow` and `.chip`, each of which sets its
+  own color, and every card on the queue turns into a blue link. A default that
   beats the things it is a default for is not a default.
 
 - **A notice is for what could not have been prevented.** A refused verdict, a
@@ -209,11 +209,11 @@ a screen looks right.
 **These scripts are scaffolding, and they are Python because there is no Go
 module yet.** When there is, each moves to where its kind belongs:
 
-| Script | Becomes |
-| --- | --- |
+| Script     | Becomes                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------------- |
 | `check.py` | a Go test under `internal/`, running in `make check`, the way a repo holds itself to its own conventions |
-| `icons.py` | a binary under `tool/`, generating committed output and never running in a build |
-| `serve.py` | a binary under `tool/`, or a `make` target once the real server can serve these itself |
+| `icons.py` | a binary under `tool/`, generating committed output and never running in a build                         |
+| `serve.py` | a binary under `tool/`, or a `make` target once the real server can serve these itself                   |
 
 The split is the same one that decides where anything goes: a check that must
 pass before work closes is a test, and a generator that runs when a person

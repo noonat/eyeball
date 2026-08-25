@@ -68,8 +68,8 @@ decides more of this document than any other.
 unit, no login item, and nothing supervising it.
 
 Any CLI command dials the socket. If nothing answers, it starts the daemon and
-retries. `eyeball start` and `eyeball stop` do it deliberately, and `eyeball
-status` says whether one is running and since when.
+retries. `eyeball start` and `eyeball stop` do it deliberately, and
+`eyeball status` says whether one is running and since when.
 
 **Single instance is enforced by an exclusive lock on a file, not by the socket
 existing.** A crash leaves the socket file behind, and a check that treats a
@@ -93,10 +93,10 @@ agents, is a defensible smaller rule and is not adopted yet. It is in
 
 ## The two listeners
 
-| Listener | Carries | Reachable from |
-| -------- | ------- | -------------- |
-| unix socket | the agent API | this machine, by file permission |
-| tsnet `:443` | the reviewer's surface | the tailnet |
+| Listener     | Carries                | Reachable from                   |
+| ------------ | ---------------------- | -------------------------------- |
+| unix socket  | the agent API          | this machine, by file permission |
+| tsnet `:443` | the reviewer's surface | the tailnet                      |
 
 **The CLI speaks HTTP over the unix socket.** One set of handlers, one
 serialization, and `--json` is the response body rather than a second code path.
@@ -222,20 +222,20 @@ than written a second time from a description of it.
 
 Routes:
 
-| Pattern | Answers |
-| ------- | ------- |
-| `GET /` | the queue |
-| `GET /reviews/{review}` | the current round |
-| `GET /reviews/{review}/rounds/{round}` | an earlier round |
-| `GET /reviews/{review}/files/{path...}` | a file, at the current round |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round |
-| `GET /projects/{project}` | the project view and its working copy |
-| `POST /reviews/{review}/comments` | one comment |
-| `DELETE /reviews/{review}/comments/{comment}` | drop one before the verdict |
-| `POST /reviews/{review}/decision` | the verdict, releasing the round |
-| `POST /subscriptions` | a device's push subscription |
-| `GET /events` | the live stream, and therefore the connection |
-| `GET /healthz` | liveness, after touching the database |
+| Pattern                                                | Answers                                       |
+| ------------------------------------------------------ | --------------------------------------------- |
+| `GET /`                                                | the queue                                     |
+| `GET /reviews/{review}`                                | the current round                             |
+| `GET /reviews/{review}/rounds/{round}`                 | an earlier round                              |
+| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         |
+| `GET /projects/{project}`                              | the project view and its working copy         |
+| `POST /reviews/{review}/comments`                      | one comment                                   |
+| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   |
+| `POST /reviews/{review}/decision`                      | the verdict, releasing the round              |
+| `POST /subscriptions`                                  | a device's push subscription                  |
+| `GET /events`                                          | the live stream, and therefore the connection |
+| `GET /healthz`                                         | liveness, after touching the database         |
 
 **Paths are spelled out.** `/reviews/` rather than `/r/`, `/files/` rather than
 `/f/`. These are read in a browser address bar, quoted in a comment, and typed
@@ -271,8 +271,8 @@ htmx itself is vendored and served as a file. It is not bundled, because it is
 already a script and passing it through a bundler achieves nothing.
 
 The costs are real and worth naming. esbuild's Go package adds roughly ten
-megabytes to the binary. It strips types rather than checking them, so **`tsc
---noEmit` is a gate rather than a build step**, and Node is a development
+megabytes to the binary. It strips types rather than checking them, so
+**`tsc --noEmit` is a gate rather than a build step**, and Node is a development
 dependency for checking and formatting only. `isolatedModules` is mandatory,
 because esbuild transforms one file at a time and cannot see across them.
 
@@ -404,18 +404,18 @@ closes.
 
 ## Dependencies
 
-| Dependency | Why |
-| ---------- | --- |
-| `modernc.org/sqlite` | pure Go SQLite, so the binary stays static |
-| `tailscale.com/tsnet` | the tailnet node is the process, and it brings the certificate |
-| `evanw/esbuild` | TypeScript without Node, which is what keeps `go install` working |
-| htmx (vendored) | the interactions, as server-rendered fragments |
-| `alecthomas/chroma` | syntax highlighting, server side |
-| `yuin/goldmark` | markdown |
-| `SherClockHolmes/webpush-go` | push payload encryption |
-| `cockroachdb/errors` | a stack at the point an error was constructed |
-| `urfave/cli/v3` | flags in any position, confined to the CLI package |
-| `onsi/gomega` (test) | assertions |
+| Dependency                   | Why                                                               |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `modernc.org/sqlite`         | pure Go SQLite, so the binary stays static                        |
+| `tailscale.com/tsnet`        | the tailnet node is the process, and it brings the certificate    |
+| `evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
+| htmx (vendored)              | the interactions, as server-rendered fragments                    |
+| `alecthomas/chroma`          | syntax highlighting, server side                                  |
+| `yuin/goldmark`              | markdown                                                          |
+| `SherClockHolmes/webpush-go` | push payload encryption                                           |
+| `cockroachdb/errors`         | a stack at the point an error was constructed                     |
+| `urfave/cli/v3`              | flags in any position, confined to the CLI package                |
+| `onsi/gomega` (test)         | assertions                                                        |
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.

@@ -49,7 +49,7 @@ the first break is after the open paren. The half-wrapped form is what this
 rules out: the call's name and an argument share a line, so a reader has to find
 where the list starts, and adding an argument reflows the call.
 
-A newline *inside* an argument does not count, which keeps the common case
+A newline _inside_ an argument does not count, which keeps the common case
 legal:
 
 ```go
@@ -261,13 +261,13 @@ struct is preferred.
 **Enforced by `internal/convention`.** A test is named for what it tests, in the
 shape `go vet` already enforces for examples:
 
-| Name | Tests |
-| ---- | ----- |
-| `TestStore` | the package-level type or function `Store` |
-| `TestStore_Freeze` | the method `Freeze` on `Store` |
-| `TestStore_emptyBase` | `Store`, one narrow case the broad test does not cover |
-| `TestStore_Freeze_emptyBase` | `Freeze`, one narrow case |
-| `Test_replayIsDeterministic` | the package itself, where there is no identifier |
+| Name                         | Tests                                                  |
+| ---------------------------- | ------------------------------------------------------ |
+| `TestStore`                  | the package-level type or function `Store`             |
+| `TestStore_Freeze`           | the method `Freeze` on `Store`                         |
+| `TestStore_emptyBase`        | `Store`, one narrow case the broad test does not cover |
+| `TestStore_Freeze_emptyBase` | `Freeze`, one narrow case                              |
+| `Test_replayIsDeterministic` | the package itself, where there is no identifier       |
 
 `X` must resolve to a package-level type or function in the package under test,
 and `Y` to a method of `X`. A third segment is a description and starts
@@ -311,7 +311,7 @@ and the caller already has one. `THelper` is a field on `WithT` holding
 `t.Helper`, so frame skipping still works. A helper that asserts nothing needs
 neither.
 
-**Judgment.** Prove each check can fail *individually*. `NewWithT` fails
+**Judgment.** Prove each check can fail _individually_. `NewWithT` fails
 fatally, so a second assertion in the same subtest never runs once the first has
 failed.
 
@@ -361,12 +361,12 @@ is not installed until there is something to check.
 `verbatimModuleSyntax`. `isolatedModules` is mandatory, because esbuild
 transforms one file at a time and cannot see across them.
 
-**One job each.** Oxfmt formats, Oxlint lints with its type-aware rules on, `tsc
---noEmit` checks types. esbuild only transforms, so it is not a checker and
+**One job each.** Oxfmt formats, Oxlint lints with its type-aware rules on,
+`tsc --noEmit` checks types. esbuild only transforms, so it is not a checker and
 never stands in for one.
 
-**Immutability by default.** `readonly` properties and `readonly T[]`, `as
-const` for literal tables, pure functions over in-place mutation.
+**Immutability by default.** `readonly` properties and `readonly T[]`,
+`as const` for literal tables, pure functions over in-place mutation.
 
 ## Commits
 

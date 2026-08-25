@@ -6,16 +6,16 @@ gate on every fixture after editing the prompt.
 A rejected fixture is kept, not deleted. A message that was turned down is the
 only evidence of what a rule actually means.
 
-| Fixture | Gate must say | Why |
-| --- | --- | --- |
-| `docs-01-rejected.txt` | FAIL | "wearing an engineering costume" is a figure of speech, and both paragraphs explain what the reader would not have asked |
-| `design-01-rejected.txt` | FAIL | three paragraphs, two figures of speech, and a body explaining a change that adds files |
-| `specs-01-rejected.txt` | FAIL | "holds it in their head" and "a nagging feeling" are figures of speech, and the second paragraph justifies a different part of the change |
-| `foundation-01-rejected.txt` | FAIL | four paragraphs, 167 words, each explaining a detail rather than the why |
-| `docs-02.txt` | PASS | subject only |
-| `design-02.txt` | PASS | subject only |
-| `specs-02.txt` | PASS | subject only |
-| `foundation-02.txt` | PASS | subject only |
+| Fixture                      | Gate must say | Why                                                                                                                                       |
+| ---------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs-01-rejected.txt`       | FAIL          | "wearing an engineering costume" is a figure of speech, and both paragraphs explain what the reader would not have asked                  |
+| `design-01-rejected.txt`     | FAIL          | three paragraphs, two figures of speech, and a body explaining a change that adds files                                                   |
+| `specs-01-rejected.txt`      | FAIL          | "holds it in their head" and "a nagging feeling" are figures of speech, and the second paragraph justifies a different part of the change |
+| `foundation-01-rejected.txt` | FAIL          | four paragraphs, 167 words, each explaining a detail rather than the why                                                                  |
+| `docs-02.txt`                | PASS          | subject only                                                                                                                              |
+| `design-02.txt`              | PASS          | subject only                                                                                                                              |
+| `specs-02.txt`               | PASS          | subject only                                                                                                                              |
+| `foundation-02.txt`          | PASS          | subject only                                                                                                                              |
 
 ## The run that shaped the prompt
 

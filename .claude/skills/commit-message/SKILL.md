@@ -33,17 +33,17 @@ have to catch them by hand every time.
 
 ## Figures of speech to replace
 
-| Instead of                    | Write                               |
-| ----------------------------- | ----------------------------------- |
-| three fixes ride along        | three fixes are in the same change   |
-| in the same breath            | at the same time                     |
-| it costs, pays for, buys      | name the tradeoff                    |
-| something comes for free      | say what provides it                 |
-| settling it on paper          | deciding before the code is written  |
-| paid for twice                | it must be fixed in two places       |
-| the change lands, carries     | use the plain verb                   |
-| what a rule stands in for     | what the rule checks                 |
-| wearing an engineering costume| say which kind of question it is     |
+| Instead of                     | Write                               |
+| ------------------------------ | ----------------------------------- |
+| three fixes ride along         | three fixes are in the same change  |
+| in the same breath             | at the same time                    |
+| it costs, pays for, buys       | name the tradeoff                   |
+| something comes for free       | say what provides it                |
+| settling it on paper           | deciding before the code is written |
+| paid for twice                 | it must be fixed in two places      |
+| the change lands, carries      | use the plain verb                  |
+| what a rule stands in for      | what the rule checks                |
+| wearing an engineering costume | say which kind of question it is    |
 
 This is stricter than the prose in `docs/`, which uses some of these. A design
 document is read slowly and more than once. A commit message is read once.
