@@ -20,12 +20,12 @@ eyeball is read on a phone in whatever minutes are available, so a desktop
 browser at 390 pixels is not where this gets judged.
 
 ```sh
-python3 docs/design/serve.py        # prints the tailnet URLs to open
+go run ./tool/tearout               # prints the tailnet URLs to open
 ```
 
 `python3 -m http.server` is the wrong tool. It sends only `Last-Modified`, and
 iOS Safari will show a stale copy of a tearout that was just edited, which reads
-as "the change did not work" rather than as a cache. `serve.py` sends
+as "the change did not work" rather than as a cache. `tool/tearout` sends
 `Cache-Control: no-store` and binds the tailnet address, so the page opens on a
 phone that is not on this LAN.
 
@@ -198,16 +198,12 @@ Tearouts in [docs/conventions.md](../conventions.md).
 Everything else here is judged rather than asserted. There is no test that says
 a screen looks right.
 
-**`serve.py` is the last of the scaffolding, and it is Python because it was
-written before there was a Go module.** It becomes a binary under `tool/`, or a
-`make` target once the real server can serve these itself.
-
-The other two made that move already. The checker is `internal/convention`, run
-by `make check`, and the generator is `tool/icons`.
+**The scaffolding is all Go now.** The checker is `internal/convention`, run by
+`make check`; the generator is `tool/icons`; the server is `tool/tearout`.
 
 The split is the same one that decides where anything goes: a check that must
-pass before work closes is a test, and a generator that runs when a person
-decides to run it is a tool.
+pass before work closes is a test, and a generator or a server that runs when a
+person decides to run it is a tool.
 
 ## Approval
 

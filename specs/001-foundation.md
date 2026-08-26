@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-08-25T00:00:00Z
-updated: 2026-08-25T16:05:40.043145548Z
+updated: 2026-08-26T02:10:38.627497599Z
 required_acks:
   - reviewed
 required_commands:
@@ -218,9 +218,14 @@ required_acks:
   - served-on-the-phone
 ```
 
-- [ ] `tool/tearout` serves `docs/design` on the tailnet address, sending
+- [x] `tool/tearout` serves `docs/design` on the tailnet address, sending
       `Cache-Control: no-store` so an edited page is never shown stale
-- [ ] It prints the URLs to open and falls back to all interfaces when no
+- [x] It prints the URLs to open and falls back to all interfaces when no
       tailnet address is available
-- [ ] `docs/design/serve.py` deleted, with the design readme and every command
+- [x] `docs/design/serve.py` deleted, with the design readme and every command
       it names pointing at `tool/tearout`
+
+> **Completed** 2026-08-26 02:10 UTC
+>
+> - acks: reviewed, served-on-the-phone
+> - `make check` — 1.6s
