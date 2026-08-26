@@ -117,8 +117,10 @@ func (p prose) lineAt(offset int) int {
 // patterns stop at a line break, so a quoted example that oxfmt wrapped would
 // otherwise lose its exemption and the pronoun inside it would be reported.
 func proseOf(body string) prose {
-	var text strings.Builder
-	var at []int
+	var (
+		text strings.Builder
+		at   []int
+	)
 	write := func(s string, line int) {
 		text.WriteString(s)
 		for range len(s) {
@@ -151,8 +153,10 @@ func proseOf(body string) prose {
 func strip(text string, at []int) (string, []int) {
 	spans := append(inlineCode.FindAllStringIndex(text, -1), quotedSpan.FindAllStringIndex(text, -1)...)
 	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
-	var outText strings.Builder
-	var outAt []int
+	var (
+		outText strings.Builder
+		outAt   []int
+	)
 	end := 0
 	for _, span := range spans {
 		if span[0] < end {

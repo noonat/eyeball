@@ -105,6 +105,12 @@ drift.
 **Judgment.** A doc comment sits on the thing it describes, not on the const
 block above it, where a reader looking at the function never sees it.
 
+**Judgment.** Several variables declared at their zero value go in one
+parenthesized `var` block, not in consecutive `var` lines. gofmt aligns the
+types into a column, so the set reads as one declaration of what the function is
+about to fill in, and adding another touches one line. A single variable stays a
+single line.
+
 **Judgment.** A struct literal that does not fit on one line puts every field on
 its own line, keyed, with a trailing comma and the brace alone. The keyed form
 lets gofmt align the values, adding a field touches one line instead of
@@ -163,6 +169,24 @@ g.Expect(os.WriteFile(docPath, []byte(layout), 0o644)).To(Succeed())
 
 When a chain does have to wrap, break after the dot with the chain indented,
 never by breaking the argument list.
+
+**Judgment.** A set of values one field can hold gets a defined type, and
+everything holding one uses it: `type Verdict string`, with
+`VerdictApprove Verdict = "approve"`, and `Decide` taking a `Verdict` rather
+than a `string`. The signature then says what it wants, a `Level` cannot be
+passed where a `Verdict` goes, and a string arriving from JSON or a flag needs
+an explicit conversion, which is where it gets checked.
+
+Defined, not aliased. `type Verdict = string` is the same type under a second
+name and buys none of that. The limit is worth knowing as well: Go converts an
+untyped constant implicitly, so `Decide(id, "maybe", "")` still compiles. The
+type documents and separates, and a runtime check is still what rejects a bad
+value.
+
+This covers a value set, not constants that happen to sit together. `openMarker`
+and `closeMarker` delimit one region and nothing takes either as an argument, so
+they stay plain strings. That distinction is why no check enforces this: a check
+over a const group of strings would flag them.
 
 **Judgment.** An enum's values carry its name: `KindMarkdown`, not `Markdown`.
 At the point of use a bare `Markdown` reads as a variable, and nothing says
@@ -512,6 +536,18 @@ back with `--no-ff`.
 Non-trivial work is specced as markdown under `specs/NNN-description.md` and
 driven by the `backlog` CLI. Run `backlog doc` for the reference. Loose ideas
 that are not specs yet live in [specs/TODO.md](../specs/TODO.md).
+
+**Judgment.** Reference a spec that does not exist yet by name, with its number
+in parentheses, as in `capture and diff (004)`. The number is the part that
+moves: an unplanned spec takes the next free one and everything after it shifts,
+so a bare `004` written before the shift names different work afterward. That
+has already happened, with a reference to the surface as `005` left standing
+after the surface became `006`. A name survives a renumbering and a number does
+not.
+
+A spec that is already written keeps its number, so a bare `001` in prose is
+fine. The rule is about forward references, which are the only ones that can
+move under a reader.
 
 **Judgment.** A design document describes the target and is corrected when the
 target moves. It is speculative by construction, so a departure from it is a

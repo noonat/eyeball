@@ -127,8 +127,10 @@ func testOrder(fset *token.FileSet, files []*ast.File) []Finding {
 		if !isTestFile(fset, file) {
 			continue
 		}
-		var prev subject
-		var prevName string
+		var (
+			prev     subject
+			prevName string
+		)
 		for _, fn := range testFuncs(file) {
 			s, err := parseSubject(fn.Name.Name)
 			if err != "" {
