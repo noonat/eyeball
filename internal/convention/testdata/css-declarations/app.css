@@ -1,0 +1,8 @@
+:root {
+  --prose: sans-serif;
+  --ink: #111;
+}
+
+.app {
+  display: block;
+}

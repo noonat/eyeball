@@ -1,0 +1,9 @@
+.i-bot {
+  --icon: url("bot.svg");
+}
+.i-folder {
+  --icon: url("folder.svg");
+}
+.i-mapped-but-unlisted {
+  --icon: url("stray.svg");
+}

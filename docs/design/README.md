@@ -118,14 +118,14 @@ tearout before it gets code.
   python3 docs/design/icons.py        # rewrites the mask table in app.css
   ```
 
-  `check.py` fails when `icons.txt` and the table disagree, when a span carries
-  `i` without an `i-` class, and when one holds text. All three render as
-  something plausible.
+  `make check` fails when `icons.txt` and the table disagree, when a span
+  carries `i` without an `i-` class, and when one holds text. All three render
+  as something plausible.
 
 - **Prose never repeats an identifier the page already displays.** A note that
   says the verdict went to a named agent is a second copy of a name shown three
   lines above it, and the two drift the moment either changes. They did.
-  `check.py` fails on an agent name appearing anywhere outside its own span.
+  `make check` fails on an agent name appearing anywhere outside its own span.
 
 - **Labels are sentence case. Identifiers keep their own case.** A status pill
   reads `Waiting`, a hint reads `Saved as you type`. A project name, an agent
@@ -189,31 +189,25 @@ tearout before it gets code.
 ## What is checked rather than trusted
 
 ```sh
-python3 docs/design/check.py
+make check
 ```
 
-It fails when markup uses a class no stylesheet defines, when a fragment link
-points at an id that is not on the page, when tags do not nest, when an icon
-span carries no `i-` class or holds text, and when `icons.txt` and the mask
-table in `app.css` disagree.
-
-Every one of those is invisible in the browser it was authored in. An unstyled
-class still renders text, a dead expand link still looks like a link, a browser
-silently repairs bad nesting, and a missing mask draws nothing at all, which
-leaves a gap that reads as a spacing bug. The check was run against a planted
-violation of each kind, and watched failing, before being trusted.
+`internal/convention` reads this directory and holds it to the rules under
+Tearouts in [docs/conventions.md](../conventions.md).
 
 Everything else here is judged rather than asserted. There is no test that says
 a screen looks right.
 
-**These scripts are scaffolding, and they are Python because there is no Go
-module yet.** When there is, each moves to where its kind belongs:
+**The remaining scripts are scaffolding, and they are Python because they were
+written before there was a Go module.** Each moves to where its kind belongs:
 
-| Script     | Becomes                                                                                                  |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| `check.py` | a Go test under `internal/`, running in `make check`, the way a repo holds itself to its own conventions |
-| `icons.py` | a binary under `tool/`, generating committed output and never running in a build                         |
-| `serve.py` | a binary under `tool/`, or a `make` target once the real server can serve these itself                   |
+| Script     | Becomes                                                                                |
+| ---------- | -------------------------------------------------------------------------------------- |
+| `icons.py` | a binary under `tool/`, generating committed output and never running in a build       |
+| `serve.py` | a binary under `tool/`, or a `make` target once the real server can serve these itself |
+
+The checker made that move already. It is `internal/convention`, run by
+`make check`.
 
 The split is the same one that decides where anything goes: a check that must
 pass before work closes is a test, and a generator that runs when a person

@@ -398,9 +398,8 @@ closes.
   HTML is excluded, for the reason in docs/conventions.md.
 - `tsc --noEmit` and `oxlint --type-aware` on the TypeScript, once there is any.
 - `go test ./...`, which includes `internal/convention`, covering the Go
-  conventions and the prose rules over every committed markdown file.
-- The tearout checker, which today is `docs/design/check.py` and becomes a Go
-  test here.
+  conventions, the prose rules over every committed markdown file, and the
+  tearout markup and stylesheets under `docs/design/`.
 
 **Make every new gate fail on purpose once before trusting a pass from it.**
 
@@ -415,6 +414,7 @@ closes.
 | `github.com/SherClockHolmes/webpush-go` | push payload encryption                                           |
 | `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                |
 | `github.com/yuin/goldmark`              | markdown                                                          |
+| `golang.org/x/net/html` (test)          | tokenizing the tearouts                                           |
 | `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                    |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                        |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate    |

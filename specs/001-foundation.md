@@ -78,8 +78,8 @@ across the repository at a directory with one file in it. It moves in 005, and
 `tool/icons` gains a one-line path change then.
 
 **Rejected: a single `check` script instead of a Makefile.** Every command here
-is already one line, and a Makefile gives `make help` and per-target running for
-free. A script would have to grow both.
+is already one line, and a Makefile gives `make help` and per-target running
+without extra code. A script would have to grow both.
 
 ## Iteration 1: The module and the gate
 
@@ -167,18 +167,25 @@ required_commands:
   - go test ./internal/convention -run Test_eachCheckFlagsItsFixture
 ```
 
-- [ ] A class used in a tearout is defined by a stylesheet, and a fragment link
+- [x] A class used in a tearout is defined by a stylesheet, and a fragment link
       points at an id that is on the page
-- [ ] Tags nest, an icon span carries a glyph class, and an icon span holds no
+- [x] Tags nest, an icon span carries a glyph class, and an icon span holds no
       text of its own
-- [ ] `icons.txt` and the generated mask table in `app.css` name the same set,
+- [x] `icons.txt` and the generated mask table in `app.css` name the same set,
       neither having an entry the other lacks
-- [ ] The load-bearing declarations `app.css` must keep, so a generator that
-      takes too much with it fails the build rather than the page
-- [ ] No agent name appears in prose on a page that also displays it, which is
+- [x] The declarations `app.css` must keep because nothing else provides them,
+      so a generator that takes too much with it fails the build rather than the
+      page
+- [x] No agent name appears in prose on a page that also displays it, which is
       the check that drifted twice before it existed
-- [ ] A fixture per check, and `docs/design/check.py` deleted with the design
+- [x] A fixture per check, and `docs/design/check.py` deleted with the design
       readme naming the Go command in its place
+
+> **Completed** 2026-08-26 01:09 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.4s
+> - `go test ./internal/convention -run Test_eachCheckFlagsItsFixture` — 252ms
 
 ## Iteration 5: The icon generator
 

@@ -34,6 +34,16 @@ func Test_eachCheckFlagsItsFixture(t *testing.T) {
 			g.Expect(check.Run(path, body)).NotTo(BeEmpty())
 		})
 	}
+
+	setup.Expect(convention.TearoutChecks).NotTo(BeEmpty())
+	for _, check := range convention.TearoutChecks {
+		t.Run(check.Name, func(t *testing.T) {
+			g := NewWithT(t)
+			tear, err := convention.TearoutFixture(check.Name)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(check.Run(tear)).NotTo(BeEmpty())
+		})
+	}
 }
 
 func Test_everyFixtureHasACheck(t *testing.T) {
@@ -52,6 +62,9 @@ func Test_everyFixtureHasACheck(t *testing.T) {
 		registered[check.Name] = struct{}{}
 	}
 	for _, check := range convention.ProseChecks {
+		registered[check.Name] = struct{}{}
+	}
+	for _, check := range convention.TearoutChecks {
 		registered[check.Name] = struct{}{}
 	}
 	g.Expect(onDisk).To(Equal(registered))
@@ -96,4 +109,16 @@ func Test_repoFollowsItsOwnConventions(t *testing.T) {
 		}
 	}
 	g.Expect(prose).To(BeEmpty())
+
+	tear, err := convention.LoadTearout()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(tear.Pages).NotTo(BeEmpty())
+
+	var markup []string
+	for _, check := range convention.TearoutChecks {
+		for _, f := range check.Run(tear) {
+			markup = append(markup, f.String())
+		}
+	}
+	g.Expect(markup).To(BeEmpty())
 }
