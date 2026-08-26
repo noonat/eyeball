@@ -12,29 +12,24 @@ agent forgets it between contexts.
 
 Each becomes `specs/NNN-*.md` when it reaches the front.
 
-1. **001 Foundation.** The Go module, the package layout, and `make check` as
-   the gate every iteration closes on. Includes the convention test that holds
-   this repo to its own rules, and moving the three Python scripts under
-   `docs/design/` to Go: the tearout checker becomes a test, the icon generator
-   and the tearout server become `tool/` binaries.
-2. **002 The store.** SQLite for reviews, rounds, comments and decisions, plus
+1. **003 The store.** SQLite for reviews, rounds, comments and decisions, plus
    the content-addressed blob store for captured files. A comment is fsynced on
    write, because losing one is the failure this must not have.
-3. **003 Capture and diff.** Git shell-out for the base commit and the dirty
+2. **004 Capture and diff.** Git shell-out for the base commit and the dirty
    file set, a capture that holds only what differs, and the diff between two
    captures with word-level marking.
-4. **004 The daemon and the CLI.** One process owns the store, the CLI is a thin
+3. **005 The daemon and the CLI.** One process owns the store, the CLI is a thin
    client over a unix socket, and `wait` is a long poll rather than a loop.
    `--json` everywhere, flags in any position, `eyeball doc`.
-5. **005 The surface.** Templates seeded from the tearouts: the queue, a review,
+4. **006 The surface.** Templates seeded from the tearouts: the queue, a review,
    widening, the project view. Server-rendered, htmx for the interactions, and
    the live stream that carries updates and doubles as the connection state.
    Every action reports its own failure, because a tap that does nothing is the
    worst thing this surface can do.
-6. **006 Notification.** Web push with VAPID, the service worker that exists for
+5. **007 Notification.** Web push with VAPID, the service worker that exists for
    it, the installed-page requirement, and the lapsed-subscription state the
    surface has to report.
-7. **007 Rendered files.** Images, pages, media, and the sandbox that anything
+6. **008 Rendered files.** Images, pages, media, and the sandbox that anything
    executable renders in.
 
 ## Unscheduled
@@ -54,12 +49,6 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
       committed its own work. A capture is the delta from the base, so a base of
       `HEAD` after committing is an empty review and a base of the branch point
       is not.
-- [ ] checks: `string-wrapping`, for a string constant broken across lines. The
-      rule is written down under Judgment and has been broken in three separate
-      places, while the enforced rules beside it have not been broken once.
-- [ ] checks: `prose-person` and `prose-dashes` read one line at a time, so a
-      banned phrase that oxfmt wrapped across a line break is invisible to them.
-      Two such phrases survived a grep for exactly this reason.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can

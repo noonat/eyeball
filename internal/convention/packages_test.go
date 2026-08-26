@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func Test_packagesListedFlagsAnUnlistedPackage(t *testing.T) {
+func Test_packagesListedFlagsUnlisted(t *testing.T) {
 	g := NewWithT(t)
 	root := t.TempDir()
 

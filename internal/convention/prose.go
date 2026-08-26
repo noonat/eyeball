@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -24,11 +25,10 @@ type ProseCheck struct {
 	Run func(path string, body string) []Finding
 }
 
-// ProseChecks is every rule this package enforces over markdown, in the order
-// docs/conventions.md lists them.
+// ProseChecks is every rule this package enforces over markdown, sorted by name.
 var ProseChecks = []ProseCheck{
-	{Name: "prose-person", Run: prosePerson},
 	{Name: "prose-dashes", Run: proseDashes},
+	{Name: "prose-person", Run: prosePerson},
 }
 
 // personWords are the first and second person pronouns docs/voice.md bans.
@@ -54,14 +54,13 @@ var quotedSpan = regexp.MustCompile(`"[^"\n]*"`)
 // chosen.
 func prosePerson(path string, body string) []Finding {
 	var out []Finding
-	for i, line := range proseLines(body) {
-		for _, m := range personPattern.FindAllString(line, -1) {
-			out = append(out, Finding{
-				At:    fmt.Sprintf("%s:%d", path, i+1),
-				Check: "prose-person",
-				What:  "first or second person: " + m,
-			})
-		}
+	p := proseOf(body)
+	for _, at := range personPattern.FindAllStringIndex(p.text, -1) {
+		out = append(out, Finding{
+			At:    fmt.Sprintf("%s:%d", path, p.lineAt(at[0])),
+			Check: "prose-person",
+			What:  "first or second person: " + p.text[at[0]:at[1]],
+		})
 	}
 	return out
 }
@@ -73,12 +72,13 @@ func prosePerson(path string, body string) []Finding {
 // text written elsewhere and pasted in.
 func proseDashes(path string, body string) []Finding {
 	var out []Finding
-	for i, line := range proseLines(body) {
-		if !strings.Contains(line, "—") {
+	p := proseOf(body)
+	for at, r := range p.text {
+		if r != '—' {
 			continue
 		}
 		out = append(out, Finding{
-			At:    fmt.Sprintf("%s:%d", path, i+1),
+			At:    fmt.Sprintf("%s:%d", path, p.lineAt(at)),
 			Check: "prose-dashes",
 			What:  "em dash in prose; a comma, a colon or a period says it",
 		})
@@ -86,31 +86,87 @@ func proseDashes(path string, body string) []Finding {
 	return out
 }
 
-// proseLines returns one entry per line of a markdown file, with everything
-// that is not this repository's own prose blanked out. Blanking rather than
-// dropping keeps the index equal to the line number.
+// prose is a markdown file's own words, with everything else left out and each
+// paragraph's wrapped lines joined back into one.
+type prose struct {
+	// text is the joined prose. A line break inside a paragraph becomes one
+	// space. A blank line, a fenced block and a blockquote become a newline, so
+	// nothing matches across the gap between two paragraphs.
+	text string
+	// at maps each byte of text to the line of the file it came from.
+	at []int
+}
+
+// lineAt is the line an offset into text came from.
+func (p prose) lineAt(offset int) int {
+	if offset < 0 || offset >= len(p.at) {
+		return 0
+	}
+	return p.at[offset]
+}
+
+// proseOf reads a markdown file down to the words this repository wrote.
 //
 // A fenced block is code. A blockquote is quoted material, which covers the
 // annotations backlog writes into a spec when it closes an iteration. An inline
 // code span names something rather than says it, and a double-quoted span is an
 // example, which is how docs/voice.md states the rule against the first person
 // without breaking it.
-func proseLines(body string) []string {
-	lines := strings.Split(body, "\n")
-	out := make([]string, len(lines))
+//
+// The lines of a paragraph are joined before either span is stripped. Both
+// patterns stop at a line break, so a quoted example that oxfmt wrapped would
+// otherwise lose its exemption and the pronoun inside it would be reported.
+func proseOf(body string) prose {
+	var text strings.Builder
+	var at []int
+	write := func(s string, line int) {
+		text.WriteString(s)
+		for range len(s) {
+			at = append(at, line)
+		}
+	}
 	fenced := false
-	for i, line := range lines {
+	for i, line := range strings.Split(body, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "```") {
 			fenced = !fenced
+			write("\n", i+1)
 			continue
 		}
-		if fenced || strings.HasPrefix(trimmed, ">") {
+		if fenced || trimmed == "" || strings.HasPrefix(trimmed, ">") {
+			write("\n", i+1)
 			continue
 		}
-		out[i] = quotedSpan.ReplaceAllString(inlineCode.ReplaceAllString(line, " "), " ")
+		write(trimmed+" ", i+1)
 	}
-	return out
+	joined := text.String()
+	stripped, kept := strip(joined, at)
+	return prose{text: stripped, at: kept}
+}
+
+// strip removes the code and quoted spans, carrying the line map with them.
+//
+// A replacement would have to keep every byte to keep the map aligned, so the
+// spans are cut and their line entries cut with them.
+func strip(text string, at []int) (string, []int) {
+	spans := append(inlineCode.FindAllStringIndex(text, -1), quotedSpan.FindAllStringIndex(text, -1)...)
+	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
+	var outText strings.Builder
+	var outAt []int
+	end := 0
+	for _, span := range spans {
+		if span[0] < end {
+			continue
+		}
+		outText.WriteString(text[end:span[0]])
+		outAt = append(outAt, at[end:span[0]]...)
+		outText.WriteString(" ")
+		outAt = append(outAt, at[span[0]])
+		end = span[1]
+	}
+	outText.WriteString(text[end:])
+	outAt = append(outAt, at[end:]...)
+	return outText.String(), outAt
 }
 
 // MarkdownFiles lists every committed markdown file, relative to the root.

@@ -123,8 +123,12 @@ query.
 
 **Judgment.** Do not wrap to hit a margin. Go tolerates long lines, and what
 matters is whether a reader can scan the line, not how many columns it occupies.
-Never break a string constant across lines for width: the reader then has to
-reassemble the message to know what it says.
+
+**Enforced by `internal/convention`.** Never continue a string constant on the
+next line with `+`. The reader has to reassemble the message before knowing what
+it says, and a search for a phrase inside it finds nothing. This rule was left
+to judgment first and broken in five places, while the rules beside it that
+carry a check were not broken once.
 
 A line that is genuinely hard to read is hard because of chaining or nesting,
 not because of its length, and the fix for that is to split the logic into named
@@ -148,24 +152,6 @@ func reportGen(d *ast.GenDecl, report reporter) {
 line. The half-wrapped form, where some fields share a line inside a literal
 that is already broken, fails for the same reason a half-wrapped argument list
 does.
-
-**Judgment.** A long HTML fragment is the exception, and it earns it past
-roughly a hundred characters, where one line stops being readable at all. Hoist
-it to a named `const` above the function that formats it, with the parts joined
-by `+` and a doc comment naming the arguments in order:
-
-```go
-// rowHTML takes the href, the title, and the counts.
-const rowHTML = (`<a class="row" href=%q>` +
-    `<span class="title">%s</span>` +
-    `<span class="counts">%s</span></a>`)
-```
-
-The first part sits on the paren's line. That looks inconsistent and is the only
-form that survives gofmt. Breaking after the open paren and dedenting the
-closing paren is a **syntax error**: a line ending in a string literal ends in a
-terminating token, so Go inserts a semicolon and the expression closes before
-the `)` is reached.
 
 **Judgment.** Name an argument rather than wrapping the call it sits in. A long
 expression inside an assertion reads better as two statements:
@@ -306,6 +292,12 @@ and `Y` to a method of `X`. A third segment is a description and starts
 lowercase, which is what keeps it from being read as a method:
 `TestStore_Freeze` names a method and `TestStore_freeze` names a case.
 
+**Judgment.** A description is as few words as will do, not a sentence. It is
+read in a list of failures, where the eye wants a label. Drop the article that a
+sentence would need: `Test_findingsNameSourceLines`, not
+`Test_aFindingNamesTheLineItCameFrom`. Three or four words is usually the whole
+of it.
+
 Those are the rules `go vet` applies to `ExampleT`, `ExampleT_M` and
 `ExampleT_M_suffix`. It does not apply them to tests. Measured against Go 1.26:
 `TestStore_NoSuchMethod` and `TestNoSuchTypeAtAll` pass vet and run, while the
@@ -423,8 +415,14 @@ Every rule here is **enforced by `internal/convention`**, which reads
 `docs/design/` during `make check`. Each describes a fault a browser renders as
 something plausible, which is why none of them can be left to a reading.
 
-- `tearout-nesting`: tags nest. A browser repairs a stray or unclosed tag, so
-  the fault surfaces only when a later edit lands inside the wrong element.
+- `css-declarations`: `app.css` keeps the declarations that have no fallback, so
+  a generator deleting more than its own block fails the build rather than the
+  page.
+- `icons-listed`: `icons.txt` and the generated mask table name the same set. A
+  class with no mask leaves a gap that reads as a spacing bug.
+- `tearout-agents`: an agent name never appears in prose on a page that also
+  displays it. The displayed copy comes from an `.agent` span, and a second copy
+  in a sentence is not kept in step with it.
 - `tearout-classes`: a class used in markup is defined by a stylesheet. An
   undefined class still renders its text, unstyled.
 - `tearout-fragments`: a fragment link points at an id on the page. The tearouts
@@ -432,14 +430,8 @@ something plausible, which is why none of them can be left to a reading.
 - `tearout-icons`: an icon span carries an `i-<name>` class and holds no text of
   its own. Without the class it draws nothing, and with text it draws that text
   beside the glyph.
-- `tearout-agents`: an agent name never appears in prose on a page that also
-  displays it. The displayed copy comes from an `.agent` span, and a second copy
-  in a sentence is not kept in step with it.
-- `css-declarations`: `app.css` keeps the declarations that have no fallback, so
-  a generator deleting more than its own block fails the build rather than the
-  page.
-- `icons-listed`: `icons.txt` and the generated mask table name the same set. A
-  class with no mask leaves a gap that reads as a spacing bug.
+- `tearout-nesting`: tags nest. A browser repairs a stray or unclosed tag, so
+  the fault surfaces only when a later edit lands inside the wrong element.
 
 The markup is tokenized, never matched with a regular expression. A pattern
 expecting `<span class="agent">` written tightly stops matching when a line

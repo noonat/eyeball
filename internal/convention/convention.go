@@ -35,21 +35,21 @@ type Check struct {
 	Run func(fset *token.FileSet, files []*ast.File) []Finding
 }
 
-// Checks is every rule this package enforces over Go source, in the order
-// docs/conventions.md lists them.
+// Checks is every rule this package enforces over Go source, sorted by name.
 //
-// A check missing from here is a rule nothing enforces. A check here with no
-// fixture under testdata is a check nobody has watched fail, which
-// Test_eachCheckFlagsItsFixture refuses.
+// A rule that is written down and missing from here is enforced by nothing. A
+// check here with no fixture under testdata has never been seen to fail, and
+// Test_checksFlagFixtures fails rather than trust it.
 var Checks = []Check{
-	{Name: "doc-comments", Run: docComments},
-	{Name: "brace-lines", Run: braceLines},
 	{Name: "argument-wrapping", Run: argumentWrapping},
-	{Name: "signature-lines", Run: signatureLines},
+	{Name: "brace-lines", Run: braceLines},
+	{Name: "doc-comments", Run: docComments},
 	{Name: "gomega-in-subtest", Run: gomegaInSubtest},
+	{Name: "keyed-rows", Run: keyedRows},
 	{Name: "named-gomega", Run: namedGomega},
 	{Name: "range-literal", Run: rangeLiteral},
-	{Name: "keyed-rows", Run: keyedRows},
+	{Name: "signature-lines", Run: signatureLines},
+	{Name: "string-wrapping", Run: stringWrapping},
 	{Name: "test-names", Run: testNames},
 	{Name: "test-order", Run: testOrder},
 }

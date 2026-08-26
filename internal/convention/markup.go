@@ -181,7 +181,7 @@ func tearoutAgents(t Tearout) []Finding {
 	}
 	var out []Finding
 	for _, page := range t.Pages {
-		prose := proseOf(page.Body)
+		prose := pageProse(page.Body)
 		for _, name := range sortedSet(shown) {
 			if !strings.Contains(prose, name) {
 				continue
@@ -214,9 +214,9 @@ func agentNames(body string) []string {
 	return out
 }
 
-// proseOf is a page's character data with the .agent spans left out, which is
+// pageProse is a page's character data with the .agent spans left out, which is
 // every place a name would be a second copy rather than the displayed one.
-func proseOf(body string) string {
+func pageProse(body string) string {
 	var sb strings.Builder
 	spans(body, "agent", func(m markup, inside bool) {
 		if m.Kind != html.TextToken || inside {
