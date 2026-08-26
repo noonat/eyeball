@@ -52,7 +52,7 @@ route.
 
 That brings Node in earlier than the rest of the frontend toolchain, and the
 reason it was going to wait no longer holds: there is now something to check.
-Oxlint and `tsc` still arrive with the surface in 005, because there is still no
+Oxlint and `tsc` still arrive with the surface in 006, because there is still no
 TypeScript. Node stays a development dependency either way, since `go install`
 never runs it.
 
@@ -74,7 +74,7 @@ the exclusion instead, for the reason in
 
 **`app.css` does not move yet.** The architecture document has it shipping from
 `web/`. Moving it before anything serves it would leave the tearouts pointing
-across the repository at a directory with one file in it. It moves in 005, and
+across the repository at a directory with one file in it. It moves in 006, and
 `tool/icons` gains a one-line path change then.
 
 **Rejected: a single `check` script instead of a Makefile.** Every command here

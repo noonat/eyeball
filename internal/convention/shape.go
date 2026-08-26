@@ -64,6 +64,64 @@ func signatureLines(fset *token.FileSet, files []*ast.File) []Finding {
 	return out
 }
 
+// stringWrapping reports a string constant continued on the next line with +.
+//
+// The reader has to reassemble the message before knowing what it says, and a
+// search for a phrase in it finds nothing. This was left to judgment first and
+// broken five times, while the rules beside it that carry a check were not.
+func stringWrapping(fset *token.FileSet, files []*ast.File) []Finding {
+	var out []Finding
+	for _, file := range files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			bin, ok := n.(*ast.BinaryExpr)
+			if !ok || bin.Op != token.ADD {
+				return true
+			}
+			if fset.Position(bin.X.End()).Line == fset.Position(bin.Y.Pos()).Line {
+				return true
+			}
+			if !isStringLit(lastOperand(bin.X)) && !isStringLit(firstOperand(bin.Y)) {
+				return true
+			}
+			out = append(out, Finding{
+				At:    at(fset, bin.Y.Pos()),
+				Check: "string-wrapping",
+				What:  "string constant continues on the next line; keep it on one",
+			})
+			return true
+		})
+	}
+	return out
+}
+
+// lastOperand is the right-hand end of a chain of additions.
+func lastOperand(e ast.Expr) ast.Expr {
+	for {
+		bin, ok := e.(*ast.BinaryExpr)
+		if !ok || bin.Op != token.ADD {
+			return e
+		}
+		e = bin.Y
+	}
+}
+
+// firstOperand is the left-hand end of a chain of additions.
+func firstOperand(e ast.Expr) ast.Expr {
+	for {
+		bin, ok := e.(*ast.BinaryExpr)
+		if !ok || bin.Op != token.ADD {
+			return e
+		}
+		e = bin.X
+	}
+}
+
+// isStringLit reports whether an expression is a string constant.
+func isStringLit(e ast.Expr) bool {
+	lit, ok := e.(*ast.BasicLit)
+	return ok && lit.Kind == token.STRING
+}
+
 // argumentWrapping reports an argument list that wraps some of the way.
 //
 // If a newline falls between two arguments then every argument goes on its own

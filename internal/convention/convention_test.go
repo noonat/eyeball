@@ -11,7 +11,7 @@ import (
 	"github.com/noonat/eyeball/internal/convention"
 )
 
-func Test_eachCheckFlagsItsFixture(t *testing.T) {
+func Test_checksFlagFixtures(t *testing.T) {
 	setup := NewWithT(t)
 	setup.Expect(convention.Checks).NotTo(BeEmpty())
 
@@ -46,7 +46,7 @@ func Test_eachCheckFlagsItsFixture(t *testing.T) {
 	}
 }
 
-func Test_everyFixtureHasACheck(t *testing.T) {
+func Test_fixturesHaveChecks(t *testing.T) {
 	g := NewWithT(t)
 	dirs, err := os.ReadDir(filepath.Join("testdata"))
 	g.Expect(err).NotTo(HaveOccurred())
@@ -77,7 +77,7 @@ func Test_packagesAreListed(t *testing.T) {
 	g.Expect(found).To(BeEmpty())
 }
 
-func Test_repoFollowsItsOwnConventions(t *testing.T) {
+func Test_repoFollowsConventions(t *testing.T) {
 	g := NewWithT(t)
 	fset := token.NewFileSet()
 	pkgs, err := convention.ParseRepo(fset)

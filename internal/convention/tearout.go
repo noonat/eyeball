@@ -56,16 +56,16 @@ type TearoutCheck struct {
 	Run func(t Tearout) []Finding
 }
 
-// TearoutChecks is every rule this package enforces over the tearouts, in the
-// order docs/conventions.md lists them.
+// TearoutChecks is every rule this package enforces over the tearouts, sorted
+// by name.
 var TearoutChecks = []TearoutCheck{
-	{Name: "tearout-nesting", Run: tearoutNesting},
+	{Name: "css-declarations", Run: cssDeclarations},
+	{Name: "icons-listed", Run: iconsListed},
+	{Name: "tearout-agents", Run: tearoutAgents},
 	{Name: "tearout-classes", Run: tearoutClasses},
 	{Name: "tearout-fragments", Run: tearoutFragments},
 	{Name: "tearout-icons", Run: tearoutIcons},
-	{Name: "tearout-agents", Run: tearoutAgents},
-	{Name: "css-declarations", Run: cssDeclarations},
-	{Name: "icons-listed", Run: iconsListed},
+	{Name: "tearout-nesting", Run: tearoutNesting},
 }
 
 // LoadTearout reads the tearout directory under the repository root.
