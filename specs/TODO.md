@@ -12,24 +12,21 @@ agent forgets it between contexts.
 
 Each becomes `specs/NNN-*.md` when it reaches the front.
 
-1. **003 The store.** SQLite for reviews, rounds, comments and decisions, plus
-   the content-addressed blob store for captured files. A comment is fsynced on
-   write, because losing one is the failure this must not have.
-2. **004 Capture and diff.** Git shell-out for the base commit and the dirty
+1. **004 Capture and diff.** Git shell-out for the base commit and the dirty
    file set, a capture that holds only what differs, and the diff between two
    captures with word-level marking.
-3. **005 The daemon and the CLI.** One process owns the store, the CLI is a thin
+2. **005 The daemon and the CLI.** One process owns the store, the CLI is a thin
    client over a unix socket, and `wait` is a long poll rather than a loop.
    `--json` everywhere, flags in any position, `eyeball doc`.
-4. **006 The surface.** Templates seeded from the tearouts: the queue, a review,
+3. **006 The surface.** Templates seeded from the tearouts: the queue, a review,
    widening, the project view. Server-rendered, htmx for the interactions, and
    the live stream that carries updates and doubles as the connection state.
    Every action reports its own failure, because a tap that does nothing is the
    worst thing this surface can do.
-5. **007 Notification.** Web push with VAPID, the service worker that exists for
+4. **007 Notification.** Web push with VAPID, the service worker that exists for
    it, the installed-page requirement, and the lapsed-subscription state the
    surface has to report.
-6. **008 Rendered files.** Images, pages, media, and the sandbox that anything
+5. **008 Rendered files.** Images, pages, media, and the sandbox that anything
    executable renders in.
 
 ## Unscheduled
@@ -43,6 +40,9 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
 - [ ] product: whether a review-level comment and a verdict note are one
       concept. They overlap almost completely and differ only in when they are
       written.
+- [ ] product: whether the daemon exits when nothing is outstanding, meaning no
+      open reviews and no connected agents. architecture.md names it as a
+      smaller rule than running until stopped, and does not adopt it.
 - [ ] product: what a marker file holds beyond naming a project root, if
       anything ever needs a second field.
 - [ ] product: say what an agent declares as its base commit once it has
@@ -53,6 +53,11 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can
       serve `docs/design/` in a dev mode.
+- [ ] tooling: whether the surface needs a JS build step beyond esbuild's
+      default bundling.
+- [ ] tooling: whether the spec-reference rule can be checked. A three-digit
+      spec number outside parentheses is mechanical to find. Whether a name sits
+      beside it is not.
 
 ## Open questions
 
