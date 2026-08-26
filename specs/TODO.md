@@ -54,6 +54,12 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
       committed its own work. A capture is the delta from the base, so a base of
       `HEAD` after committing is an empty review and a base of the branch point
       is not.
+- [ ] checks: `string-wrapping`, for a string constant broken across lines. The
+      rule is written down under Judgment and has been broken in three separate
+      places, while the enforced rules beside it have not been broken once.
+- [ ] checks: `prose-person` and `prose-dashes` read one line at a time, so a
+      banned phrase that oxfmt wrapped across a line break is invisible to them.
+      Two such phrases survived a grep for exactly this reason.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can

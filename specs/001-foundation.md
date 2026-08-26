@@ -67,10 +67,10 @@ reformatted spec keeps every todo's state and only its ids move. A review
 comment cannot detach either, because a round is frozen: a comment anchors to a
 line in a capture rather than to text that is still being edited.
 
-**Oxfmt covers markdown only for now.** It also formats CSS, and `app.css` holds
-a block that `tool/icons` generates. A formatter and a generator writing the
-same bytes is a fight to settle when the surface arrives and `app.css` moves,
-not while the only consumer is a tearout.
+**Oxfmt formats CSS as well as markdown.** The generated table in `app.css` is
+already what oxfmt would write, so it and `tool/icons` do not disagree. HTML is
+the exclusion instead, for the reason in
+[conventions.md](../docs/conventions.md).
 
 **`app.css` does not move yet.** The architecture document has it shipping from
 `web/`. Moving it before anything serves it would leave the tearouts pointing
@@ -196,12 +196,19 @@ required_commands:
   - git diff --exit-code docs/design/app.css
 ```
 
-- [ ] `tool/icons` fetches each name in `icons.txt` from Lucide and rewrites the
+- [x] `tool/icons` fetches each name in `icons.txt` from Lucide and rewrites the
       generated block in `app.css`, leaving everything outside it untouched
-- [ ] It refuses a name that is not a Lucide icon, and refuses to drop one that
+- [x] It refuses a name that is not a Lucide icon, and refuses to drop one that
       a pseudo-element resolves through a root variable
-- [ ] `docs/design/icons.py` deleted, with the design readme naming the Go
+- [x] `docs/design/icons.py` deleted, with the design readme naming the Go
       command, having first confirmed the output is byte for byte the same
+
+> **Completed** 2026-08-26 02:00 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.6s
+> - `go run ./tool/icons` — 929ms
+> - `git diff --exit-code docs/design/app.css` — 2ms
 
 ## Iteration 6: The tearout server
 

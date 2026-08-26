@@ -115,7 +115,7 @@ tearout before it gets code.
   To change the set, edit `icons.txt`, then regenerate the table:
 
   ```sh
-  python3 docs/design/icons.py        # rewrites the mask table in app.css
+  go run ./tool/icons                 # rewrites the mask table in app.css
   ```
 
   `make check` fails when `icons.txt` and the table disagree, when a span
@@ -198,16 +198,12 @@ Tearouts in [docs/conventions.md](../conventions.md).
 Everything else here is judged rather than asserted. There is no test that says
 a screen looks right.
 
-**The remaining scripts are scaffolding, and they are Python because they were
-written before there was a Go module.** Each moves to where its kind belongs:
+**`serve.py` is the last of the scaffolding, and it is Python because it was
+written before there was a Go module.** It becomes a binary under `tool/`, or a
+`make` target once the real server can serve these itself.
 
-| Script     | Becomes                                                                                |
-| ---------- | -------------------------------------------------------------------------------------- |
-| `icons.py` | a binary under `tool/`, generating committed output and never running in a build       |
-| `serve.py` | a binary under `tool/`, or a `make` target once the real server can serve these itself |
-
-The checker made that move already. It is `internal/convention`, run by
-`make check`.
+The other two made that move already. The checker is `internal/convention`, run
+by `make check`, and the generator is `tool/icons`.
 
 The split is the same one that decides where anything goes: a check that must
 pass before work closes is a test, and a generator that runs when a person
