@@ -147,8 +147,20 @@ eyeball.lock          the single-instance lock
 ```
 
 **SQLite through `modernc.org/sqlite`**, which is pure Go, so the binary stays
-static and `go install` keeps working. WAL, `foreign_keys`, `busy_timeout`, and
-`_txlock=immediate` on write transactions.
+static and `go install` keeps working. WAL, `foreign_keys`, `busy_timeout` and
+`_txlock=immediate`.
+
+**Those settings live in the connection string, and the pool holds one
+connection.** A pragma is per-connection, and `database/sql` opens a connection
+whenever it wants one, so a pragma set by an `Exec` after opening applies to
+that connection and silently not to the next. A misspelled one in the DSN is
+accepted and ignored, so each is read back in a test.
+
+`_txlock` is per connection as well, not per transaction, because there is no
+way to ask `database/sql` for a deferred one. With one connection nothing
+notices. A reader pool would need a second handle with its own DSN, or every
+read would take the write lock and the WAL property the pool was bought for
+would be gone.
 
 **`synchronous=FULL`, not the usual `NORMAL`.** Losing a comment is the failure
 product.md says this must not have, and under WAL with `NORMAL` a commit is

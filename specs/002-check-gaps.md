@@ -36,7 +36,7 @@ one.
 **The check needs no exemption, because the exception is gone.** conventions.md
 carved out a long HTML fragment hoisted to a named `const` with its parts joined
 by `+`. It was written before any HTML existed, nothing ever used it, and it was
-removed rather than taught to a checker. When the surface arrives in 005 and
+removed rather than taught to a checker. When the surface arrives (006) and
 there is real HTML to look at, the rule can be reopened against something
 concrete.
 

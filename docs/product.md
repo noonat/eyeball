@@ -70,6 +70,11 @@ two pages. Sharing a working copy is not a reason to share a verdict.
 because that is exactly what merges two pieces of work into one. Naming the
 paths is the agent's job and costs it one argument.
 
+**A path is a file or a directory, which covers everything under it.** Not a
+glob. Whether two glob patterns can match the same file has no cheap answer, so
+overlap could only be guessed at. A guess merges two pieces of work under one
+verdict, or blocks work that never conflicted.
+
 **Overlapping scopes are refused.** A path already claimed by an open review in
 the same project cannot be claimed by a second one, because the same change
 would then appear in two places with two verdicts. The refusal names the review
