@@ -1,9 +1,13 @@
 // Package blob stores the content of captured files, addressed by the sha256 of
 // the bytes.
 //
-// A round holds only what differs from its base commit, so this is proportional
-// to what an agent changed rather than to the size of a repository. Writes go to
-// a temporary name and rename into place, so a reader never sees a partial file,
-// and re-capturing identical bytes is a rename over the path that already holds
-// them.
+// Put returns a digest only after its content is on disk. It writes to a
+// temporary name, fsyncs the file, renames it into place, and fsyncs the
+// directories the rename passed through. A crash therefore leaves an
+// unreferenced blob, which nothing reads, rather than a digest recorded with no
+// file to match it.
+//
+// Every call that takes a digest refuses one that is not 64 lowercase hex
+// characters, before touching the filesystem, because the digest is what the
+// path is built from. Nothing is verified on read. See docs/architecture.md.
 package blob
