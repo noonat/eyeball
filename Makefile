@@ -1,26 +1,17 @@
 .DEFAULT_GOAL := help
 
-# Tool binaries land in GOPATH/bin. Ask go where that is rather than guessing at
-# an install location, so make from a non-interactive shell finds them without a
-# profile having been sourced. backlog runs required_commands that way, and a
-# gate that only passes in an interactive shell is not a gate.
+# Tool binaries live in GOPATH/bin, which a shell with no profile will not have.
 export PATH := $(shell go env GOPATH)/bin:$(PATH)
 
-# Every Go file that is committed or could be, which is not the same as every
-# tracked file: a new package is untracked until it is added, and a gofmt target
-# that reads only the index checks nothing at all in a fresh tree and says it
-# passed. --exclude-standard keeps ignored build output out.
-#
-# testdata is excluded because internal/convention's fixtures break conventions
-# on purpose, and two of them break formatting to do it: the brace-lines fixture
-# is a one-line function body and the argument-wrapping one is a half-wrapped
-# call. Formatting them would delete the violation each exists to prove.
-#
-# `gofmt -l .` would be shorter and is wrong for the same reason. It walks
-# testdata, and it also walks .git and ignored build output, which the git list
-# leaves out for free.
+# Committed or committable Go, minus testdata. See docs/conventions.md.
 GOFILES = $(shell git ls-files --cached --others --exclude-standard '*.go' \
 	| grep -v '/testdata/')
+
+# The same, for what oxfmt formats. HTML is excluded. See docs/conventions.md.
+FMTFILES = $(shell git ls-files --cached --others --exclude-standard \
+	'*.md' '*.css' '*.json')
+
+OXFMT = npx --yes oxfmt@0.65.0
 
 help: ## Show this help
 	@printf "Usage: make <target>\n\nTargets:\n"
@@ -37,22 +28,24 @@ build: ## Build every package
 test: ## Run the tests
 	go test ./...
 
-# One tool per domain, no overlap. gofmt owns formatting, vet owns the
-# correctness checks the compiler skips, staticcheck owns the rest.
-#
-# staticcheck runs through `go tool`, so its version comes from go.mod rather
-# than from whatever happens to be on the path.
+# staticcheck runs through `go tool`, so go.mod pins its version.
 lint: ## Lint everything; fails on any drift, fixes nothing
 	@echo "==> gofmt"; \
 	  files="$(GOFILES)"; \
 	  if [ -z "$$files" ]; then echo "no Go files found; the file list is wrong"; exit 1; fi; \
 	  out="$$(gofmt -l $$files)"; \
 	  if [ -n "$$out" ]; then echo "gofmt needs a rewrite:"; echo "$$out"; exit 1; fi
+	@echo "==> oxfmt"; \
+	  command -v npx >/dev/null || { echo "npx not found. oxfmt needs node"; exit 1; }; \
+	  files="$(FMTFILES)"; \
+	  if [ -z "$$files" ]; then echo "no formattable files found"; exit 1; fi; \
+	  $(OXFMT) --check $$files
 	@echo "==> go vet"; go vet ./...
 	@echo "==> staticcheck"; go tool staticcheck ./...
 
 fmt: ## Auto-fix what lint checks
 	@echo "==> gofmt -w"; gofmt -w $(GOFILES)
+	@echo "==> oxfmt --write"; $(OXFMT) --write $(FMTFILES)
 
 check: build lint test ## Build, lint and test: the gate every iteration closes on
 	@echo "==> check passed"

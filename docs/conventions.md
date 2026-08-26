@@ -23,6 +23,10 @@ One declaration can bind several names, and a comment starting with any of them
 satisfies the rule, since starting with all of them is impossible. Two fields
 declared separately are two declarations and need a comment each.
 
+A function the testing toolchain calls is exempt: `Test`, `Benchmark`, `Fuzz`
+and `Example`. Its name is already required to say what is under test, so a
+comment would be a second copy of that to keep in step.
+
 ```go
 // Old and New are the line numbers, blank where the line exists on one side.
 Old, New int
@@ -45,7 +49,7 @@ the first break is after the open paren. The half-wrapped form is what this
 rules out: the call's name and an argument share a line, so a reader has to find
 where the list starts, and adding an argument reflows the call.
 
-A newline *inside* an argument does not count, which keeps the common case
+A newline _inside_ an argument does not count, which keeps the common case
 legal:
 
 ```go
@@ -117,9 +121,33 @@ literal. `db.ExecContext(ctx, "UPDATE ...")` is one statement and reads as one
 line. Wrapping starts to pay once there are parameters to line up under the
 query.
 
-**Judgment.** Do not wrap to hit a margin. Go tolerates long lines. Never break
-a string constant across lines for width: the reader then has to reassemble the
-message to know what it says.
+**Judgment.** Do not wrap to hit a margin. Go tolerates long lines, and what
+matters is whether a reader can scan the line, not how many columns it occupies.
+Never break a string constant across lines for width: the reader then has to
+reassemble the message to know what it says.
+
+A line that is genuinely hard to read is hard because of chaining or nesting,
+not because of its length, and the fix for that is to split the logic into named
+steps. Folding the same expression onto more lines makes it longer without
+making it simpler.
+
+**Enforced by `internal/convention`.** Never wrap a function definition. A
+signature too long to read on one line has too many parameters, and it needs a
+different signature rather than more lines. A callback parameter is the usual
+cause; giving it a named type shortens every definition that takes it and gives
+the parameter somewhere to be documented.
+
+```go
+// reporter receives one declaration for the doc-comment check.
+type reporter func(pos token.Pos, kind string, names []string, doc *ast.CommentGroup)
+
+func reportGen(d *ast.GenDecl, report reporter) {
+```
+
+**Judgment.** A composite literal goes on one line, or gives every field its own
+line. The half-wrapped form, where some fields share a line inside a literal
+that is already broken, fails for the same reason a half-wrapped argument list
+does.
 
 **Judgment.** A long HTML fragment is the exception, and it earns it past
 roughly a hundred characters, where one line stops being readable at all. Hoist
@@ -139,8 +167,16 @@ closing paren is a **syntax error**: a line ending in a string literal ends in a
 terminating token, so Go inserts a semicolon and the expression closes before
 the `)` is reached.
 
-**Judgment.** Wrap a call chain after the dot, with the chain indented, rather
-than by breaking the argument list.
+**Judgment.** Name an argument rather than wrapping the call it sits in. A long
+expression inside an assertion reads better as two statements:
+
+```go
+docPath := filepath.Join(doc, "architecture.md")
+g.Expect(os.WriteFile(docPath, []byte(layout), 0o644)).To(Succeed())
+```
+
+When a chain does have to wrap, break after the dot with the chain indented,
+never by breaking the argument list.
 
 **Judgment.** An enum's values carry its name: `KindMarkdown`, not `Markdown`.
 At the point of use a bare `Markdown` reads as a variable, and nothing says
@@ -257,13 +293,13 @@ struct is preferred.
 **Enforced by `internal/convention`.** A test is named for what it tests, in the
 shape `go vet` already enforces for examples:
 
-| Name | Tests |
-| ---- | ----- |
-| `TestStore` | the package-level type or function `Store` |
-| `TestStore_Freeze` | the method `Freeze` on `Store` |
-| `TestStore_emptyBase` | `Store`, one narrow case the broad test does not cover |
-| `TestStore_Freeze_emptyBase` | `Freeze`, one narrow case |
-| `Test_replayIsDeterministic` | the package itself, where there is no identifier |
+| Name                         | Tests                                                  |
+| ---------------------------- | ------------------------------------------------------ |
+| `TestStore`                  | the package-level type or function `Store`             |
+| `TestStore_Freeze`           | the method `Freeze` on `Store`                         |
+| `TestStore_emptyBase`        | `Store`, one narrow case the broad test does not cover |
+| `TestStore_Freeze_emptyBase` | `Freeze`, one narrow case                              |
+| `Test_replayIsDeterministic` | the package itself, where there is no identifier       |
 
 `X` must resolve to a package-level type or function in the package under test,
 and `Y` to a method of `X`. A third segment is a description and starts
@@ -307,7 +343,7 @@ and the caller already has one. `THelper` is a field on `WithT` holding
 `t.Helper`, so frame skipping still works. A helper that asserts nothing needs
 neither.
 
-**Judgment.** Prove each check can fail *individually*. `NewWithT` fails
+**Judgment.** Prove each check can fail _individually_. `NewWithT` fails
 fatally, so a second assertion in the same subtest never runs once the first has
 failed.
 
@@ -333,18 +369,82 @@ same code. A test pinning one function against another passes on a shared
 mistake. The icon generator's test compares its output to the committed
 stylesheet, which is why it is worth having.
 
-## Prose formatting
+## Formatting outside Go
 
-**Enforced by `make lint`.** Oxfmt formats every committed markdown file at 80
-columns with `proseWrap: always`. A wrap is the tool's job and never a
-hand-adjusted line.
+**Enforced by `make lint`.** Oxfmt formats every committed markdown, CSS and
+JSON file at 80 columns with `proseWrap: always`. Go is gofmt's, and Python and
+text are left alone. A wrap is the tool's job and never a hand-adjusted line.
+
+**HTML is excluded.** A tearout nests inline spans, and a newline between two of
+them renders as a space, so oxfmt moves the `>` to the next line rather than
+break between the elements. The markup renders the same and is far harder to
+edit by hand, which is what a tearout is for. No width setting avoids it.
+
+**Enforced by `internal/convention`.** No first or second person in committed
+markdown. This is the voice rule broken most often by accident, because the
+person writing is the one the rule is about and the pronoun arrives without
+being chosen.
+
+**Enforced by `internal/convention`.** No em dash in committed markdown. A
+comma, a colon or a period says the same thing, and the character arrives
+without being typed, from a keyboard substitution or from text pasted in.
+
+Both rules read prose only. A fenced block is code, an inline code span names
+something rather than says it, and a blockquote is quoted material, which covers
+the annotations backlog writes into a spec. A double-quoted example is exempt
+too, which is how `docs/voice.md` states the rule against the first person
+without breaking it.
+
+**A reference table is sorted by its key.** The dependency table in
+`docs/architecture.md` sorts on the full module path, not the short name, so
+`htmx.org` falls after the `github.com/` entries where a reader looking it up
+would expect it. A table nobody can predict the order of has to be read start to
+finish.
 
 **Specs are formatted like anything else.** backlog derives a todo's id by
-hashing its text, so formatting changes ids, and so does editing a todo at all.
-The answer is backlog's own: never cache an id, and re-run `backlog spec list`
-when a command reports one it cannot find. Nothing outside the spec file holds
-an id, state lives in the checkbox, and a review comment anchors to a line in a
-frozen capture rather than to text still being edited.
+hashing its text as wrapped, so moving a line break changes the id and reflowing
+a spec churns every todo it rewraps. Editing a todo changes it too. Indentation
+alone does not: leading whitespace is stripped before hashing. The answer is
+backlog's own: never cache an id, and re-run `backlog spec list` when a command
+reports one it cannot find. Nothing outside the spec file holds an id, state
+lives in the checkbox, and a review comment anchors to a line in a frozen
+capture rather than to text still being edited.
+
+**Run `make fmt` after a backlog command.** The in-progress marker `[/]` is not
+a GFM checkbox, which allows only `[ ]` and `[x]`, so oxfmt reads it as ordinary
+text and indents the continuation lines two spaces rather than six. A todo left
+`[/]` fails `make lint` until it is reformatted. Closing an iteration also
+appends its annotation with a blank line oxfmt removes. Both are cosmetic and
+neither touches an id.
+
+## Tearouts
+
+Every rule here is **enforced by `internal/convention`**, which reads
+`docs/design/` during `make check`. Each describes a fault a browser renders as
+something plausible, which is why none of them can be left to a reading.
+
+- `tearout-nesting`: tags nest. A browser repairs a stray or unclosed tag, so
+  the fault surfaces only when a later edit lands inside the wrong element.
+- `tearout-classes`: a class used in markup is defined by a stylesheet. An
+  undefined class still renders its text, unstyled.
+- `tearout-fragments`: a fragment link points at an id on the page. The tearouts
+  expand with `:target`, so a dead link is a control that does nothing at all.
+- `tearout-icons`: an icon span carries an `i-<name>` class and holds no text of
+  its own. Without the class it draws nothing, and with text it draws that text
+  beside the glyph.
+- `tearout-agents`: an agent name never appears in prose on a page that also
+  displays it. The displayed copy comes from an `.agent` span, and a second copy
+  in a sentence is not kept in step with it.
+- `css-declarations`: `app.css` keeps the declarations that have no fallback, so
+  a generator deleting more than its own block fails the build rather than the
+  page.
+- `icons-listed`: `icons.txt` and the generated mask table name the same set. A
+  class with no mask leaves a gap that reads as a spacing bug.
+
+The markup is tokenized, never matched with a regular expression. A pattern
+expecting `<span class="agent">` written tightly stops matching when a line
+break falls inside the tag, and what it reports then is the name it failed to
+strip.
 
 ## TypeScript
 
@@ -357,18 +457,27 @@ is not installed until there is something to check.
 `verbatimModuleSyntax`. `isolatedModules` is mandatory, because esbuild
 transforms one file at a time and cannot see across them.
 
-**One job each.** Oxfmt formats, Oxlint lints with its type-aware rules on, `tsc
---noEmit` checks types. esbuild only transforms, so it is not a checker and
-never stands in for one.
+**One job each.** Oxfmt formats, Oxlint lints with its type-aware rules on,
+`tsc --noEmit` checks types. esbuild only transforms, so it is not a checker and
+cannot replace one.
 
-**Immutability by default.** `readonly` properties and `readonly T[]`, `as
-const` for literal tables, pure functions over in-place mutation.
+**Immutability by default.** `readonly` properties and `readonly T[]`,
+`as const` for literal tables, pure functions over in-place mutation.
 
 ## Commits
 
 **Never commit or push without asking.** Approval of one commit is not approval
 of the next. A change to a drafted message is not approval either: redraft, then
 ask again.
+
+**Leave the work uncommitted until a human has reviewed it.** A commit records a
+change a person has already read. Asking is not review: a question answered
+before the diff was read approves nothing. Work up to one coherent change, run
+the checks, draft the message, and stop with the change still in the working
+tree, where `git diff` and `git status` show it whole.
+
+This bounds how large a change gets. A change too large to read in the working
+tree is too large to commit as one.
 
 **Subject:** `type(scope): summary`, with a Conventional-Commits type (`feat`,
 `fix`, `refactor`, `chore`, `docs`, `test`, `perf`), imperative, under about 72
@@ -398,8 +507,13 @@ contradictory statements in the history and no way to tell which one won.
 commit the subject alone, do not commit, change something. An open question
 invites a yes that was meant as a comment.
 
-**Prefer new commits over amending.** One branch per spec, `spec/NNN-name`, cut
-from the default branch and merged back with `--no-ff`.
+**Amend only a commit nobody has seen.** Once a commit has been shown, or
+reported as done, it is fixed, and a correction is a new commit. An amend
+replaces the state that was read and leaves no diff between it and the
+correction, so the change cannot be reviewed at all.
+
+One branch per spec, `spec/NNN-name`, cut from the default branch and merged
+back with `--no-ff`.
 
 ## Specs
 
@@ -438,6 +552,13 @@ code and the documents are the long-term source of truth.
 `go test ./internal/convention` checks this repository's own source, prose and
 tearout markup against the rules above that can be checked mechanically. It is
 part of `make check`.
+
+The file lists come from `git ls-files --cached --others --exclude-standard`
+rather than from walking the tree. A new package is untracked until it is added,
+so a list read from the index alone checks nothing in a fresh tree and reports
+success. `testdata/` is then dropped from the Go list by hand: two fixtures
+break formatting to prove their rule, and a formatter would delete the violation
+each exists to show.
 
 Every check has a fixture under `testdata/` that it must flag, so no check is
 trusted without having been watched fail. `testdata/` is ignored by the go tool,

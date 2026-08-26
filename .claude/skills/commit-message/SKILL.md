@@ -27,23 +27,23 @@ have to catch them by hand every time.
    paragraph, and add a second only when part of the why goes missing without
    it.
 5. **Say why, not what.** The reader has the diff.
-6. **No word you invented.** A new name for something the code, the schema or
-   the documents already name is a word the reader has to learn first. Use the
+6. **No invented words.** A new name for something the code, the schema or the
+   documents already name is a word the reader has to learn first. Use the
    column, the type, or the function's own name.
 
 ## Figures of speech to replace
 
-| Instead of                    | Write                               |
-| ----------------------------- | ----------------------------------- |
-| three fixes ride along        | three fixes are in the same change   |
-| in the same breath            | at the same time                     |
-| it costs, pays for, buys      | name the tradeoff                    |
-| something comes for free      | say what provides it                 |
-| settling it on paper          | deciding before the code is written  |
-| paid for twice                | it must be fixed in two places       |
-| the change lands, carries     | use the plain verb                   |
-| what a rule stands in for     | what the rule checks                 |
-| wearing an engineering costume| say which kind of question it is     |
+| Instead of                     | Write                               |
+| ------------------------------ | ----------------------------------- |
+| three fixes ride along         | three fixes are in the same change  |
+| in the same breath             | at the same time                    |
+| it costs, pays for, buys       | name the tradeoff                   |
+| something comes for free       | say what provides it                |
+| settling it on paper           | deciding before the code is written |
+| paid for twice                 | it must be fixed in two places      |
+| the change lands, carries      | use the plain verb                  |
+| what a rule stands in for      | what the rule checks                |
+| wearing an engineering costume | say which kind of question it is    |
 
 This is stricter than the prose in `docs/`, which uses some of these. A design
 document is read slowly and more than once. A commit message is read once.
@@ -65,8 +65,11 @@ Check a commit message against fixed rules. Do not judge whether it reads well.
 The message is at: <PATH>
 The change it describes: <ONE PLAIN SENTENCE>
 
-Step 0. Report how many paragraphs the body has and how many words. Work
-  through every paragraph. Skipping one is not allowed.
+Step 0. Report how many paragraphs the body has and how many words. If the body
+  has no paragraphs, steps 1 to 6 have nothing to examine and find nothing: say
+  so for each and go straight to step 7. A message that is a subject line alone
+  is the normal case here, not a fault. Otherwise work through every paragraph.
+  Skipping one is not allowed.
 
 Step 1. Number every sentence in the body.
 
@@ -94,10 +97,11 @@ Step 4. Look at the body only, never the subject line. List every noun the body
   things, and the name of any tool, command or program, whether or not the
   change adds it.
 
-Step 4b. Would a developer reading this in the history have stopped to ask the
-  question the body answers? If the body explains something nobody would have
-  asked, it fails. A change that adds a file, a package, a document or a screen
-  explains itself.
+Step 4b. List every paragraph that answers a question a developer reading this
+  in the history would not have stopped to ask. A change that adds a file, a
+  package, a document or a screen explains itself, so a paragraph explaining one
+  belongs on the list. Every paragraph you list is a failure. List nothing if no
+  paragraph does this, and list nothing when there is no body.
 
 Step 5. The why is the reason the change named in the subject line was made at
   all. For each paragraph after the first, name the part of THAT why which goes
@@ -112,6 +116,12 @@ Step 6. List every paragraph that names two or more separate parts of the change
   paragraph does this.
 
 Step 7. Report FAIL if any earlier step found anything. Otherwise report PASS.
+
+Step 8. Only if step 7 said PASS, run this from the repository root and report
+  what it printed:
+    python3 .claude/hooks/commit-gate.py record <PATH>
+  Never run it after a FAIL. It is what lets the commit through, so running it
+  on a failing message defeats every step above.
 
 Rules for you:
   - Flag when unsure. A wrong flag costs one rewrite. A missed one ships.
@@ -136,10 +146,27 @@ wc -w <PATH>
 
 Numbers that disagree void the run. Run it again.
 
-## Then ask
+## The pass records itself
 
-Show the message in the reply. Tool output does not count. Offer the choice:
-commit it, commit the subject alone, do not commit, change something.
+A `PreToolUse` hook refuses `git commit` for a message with no record. The
+record is the sha256 of the message, kept in `.git/eyeball-gate`, so **nothing
+is added to the message itself**: what lands in git is byte for byte what was
+gated, and the no-trailers rule is not bent to carry a receipt. Editing the
+message after recording changes the hash and the commit is refused again, which
+is the point.
+
+**The gate writes the record itself, as the last thing it does on a PASS.**
+There is no step here to run by hand, which is deliberate. When there was one,
+it was run without a gate having happened, five minutes after the hook was
+written, by the person who had just argued for the hook. A record that can be
+written without a gate run is a record that will be.
+
+So: launch the gate, and when it reports PASS the record already exists. Commit
+in a separate call, because the hook runs before the command and cannot see a
+record written by that same call.
+
+Then show the message in the reply. Tool output does not count. Offer the
+choice: commit it, commit the subject alone, do not commit, change something.
 
 ## Keeping the gate honest
 
@@ -176,8 +203,8 @@ Four faults, each one designed out above rather than left to be rediscovered:
   why it now asks for a list like steps 2 and 3 do.
 - **A verdict can cover part of the input.** Hence step 0 and the counts.
 - **Strictness needs a limit.** Told to reject anything a changed file also
-  says, the gate fails every paragraph, because a well-commented change
-  explains itself twice by design. Enumeration is the test that holds.
+  says, the gate fails every paragraph, because a well-commented change explains
+  itself twice by design. Enumeration is the test that holds.
 - **A rule that cannot see the code guesses.** Step 4 asks whether a noun is
   what the code calls something, and the gate has only the one sentence
   describing the change. On the first run here it called `layout`, `gate` and

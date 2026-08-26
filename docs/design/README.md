@@ -20,12 +20,12 @@ eyeball is read on a phone in whatever minutes are available, so a desktop
 browser at 390 pixels is not where this gets judged.
 
 ```sh
-python3 docs/design/serve.py        # prints the tailnet URLs to open
+go run ./tool/tearout               # prints the tailnet URLs to open
 ```
 
 `python3 -m http.server` is the wrong tool. It sends only `Last-Modified`, and
 iOS Safari will show a stale copy of a tearout that was just edited, which reads
-as "the change did not work" rather than as a cache. `serve.py` sends
+as "the change did not work" rather than as a cache. `tool/tearout` sends
 `Cache-Control: no-store` and binds the tailnet address, so the page opens on a
 phone that is not on this LAN.
 
@@ -37,13 +37,13 @@ holds and the back button closes it.
 
 ## The tearouts
 
-| Tearout | Covers |
-| --- | --- |
+| Tearout                                  | Covers                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`foundations.html`](./foundations.html) | The shell, type scale, palette in both themes, and every reused primitive: state pills and row stripes, the unified diff with word marks and its five syntax roles, rendered prose with changed-passage rules, comment cards and the composer, level chips, buttons, the decision bar, notices, empty state, first-run steps, the icon badge |
-| [`queue.html`](./queue.html) | The home screen: populated across three projects, nothing waiting, not installed yet, and the awkward week that breaks it |
-| [`review.html`](./review.html) | The review page: a second round of a document, a large change as a file list with a comment being written, a first round against an empty base, a refused verdict, a round already decided, and an earlier round with the agent's replies |
-| [`widening.html`](./widening.html) | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, and a file too big to render |
-| [`project.html`](./project.html) | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see |
+| [`queue.html`](./queue.html)             | The home screen: populated across three projects, nothing waiting, not installed yet, and the awkward week that breaks it                                                                                                                                                                                                                    |
+| [`review.html`](./review.html)           | The review page: a second round of a document, a large change as a file list with a comment being written, a first round against an empty base, a refused verdict, a round already decided, and an earlier round with the agent's replies                                                                                                    |
+| [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, and a file too big to render                                                                                                                                                                                      |
+| [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                       |
 
 That is the whole surface the product document describes. A new screen gets a
 tearout before it gets code.
@@ -115,17 +115,17 @@ tearout before it gets code.
   To change the set, edit `icons.txt`, then regenerate the table:
 
   ```sh
-  python3 docs/design/icons.py        # rewrites the mask table in app.css
+  go run ./tool/icons                 # rewrites the mask table in app.css
   ```
 
-  `check.py` fails when `icons.txt` and the table disagree, when a span carries
-  `i` without an `i-` class, and when one holds text. All three render as
-  something plausible.
+  `make check` fails when `icons.txt` and the table disagree, when a span
+  carries `i` without an `i-` class, and when one holds text. All three render
+  as something plausible.
 
 - **Prose never repeats an identifier the page already displays.** A note that
   says the verdict went to a named agent is a second copy of a name shown three
   lines above it, and the two drift the moment either changes. They did.
-  `check.py` fails on an agent name appearing anywhere outside its own span.
+  `make check` fails on an agent name appearing anywhere outside its own span.
 
 - **Labels are sentence case. Identifiers keep their own case.** A status pill
   reads `Waiting`, a hint reads `Saved as you type`. A project name, an agent
@@ -170,9 +170,9 @@ tearout before it gets code.
   `.app` keeps the default it would have in the real surface, or this sheet
   stops showing what it certifies.
 
-- **A default has to weigh nothing, so write it in `:where()`.** A plain `.app
-  a` rule outranks `.row`, `.treerow` and `.chip`, each of which sets its own
-  color, and every card on the queue turns into a blue link. A default that
+- **A default has to weigh nothing, so write it in `:where()`.** A plain
+  `.app a` rule outranks `.row`, `.treerow` and `.chip`, each of which sets its
+  own color, and every card on the queue turns into a blue link. A default that
   beats the things it is a default for is not a default.
 
 - **A notice is for what could not have been prevented.** A refused verdict, a
@@ -189,35 +189,21 @@ tearout before it gets code.
 ## What is checked rather than trusted
 
 ```sh
-python3 docs/design/check.py
+make check
 ```
 
-It fails when markup uses a class no stylesheet defines, when a fragment link
-points at an id that is not on the page, when tags do not nest, when an icon
-span carries no `i-` class or holds text, and when `icons.txt` and the mask
-table in `app.css` disagree.
-
-Every one of those is invisible in the browser it was authored in. An unstyled
-class still renders text, a dead expand link still looks like a link, a browser
-silently repairs bad nesting, and a missing mask draws nothing at all, which
-leaves a gap that reads as a spacing bug. The check was run against a planted
-violation of each kind, and watched failing, before being trusted.
+`internal/convention` reads this directory and holds it to the rules under
+Tearouts in [docs/conventions.md](../conventions.md).
 
 Everything else here is judged rather than asserted. There is no test that says
 a screen looks right.
 
-**These scripts are scaffolding, and they are Python because there is no Go
-module yet.** When there is, each moves to where its kind belongs:
-
-| Script | Becomes |
-| --- | --- |
-| `check.py` | a Go test under `internal/`, running in `make check`, the way a repo holds itself to its own conventions |
-| `icons.py` | a binary under `tool/`, generating committed output and never running in a build |
-| `serve.py` | a binary under `tool/`, or a `make` target once the real server can serve these itself |
+**The scaffolding is all Go now.** The checker is `internal/convention`, run by
+`make check`; the generator is `tool/icons`; the server is `tool/tearout`.
 
 The split is the same one that decides where anything goes: a check that must
-pass before work closes is a test, and a generator that runs when a person
-decides to run it is a tool.
+pass before work closes is a test, and a generator or a server that runs when a
+person decides to run it is a tool.
 
 ## Approval
 

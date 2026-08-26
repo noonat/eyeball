@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-08-25T00:00:00Z
-updated: 2026-08-25T16:05:40.043145548Z
+updated: 2026-08-26T02:10:38.627497599Z
 required_acks:
   - reviewed
 required_commands:
@@ -46,8 +46,8 @@ that the port is faithful. That is a required command rather than a claim.
 
 **Oxfmt owns prose width, so no check here does.** Formatting markdown to 80
 columns with `proseWrap: always` is a formatter's job, and writing a Go check
-for it would be a second implementation of one rule. `oxfmt --check` in `make
-lint` fails on prose that has drifted, which is the same gate by a shorter
+for it would be a second implementation of one rule. `oxfmt --check` in
+`make lint` fails on prose that has drifted, which is the same gate by a shorter
 route.
 
 That brings Node in earlier than the rest of the frontend toolchain, and the
@@ -67,10 +67,10 @@ reformatted spec keeps every todo's state and only its ids move. A review
 comment cannot detach either, because a round is frozen: a comment anchors to a
 line in a capture rather than to text that is still being edited.
 
-**Oxfmt covers markdown only for now.** It also formats CSS, and `app.css` holds
-a block that `tool/icons` generates. A formatter and a generator writing the
-same bytes is a fight to settle when the surface arrives and `app.css` moves,
-not while the only consumer is a tearout.
+**Oxfmt formats CSS as well as markdown.** The generated table in `app.css` is
+already what oxfmt would write, so it and `tool/icons` do not disagree. HTML is
+the exclusion instead, for the reason in
+[conventions.md](../docs/conventions.md).
 
 **`app.css` does not move yet.** The architecture document has it shipping from
 `web/`. Moving it before anything serves it would leave the tearouts pointing
@@ -78,29 +78,28 @@ across the repository at a directory with one file in it. It moves in 005, and
 `tool/icons` gains a one-line path change then.
 
 **Rejected: a single `check` script instead of a Makefile.** Every command here
-is already one line, and a Makefile gives `make help` and per-target running for
-free. A script would have to grow both.
+is already one line, and a Makefile gives `make help` and per-target running
+without extra code. A script would have to grow both.
 
 ## Iteration 1: The module and the gate
 
 - [x] `go.mod` at `github.com/noonat/eyeball` on Go 1.26, with `cmd/eyeball`
-  whose `main` calls one function and reports what it returns
+      whose `main` calls one function and reports what it returns
 - [x] The `internal/` packages the architecture layout names, each holding a
-  `doc.go` with its package comment and nothing else yet
+      `doc.go` with its package comment and nothing else yet
 - [x] A `Makefile` whose default target is help, with `build`, `lint`, `test`,
-  `fmt` and `check`, where `check` is build then lint then test
+      `fmt` and `check`, where `check` is build then lint then test
 - [x] `gofmt`, `go vet` and `staticcheck` wired into `lint`, with staticcheck
-  pinned by a `tool` directive rather than a version on the command line
+      pinned by a `tool` directive rather than a version on the command line
 - [x] `.gitignore` covering the binaries a bare `go build` drops in the working
-  directory and in each command's own directory
+      directory and in each command's own directory
 - [x] Each linter made to fail once on a deliberate violation, and the violation
-  removed, so the gate is known to be wired rather than assumed
+      removed, so the gate is known to be wired rather than assumed
 
 > **Completed** 2026-08-25 16:19 UTC
 >
 > - acks: reviewed
 > - `make check` — 290ms
-
 
 ## Iteration 2: The Go conventions this repo can check
 
@@ -110,24 +109,32 @@ required_commands:
   - go test ./internal/convention -run Test_eachCheckFlagsItsFixture
 ```
 
-- [ ] `doc-comments`: every exported type, function, method, struct field and
-  package-level value carries a comment starting with one of its names
-- [ ] `brace-lines`: a declared function opens and closes its braces on
-  different lines, with function literals exempt
-- [ ] `argument-wrapping`: an argument list wraps all or nothing, and the first
-  break falls after the open paren
-- [ ] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
-  a table's rows name their fields one per line
-- [ ] `named-gomega`: an assertion goes through a named gomega, and
-  `gomega-in-subtest`: the closure creates its own rather than reaching out
-- [ ] `packages-listed`: every package under `internal/` and `tool/` appears in
-  the layout block in `docs/architecture.md`
-- [ ] `test-names`: a test names a package-level identifier, a method of one, or
-  the package, with any description segment starting lowercase
-- [ ] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
-  with an empty segment first, which is not the same as sorting the strings
-- [ ] A `testdata/` fixture per check and a test asserting each check flags its
-  own fixture, so no check is trusted without having been seen to fail
+- [x] `doc-comments`: every exported type, function, method, struct field and
+      package-level value carries a comment starting with one of its names
+- [x] `brace-lines`: a declared function opens and closes its braces on
+      different lines, with function literals exempt
+- [x] `argument-wrapping`: an argument list wraps all or nothing, and the first
+      break falls after the open paren
+- [x] `signature-lines`: a function definition never wraps, since a signature
+      too long for one line needs fewer parameters rather than more lines
+- [x] `range-literal`: never range over an anonymous literal, and `keyed-rows`:
+      a table's rows name their fields one per line
+- [x] `named-gomega`: an assertion goes through a named gomega, and
+      `gomega-in-subtest`: the closure creates its own rather than reaching out
+- [x] `packages-listed`: every package under `internal/` and `tool/` appears in
+      the layout block in `docs/architecture.md`
+- [x] `test-names`: a test names a package-level identifier, a method of one, or
+      the package, with any description segment starting lowercase
+- [x] `test-order`: tests for one subject sit together, ordered on `(X, Y, Z)`
+      with an empty segment first, which is not the same as sorting the strings
+- [x] A `testdata/` fixture per check and a test asserting each check flags its
+      own fixture, so no check is trusted without having been seen to fail
+
+> **Completed** 2026-08-25 22:04 UTC
+>
+> - acks: reviewed
+> - `make check` — 615ms
+> - `go test ./internal/convention -run Test_eachCheckFlagsItsFixture` — 247ms
 
 ## Iteration 3: The prose rules, checked and formatted
 
@@ -137,14 +144,20 @@ required_commands:
   - go test ./internal/convention -run Test_eachCheckFlagsItsFixture
 ```
 
-- [ ] Oxfmt wired into `lint` and `fmt` over every committed markdown file, at
-  80 columns with `proseWrap: always`, specs included
-- [ ] `prose-person`: no first or second person in any committed markdown, which
-  is the voice rule most often broken by accident
-- [ ] `prose-dashes`: no em dash in any committed markdown, which the voice
-  document bans and which arrives without being typed
-- [ ] A fixture per prose check, flagged by the same test that covers the Go
-  checks, so both kinds are proved the same way
+- [x] Oxfmt wired into `lint` and `fmt` over every committed markdown file, at
+      80 columns with `proseWrap: always`, specs included
+- [x] `prose-person`: no first or second person in any committed markdown, which
+      is the voice rule most often broken by accident
+- [x] `prose-dashes`: no em dash in any committed markdown, which the voice
+      document bans and which arrives without being typed
+- [x] A fixture per prose check, flagged by the same test that covers the Go
+      checks, so both kinds are proved the same way
+
+> **Completed** 2026-08-25 22:49 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.3s
+> - `go test ./internal/convention -run Test_eachCheckFlagsItsFixture` — 252ms
 
 ## Iteration 4: The tearout checks
 
@@ -154,18 +167,25 @@ required_commands:
   - go test ./internal/convention -run Test_eachCheckFlagsItsFixture
 ```
 
-- [ ] A class used in a tearout is defined by a stylesheet, and a fragment link
-  points at an id that is on the page
-- [ ] Tags nest, an icon span carries a glyph class, and an icon span holds no
-  text of its own
-- [ ] `icons.txt` and the generated mask table in `app.css` name the same set,
-  neither having an entry the other lacks
-- [ ] The load-bearing declarations `app.css` must keep, so a generator that
-  takes too much with it fails the build rather than the page
-- [ ] No agent name appears in prose on a page that also displays it, which is
-  the check that drifted twice before it existed
-- [ ] A fixture per check, and `docs/design/check.py` deleted with the design
-  readme naming the Go command in its place
+- [x] A class used in a tearout is defined by a stylesheet, and a fragment link
+      points at an id that is on the page
+- [x] Tags nest, an icon span carries a glyph class, and an icon span holds no
+      text of its own
+- [x] `icons.txt` and the generated mask table in `app.css` name the same set,
+      neither having an entry the other lacks
+- [x] The declarations `app.css` must keep because nothing else provides them,
+      so a generator that takes too much with it fails the build rather than the
+      page
+- [x] No agent name appears in prose on a page that also displays it, which is
+      the check that drifted twice before it existed
+- [x] A fixture per check, and `docs/design/check.py` deleted with the design
+      readme naming the Go command in its place
+
+> **Completed** 2026-08-26 01:09 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.4s
+> - `go test ./internal/convention -run Test_eachCheckFlagsItsFixture` — 252ms
 
 ## Iteration 5: The icon generator
 
@@ -176,12 +196,19 @@ required_commands:
   - git diff --exit-code docs/design/app.css
 ```
 
-- [ ] `tool/icons` fetches each name in `icons.txt` from Lucide and rewrites the
-  generated block in `app.css`, leaving everything outside it untouched
-- [ ] It refuses a name that is not a Lucide icon, and refuses to drop one that
-  a pseudo-element resolves through a root variable
-- [ ] `docs/design/icons.py` deleted, with the design readme naming the Go
-  command, having first confirmed the output is byte for byte the same
+- [x] `tool/icons` fetches each name in `icons.txt` from Lucide and rewrites the
+      generated block in `app.css`, leaving everything outside it untouched
+- [x] It refuses a name that is not a Lucide icon, and refuses to drop one that
+      a pseudo-element resolves through a root variable
+- [x] `docs/design/icons.py` deleted, with the design readme naming the Go
+      command, having first confirmed the output is byte for byte the same
+
+> **Completed** 2026-08-26 02:00 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.6s
+> - `go run ./tool/icons` — 929ms
+> - `git diff --exit-code docs/design/app.css` — 2ms
 
 ## Iteration 6: The tearout server
 
@@ -191,9 +218,14 @@ required_acks:
   - served-on-the-phone
 ```
 
-- [ ] `tool/tearout` serves `docs/design` on the tailnet address, sending
-  `Cache-Control: no-store` so an edited page is never shown stale
-- [ ] It prints the URLs to open and falls back to all interfaces when no
-  tailnet address is available
-- [ ] `docs/design/serve.py` deleted, with the design readme and every command
-  it names pointing at `tool/tearout`
+- [x] `tool/tearout` serves `docs/design` on the tailnet address, sending
+      `Cache-Control: no-store` so an edited page is never shown stale
+- [x] It prints the URLs to open and falls back to all interfaces when no
+      tailnet address is available
+- [x] `docs/design/serve.py` deleted, with the design readme and every command
+      it names pointing at `tool/tearout`
+
+> **Completed** 2026-08-26 02:10 UTC
+>
+> - acks: reviewed, served-on-the-phone
+> - `make check` — 1.6s

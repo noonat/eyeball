@@ -291,12 +291,12 @@ chart, an icon set, a screenshot attached to a bug, a sound a game will play.
 **A file with both a source and a rendering offers both**, one control apart,
 the way markdown already does. Which one opens first depends on the kind:
 
-| Kind | Opens as |
-| ---- | -------- |
-| Markdown | The rendered document |
-| Image, audio, video, PDF | The thing itself |
-| HTML, SVG, and every other text format | The source |
-| Anything else | A line naming its type and size |
+| Kind                                   | Opens as                        |
+| -------------------------------------- | ------------------------------- |
+| Markdown                               | The rendered document           |
+| Image, audio, video, PDF               | The thing itself                |
+| HTML, SVG, and every other text format | The source                      |
+| Anything else                          | A line naming its type and size |
 
 **The agent can override that per file**, because it knows which question it is
 asking. A change to a page's styling wants the page. A change to the same file's
