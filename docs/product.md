@@ -212,6 +212,11 @@ The home screen answers one question: what needs attention.
 review with a request outstanding, naming the project, the agent, the title, the
 round number, the size of the change, and how long it has been waiting.
 
+The size is measured against the previous round from round two onward, which is
+the change the round opens on. Measuring against the review's base instead would
+put the size of the whole review above a diff of what moved since the last
+reading.
+
 **Working** is below it: reviews the agent holds, either acting on a verdict or
 not yet ready to ask. Informational, and never above the reviews that are not.
 

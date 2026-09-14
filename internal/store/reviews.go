@@ -23,6 +23,10 @@ const (
 	StateAbandoned State = "abandoned"
 )
 
+// ErrBaseMoved reports a round taken against a commit that is not the one its
+// review started from.
+var ErrBaseMoved = errors.New("a review's base is fixed at its first round")
+
 // ErrInvalidPath reports a path that is not relative, cleaned and slash
 // separated.
 var ErrInvalidPath = errors.New("invalid path")
@@ -80,6 +84,10 @@ type Round struct {
 	ReviewID int64
 	// Number counts from one, and is how a round is addressed in a URL.
 	Number int
+	// Files counts the in-scope paths that moved since the previous round, and
+	// Added and Removed the lines each way. On a first round that is what moved
+	// since the base.
+	Files, Added, Removed int
 	// Note is the agent's brief, required on every request.
 	Note string
 	// BaseCommit is what the capture was taken against, empty outside git.
@@ -102,6 +110,22 @@ type File struct {
 	Size int64
 }
 
+// Change is one path that moved between the previous round and this one, with
+// the lines the diff counted each way.
+//
+// It is a different set from a request's files. Files is what the round holds,
+// which is everything differing from the base. Changes is what moved since the
+// last round, which includes a path the agent reverted and the later capture
+// therefore does not hold.
+type Change struct {
+	// Path is relative to the project root, cleaned and slash separated.
+	Path string
+	// Added and Removed are the lines the diff counted, and are zero for a
+	// file that moved without any: a mode change, a checkout filter, or a
+	// binary file.
+	Added, Removed int
+}
+
 // Request is what an agent asks for review, on a first round and on every one
 // after it.
 type Request struct {
@@ -112,6 +136,10 @@ type Request struct {
 	BaseCommit string
 	// Files is everything the capture holds, in or out of the review's scope.
 	Files []File
+	// Changes is what moved since the previous round, and on a first round is
+	// what moved since the base. The store sums the ones inside the review's
+	// scope into the round's stored size.
+	Changes []Change
 }
 
 // NewReview is a review to open, together with its first request.
@@ -187,7 +215,7 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 	}
 	review.Paths = paths
 
-	round, err := s.checkRequest(nr.Request)
+	round, changes, err := s.checkRequest(nr.Request)
 	if err != nil {
 		return Review{}, Round{}, err
 	}
@@ -214,7 +242,7 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 			}
 		}
 		round.ReviewID = review.ID
-		return s.insertRound(ctx, tx, &round, paths, nr.Request.Files)
+		return s.insertRound(ctx, tx, &round, paths, roundContent{files: nr.Request.Files, changes: changes})
 	})
 	if err != nil {
 		return Review{}, Round{}, err
@@ -228,7 +256,7 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 // A review whose latest round is still waiting has nothing for a new round to
 // answer, and an approved review has ended.
 func (s *Store) OpenRound(ctx context.Context, reviewID int64, req Request) (Round, error) {
-	round, err := s.checkRequest(req)
+	round, changes, err := s.checkRequest(req)
 	if err != nil {
 		return Round{}, err
 	}
@@ -246,11 +274,14 @@ func (s *Store) OpenRound(ctx context.Context, reviewID int64, req Request) (Rou
 			return errors.Wrapf(ErrAwaitingVerdict, "review %d round %d has no decision", reviewID, latest)
 		}
 		round.Number = latest + 1
+		if err := requireSameBase(ctx, tx, reviewID, round.BaseCommit); err != nil {
+			return err
+		}
 		paths, err := reviewPaths(ctx, tx, reviewID)
 		if err != nil {
 			return err
 		}
-		return s.insertRound(ctx, tx, &round, paths, req.Files)
+		return s.insertRound(ctx, tx, &round, paths, roundContent{files: req.Files, changes: changes})
 	})
 	if err != nil {
 		return Round{}, err
@@ -280,36 +311,105 @@ func (s *Store) Abandon(ctx context.Context, reviewID int64) error {
 
 // checkRequest validates the parts of a request that do not depend on the
 // database, and returns the round it describes.
-func (s *Store) checkRequest(req Request) (Round, error) {
+func (s *Store) checkRequest(req Request) (Round, []Change, error) {
 	note := strings.TrimSpace(req.Note)
 	if note == "" {
-		return Round{}, errors.New("a request needs a note saying what to look at")
+		return Round{}, nil, errors.New("a request needs a note saying what to look at")
 	}
 	seen := make(map[string]struct{}, len(req.Files))
 	for _, f := range req.Files {
 		path, err := normalizePath(f.Path)
 		if err != nil {
-			return Round{}, err
+			return Round{}, nil, err
 		}
 		if _, again := seen[path]; again {
-			return Round{}, errors.Wrapf(ErrInvalidPath, "%q is captured twice in one round", path)
+			return Round{}, nil, errors.Wrapf(ErrInvalidPath, "%q is captured twice in one round", path)
 		}
 		seen[path] = struct{}{}
 		if f.Size < 0 {
-			return Round{}, errors.Newf("%q cannot have a size of %d", path, f.Size)
+			return Round{}, nil, errors.Newf("%q cannot have a size of %d", path, f.Size)
 		}
 		if f.Digest == "" && f.Size != 0 {
-			return Round{}, errors.Newf("%q has no content to store, so its size cannot be %d", path, f.Size)
+			return Round{}, nil, errors.Newf("%q has no content to store, so its size cannot be %d", path, f.Size)
 		}
 	}
-	return Round{Note: note, BaseCommit: req.BaseCommit}, nil
+	changes, err := checkChanges(req.Changes)
+	if err != nil {
+		return Round{}, nil, err
+	}
+	return Round{Note: note, BaseCommit: req.BaseCommit}, changes, nil
 }
 
-// insertRound writes a round and its captured files, marking each file with
-// whether the review's paths cover it.
-func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths []string, files []File) error {
-	insert := "INSERT INTO rounds (review_id, number, note, base_commit, created) VALUES (?, ?, ?, ?, ?)"
-	args := []any{round.ReviewID, round.Number, round.Note, round.BaseCommit, FormatTime(s.now())}
+// checkChanges holds a request's change list to the same rules as its files.
+//
+// Normalizing matters because the scope test compares paths as text, so an
+// unnormalized one scores outside a scope that covers it and the stored size
+// comes out short. Refusing a duplicate matters because two rows for one path
+// add their counts twice and count the file twice. Both failures are silent,
+// and both are the capture disagreeing with the review it belongs to.
+func checkChanges(changes []Change) ([]Change, error) {
+	seen := make(map[string]struct{}, len(changes))
+	out := make([]Change, 0, len(changes))
+	for _, c := range changes {
+		path, err := normalizePath(c.Path)
+		if err != nil {
+			return nil, err
+		}
+		if _, again := seen[path]; again {
+			return nil, errors.Wrapf(ErrInvalidPath, "%q moved twice in one round", path)
+		}
+		seen[path] = struct{}{}
+		if c.Added < 0 || c.Removed < 0 {
+			return nil, errors.Newf("%q cannot have moved %d lines up and %d down", path, c.Added, c.Removed)
+		}
+		out = append(out, Change{Path: path, Added: c.Added, Removed: c.Removed})
+	}
+	return out, nil
+}
+
+// size totals a round's changes over the paths the review covers, and takes
+// them already normalized so there is no error to swallow here.
+//
+// Out of scope means captured for context, which is not the size of the change
+// the reviewer is being asked about.
+func size(paths []string, changes []Change) (files, added, removed int) {
+	for _, c := range changes {
+		if !pathsCover(paths, c.Path) {
+			continue
+		}
+		files++
+		added += c.Added
+		removed += c.Removed
+	}
+	return files, added, removed
+}
+
+// roundContent is what a round holds: the files it captured and what moved
+// since the round before it. They are different sets, so they travel together
+// rather than as one list.
+type roundContent struct {
+	files   []File
+	changes []Change
+}
+
+// insertRound writes a round, its captured files and its size, marking each
+// file with whether the review's paths cover it.
+func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths []string, req roundContent) error {
+	files, added, removed := size(paths, req.changes)
+	round.Files, round.Added, round.Removed = files, added, removed
+	insert := `INSERT INTO rounds
+			(review_id, number, note, base_commit, created, files_changed, lines_added, lines_removed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	args := []any{
+		round.ReviewID,
+		round.Number,
+		round.Note,
+		round.BaseCommit,
+		FormatTime(s.now()),
+		files,
+		added,
+		removed,
+	}
 	res, err := tx.ExecContext(ctx, insert, args...)
 	if err != nil {
 		return errors.Wrap(err, "insert round")
@@ -317,7 +417,7 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 	if round.ID, err = res.LastInsertId(); err != nil {
 		return errors.Wrap(err, "read round id")
 	}
-	for _, f := range files {
+	for _, f := range req.files {
 		p, err := normalizePath(f.Path)
 		if err != nil {
 			return err
@@ -438,6 +538,24 @@ func refuseClaimed(ctx context.Context, tx *sql.Tx, projectID int64, paths []str
 		}
 	}
 	return errors.Wrap(rows.Err(), "read claimed paths")
+}
+
+// requireSameBase refuses a round measured from somewhere else.
+//
+// A review's base is fixed at its first round, so the total a reviewer sees
+// before approving is measured from where the work started. The check is here
+// rather than left to the caller because the caller that would break it is the
+// one place the value gets passed along.
+func requireSameBase(ctx context.Context, tx *sql.Tx, reviewID int64, base string) error {
+	var first string
+	query := "SELECT base_commit FROM rounds WHERE review_id = ? AND number = 1"
+	if err := tx.QueryRowContext(ctx, query, reviewID).Scan(&first); err != nil {
+		return errors.Wrap(err, "read the review's base")
+	}
+	if base != first {
+		return errors.Wrapf(ErrBaseMoved, "review %d started from %q and this round names %q", reviewID, first, base)
+	}
+	return nil
 }
 
 // reviewPaths reads a review's claimed paths.

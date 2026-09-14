@@ -184,29 +184,58 @@ and the disagreement surfaces as a review showing the wrong content.
 
 Capturing a round:
 
-1. Resolve the base. `HEAD` by default, or what the agent named.
+1. Resolve the base. On a first round that is `HEAD` by default, or what the
+   agent named. A later round is handed the commit the review already recorded,
+   because a review's base is fixed at its first round, and the store refuses a
+   round that names another one.
 2. Ask git which files differ from it, tracked and untracked alike.
 3. Write the content of each into the blob store.
-4. Record the base commit id and the path-to-hash list on the round.
+4. Diff what moved since the previous round and record its size.
+5. Record the base commit id, the path-to-hash list and that size on the round.
 
 Everything else resolves from git at the base commit when it is asked for, which
 is what makes storage proportional to what the agent changed. The three-source
 resolution order, and what each is labeled as, is in
 [product.md](product.md#a-round-is-frozen).
 
-**Ignored files are not captured.** `git status` already decides what is
-ignored, and a build directory in a capture is megabytes nobody will read.
+**Ignored files are not captured.** `ls-files --others --exclude-standard`
+already decides what is ignored, and a build directory in a capture is megabytes
+nobody will read.
 
 ## Diff
 
-**Written here, not shelled out.** A round-to-round diff is between two blob
-sets eyeball holds, and git has no view of those. The base-to-round case could
-shell out and then there would be two diff paths producing two renderings.
+**Not shelled out.** A round-to-round diff is between two blob sets eyeball
+holds, and git has no view of those. The base-to-round case could shell out and
+then there would be two diff paths producing two renderings.
 
-Myers over lines, then word marking within a changed line, and the marking runs
-only where a run of removals pairs one to one with the additions replacing it.
-An unequal run is a rewrite, and pairing across one marks the wrong words with
-confidence.
+**The line comparison is `go-udiff`, which is x/tools' two-sided Myers.** It is
+bidirectional and bounded: where the edit distance grows past what it will
+search, it stops and joins a forward and a backward partial subsequence, so a
+large refactor still reads as a diff. A one-sided search has to give up instead,
+and all it can offer then is the whole file as one removal run and one addition
+run, which for two files sharing half their content reads worse than no diff.
+That degradation is the whole reason for the dependency; the search itself was
+written here first and agreed with the library on every case but one.
+
+**A file past two megabytes or twenty thousand lines on either side is not
+diffed at all.** The result carries the line count of each side and no hunks. A
+generated file, a minified bundle and a lock file all land there, and a phone
+rendering forty thousand marked lines is not reading either. Both numbers are
+guesses written down so they can be corrected, and the byte limit is exported so
+a caller streaming content can stop reading at the point the answer stops
+depending on what follows.
+
+Everything above the comparison is written here: the hunks, their context and
+numbering, the size a file is not diffed past, and word marking within a changed
+line. The marking runs only where a run of removals pairs one to one with the
+additions replacing it. An unequal run is a rewrite, and pairing across one
+marks the wrong words with confidence.
+
+**Where several placements are equally minimal, the library picks one.** GNU
+diff shifts boundaries with heuristics of its own and lands elsewhere, on about
+a fifth of diffs measured over three thousand random pairs. Which reads better
+needs real reviews and is in [specs/TODO.md](../specs/TODO.md). A golden file
+pins the current answer, so a version bump that changes it is noticed.
 
 ## What a file is
 
@@ -420,6 +449,7 @@ closes.
 | Dependency                              | Why                                                               |
 | --------------------------------------- | ----------------------------------------------------------------- |
 | `github.com/alecthomas/chroma`          | syntax highlighting, server side                                  |
+| `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads       |
 | `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                     |
 | `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
 | `github.com/onsi/gomega` (test)         | assertions                                                        |
