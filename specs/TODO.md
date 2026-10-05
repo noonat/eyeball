@@ -12,21 +12,18 @@ agent forgets it between contexts.
 
 Each becomes `specs/NNN-*.md` when it reaches the front.
 
-1. **004 Capture and diff.** Git shell-out for the base commit and the dirty
-   file set, a capture that holds only what differs, and the diff between two
-   captures with word-level marking.
-2. **005 The daemon and the CLI.** One process owns the store, the CLI is a thin
+1. **005 The daemon and the CLI.** One process owns the store, the CLI is a thin
    client over a unix socket, and `wait` is a long poll rather than a loop.
    `--json` everywhere, flags in any position, `eyeball doc`.
-3. **006 The surface.** Templates seeded from the tearouts: the queue, a review,
+2. **006 The surface.** Templates seeded from the tearouts: the queue, a review,
    widening, the project view. Server-rendered, htmx for the interactions, and
    the live stream that carries updates and doubles as the connection state.
    Every action reports its own failure, because a tap that does nothing is the
    worst thing this surface can do.
-4. **007 Notification.** Web push with VAPID, the service worker that exists for
+3. **007 Notification.** Web push with VAPID, the service worker that exists for
    it, the installed-page requirement, and the lapsed-subscription state the
    surface has to report.
-5. **008 Rendered files.** Images, pages, media, and the sandbox that anything
+4. **008 Rendered files.** Images, pages, media, and the sandbox that anything
    executable renders in.
 
 ## Unscheduled
@@ -37,6 +34,28 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
 - [ ] design: settle the expand-or-list threshold against real reviews. Ten
       files and a few hundred lines is a guess written down so it can be
       corrected.
+- [ ] design: where an insertion should attach when a run of identical lines
+      makes several placements equally minimal. 004 pins one tie-break and GNU
+      diff shifts boundaries with heuristics of its own, so the two differ on
+      about a fifth of diffs. Which reads better needs real reviews.
+- [ ] design: whether word marking should be suppressed where a paired line
+      shares almost nothing with the one it replaced. Marking it end to end is
+      noise, and the proportion to cut at needs real reviews.
+- [ ] product: whether a review's base should follow a branch that moves under
+      it. 004 fixes the base at the first round, so a merge landing mid-review
+      arrives inside the review as work the agent did not do.
+- [ ] product: whether a marker file inside a git repository should get the
+      no-git treatment. 004 decides a project is git by whether its root holds a
+      `.git` entry, so a monorepo package named by a marker file is captured by
+      walking: whole files, no base, and only the paths the review named, inside
+      a repository that could have answered better.
+- [ ] product: whether a rename should read as a rename. 004 captures it as a
+      delete and an add, which is what a path-to-content list holds either way.
+- [ ] product: file modes. Nothing records them, so a change that only sets a
+      bit shows as a file with no changed lines.
+- [ ] product: whether a file too large to send to a phone should be captured at
+      all. Today its bytes are stored and the surface refuses to send them,
+      which costs disk for something nobody opens.
 - [ ] product: whether a review-level comment and a verdict note are one
       concept. They overlap almost completely and differ only in when they are
       written.

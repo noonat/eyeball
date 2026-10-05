@@ -446,12 +446,16 @@ func TestStore_OpenRound(t *testing.T) {
 
 	second, err := s.OpenRound(t.Context(), review.ID, Request{
 		Note:       "did what the last round asked",
-		BaseCommit: "def456",
+		BaseCommit: first.BaseCommit,
 		Files:      []File{{Path: "docs/product.md", Digest: digest('a'), Size: 20}},
+		Changes:    []Change{{Path: "docs/product.md", Added: 4, Removed: 1}},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(second.Number).To(Equal(2))
 	g.Expect(second.ID).NotTo(Equal(first.ID))
+	g.Expect(second.Files).To(Equal(1))
+	g.Expect(second.Added).To(Equal(4))
+	g.Expect(second.Removed).To(Equal(1))
 
 	// The second round's files are marked against the review's paths, which the
 	// store reads back rather than being told again.
@@ -459,6 +463,109 @@ func TestStore_OpenRound(t *testing.T) {
 	row := s.db.QueryRowContext(t.Context(), "SELECT in_scope FROM round_files WHERE round_id = ?", second.ID)
 	g.Expect(row.Scan(&inScope)).To(Succeed())
 	g.Expect(inScope).To(BeTrue())
+}
+
+func TestStore_OpenRound_baseIsFixedAtTheFirstRound(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	project := ensureProject(g, t, s)
+	review, first := openReview(g, t, s, project.ID, "docs")
+	g.Expect(s.Decide(t.Context(), first.ID, VerdictChanges, "again")).To(Succeed())
+
+	// A base that followed HEAD would make the review's own total mean a
+	// different thing on every round, and an agent that had committed its work
+	// would measure from it and capture nothing.
+	_, err := s.OpenRound(t.Context(), review.ID, Request{
+		Note:       "measured from somewhere else",
+		BaseCommit: "1111111111111111111111111111111111111111",
+	})
+	g.Expect(errors.Is(err, ErrBaseMoved)).To(BeTrue())
+	g.Expect(err.Error()).To(ContainSubstring("1111111111111111111111111111111111111111"))
+}
+
+func TestStore_OpenRound_changeRefusals(t *testing.T) {
+	requests := []struct {
+		name    string
+		changes []Change
+		want    string
+	}{
+		{
+			name:    "one path moving twice",
+			changes: []Change{{Path: "docs/a.md"}, {Path: "docs/a.md"}},
+			want:    "moved twice",
+		},
+		{
+			name:    "a path that climbs out",
+			changes: []Change{{Path: "../elsewhere.md"}},
+			want:    "invalid path",
+		},
+		{
+			name:    "lines counted below zero",
+			changes: []Change{{Path: "docs/a.md", Added: -1}},
+			want:    "cannot have moved",
+		},
+	}
+	for _, c := range requests {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			s := openStore(g, t)
+			project := ensureProject(g, t, s)
+			review, first := openReview(g, t, s, project.ID, "docs")
+			g.Expect(s.Decide(t.Context(), first.ID, VerdictChanges, "again")).To(Succeed())
+
+			_, err := s.OpenRound(t.Context(), review.ID, Request{
+				Note:       "n",
+				BaseCommit: first.BaseCommit,
+				Changes:    c.changes,
+			})
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(err.Error()).To(ContainSubstring(c.want))
+		})
+	}
+}
+
+func TestStore_OpenRound_countsAPathOnlyOnceNormalized(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	project := ensureProject(g, t, s)
+	review, first := openReview(g, t, s, project.ID, "docs")
+	g.Expect(s.Decide(t.Context(), first.ID, VerdictChanges, "again")).To(Succeed())
+
+	// The scope test compares paths as text, so an unnormalized one would score
+	// outside a scope that covers it and the stored size would come out short.
+	second, err := s.OpenRound(t.Context(), review.ID, Request{
+		Note:       "n",
+		BaseCommit: first.BaseCommit,
+		Changes:    []Change{{Path: "./docs/a.md", Added: 7, Removed: 2}},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(second.Files).To(Equal(1))
+	g.Expect(second.Added).To(Equal(7))
+	g.Expect(second.Removed).To(Equal(2))
+}
+
+func TestStore_OpenRound_countsARevertedFile(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	project := ensureProject(g, t, s)
+	review, first := openReview(g, t, s, project.ID, "docs")
+	g.Expect(s.Decide(t.Context(), first.ID, VerdictChanges, "again")).To(Succeed())
+
+	// The file the agent put back matches the base again, so the capture holds
+	// nothing for it. It still moved since the last round, which is why the
+	// size is not a count of what the round captured.
+	second, err := s.OpenRound(t.Context(), review.ID, Request{
+		Note:       "put it back",
+		BaseCommit: first.BaseCommit,
+		Changes:    []Change{{Path: "docs/a.md", Added: 0, Removed: 4}},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(second.Files).To(Equal(1))
+	g.Expect(second.Removed).To(Equal(4))
+
+	files, err := s.RoundFiles(t.Context(), second.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(files).To(BeEmpty())
 }
 
 func TestStore_OpenRound_refusals(t *testing.T) {

@@ -107,6 +107,11 @@ func TestStore_Queue(t *testing.T) {
 					Size:   3,
 				},
 			},
+			Changes: []Change{
+				{Path: "docs/a.md", Added: 10, Removed: 2},
+				{Path: "docs/b.md", Added: 5, Removed: 0},
+				{Path: "Makefile", Added: 99, Removed: 99},
+			},
 		},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -133,8 +138,11 @@ func TestStore_Queue(t *testing.T) {
 	g.Expect(row.Title).To(Equal("still waiting"))
 	g.Expect(row.State).To(Equal(StateOpen))
 	g.Expect(row.Round).To(Equal(waitingRound.Number))
-	// Makefile was captured for context, so it is not the size of the change.
+	// Makefile moved too, and it is outside the review's paths, so it counts
+	// towards neither the files nor the lines. It was captured for context.
 	g.Expect(row.Files).To(Equal(2))
+	g.Expect(row.Added).To(Equal(15))
+	g.Expect(row.Removed).To(Equal(2))
 	g.Expect(row.RequestedAt).To(BeTemporally("~", time.Now().UTC(), time.Minute))
 
 	// The abandoned review is in none of the three: the question was withdrawn,
@@ -165,6 +173,10 @@ func TestStore_Queue_afterASecondRound(t *testing.T) {
 				Size:   2,
 			},
 		},
+		// Both files still differ from the base, so the capture holds both.
+		// Only one of them moved since round 1, and that is the change the
+		// reviewer is being asked to read.
+		Changes: []Change{{Path: "docs/b.md", Added: 3, Removed: 1}},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -177,7 +189,13 @@ func TestStore_Queue_afterASecondRound(t *testing.T) {
 	g.Expect(ids(queue.Waiting)).To(Equal([]int64{review.ID}))
 	g.Expect(queue.Working).To(BeEmpty())
 	g.Expect(queue.Waiting[0].Round).To(Equal(second.Number))
-	g.Expect(queue.Waiting[0].Files).To(Equal(2))
+
+	// The size is what moved since round 1, not what the capture holds. A
+	// header saying two files above a diff of one file describes something
+	// else, which is what counting the capture would have done here.
+	g.Expect(queue.Waiting[0].Files).To(Equal(1))
+	g.Expect(queue.Waiting[0].Added).To(Equal(3))
+	g.Expect(queue.Waiting[0].Removed).To(Equal(1))
 
 	// The agent's own slice reads through the same join, so it lists the review
 	// once rather than once per round.

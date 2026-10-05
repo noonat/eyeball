@@ -5,6 +5,7 @@ go 1.26.2
 tool honnef.co/go/tools/cmd/staticcheck
 
 require (
+	github.com/aymanbagabas/go-udiff v0.4.1
 	github.com/cockroachdb/errors v1.14.0
 	github.com/onsi/gomega v1.42.1
 	golang.org/x/net v0.56.0

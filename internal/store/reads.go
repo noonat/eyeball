@@ -16,7 +16,7 @@ import (
 // waiting, not working.
 const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		o.number, o.created,
-		(SELECT count(*) FROM round_files f WHERE f.round_id = o.id AND f.in_scope = 1)
+		o.files_changed, o.lines_added, o.lines_removed
 	FROM reviews r
 	JOIN projects p ON p.id = r.project_id
 	JOIN rounds o
@@ -43,9 +43,14 @@ type ReviewRow struct {
 	State State
 	// Round is the latest round's number.
 	Round int
-	// Files counts the paths that round captured inside the review's scope.
-	// Files it captured for context are not the size of the change.
-	Files int
+	// Files counts the in-scope paths that moved since the previous round, and
+	// Added and Removed the lines each way. On a first round that is what
+	// moved since the base, so the two readings agree there.
+	//
+	// It is not a count of what the round captured. A capture holds everything
+	// differing from the base, so from round two onward that number is the size
+	// of the whole review rather than of the change this round opens on.
+	Files, Added, Removed int
 	// RequestedAt is when the latest round was asked for, which is what the
 	// queue turns into how long something has been waiting.
 	RequestedAt time.Time
@@ -151,11 +156,21 @@ func (s *Store) Review(ctx context.Context, reviewID int64) (Review, error) {
 // Round reads one round of a review by its number, which is how it is addressed
 // everywhere outside the store.
 func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, error) {
-	query := `SELECT id, review_id, number, note, base_commit
+	query := `SELECT id, review_id, number, note, base_commit,
+			files_changed, lines_added, lines_removed
 		FROM rounds WHERE review_id = ? AND number = ?`
 	var out Round
 	row := s.db.QueryRowContext(ctx, query, reviewID, number)
-	err := row.Scan(&out.ID, &out.ReviewID, &out.Number, &out.Note, &out.BaseCommit)
+	err := row.Scan(
+		&out.ID,
+		&out.ReviewID,
+		&out.Number,
+		&out.Note,
+		&out.BaseCommit,
+		&out.Files,
+		&out.Added,
+		&out.Removed,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Round{}, errors.Wrapf(ErrNotFound, "review %d round %d", reviewID, number)
@@ -260,6 +275,8 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 			&row.Round,
 			&requested,
 			&row.Files,
+			&row.Added,
+			&row.Removed,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "scan review")
