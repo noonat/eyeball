@@ -26,9 +26,43 @@ func Age(now, t time.Time) string {
 	case d < 7*24*time.Hour:
 		return fmt.Sprintf("%dd", int(d/(24*time.Hour)))
 	}
+	return date(now, t)
+}
+
+// Ago writes the same spans as Age, worded to finish a sentence: "just now", "2
+// hours ago", "yesterday", "on Sep 28". The tearouts use Age's form in a pill
+// and this one in a notice.
+func Ago(now, t time.Time) string {
+	d := now.Sub(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return plural(int(d/time.Minute), "minute") + " ago"
+	case d < 24*time.Hour:
+		return plural(int(d/time.Hour), "hour") + " ago"
+	case d < 48*time.Hour:
+		return "yesterday"
+	case d < 7*24*time.Hour:
+		return plural(int(d/(24*time.Hour)), "day") + " ago"
+	}
+	return "on " + date(now, t)
+}
+
+// date is t's date as the clock showing now would show it, with the year when
+// it is not now's.
+func date(now, t time.Time) string {
 	t = t.In(now.Location())
 	if t.Year() == now.Year() {
 		return t.Format("Jan 2")
 	}
 	return t.Format("Jan 2, 2006")
+}
+
+// plural writes n with its noun.
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }

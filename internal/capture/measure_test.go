@@ -30,8 +30,7 @@ func Test_measureAsksTheBaseAboutEveryPathAtOnce(t *testing.T) {
 	// rather than only in how long a capture takes.
 	before := NewReader(r.root, base, blobs, nil)
 	now := NewReader(r.root, base, blobs, req.Files)
-	opts := Options{Round: 2, Root: r.root, Base: base, Previous: nil, Blobs: blobs}
-	changes, err := measure(t.Context(), opts, req.Files, before, now)
+	changes, err := measure(t.Context(), before, now)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(changes).To(HaveLen(6))
 	g.Expect(before.lookups).To(Equal(1))

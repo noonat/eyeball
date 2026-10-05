@@ -97,6 +97,8 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: a tearout of the queue filter. product.md says the queue can be
       filtered, every queue row is one link so a filter link inside a row would
       split it, and no tearout shows a filter control.
+- [ ] design: a mark on the last line of a file with no final newline. The row
+      model carries the flag, and no tearout or class in `app.css` draws it.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.

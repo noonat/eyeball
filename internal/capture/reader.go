@@ -57,6 +57,15 @@ type Reader struct {
 	lookups int
 }
 
+// capture is the file list the reader was built from.
+func (r *Reader) capture() []store.File {
+	out := make([]store.File, 0, len(r.files))
+	for _, f := range r.files {
+		out = append(out, f)
+	}
+	return out
+}
+
 // NewReader reads files as of the round whose capture is files.
 //
 // An empty base means the round has no commit to fall back to, which is a

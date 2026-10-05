@@ -45,3 +45,28 @@ func TestAge_dateInTheViewersZone(t *testing.T) {
 	then := time.Date(2026, 9, 28, 3, 0, 0, 0, time.UTC)
 	g.Expect(Age(now, then)).To(Equal("Sep 27"))
 }
+
+func TestAgo(t *testing.T) {
+	now := time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		ago  time.Duration
+		want string
+	}{
+		{ago: 59 * time.Second, want: "just now"},
+		{ago: time.Minute, want: "1 minute ago"},
+		{ago: 59 * time.Minute, want: "59 minutes ago"},
+		{ago: time.Hour, want: "1 hour ago"},
+		{ago: 23 * time.Hour, want: "23 hours ago"},
+		{ago: 24 * time.Hour, want: "yesterday"},
+		{ago: 48 * time.Hour, want: "2 days ago"},
+		{ago: 6 * 24 * time.Hour, want: "6 days ago"},
+		{ago: 7 * 24 * time.Hour, want: "on Sep 28"},
+		{ago: 400 * 24 * time.Hour, want: "on Aug 31, 2025"},
+	}
+	for _, c := range cases {
+		t.Run(c.want, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(Ago(now, now.Add(-c.ago))).To(Equal(c.want))
+		})
+	}
+}

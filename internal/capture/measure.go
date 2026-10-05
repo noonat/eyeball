@@ -12,48 +12,68 @@ import (
 
 // measure works out what moved between the previous round and this one.
 //
-// The two readers are supplied rather than built here, so how many times this
-// asks git can be counted from outside. Nothing in the changes it returns says
-// whether it asked once or once per file.
-//
 // This is where the round's stored size comes from, and it is computed at
 // capture time rather than when the queue renders. The queue re-renders on
 // every live update, and diffing every waiting review's latest round each time
 // is work that never stops.
-func measure(ctx context.Context, opts Options, files []store.File, before, now *Reader) ([]store.Change, error) {
-	if err := primedFor(ctx, opts, before, now, files); err != nil {
+func measure(ctx context.Context, before, now *Reader) ([]store.Change, error) {
+	results, err := Compare(ctx, before, now)
+	if err != nil {
 		return nil, err
 	}
-
-	var changes []store.Change
-	for _, p := range moved(opts.Previous, files) {
-		added, removed, err := countLines(ctx, before, now, p)
-		if err != nil {
-			return nil, err
-		}
-		// Every path that moved gets a row, including one that moved no lines.
-		// A mode change, a checkout filter and a binary file all land here, and
-		// leaving them out would make a first round's file count smaller than
-		// the number of files it captured.
-		changes = append(changes, store.Change{Path: p, Added: added, Removed: removed})
+	// Every path that moved gets a row, including one that moved no lines. A
+	// mode change, a checkout filter and a binary file all land here, and
+	// leaving them out would make a first round's file count smaller than the
+	// number of files it captured.
+	changes := make([]store.Change, 0, len(results))
+	for _, m := range results {
+		changes = append(changes, store.Change{Path: m.Path, Added: m.Result.Added, Removed: m.Result.Removed})
 	}
 	return changes, nil
 }
 
-// primedFor asks the base about every path a round will compare, in as few
-// calls as the argument list allows.
+// Moved is one path whose state differs between two captures, and what moved.
+type Moved struct {
+	// Path is the path.
+	Path string
+	// Result is the comparison of the path as of each capture. A too-large
+	// result carries no line counts.
+	Result diff.Result
+}
+
+// Compare diffs, path by path, every path whose state differs between the
+// capture before reads and the capture now reads, in path order.
 //
-// Left to the per-path lookup this is one git process per file, and on a first
-// round every path resolves from the base, so it is one per captured file.
-func primedFor(ctx context.Context, opts Options, before, now *Reader, files []store.File) error {
-	paths := moved(opts.Previous, files)
-	if opts.Base == "" || len(paths) == 0 {
-		return nil
+// A round's stored size is summed from this, and the surface renders it, so
+// what the page shows and what the queue counts cannot disagree. A reader
+// holding no capture compares a round with its base.
+//
+// The two readers are supplied rather than built here, so how many times this
+// asks git can be counted from outside. Nothing in the results says whether it
+// asked once or once per file.
+func Compare(ctx context.Context, before, now *Reader) ([]Moved, error) {
+	paths := moved(before.capture(), now.capture())
+	// Left to the per-path lookup this is one git process per file, and on a
+	// first round every path resolves from the base, so it is one per captured
+	// file. Asking about every path first takes as few calls as the argument
+	// list allows.
+	if now.base != "" && len(paths) > 0 {
+		if err := before.loadOIDs(ctx, paths); err != nil {
+			return nil, err
+		}
+		if err := now.loadOIDs(ctx, paths); err != nil {
+			return nil, err
+		}
 	}
-	if err := before.loadOIDs(ctx, paths); err != nil {
-		return err
+	out := make([]Moved, 0, len(paths))
+	for _, p := range paths {
+		result, err := compareFile(ctx, before, now, p)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Moved{Path: p, Result: result})
 	}
-	return now.loadOIDs(ctx, paths)
+	return out, nil
 }
 
 // moved lists the paths whose state differs between two captures, in order.
@@ -100,35 +120,34 @@ func states(files []store.File) map[string]string {
 	return out
 }
 
-// countLines diffs one path between the two rounds.
+// compareFile diffs one path between the two rounds.
 //
 // Both sides are read frozen, never from the working copy, because a round is
-// what is being measured and the working copy has moved on.
-func countLines(ctx context.Context, before, now *Reader, p string) (int, int, error) {
+// what is being compared and the working copy has moved on.
+func compareFile(ctx context.Context, before, now *Reader, p string) (diff.Result, error) {
 	old, tooBig, err := readSide(ctx, before, p)
 	if err != nil {
-		return 0, 0, err
+		return diff.Result{}, err
 	}
 	if tooBig {
-		return 0, 0, nil
+		return diff.Result{TooLarge: true}, nil
 	}
 	current, tooBig, err := readSide(ctx, now, p)
 	if err != nil {
-		return 0, 0, err
+		return diff.Result{}, err
 	}
 	if tooBig {
-		return 0, 0, nil
+		return diff.Result{TooLarge: true}, nil
 	}
 	result := diff.Text(old, current)
 	if result.TooLarge {
-		// The line limit's own answer is the length of each side, which is
-		// what a renderer shows for a file it will not diff. As a round's size
-		// it would read as a one-line edit moving twenty-five thousand lines,
-		// so it is dropped here rather than stored. The byte limit above says
-		// the same thing by never reading the file.
-		return 0, 0, nil
+		// The line limit's own answer is the length of each side. As a round's
+		// size it would read as a one-line edit moving twenty-five thousand
+		// lines, so it is dropped here, and the byte limit above says the same
+		// thing by never reading the file.
+		result.Added, result.Removed = 0, 0
 	}
-	return result.Added, result.Removed, nil
+	return result, nil
 }
 
 // readSide reads one side of a comparison, reporting a file too large to diff

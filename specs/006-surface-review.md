@@ -443,6 +443,28 @@ the agent's replies**, as the tearout's earlier-round frame shows.
 **Links go only to routes that exist.** Nothing links to a project view or a
 file route until widening and documents (007) adds them.
 
+**Departures, iteration 6.**
+
+- A review page lists only the files under the review's paths. A file captured
+  for context is counted in neither the stored size nor the page's totals, and
+  listing it would show more files than the toolbar counts. Widening and
+  documents (007) reaches any file in the project.
+- A comment on a file the comparison does not show is listed with the
+  review-level comments, under its path, rather than dropped.
+- A late comment's card says "after the verdict" beside its anchor. No tearout
+  marks one, and `app.css` has no class for it, so it is a plain span.
+- A line with no newline at the end of its file is not marked. The row model
+  carries the flag, and no tearout or class draws it, which is a `design:` entry
+  in specs/TODO.md.
+- `store.Round` gains `Created`, which the wait on an undecided round is
+  measured from, and `render.Ago` writes the long form the decided notice uses.
+  Line counts on the queue and the review page are written with thousands
+  separators, as the tearouts write them.
+- `capture.Compare` takes the two readers, and finds the paths that moved from
+  the captures they hold, rather than taking the file lists as well.
+- Highlighting a line recovers from a panic in chroma and leaves the line plain,
+  found by the stand-in's fourth review of iteration 4.
+
 ### What every surface response carries
 
 - **`Content-Security-Policy: default-src 'self'; img-src 'self' data:; frame-ancestors 'none'`.**
@@ -656,25 +678,31 @@ the three review passes and were checked by the stand-in only.
       empty state
 - [x] A `design:` entry in specs/TODO.md for a tearout of the queue filter
 
+> **Completed** 2026-10-05 10:42 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.0s
+> - `go test -race ./...` — 20.9s
+
 ## Iteration 6: The current round
 
-- [ ] The per-path comparison `capture.Freeze` measures with exported, returning
+- [x] The per-path comparison `capture.Freeze` measures with exported, returning
       each path's `diff.Result`, and the measuring summing it unchanged
-- [ ] `GET /reviews/{review}` rendering the brief, the full note, the size and
+- [x] `GET /reviews/{review}` rendering the brief, the full note, the size and
       the wait, with the full title in the topbar
-- [ ] The files that moved from that comparison against the previous round or
+- [x] The files that moved from that comparison against the previous round or
       the base, with `?against=` as the tearout's two-link control, absent on a
       first round
-- [ ] A test holding the page's totals to the stored size for a too-large file,
+- [x] A test holding the page's totals to the stored size for a too-large file,
       a delete then restore, a revert, an out-of-scope file and a binary file
-- [ ] Files expanded up to ten files and three hundred lines and collapsed past
+- [x] Files expanded up to ten files and three hundred lines and collapsed past
       either, with a test on each side of each threshold
-- [ ] Each file's comments after its diff and review-level comments after the
+- [x] Each file's comments after its diff and review-level comments after the
       files, read-only, late ones marked
-- [ ] A decided round showing the verdict notice and the verdict note, and no
+- [x] A decided round showing the verdict notice and the verdict note, and no
       decision bar on any round
-- [ ] A review or round that does not exist answered with the 404 page
-- [ ] Binary and too-large files rendered as their header and one line naming
+- [x] A review or round that does not exist answered with the 404 page
+- [x] Binary and too-large files rendered as their header and one line naming
       which
 
 ## Iteration 7: Earlier rounds, seeding, and the look
@@ -682,9 +710,9 @@ the three review passes and were checked by the stand-in only.
 - [ ] `GET /reviews/{review}/rounds/{round}` for any round, with the rounds
       listed and reachable from the current one
 - [ ] An earlier round listing its comments with the agent's replies
-- [ ] A store open that takes a clock, and `tool/seed` writing a backdated,
-      populated state directory through the store and capture, listed in
-      architecture.md's layout block
+- [ ] `tool/seed` writing a backdated, populated state directory through
+      `store.OpenWithClock` and capture, listed in architecture.md's layout
+      block
 - [ ] Screenshots at 390 pixels of the queue, the empty queue, a review, a
       decided review and an earlier round beside their tearout frames, saved for
       the reviewer

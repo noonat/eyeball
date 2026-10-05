@@ -42,10 +42,19 @@ func newHighlighter(path string) highlighter {
 //
 // chroma's default options turn a lone \r into \n for every lexer, which is
 // why the options here leave EnsureLF off.
-func (h highlighter) tokens(line string) []token {
+func (h highlighter) tokens(line string) (out []token) {
 	if h.lexer == nil || line == "" {
 		return nil
 	}
+	// chroma panics on a lexer state it cannot find and on a mutator's error.
+	// Lexing one line at a time from the root state reaches states a whole
+	// file would not, so a panic leaves the line plain rather than failing the
+	// page.
+	defer func() {
+		if recover() != nil {
+			out = nil
+		}
+	}()
 	it, err := h.lexer.Tokenise(&chroma.TokeniseOptions{State: "root"}, line)
 	if err != nil {
 		return nil

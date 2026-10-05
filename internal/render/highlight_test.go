@@ -111,6 +111,12 @@ func Test_highlighterLeavesLinesPlain(t *testing.T) {
 	}
 }
 
+func Test_highlighterSurvivesALexerThatPanics(t *testing.T) {
+	g := NewWithT(t)
+	h := highlighter{lexer: endless{panics: true}}
+	g.Expect(h.tokens("return 1")).To(BeEmpty())
+}
+
 func Test_highlighterTokens(t *testing.T) {
 	g := NewWithT(t)
 	line := `	return "s" + 42 // done`
@@ -166,9 +172,10 @@ func Test_highlighterTrimsTheNewlineALexerAdds(t *testing.T) {
 	}
 }
 
-// endless is a lexer whose tokens never stop.
+// endless is a lexer whose tokens never stop, or that panics on the first.
 type endless struct {
-	value string
+	value  string
+	panics bool
 }
 
 // Config describes no language.
@@ -178,7 +185,12 @@ func (endless) Config() *chroma.Config {
 
 // Tokenise yields a comment token holding value, forever.
 func (e endless) Tokenise(*chroma.TokeniseOptions, string) (chroma.Iterator, error) {
-	return func() chroma.Token { return chroma.Token{Type: chroma.Comment, Value: e.value} }, nil
+	return func() chroma.Token {
+		if e.panics {
+			panic("a lexer state that does not exist")
+		}
+		return chroma.Token{Type: chroma.Comment, Value: e.value}
+	}, nil
 }
 
 // SetRegistry does nothing.

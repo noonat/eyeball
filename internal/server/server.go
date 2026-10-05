@@ -188,6 +188,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /reviews/{review}",
+		handle:  (*Server).handleReviewPage,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /healthz",
 		handle:  (*Server).handleHealthz,
 	},

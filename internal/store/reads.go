@@ -210,9 +210,12 @@ func (s *Store) Review(ctx context.Context, reviewID int64) (Review, error) {
 // everywhere outside the store.
 func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, error) {
 	query := `SELECT id, review_id, number, note, base_commit,
-			files_changed, lines_added, lines_removed
+			files_changed, lines_added, lines_removed, created
 		FROM rounds WHERE review_id = ? AND number = ?`
-	var out Round
+	var (
+		out     Round
+		created string
+	)
 	row := s.db.QueryRowContext(ctx, query, reviewID, number)
 	err := row.Scan(
 		&out.ID,
@@ -223,12 +226,16 @@ func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, e
 		&out.Files,
 		&out.Added,
 		&out.Removed,
+		&created,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Round{}, errors.Wrapf(ErrNotFound, "review %d round %d", reviewID, number)
 		}
 		return Round{}, errors.Wrap(err, "read round")
+	}
+	if out.Created, err = ParseTime(created); err != nil {
+		return Round{}, err
 	}
 	return out, nil
 }

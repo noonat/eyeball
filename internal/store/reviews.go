@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 )
@@ -127,6 +128,9 @@ type Round struct {
 	Note string
 	// BaseCommit is what the capture was taken against, empty outside git.
 	BaseCommit string
+	// Created is when the round was asked for, which is what a waiting
+	// round's age is measured from.
+	Created time.Time
 }
 
 // File is one path a round captured.
@@ -438,12 +442,19 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 	insert := `INSERT INTO rounds
 			(review_id, number, note, base_commit, created, files_changed, lines_added, lines_removed)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	created := FormatTime(s.now())
+	// Read back from the stored text, so the round returned here and the one
+	// read later carry the same time to the nanosecond the text keeps.
+	var err error
+	if round.Created, err = ParseTime(created); err != nil {
+		return err
+	}
 	args := []any{
 		round.ReviewID,
 		round.Number,
 		round.Note,
 		round.BaseCommit,
-		FormatTime(s.now()),
+		created,
 		files,
 		added,
 		removed,

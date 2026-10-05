@@ -37,8 +37,7 @@ type queueRow struct {
 	// Files is the count of files that moved, written out, and Added and
 	// Removed the lines each way. A waiting row is the only one that prints
 	// them.
-	Files          string
-	Added, Removed int
+	Files, Added, Removed string
 }
 
 // emptyQueue is the queue with nothing waiting.
@@ -98,8 +97,8 @@ func (s *Server) queueRow(row store.ReviewRow, age string) queueRow {
 		Age:     age,
 		Round:   row.Round,
 		Files:   count(row.Files, "file", "files"),
-		Added:   row.Added,
-		Removed: row.Removed,
+		Added:   thousands(row.Added),
+		Removed: thousands(row.Removed),
 	}
 }
 
