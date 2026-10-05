@@ -103,14 +103,24 @@ diff?
 
 ## The conversational voice is separate
 
-`.claude/voice.md` holds the voice used when talking to a person in a session,
-injected by a `UserPromptSubmit` hook on every prompt. It is deliberately short,
-because it costs tokens on every single message.
+`.claude/voice.md` holds the voice used when talking to a person in a session.
+It is deliberately short, because it costs tokens on every single message.
 
-It is also personal. A contributor who wants a different conversational voice
-writes `.claude/voice.local.md`, which the hook prefers and which is not
-committed. Nothing about that changes the prose voice in this file, which is the
-same for everyone.
+**The hook that injects it is no longer in this repository.** It was a
+`UserPromptSubmit` hook in `.claude/settings.json`; the same hook now runs at
+machine scope and selects a project's `.claude/voice.md` ahead of its own
+default, so this file still governs sessions here. The repository kept the voice
+and gave up the delivery.
+
+What that costs: a contributor without that machine configuration gets nothing
+injected, and this file becomes documentation rather than an instruction. The
+hook is four lines of shell and can be restored here if the repository ever
+needs to be self-contained for someone else.
+
+The file is also personal. A contributor who wants a different conversational
+voice writes `.claude/voice.local.md`, which is preferred over this one and is
+not committed. Nothing about that changes the prose voice in this file, which is
+the same for everyone.
 
 The two happen to agree today. They are separate files because they answer
 different questions and can drift apart without either being wrong.
