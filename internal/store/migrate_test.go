@@ -131,6 +131,29 @@ func Test_migrateFromTwoProcessesAtOnce(t *testing.T) {
 	g.Expect(row.Scan(&count)).To(Succeed())
 	g.Expect(count).To(Equal(1))
 }
+func Test_migrateLeavesAnExistingProjectUnflagged(t *testing.T) {
+	g := NewWithT(t)
+	db := openDB(g, t)
+	all, err := readMigrations(migrationFS())
+	g.Expect(err).NotTo(HaveOccurred())
+	before := fstest.MapFS{}
+	for _, m := range all {
+		if m.Name < "0005" {
+			before[m.Name] = &fstest.MapFile{Data: []byte(m.SQL)}
+		}
+	}
+	g.Expect(migrate(t.Context(), db, before, fixedClock())).To(Succeed())
+	_, err = db.ExecContext(t.Context(), "INSERT INTO projects (root, name, created) VALUES ('/tmp/older', 'older', '2026-08-26T04:05:06.000Z')")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Whether a project registered before the column existed sat inside a
+	// checkout was never recorded, so it reads as never seen inside one.
+	g.Expect(migrate(t.Context(), db, migrationFS(), fixedClock())).To(Succeed())
+	var flag int
+	g.Expect(db.QueryRowContext(t.Context(), "SELECT inside_checkout FROM projects").Scan(&flag)).To(Succeed())
+	g.Expect(flag).To(BeZero())
+}
+
 func Test_migrateRefusesAChangedFile(t *testing.T) {
 	g := NewWithT(t)
 	db := openDB(g, t)

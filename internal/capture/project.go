@@ -69,12 +69,9 @@ func FindRoot(dir string) (Root, error) {
 func holdsEither(d string) (bool, error) {
 	names := []string{gitDir, Marker}
 	for _, name := range names {
-		_, err := os.Lstat(filepath.Join(d, name))
-		if err == nil {
-			return true, nil
-		}
-		if !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
-			return false, errors.Wrapf(err, "look for %s in %s", name, d)
+		found, err := holds(d, name)
+		if err != nil || found {
+			return found, err
 		}
 	}
 	return false, nil

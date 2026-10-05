@@ -51,11 +51,24 @@ func (s *Server) resolve(ctx context.Context, c api.Caller) (caller, error) {
 // project finds the project at root, registering it on first sight. Its name
 // costs a git call and is read only then, so a later request does not run git
 // for it, and a name that failed once is not retried into a different one.
+//
+// Whether a marker project sits inside a checkout is recorded on every
+// request, a new project or a known one, until it is. A project registered
+// before the store kept the flag has to be caught by a later request, and the
+// .git it was seen under may be moved away at any time after.
 func (s *Server) project(ctx context.Context, root capture.Root) (store.Project, error) {
-	known, err := s.db.ProjectByRoot(ctx, root.Resolved)
-	if err == nil || !errors.Is(err, store.ErrNotFound) {
-		return known, err
+	project, err := s.db.ProjectByRoot(ctx, root.Resolved)
+	if errors.Is(err, store.ErrNotFound) {
+		project, err = s.register(ctx, root)
 	}
+	if err != nil {
+		return store.Project{}, err
+	}
+	return s.markCheckout(ctx, project)
+}
+
+// register stores a project seen for the first time.
+func (s *Server) register(ctx context.Context, root capture.Root) (store.Project, error) {
 	name, err := capture.ProjectName(ctx, root.Resolved)
 	if err != nil {
 		// The name is for display only. Failing the request over it would be
@@ -64,6 +77,27 @@ func (s *Server) project(ctx context.Context, root capture.Root) (store.Project,
 		name = ""
 	}
 	return s.db.EnsureProject(ctx, root.Resolved, name)
+}
+
+// markCheckout records a .git at or above a marker project's root, and
+// returns the project as the store now holds it. A project already flagged is
+// not walked again, since the flag is never cleared.
+func (s *Server) markCheckout(ctx context.Context, project store.Project) (store.Project, error) {
+	if project.InsideCheckout {
+		return project, nil
+	}
+	found, err := capture.CheckoutAround(project.Root)
+	if err != nil {
+		return store.Project{}, err
+	}
+	if !found {
+		return project, nil
+	}
+	if err := s.db.MarkInsideCheckout(ctx, project.ID); err != nil {
+		return store.Project{}, err
+	}
+	project.InsideCheckout = true
+	return project, nil
 }
 
 // homeOf is the home directory a caller's default agent name is written

@@ -135,6 +135,44 @@ func Test_hubSignalsAndForgets(t *testing.T) {
 	g.Expect(ch).NotTo(Receive())
 }
 
+func Test_markCheckoutReturnsTheStoredFlag(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	outer := gitRepo(g, filepath.Join(t.TempDir(), "outer"))
+	write(g, outer, "notes/.eyeball", "")
+	root, err := filepath.EvalSymlinks(filepath.Join(outer, "notes"))
+	g.Expect(err).NotTo(HaveOccurred())
+	project, err := f.store.EnsureProject(t.Context(), root, "notes")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// The rest of the request reads the project it is handed, so it has to
+	// say what the store now holds.
+	got, err := f.s.markCheckout(t.Context(), project)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.InsideCheckout).To(BeTrue())
+}
+
+func Test_markingACheckoutDoesNotPublish(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	project, err := f.store.EnsureProject(t.Context(), "/tmp/notes", "notes")
+	g.Expect(err).NotTo(HaveOccurred())
+	ch, unsubscribe := f.s.hub.subscribe()
+	defer unsubscribe()
+
+	// A page view writes the flag, so a publish here would wake every waiting
+	// agent on a GET. The bounded wait covers a publish that arrives late.
+	g.Expect(f.s.db.MarkInsideCheckout(t.Context(), project.ID)).To(Succeed())
+	g.Consistently(ch, 100*time.Millisecond).ShouldNot(Receive())
+	got, err := f.store.Project(t.Context(), project.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.InsideCheckout).To(BeTrue())
+
+	// The subscription is live, so the silence above was not a deaf channel.
+	f.s.hub.publish()
+	g.Expect(ch).To(Receive())
+}
+
 func Test_routesMatchOnTheirOwnListenerOnly(t *testing.T) {
 	s := New(Config{})
 	handlers := map[side]*http.ServeMux{
@@ -246,6 +284,61 @@ func TestServer_handsOverLateComments(t *testing.T) {
 	g.Expect(got.Kind).To(Equal(api.KindVerdict))
 	g.Expect(ids(got.Comments)).To(Equal([]int64{unread.ID}), "the late one was acknowledged above")
 	g.Expect(got.Review.State).To(Equal(api.StateApproved))
+}
+
+func TestServer_marksAMarkerProjectInsideACheckout(t *testing.T) {
+	projects := []struct {
+		name     string
+		checkout bool
+		known    bool
+		want     bool
+	}{
+		{
+			name:     "a new project inside a checkout",
+			checkout: true,
+			known:    false,
+			want:     true,
+		},
+		{
+			name:     "a known project left unflagged",
+			checkout: true,
+			known:    true,
+			want:     true,
+		},
+		{
+			name:     "a project with no checkout around it",
+			checkout: false,
+			known:    false,
+			want:     false,
+		},
+	}
+	for _, c := range projects {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			dir := filepath.Join(t.TempDir(), "outer")
+			if c.checkout {
+				gitRepo(g, dir)
+			}
+			notes := filepath.Join(dir, "notes")
+			write(g, notes, ".eyeball", "")
+			write(g, notes, "n.md", "a note\n")
+			root, err := filepath.EvalSymlinks(notes)
+			g.Expect(err).NotTo(HaveOccurred())
+			if c.known {
+				// Registered before the store kept the flag, so it reads 0
+				// and the request reuses the row.
+				known, err := f.store.EnsureProject(t.Context(), root, "notes")
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(known.InsideCheckout).To(BeFalse())
+			}
+
+			f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: notes, Agent: "agent-1"}, Paths: []string{"n.md"}, Note: "a note"})
+			got, err := f.store.ProjectByRoot(t.Context(), root)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(got.InsideCheckout).To(Equal(c.want))
+		})
+	}
 }
 
 func TestServer_namesTheAgentFromTheCallersHome(t *testing.T) {

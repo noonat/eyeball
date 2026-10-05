@@ -44,6 +44,9 @@ type Reader struct {
 	base  string
 	blobs *blob.Store
 	files map[string]store.File
+	// live is whether Open may fall back to the working copy, from what
+	// Inspect found. NewReader allows it, and State.Reader sets it.
+	live Live
 	// oids caches what the base holds, path to object id, with an empty id for
 	// a path the base does not have. A round is frozen, so an answer stays
 	// true for as long as the reader lives.
@@ -69,7 +72,9 @@ func (r *Reader) capture() []store.File {
 // NewReader reads files as of the round whose capture is files.
 //
 // An empty base means the round has no commit to fall back to, which is a
-// project with no git and a repository with no commits yet.
+// project with no git and a repository with no commits yet. The reader it
+// returns allows a live read, and a reader for a page is built by
+// State.Reader instead, which refuses one wherever Inspect says to.
 func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader {
 	held := make(map[string]store.File, len(files))
 	for _, f := range files {
@@ -80,6 +85,7 @@ func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader
 		base:  base,
 		blobs: blobs,
 		files: held,
+		live:  LiveOpen,
 		oids:  map[string]string{},
 		batch: batchBytes,
 	}
@@ -119,7 +125,9 @@ func (r *Reader) frozen(ctx context.Context, clean string) (io.ReadCloser, Sourc
 //
 // It is what browsing uses. The third source is not frozen and says so through
 // the Source it returns, because the alternative is showing nothing, and a
-// reviewer who cannot look up a definition goes to a computer.
+// reviewer who cannot look up a definition goes to a computer. A reader built
+// by State.Reader skips that source wherever Inspect refused live reads, and a
+// path the round does not hold is then not found.
 func (r *Reader) Open(ctx context.Context, p string) (io.ReadCloser, Source, error) {
 	clean, err := safePath(p)
 	if err != nil {
@@ -136,6 +144,9 @@ func (r *Reader) Open(ctx context.Context, p string) (io.ReadCloser, Source, err
 		// Recorded as deleted by the round. The working copy may have it back,
 		// and showing that would be showing a file the round says is gone.
 		return nil, "", err
+	}
+	if r.live.Refused() {
+		return nil, "", errors.Wrapf(ErrNotFound, "%s is in no frozen source, and the project allows no live read (%s)", clean, r.live)
 	}
 	return r.fromWorking(clean)
 }

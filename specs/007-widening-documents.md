@@ -1267,6 +1267,62 @@ leaves one alive has a test that cannot fail:
 - dropping the empty path's step: the tree's root answers 200
 - escaping nothing in an address: the seeded file with `#` in its name
 
+**Departures, iteration 2.**
+
+- The todo on migration `0005` says no test can catch `store.EnsureProject`
+  skipping the column, since a new row always reads 0. That was wrong. A row
+  marked and then registered again reads 1 through `EnsureProject`'s own
+  `SELECT`, and `TestStore_MarkInsideCheckout` asserts it, so a mutant that
+  skips the column fails.
+- `capture.Inspect` returns a `capture.State`: one `capture.Live` value of
+  seven, two that allow a live read and five that refuse one, plus `BaseGone`,
+  `FoundCheckout` and the error behind "rules unreadable", which is for a log.
+  `State.Reader` builds the reader from it, with no base for a gone base, a lost
+  repository or a missing root, and with live reads refused for every refusing
+  value. The design gave the answers and left their shape open, and iteration
+  2's capture-level rows need a reader that refuses. `NewReader` still allows a
+  live read, so 006's tests and `Freeze` are unchanged, and a reader for a page
+  is meant to come from `State.Reader`.
+- A `.git` file that holds no `gitdir:` line, and a `.git` symlink whose target
+  is gone, read as a lost repository. Against git 2.55.0, `rev-parse` refused
+  the first with "invalid gitfile format", and walked past the second to answer
+  for the outer repository, both confirmed. A root that is a file, or that lies
+  below one, reads as a missing root. The design named only a pointer whose
+  target is gone, and a missing root found by `os.Stat`.
+- `capture.BaseGone` passes `--end-of-options` before the base. Against git
+  2.55.0, `cat-file -e --end-of-options` still exited 1 for an id never written
+  and 128 for `-p`, confirmed, so the answer is unchanged and a base can never
+  be read as an option.
+- The agent request path writes the flag from `capture.CheckoutAround`, the same
+  filesystem walk `Inspect` uses, rather than running all of `Inspect`. The
+  request needs only the sighting, and the base check and the root's
+  `check-ignore` would add two git calls to every agent command, each poll of a
+  wait included. Sharing the walk keeps the two writers from disagreeing about
+  what was found. A project already flagged is not walked again, since the flag
+  is never cleared.
+- The walk counts an entry it lacks permission to read as absent and carries on
+  upward, as `FindRoot` does, so the two agree on which directories they search.
+  That is reasoned and not tested, since a test would need a directory its own
+  user cannot search.
+- A `.git` in a home directory, such as a dotfiles repository, sits above every
+  marker project under that home. Each one is flagged on first sight, and its
+  live reads follow that repository's rules, so a dotfiles repository that
+  ignores everything refuses them all as ignored. If that `.git` is later moved
+  away, every one of them loses live browsing for good, which is the
+  never-cleared cost above on a larger scale. It fails closed, and the recovery
+  is the same: clearing the column on each row, or the database.
+- `store.Projects` does not read the column. `store.ProjectRow` embeds
+  `store.Project`, so its `InsideCheckout` reads false there, and its comment
+  says so. Nothing that lists projects shows the flag.
+- The mutation row for a flag written as found or not found has no code to
+  mutate in this iteration. The store has no statement that clears the flag, so
+  no write path can write it both ways. The three-run row writes through the
+  store between runs, and it kills the three mutants that can be written:
+  `Inspect` ignoring the stored flag, the update writing 0, and `store.Project`
+  not reading the column. Two mutants survive as equivalent, because the final
+  state is the same either way: dropping `AND inside_checkout = 0` from the
+  update, and walking a project that is already flagged.
+
 ## Out of scope
 
 - **Comments on a line or a passage, and mapping a passage to source lines.**
@@ -1511,46 +1567,52 @@ required_acks:
       foundations.html's prose specimen and review.html's round2 frames, with
       the other two candidates removed
 
+> **Completed** 2026-10-05 21:47 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 3.7s
+> - `go test -race ./...` — 24.2s
+
 ## Iteration 2: The project's state
 
-- [ ] `capture.Inspect` answering in order, root, lost, base, rules, with lost
+- [x] `capture.Inspect` answering in order, root, lost, base, rules, with lost
       decided from the filesystem and short-circuiting the rest
-- [ ] Lost-repository tests: a missing root, a moved `.git` with a base, an
+- [x] Lost-repository tests: a missing root, a moved `.git` with a base, an
       unborn branch with its `.git` moved, and a worktree whose git directory is
       gone
-- [ ] A round with a base whose root holds a marker and no `.git` read as a lost
+- [x] A round with a base whose root holds a marker and no `.git` read as a lost
       repository with no git call, with a row
-- [ ] `capture.BaseGone` reading `cat-file -e` exit 1 as gone and 128 as an
+- [x] `capture.BaseGone` reading `cat-file -e` exit 1 as gone and 128 as an
       error, tested against an id never written and a root that is no repository
-- [ ] A marker project's rules from a `.git` entry above its root and
+- [x] A marker project's rules from a `.git` entry above its root and
       `check-ignore -- ./` at the root, with rows asserting what `Inspect`
       returns: per-path rules for `notes`, and "rules unreadable" under
       `GIT_CEILING_DIRECTORIES`
-- [ ] A marker project in a directory the outer checkout ignores refusing every
+- [x] A marker project in a directory the outer checkout ignores refusing every
       live read with `ErrNotFound`, with a row
-- [ ] Migration `0005` adding `projects.inside_checkout` with its check and no
+- [x] Migration `0005` adding `projects.inside_checkout` with its check and no
       backfill, `store.Project`, `store.ProjectByRoot` and `store.EnsureProject`
       reading it, and `store.MarkInsideCheckout` setting it only where it is 0.
       No test can catch `EnsureProject` skipping the column, since a new row
       always reads 0, and that is harmless: the write after it is idempotent
-- [ ] `Inspect` taking the stored flag and reporting a `.git` at or above a
+- [x] `Inspect` taking the stored flag and reporting a `.git` at or above a
       marker root from the resolved root
-- [ ] A row running `Inspect` with the outer `.git` present and writing what it
+- [x] A row running `Inspect` with the outer `.git` present and writing what it
       reports, then moving the `.git` and running it twice more, refusing both
       times, with no flag seeded
-- [ ] A row with `.git` and `.eyeball` at the root on an unborn branch, no flag
+- [x] A row with `.git` and `.eyeball` at the root on an unborn branch, no flag
       seeded: `Inspect` run with the `.git` present and its finding written,
       then the `.git` moved and `private.txt` refused
-- [ ] The agent request path writing the flag through `db.MarkInsideCheckout`,
+- [x] The agent request path writing the flag through `db.MarkInsideCheckout`,
       on first sight and when `Server.project` reuses a known row, with a
       server-level row for each: a new project, and an existing unflagged row,
       each flagged after a request
-- [ ] `db.MarkInsideCheckout` in `internal/server/writes.go`, not publishing on
+- [x] `db.MarkInsideCheckout` in `internal/server/writes.go`, not publishing on
       the hub, with a row subscribing to the hub, as `Test_hubSignalsAndForgets`
       does, and receiving nothing after the write
-- [ ] A lost repository and a missing root refusing every live read, with a row
+- [x] A lost repository and a missing root refusing every live read, with a row
       for a formerly ignored file answering not found
-- [ ] A failed ignore check refusing only live reads, with a test at the capture
+- [x] A failed ignore check refusing only live reads, with a test at the capture
       level that a captured file still reads and a live read returns
       `ErrNotFound`
 
