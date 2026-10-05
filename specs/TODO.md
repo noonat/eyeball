@@ -94,6 +94,9 @@ requirement in either document that none of them names is a gap in this list.
       as a block comment. Highlighting the whole file and slicing it would fix
       it, at the cost of reading both whole files for every hunk. Assumed rare,
       not measured.
+- [ ] design: a tearout of the queue filter. product.md says the queue can be
+      filtered, every queue row is one link so a filter link inside a row would
+      split it, and no tearout shows a filter control.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.

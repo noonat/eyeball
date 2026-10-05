@@ -76,6 +76,8 @@ type page struct {
 	Back string
 	// BackLabel is the back link's text.
 	BackLabel string
+	// Pill is the waiting count beside the wordmark, and empty for none.
+	Pill string
 	// Body is the page template's data.
 	Body any
 }

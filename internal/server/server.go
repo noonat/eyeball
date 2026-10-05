@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/noonat/eyeball"
 	"github.com/noonat/eyeball/internal/api"
@@ -34,6 +35,9 @@ type Config struct {
 	// Surface reports the surface's state on the tailnet, and is nil for a
 	// daemon with no tailnet node.
 	Surface func() api.Surface
+	// Now is the clock the surface measures ages against. Nil is the system
+	// clock.
+	Now func() time.Time
 }
 
 // Server holds the handlers for both listeners.
@@ -47,6 +51,7 @@ type Server struct {
 	home    string
 	log     *slog.Logger
 	stop    func()
+	now     func() time.Time
 
 	// stopping closes when the daemon begins to shut down, which ends every
 	// wait at once. Requests doing work are left to finish.
@@ -79,6 +84,10 @@ func New(c Config) *Server {
 	if surface == nil {
 		surface = func() api.Surface { return api.Surface{State: "off"} }
 	}
+	now := c.Now
+	if now == nil {
+		now = time.Now
+	}
 	return &Server{
 		stopping: make(chan struct{}),
 		surface:  surface,
@@ -90,6 +99,7 @@ func New(c Config) *Server {
 		home:     home,
 		log:      log,
 		stop:     stop,
+		now:      now,
 	}
 }
 
@@ -170,6 +180,11 @@ var routes = []route{
 		side:    sideAgent,
 		pattern: "GET /agent/status",
 		handle:  (*Server).handleStatus,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /{$}",
+		handle:  (*Server).handleQueue,
 	},
 	{
 		side:    sideSurface,

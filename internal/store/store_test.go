@@ -159,6 +159,21 @@ func TestOpen_relativePath(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("relative"))
 }
 
+func TestOpenWithClock(t *testing.T) {
+	g := NewWithT(t)
+	at := time.Date(2026, 8, 26, 4, 0, 0, 0, time.UTC)
+	s, err := OpenWithClock(t.Context(), filepath.Join(t.TempDir(), "eyeball.db"), func() time.Time { return at })
+	g.Expect(err).NotTo(HaveOccurred())
+	t.Cleanup(func() { _ = s.Close() })
+	project := ensureProject(g, t, s)
+	openReview(g, t, s, project.ID, "docs")
+
+	queue, err := s.Queue(t.Context(), 5)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(queue.Waiting).To(HaveLen(1))
+	g.Expect(queue.Waiting[0].RequestedAt).To(Equal(at), "the round was stamped by the clock passed in")
+}
+
 func TestParseTime(t *testing.T) {
 	g := NewWithT(t)
 	at := time.Date(2026, 8, 26, 4, 5, 6, 700_000_000, time.UTC)

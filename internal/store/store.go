@@ -47,6 +47,12 @@ type Store struct {
 // already have. The path must be absolute, so that what it names does not
 // depend on the working directory of whoever opened it.
 func Open(ctx context.Context, path string) (*Store, error) {
+	return OpenWithClock(ctx, path, func() time.Time { return time.Now().UTC() })
+}
+
+// OpenWithClock is Open with the clock every stored time is read from. A test
+// of ages, and a seed that backdates what it writes, pass one of their own.
+func OpenWithClock(ctx context.Context, path string, now func() time.Time) (*Store, error) {
 	if !filepath.IsAbs(path) {
 		return nil, errors.Newf("database path %q is relative; pass an absolute path", path)
 	}
@@ -60,7 +66,6 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// slow enough to stall a write.
 	db.SetMaxOpenConns(1)
 
-	now := func() time.Time { return time.Now().UTC() }
 	if err := migrate(ctx, db, migrationFS(), now); err != nil {
 		_ = db.Close()
 		return nil, err

@@ -373,6 +373,17 @@ each with its root written with `~` and its agent count, or "Idle". Working and
 Settled still follow when they have rows. The install steps the empty tearout
 also shows are notification (009).
 
+**Departures, iteration 5.**
+
+- A project row in the empty state is a `div`, where the tearout's is a link.
+  The project view it would open is widening and documents (007), which makes
+  the rows links.
+- A working row's age is from the change request, as a settled row's is from the
+  approval. The design named only the settled row's.
+- `store.OpenWithClock` arrives here rather than in iteration 7, because the
+  queue's tests tell a request's age from a decision's only on a clock they
+  move. Iteration 7's seed uses the same open.
+
 ### A review page
 
 **`GET /reviews/{review}` is the current round, and
@@ -626,18 +637,24 @@ the three review passes and were checked by the stand-in only.
 - [x] Ages written as now, minutes, hours, Yesterday, days or a date, with a
       table test at each boundary
 
+> **Completed** 2026-10-05 10:32 UTC
+>
+> - acks: reviewed
+> - `make check` — 2.8s
+> - `go test -race ./...` — 20.7s
+
 ## Iteration 5: The queue
 
-- [ ] `ReviewRow` carrying the latest round's decision time, and
+- [x] `ReviewRow` carrying the latest round's decision time, and
       `store.Projects` listing each project's name, root and count of agents
       with open reviews
-- [ ] `GET /{$}` rendering Waiting, Working and Settled in the tearout's row
+- [x] `GET /{$}` rendering Waiting, Working and Settled in the tearout's row
       markup, sizes on Waiting only, with the waiting count in the topbar
-- [ ] The empty state: nothing waiting, the agents at work, and the known
+- [x] The empty state: nothing waiting, the agents at work, and the known
       projects with `~` roots and agent counts or Idle
-- [ ] Tests parsing the page: section order, each row kind's fields, and the
+- [x] Tests parsing the page: section order, each row kind's fields, and the
       empty state
-- [ ] A `design:` entry in specs/TODO.md for a tearout of the queue filter
+- [x] A `design:` entry in specs/TODO.md for a tearout of the queue filter
 
 ## Iteration 6: The current round
 
