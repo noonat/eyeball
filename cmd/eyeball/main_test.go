@@ -92,8 +92,10 @@ func Test_endToEnd(t *testing.T) {
 	g.Expect(got).To(ContainSubstring("stopped"))
 	lock, err := os.OpenFile(filepath.Join(state, "eyeball", "eyeball.lock"), os.O_RDWR, 0)
 	g.Expect(err).NotTo(HaveOccurred())
-	defer func() { _ = lock.Close() }()
 	g.Expect(syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)).To(Succeed(), "stop returned with the lock still held")
+	// Released at once: a lock held by this test reads to the next command as
+	// a daemon that is alive and does not answer.
+	g.Expect(lock.Close()).To(Succeed())
 
 	got, code, _ = run("stop")
 	g.Expect(code).To(BeZero(), got)

@@ -181,6 +181,48 @@ func TestRun(t *testing.T) {
 	g.Expect(relock.release()).To(Succeed())
 }
 
+func TestRun_shutdownLetsWorkFinish(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	// A git that sleeps before every call, so a request is still
+	// capturing when the daemon is told to stop.
+	slow := t.TempDir()
+	real, err := exec.LookPath("git")
+	g.Expect(err).NotTo(HaveOccurred())
+	script := "#!/bin/sh\nsleep 0.1\nexec " + real + " \"$@\"\n"
+	g.Expect(os.WriteFile(filepath.Join(slow, "git"), []byte(script), 0o700)).To(Succeed())
+	t.Setenv("PATH", slow+string(os.PathListSeparator)+os.Getenv("PATH"))
+	d := startDaemon(g, t, p)
+
+	type answer struct {
+		status int
+		body   string
+		err    error
+	}
+	answered := make(chan answer, 1)
+	go func() {
+		body := `{"dir": "` + repo + `", "paths": ["a.txt"], "note": "look"}`
+		status, raw, err := rawPost(t.Context(), p, "/agent/requests", body)
+		answered <- answer{status, raw, err}
+	}()
+	time.Sleep(250 * time.Millisecond)
+	d.cancel()
+
+	// While the capture finishes, the lock file says the daemon is stopping,
+	// which is what tells a command not to call it stuck.
+	g.Eventually(func() bool {
+		holder, err := ReadHolder(p.Lock)
+		return err == nil && holder.Stopping
+	}, 2*time.Second, 10*time.Millisecond).Should(BeTrue())
+
+	var got answer
+	g.Eventually(answered, 10*time.Second).Should(Receive(&got))
+	g.Expect(got.err).NotTo(HaveOccurred())
+	g.Expect(got.status).To(Equal(http.StatusOK), "a capture in progress was aborted by the shutdown: "+got.body)
+	g.Eventually(d.done, 10*time.Second).Should(BeClosed())
+}
+
 func TestRun_signal(t *testing.T) {
 	signals := []syscall.Signal{syscall.SIGTERM, syscall.SIGINT}
 	for _, sig := range signals {
@@ -447,6 +489,28 @@ func rawSend(ctx context.Context, p Paths, method, path string) (int, string, er
 		},
 	}}
 	req, err := http.NewRequestWithContext(ctx, method, "http://eyeball"+path, nil)
+	if err != nil {
+		return 0, "", err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, err := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(raw), err
+}
+
+// rawPost sends a JSON body over the daemon's socket and returns what came
+// back, for a goroutine that cannot assert.
+func rawPost(ctx context.Context, p Paths, path, body string) (int, string, error) {
+	client := &http.Client{Transport: &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "unix", p.Socket)
+		},
+	}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://eyeball"+path, strings.NewReader(body))
 	if err != nil {
 		return 0, "", err
 	}

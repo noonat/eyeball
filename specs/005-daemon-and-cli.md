@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-04T00:00:00Z
-updated: 2026-10-05T05:21:34.906225183Z
+updated: 2026-10-05T06:55:07.268014622Z
 required_acks:
   - reviewed
 required_commands:
@@ -640,6 +640,33 @@ agent driving the tool from the manual alone.
   without a binary to start. Iteration 6's manual documents it, with the other
   environment variables.
 
+**Departures, from the review pass over the whole branch.**
+
+- A command starts at most three daemons, and only while the lock is free or is
+  released in time: within a second, or within the shutdown grace for a daemon
+  that has marked its lock file stopping. The marker exists because a stopping
+  daemon removes its socket first and may then finish a capture, which a
+  one-second wait would have called stuck. The spec said to start another on
+  every early exit, for five seconds, with no bound. A daemon that cannot start
+  exits at once, so that rule started about 1,800 processes in five seconds, and
+  it never helped against a live daemon whose socket was removed, since each new
+  one lost the lock.
+- A daemon that holds the lock and does not answer is reported with its pid and
+  a `kill` fix, by every command and by `stop`. `stop` had answered "no daemon
+  is running" while one held the lock.
+- `stop` waits until the lock is free or held by another pid, so a new daemon
+  started by another agent's command in the meantime does not read as a daemon
+  that failed to stop.
+- Shutdown ends waits through a channel the server closes, and no longer cancels
+  every request. "Stopping cancels every waiting agent first" was right about
+  waits and wrong in mechanism: canceling the base context also aborted a
+  capture in progress, which answered `internal`. A capture now finishes within
+  the five-second grace.
+- A plain-text 404 or 405 from the daemon is reported as an older build, naming
+  `eyeball stop`, rather than as a lost connection.
+- A failed write of human output fails the command, so `wait` posts no receipt
+  for comments that never reached the screen.
+
 **Departures, iteration 6.**
 
 - `eyeball stop` waits until the lock is free as well as until the socket stops
@@ -943,3 +970,9 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
 - [x] `internal/daemon/doc.go`, `internal/cli/doc.go` and `internal/api/doc.go`
       stating their packages' invariants: detachment and shutdown order, receipt
       after printing, and the schema being the manual's
+
+> **Completed** 2026-10-05 06:55 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.9s
+> - `go test -race ./...` — 1.9s

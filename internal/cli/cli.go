@@ -151,6 +151,8 @@ func Run(ctx context.Context, args []string, env Env) error {
 		a.out.printRefusal(api.Error{Code: api.CodeUsage, Message: usage.message, Fix: usage.fix})
 	case errors.As(err, &fail):
 		a.out.printRefusal(api.Error{Code: fail.code, Message: fail.message, Fix: fail.fix})
+	case errors.Is(err, errOldDaemon):
+		a.out.printRefusal(api.Error{Code: api.CodeDaemonUnavailable, Message: err.Error(), Fix: "the daemon is an older build than this command: run eyeball stop, and the next command starts the current one"})
 	case errors.Is(err, errDropped):
 		// The daemon may have acted before the connection dropped, so the fix
 		// is to look before repeating: a request run twice opens two reviews.
@@ -252,7 +254,7 @@ func (a *app) connect(ctx context.Context, start bool) error {
 		if errors.Is(err, errNoDaemon) && !start {
 			return err
 		}
-		return &failure{code: api.CodeDaemonUnavailable, message: err.Error(), fix: "read the daemon's log in " + paths.Dir + ", or run eyeball serve to watch it start in the foreground"}
+		return &failure{code: api.CodeDaemonUnavailable, message: err.Error(), fix: unavailableFix(err, paths)}
 	}
 	status, raw, err := a.client.call(ctx, http.MethodGet, "/agent/daemon", nil)
 	if err != nil || status != http.StatusOK {
@@ -263,6 +265,24 @@ func (a *app) connect(ctx context.Context, start bool) error {
 		_, _ = fmt.Fprintf(a.env.Stderr, "eyeball: the running daemon is a different build (%s) from this command (%s); run eyeball stop, and the next command starts a new one\n", info.Build, a.env.Build)
 	}
 	return nil
+}
+
+// unavailableFix is what to do about a daemon that could not be reached or
+// started, which depends on why.
+func unavailableFix(err error, paths daemon.Paths) string {
+	var stuck *stuckError
+	switch {
+	case errors.As(err, &stuck):
+		return fmt.Sprintf("run kill %d, and the next command starts a new daemon", stuck.holder.PID)
+	case errors.Is(err, daemon.ErrSocketPath):
+		return "set XDG_STATE_HOME to a shorter directory"
+	case errors.Is(err, daemon.ErrStateDirMode):
+		return fmt.Sprintf("run chmod 700 %s if it should be private, or set XDG_STATE_HOME to another directory", paths.Dir)
+	case errors.Is(err, errNoDaemon):
+		return "run eyeball start, or unset EYEBALL_NO_START so commands start a daemon themselves"
+	default:
+		return "read eyeball.log in " + paths.Dir + ", or run eyeball serve to watch a daemon start in the foreground"
+	}
 }
 
 // caller is who this command says it is.
@@ -655,6 +675,8 @@ func (a *app) stopCommand() *ucli.Command {
 		Name:  "stop",
 		Usage: "stop the daemon, and wait until it has gone",
 		Action: func(ctx context.Context, _ *ucli.Command) error {
+			// A daemon that holds the lock and does not answer comes back from
+			// connect as a failure naming its pid, not as nothing to stop.
 			err := a.connect(ctx, false)
 			if errors.Is(err, errNoDaemon) {
 				raw, merr := json.MarshalIndent(api.StopResult{Stopped: false}, "", "  ")
@@ -677,12 +699,21 @@ func (a *app) stopCommand() *ucli.Command {
 				return refused{}
 			}
 			// The daemon closes its socket before it releases its lock, so
-			// stop waits for both. Returning on the socket alone would let the
-			// next command's daemon lose the lock to one that is still exiting.
+			// stop waits for the lock. It waits for this daemon's lock: another
+			// agent's command may start a new daemon the moment the socket
+			// goes, and that one is not the one asked to stop.
+			var stopped api.StopResult
+			if err := json.Unmarshal(raw, &stopped); err != nil || stopped.Daemon == nil {
+				return errors.New("the daemon's answer to stop did not say which daemon it was")
+			}
 			deadline := time.Now().Add(10 * time.Second)
-			for a.client.dial(ctx) == nil || daemon.Held(a.client.paths.Lock) {
+			for {
+				holder, err := daemon.ReadHolder(a.client.paths.Lock)
+				if !daemon.Held(a.client.paths.Lock) || err != nil || holder.PID != stopped.Daemon.PID {
+					break
+				}
 				if time.Now().After(deadline) {
-					return errors.New("the daemon was asked to stop and has not exited after 10s")
+					return errors.Newf("daemon pid %d was asked to stop and has not exited after 10s", stopped.Daemon.PID)
 				}
 				time.Sleep(20 * time.Millisecond)
 			}

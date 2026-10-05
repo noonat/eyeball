@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -27,6 +28,33 @@ var errNoDaemon = errors.New("no daemon is running")
 
 // errDropped reports a connection the daemon closed before answering.
 var errDropped = errors.New("the connection to the daemon was lost")
+
+// errOldDaemon reports a route the running daemon does not have, which means
+// it is an older build than this command.
+var errOldDaemon = errors.New("the running daemon does not know this request")
+
+// maxStarts bounds how many daemons one command starts. A daemon that cannot
+// start exits at once, and starting another on every exit spawned about 1,800
+// processes in five seconds before this bound existed.
+const maxStarts = 3
+
+// stuckGrace is how long a lock held by a daemon that does not answer, and has
+// not marked itself stopping, is given before the daemon is called stuck. A
+// daemon that has marked itself stopping is given its whole shutdown grace,
+// because it removes its socket first and may then finish a capture.
+const stuckGrace = time.Second
+
+// stuckError reports a daemon that holds the lock and does not answer on the
+// socket: alive, but unreachable, typically because its socket file was
+// removed. Starting another cannot help, since the new one loses the lock.
+type stuckError struct {
+	holder daemon.Holder
+}
+
+// Error names the daemon.
+func (e *stuckError) Error() string {
+	return fmt.Sprintf("daemon pid %d holds the lock and does not answer on its socket", e.holder.PID)
+}
 
 // client talks to the daemon over its socket.
 type client struct {
@@ -83,6 +111,9 @@ func (c *client) connect(ctx context.Context, start bool) error {
 	if err == nil || !absent(err) {
 		return err
 	}
+	if err := c.stuck(ctx); err != nil {
+		return err
+	}
 	if !start || c.env.Getenv("EYEBALL_NO_START") != "" {
 		return errors.Wrapf(errNoDaemon, "nothing answers on %s", c.paths.Socket)
 	}
@@ -90,6 +121,7 @@ func (c *client) connect(ctx context.Context, start bool) error {
 	if err != nil {
 		return err
 	}
+	starts := 1
 	deadline := time.Now().Add(startTimeout)
 	for time.Now().Before(deadline) {
 		if err := c.dial(ctx); err == nil {
@@ -98,6 +130,17 @@ func (c *client) connect(ctx context.Context, start bool) error {
 		}
 		select {
 		case <-exited:
+			// A child that lost the lock to a daemon in the middle of
+			// exiting is the one case another start fixes. A live daemon
+			// that holds the lock and does not answer is not, and one that
+			// cannot start at all will fail every time.
+			if err := c.stuck(ctx); err != nil {
+				return err
+			}
+			if starts >= maxStarts {
+				return errors.Newf("%d daemons were started and each exited without answering; the end of %s says:\n%s", starts, c.paths.Log, logTail(c.paths.Log, 10))
+			}
+			starts++
 			if exited, err = c.spawn(); err != nil {
 				return err
 			}
@@ -107,6 +150,30 @@ func (c *client) connect(ctx context.Context, start bool) error {
 		}
 	}
 	return errors.Newf("a daemon was started and did not answer within %s; the end of %s says:\n%s", startTimeout, c.paths.Log, logTail(c.paths.Log, 10))
+}
+
+// stuck reports a daemon that holds the lock and has not answered within its
+// grace: stuckGrace, or the whole shutdown grace for one marked stopping.
+func (c *client) stuck(ctx context.Context) error {
+	began := time.Now()
+	for daemon.Held(c.paths.Lock) {
+		if c.dial(ctx) == nil {
+			return nil
+		}
+		holder, err := daemon.ReadHolder(c.paths.Lock)
+		grace := stuckGrace
+		if err == nil && holder.Stopping {
+			grace = daemon.ShutdownGrace + time.Second
+		}
+		if time.Since(began) > grace {
+			if err != nil {
+				return errors.Wrap(err, "a daemon holds the lock and does not answer")
+			}
+			return &stuckError{holder: holder}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil
 }
 
 // spawn starts a detached daemon and returns a channel that closes when it
@@ -171,7 +238,11 @@ func (c *client) call(ctx context.Context, method, path string, body any) (int, 
 		return 0, nil, errors.Wrap(errDropped, err.Error())
 	}
 	// A body that is not JSON is not an answer. A wait cut short with nothing
-	// written would otherwise read as a verdict with no comments.
+	// written would otherwise read as a verdict with no comments. A plain-text
+	// 404 or 405 is the mux of a daemon that predates the route.
+	if !json.Valid(raw) && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed) {
+		return 0, nil, errors.Wrapf(errOldDaemon, "%s %s answered %d", method, path, resp.StatusCode)
+	}
 	if !json.Valid(raw) {
 		return 0, nil, errors.Wrapf(errDropped, "the daemon answered %d with a body that is not JSON", resp.StatusCode)
 	}

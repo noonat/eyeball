@@ -438,6 +438,11 @@ func (s *Server) handleWait(w http.ResponseWriter, r *http.Request) error {
 		if r.Context().Err() != nil {
 			return stopping()
 		}
+		select {
+		case <-s.stopping:
+			return stopping()
+		default:
+		}
 		result, ready, err := s.waitState(r.Context(), id)
 		if err != nil {
 			if r.Context().Err() != nil {
@@ -454,6 +459,8 @@ func (s *Server) handleWait(w http.ResponseWriter, r *http.Request) error {
 		}
 		select {
 		case <-changed:
+		case <-s.stopping:
+			return stopping()
 		case <-r.Context().Done():
 			return stopping()
 		}

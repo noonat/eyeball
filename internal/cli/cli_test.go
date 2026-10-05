@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -177,6 +178,23 @@ func TestRun_noStart(t *testing.T) {
 	g.Expect(os.IsNotExist(err)).To(BeTrue(), "EYEBALL_NO_START started a daemon")
 }
 
+func TestRun_olderDaemon(t *testing.T) {
+	g := NewWithT(t)
+	paths := statePaths(g, t)
+	g.Expect(daemon.Prepare(paths)).To(Succeed())
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /agent/daemon", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"build": "test"}`))
+	})
+	serve(g, t, paths, mux)
+
+	// A route the running daemon predates: its mux answers 404 in plain text.
+	res := runIn(t, paths, t.TempDir(), "status")
+	g.Expect(res.code).To(Equal(1))
+	g.Expect(res.stderr).To(ContainSubstring("older build"))
+	g.Expect(res.stderr).To(ContainSubstring("eyeball stop"))
+}
+
 func TestRun_refusal(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -277,11 +295,13 @@ func TestRun_startRestartsAndGivesUp(t *testing.T) {
 
 	err := Run(t.Context(), []string{"eyeball", "status"}, env)
 	g.Expect(ExitCode(err)).To(Equal(1))
-	g.Expect(stderr.String()).To(ContainSubstring("did not answer"))
+	g.Expect(stderr.String()).To(ContainSubstring("each exited without answering"))
 	g.Expect(stderr.String()).To(ContainSubstring("the stand-in daemon exited"), "the log's tail is printed")
 	logged, readErr := os.ReadFile(paths.Log)
 	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(strings.Count(string(logged), "the stand-in daemon exited")).To(BeNumerically(">", 1), "an early exit is started again")
+	starts := strings.Count(string(logged), "the stand-in daemon exited")
+	g.Expect(starts).To(BeNumerically(">", 1), "an early exit is started again")
+	g.Expect(starts).To(BeNumerically("<=", maxStarts), "a daemon that cannot start is not started without limit")
 }
 
 func TestRun_stopWithNoDaemon(t *testing.T) {
@@ -312,6 +332,80 @@ func TestRun_stopWithNoDaemon(t *testing.T) {
 	g.Expect(got.Daemon).To(BeNil())
 	_, statErr := os.Stat(paths.Log)
 	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "stop tried to start a daemon")
+}
+
+func TestRun_stoppingDaemonIsNotStuck(t *testing.T) {
+	g := NewWithT(t)
+	paths := statePaths(g, t)
+	g.Expect(daemon.Prepare(paths)).To(Succeed())
+	// A daemon that has begun to stop: no socket, the lock held, and marked
+	// stopping. It releases the lock two seconds later, past stuckGrace.
+	g.Expect(os.WriteFile(paths.Lock, []byte("4321\n2026-10-05T00:00:00Z\nstopping\n"), 0o600)).To(Succeed())
+	lock, err := os.OpenFile(paths.Lock, os.O_RDWR, 0)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)).To(Succeed())
+	time.AfterFunc(2*time.Second, func() { _ = lock.Close() })
+	t.Cleanup(func() { _ = lock.Close() })
+
+	env := testEnv(paths, t.TempDir())
+	env.Getenv = func(name string) string {
+		if name == "XDG_STATE_HOME" {
+			return filepath.Dir(paths.Dir)
+		}
+		return ""
+	}
+	t.Setenv(roleEnv, "die")
+	env.Exe = os.Args[0]
+	var stdout, stderr bytes.Buffer
+	env.Stdout, env.Stderr = &stdout, &stderr
+
+	// The started stand-in dies, so the command fails, but only after the
+	// stopping daemon let go of the lock and a start was tried.
+	err = Run(t.Context(), []string{"eyeball", "status"}, env)
+	g.Expect(ExitCode(err)).To(Equal(1))
+	g.Expect(stderr.String()).NotTo(ContainSubstring("kill 4321"), "a stopping daemon was called stuck")
+	_, statErr := os.Stat(paths.Log)
+	g.Expect(statErr).NotTo(HaveOccurred(), "no start was tried once the lock was free")
+}
+
+func TestRun_stuckDaemon(t *testing.T) {
+	g := NewWithT(t)
+	paths := statePaths(g, t)
+	g.Expect(daemon.Prepare(paths)).To(Succeed())
+	// A daemon that holds the lock and has lost its socket. A flock belongs to
+	// an open file, so holding it on a descriptor here is what Held sees from
+	// any other descriptor, in this process or another.
+	g.Expect(os.WriteFile(paths.Lock, []byte("4321\n2026-10-05T00:00:00Z\n"), 0o600)).To(Succeed())
+	lock, err := os.OpenFile(paths.Lock, os.O_RDWR, 0)
+	g.Expect(err).NotTo(HaveOccurred())
+	t.Cleanup(func() { _ = lock.Close() })
+	g.Expect(syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)).To(Succeed())
+	g.Expect(daemon.Held(paths.Lock)).To(BeTrue())
+
+	env := testEnv(paths, t.TempDir())
+	env.Getenv = func(name string) string {
+		if name == "XDG_STATE_HOME" {
+			return filepath.Dir(paths.Dir)
+		}
+		return ""
+	}
+	t.Setenv(roleEnv, "die")
+	env.Exe = os.Args[0]
+	var stdout, stderr bytes.Buffer
+	env.Stdout, env.Stderr = &stdout, &stderr
+
+	err = Run(t.Context(), []string{"eyeball", "status"}, env)
+	g.Expect(ExitCode(err)).To(Equal(1))
+	g.Expect(stderr.String()).To(ContainSubstring("pid 4321 holds the lock"))
+	g.Expect(stderr.String()).To(ContainSubstring("kill 4321"))
+	_, statErr := os.Stat(paths.Log)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "a start was tried against a stuck daemon")
+
+	stdout.Reset()
+	stderr.Reset()
+	err = Run(t.Context(), []string{"eyeball", "stop"}, env)
+	g.Expect(ExitCode(err)).To(Equal(1), "stop reported nothing to stop while a daemon held the lock")
+	g.Expect(stderr.String()).To(ContainSubstring("kill 4321"))
 }
 
 func TestRun_usage(t *testing.T) {
@@ -440,6 +534,29 @@ func TestRun_waitTimeout(t *testing.T) {
 	g.Expect(json.Unmarshal([]byte(res.stdout), &got)).To(Succeed(), res.stdout)
 	g.Expect(got.Kind).To(Equal(api.KindStillWaiting))
 	g.Expect(got.Review.ID).To(Equal(int64(1)))
+}
+
+func TestRun_waitWriteFails(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.run(t, "request", "a.txt", "-m", "look")
+	c := f.comment(g, t, 1, "a point")
+	f.decide(g, t, 1, store.VerdictChanges, "more")
+
+	env := testEnv(f.paths, f.repo)
+	var stderr bytes.Buffer
+	env.Stdout, env.Stderr = failingWriter{}, &stderr
+	err := Run(t.Context(), []string{"eyeball", "wait", "1"}, env)
+	g.Expect(ExitCode(err)).To(Equal(1))
+	g.Expect(f.delivered(g, t, 1, c.ID)).To(BeFalse(), "a comment that never reached the screen was acknowledged")
+}
+
+// failingWriter fails every write, as a full disk does to a redirected stdout.
+type failingWriter struct{}
+
+// Write fails.
+func (failingWriter) Write([]byte) (int, error) {
+	return 0, syscall.ENOSPC
 }
 
 // fixture is an in-process daemon on a short socket path with a repository

@@ -30,9 +30,30 @@ func (o output) emit(raw []byte, human func(w io.Writer)) error {
 	case o.format != "":
 		return o.render(raw)
 	default:
-		human(o.stdout)
-		return nil
+		// A write that fails here must fail the command: wait posts its
+		// receipt only when this returns nil, and a comment stamped delivered
+		// that never reached the screen is a lost comment.
+		w := &errWriter{w: o.stdout}
+		human(w)
+		return errors.Wrap(w.err, "print the answer")
 	}
+}
+
+// errWriter keeps the first error a sequence of writes hit, so a printer that
+// ignores each write's error can still be checked once at the end.
+type errWriter struct {
+	w   io.Writer
+	err error
+}
+
+// Write writes unless an earlier write failed.
+func (e *errWriter) Write(p []byte) (int, error) {
+	if e.err != nil {
+		return 0, e.err
+	}
+	n, err := e.w.Write(p)
+	e.err = err
+	return n, err
 }
 
 // render runs the --format template over the body decoded as JSON, so a

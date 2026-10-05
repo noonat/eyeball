@@ -20,10 +20,12 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 )
 
-// shutdownGrace bounds how long the daemon waits for requests to finish once
-// it has canceled them. Waits answer at once on cancellation, so this only
-// covers a request in the middle of a capture.
-const shutdownGrace = 5 * time.Second
+// ShutdownGrace bounds how long the daemon waits for requests to finish once
+// it has begun to stop. Waits answer at once, so this covers a request in the
+// middle of a capture. One longer than this has its connection cut, which the
+// client reports as connection_lost. A command that finds a stopping daemon
+// waits this long for its lock.
+const ShutdownGrace = 5 * time.Second
 
 // Config is what a daemon runs with.
 type Config struct {
@@ -65,7 +67,7 @@ func Run(ctx context.Context, c Config) error {
 	if err != nil {
 		return err
 	}
-	runErr := serve(ctx, c, started)
+	runErr := serve(ctx, c, started, held)
 	if err := held.release(); err != nil && runErr == nil {
 		runErr = err
 	}
@@ -73,7 +75,7 @@ func Run(ctx context.Context, c Config) error {
 }
 
 // serve runs everything that happens while the lock is held.
-func serve(ctx context.Context, c Config, started time.Time) error {
+func serve(ctx context.Context, c Config, started time.Time, held *lock) error {
 	st, err := store.Open(ctx, c.Paths.DB)
 	if err != nil {
 		return err
@@ -129,14 +131,19 @@ func serve(ctx context.Context, c Config, started time.Time) error {
 	}
 	log.Info("stopping")
 
-	// Cancel first. Shutdown waits for active requests, and a waiting agent's
-	// request does not finish on its own.
-	cancel()
-	shutdownCtx, done := context.WithTimeout(context.Background(), shutdownGrace)
+	// End the waits first. Shutdown waits for active requests, and a waiting
+	// agent's request does not finish on its own. A capture does, so requests
+	// doing work are left to finish within the grace.
+	srv.BeginShutdown()
+	if err := held.markStopping(); err != nil {
+		log.Warn("mark stopping", "err", err)
+	}
+	shutdownCtx, done := context.WithTimeout(context.Background(), ShutdownGrace)
 	defer done()
 	if err := hs.Shutdown(shutdownCtx); err != nil {
 		_ = hs.Close()
 	}
+	cancel()
 	if errors.Is(serveErr, http.ErrServerClosed) {
 		serveErr = nil
 	}

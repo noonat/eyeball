@@ -20,7 +20,14 @@ type Holder struct {
 	PID int
 	// Started is when the holder started.
 	Started time.Time
+	// Stopping says the holder has begun to shut down. Its socket is gone and
+	// it may still be finishing a capture, for up to ShutdownGrace, before it
+	// releases the lock.
+	Stopping bool
 }
+
+// stoppingLine is appended to the lock file when shutdown begins.
+const stoppingLine = "stopping\n"
 
 // lock is the held single-instance lock.
 type lock struct {
@@ -82,6 +89,18 @@ func Held(path string) bool {
 	return false
 }
 
+// markStopping records in the lock file that shutdown has begun, so a command
+// that finds no socket can tell a daemon finishing its work from one that is
+// stuck.
+func (l *lock) markStopping() error {
+	info, err := l.f.Stat()
+	if err != nil {
+		return errors.Wrap(err, "inspect the lock file")
+	}
+	_, err = l.f.WriteAt([]byte(stoppingLine), info.Size())
+	return errors.Wrap(err, "mark the lock file stopping")
+}
+
 // release gives the lock up by closing the file, which drops the flock.
 func (l *lock) release() error {
 	return errors.Wrap(l.f.Close(), "release the lock")
@@ -94,6 +113,10 @@ func ReadHolder(path string) (Holder, error) {
 		return Holder{}, errors.Wrapf(err, "read %s", path)
 	}
 	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	stopping := len(lines) == 3 && lines[2]+"\n" == stoppingLine
+	if stopping {
+		lines = lines[:2]
+	}
 	if len(lines) != 2 {
 		return Holder{}, errors.Newf("%s holds %d lines, not 2", path, len(lines))
 	}
@@ -105,5 +128,5 @@ func ReadHolder(path string) (Holder, error) {
 	if err != nil {
 		return Holder{}, errors.Wrapf(err, "read the start time in %s", path)
 	}
-	return Holder{PID: pid, Started: started}, nil
+	return Holder{PID: pid, Started: started, Stopping: stopping}, nil
 }

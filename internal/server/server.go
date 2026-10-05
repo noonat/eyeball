@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 
 	"github.com/noonat/eyeball/internal/api"
@@ -40,6 +41,11 @@ type Server struct {
 	log    *slog.Logger
 	stop   func()
 
+	// stopping closes when the daemon begins to shut down, which ends every
+	// wait at once. Requests doing work are left to finish.
+	stopping     chan struct{}
+	stoppingOnce sync.Once
+
 	// afterRead runs in a wait between reading the review and blocking on
 	// the hub. Tests set it to land a verdict in exactly the gap a waiter
 	// that subscribed late would miss. It is atomic because a test sets it
@@ -63,14 +69,23 @@ func New(c Config) *Server {
 		stop = func() {}
 	}
 	return &Server{
-		db:     &db{s: c.Store, hub: h},
-		blobs:  c.Blobs,
-		hub:    h,
-		daemon: c.Daemon,
-		home:   home,
-		log:    log,
-		stop:   stop,
+		stopping: make(chan struct{}),
+		db:       &db{s: c.Store, hub: h},
+		blobs:    c.Blobs,
+		hub:      h,
+		daemon:   c.Daemon,
+		home:     home,
+		log:      log,
+		stop:     stop,
 	}
+}
+
+// BeginShutdown ends every wait with daemon_stopping and leaves other requests
+// running. The daemon calls it before http.Server.Shutdown, which waits for
+// active requests, and a wait would otherwise hold Shutdown until its grace
+// ran out. Canceling every request instead aborted a capture in progress.
+func (s *Server) BeginShutdown() {
+	s.stoppingOnce.Do(func() { close(s.stopping) })
 }
 
 // side is which listener a route belongs to.
