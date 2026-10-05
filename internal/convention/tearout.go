@@ -41,7 +41,15 @@ type Tearout struct {
 	CSS string
 	// Icons are the names listed in icons.txt.
 	Icons []string
+	// AppCSS is app.css alone, with comments removed: the stylesheet the
+	// surface ships, without the tearouts' own chrome.
+	AppCSS string
+	// Templates are the surface's templates, in name order.
+	Templates []TearoutPage
 }
+
+// templateDir is where the surface's templates live, relative to the root.
+const templateDir = "web/templates"
 
 // TearoutCheck is one rule over the design tearouts, named for its entry in
 // docs/conventions.md.
@@ -66,6 +74,7 @@ var TearoutChecks = []TearoutCheck{
 	{Name: "tearout-fragments", Run: tearoutFragments},
 	{Name: "tearout-icons", Run: tearoutIcons},
 	{Name: "tearout-nesting", Run: tearoutNesting},
+	{Name: "template-classes", Run: templateClasses},
 }
 
 // LoadTearout reads the tearout directory under the repository root.
@@ -74,7 +83,31 @@ func LoadTearout() (Tearout, error) {
 	if err != nil {
 		return Tearout{}, err
 	}
-	return ReadTearout(filepath.Join(root, tearoutDir), tearoutDir)
+	out, err := ReadTearout(filepath.Join(root, tearoutDir), tearoutDir)
+	if err != nil {
+		return out, err
+	}
+	out.Templates, err = readPages(filepath.Join(root, templateDir), templateDir)
+	return out, err
+}
+
+// readPages reads every .html file in a directory, named under a label. A
+// directory that does not exist holds no pages.
+func readPages(dir, label string) ([]TearoutPage, error) {
+	paths, err := filepath.Glob(filepath.Join(dir, "*.html"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "list %s", dir)
+	}
+	sort.Strings(paths)
+	var out []TearoutPage
+	for _, path := range paths {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "read %s", path)
+		}
+		out = append(out, TearoutPage{Name: filepath.ToSlash(filepath.Join(label, filepath.Base(path))), Body: string(body)})
+	}
+	return out, nil
 }
 
 // ReadTearout reads one directory of tearouts, naming findings under a label.
@@ -102,8 +135,19 @@ func ReadTearout(dir string, label string) (Tearout, error) {
 		if err != nil {
 			continue
 		}
-		out.CSS += cssComment.ReplaceAllString(string(body), "")
+		css := cssComment.ReplaceAllString(string(body), "")
+		out.CSS += css
+		if sheet == "app.css" {
+			out.AppCSS = css
+		}
 	}
+	// A fixture keeps its templates beside its stylesheet. The repository's
+	// own are read by LoadTearout from web/templates.
+	templates, err := readPages(filepath.Join(dir, "templates"), filepath.ToSlash(filepath.Join(label, "templates")))
+	if err != nil {
+		return out, err
+	}
+	out.Templates = templates
 	body, err := os.ReadFile(filepath.Join(dir, "icons.txt"))
 	if err != nil {
 		return out, nil

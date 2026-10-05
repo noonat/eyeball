@@ -1,6 +1,7 @@
 package convention
 
 import (
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -78,6 +79,49 @@ func tearoutClasses(t Tearout) []Finding {
 					At:    tearoutAt(page, m.Line),
 					Check: "tearout-classes",
 					What:  "class ." + name + " is used but no stylesheet defines it",
+				})
+			}
+		}
+	}
+	return out
+}
+
+// templateAction matches a template action, which is not markup.
+var templateAction = regexp.MustCompile(`(?s)\{\{.*?\}\}`)
+
+// templateClasses reports a class a surface template uses that app.css does not
+// define.
+//
+// It is held to app.css alone, not to tearout.css as well, because the tearouts'
+// own chrome is not shipped. A template action is removed before the markup is
+// read, so class="row {{.State}}" checks row and leaves the action's value to
+// the render package's own table of classes it chooses, which a test there
+// holds to app.css. An action is replaced by its newlines alone, so a finding
+// keeps its line number.
+func templateClasses(t Tearout) []Finding {
+	defined := map[string]struct{}{}
+	for _, m := range cssClass.FindAllStringSubmatch(t.AppCSS, -1) {
+		defined[m[1]] = struct{}{}
+	}
+	var out []Finding
+	for _, page := range t.Templates {
+		body := templateAction.ReplaceAllStringFunc(page.Body, func(action string) string {
+			return strings.Repeat("\n", strings.Count(action, "\n"))
+		})
+		seen := map[string]struct{}{}
+		for _, m := range tokens(body) {
+			for _, name := range m.classes() {
+				if _, ok := defined[name]; ok {
+					continue
+				}
+				if _, ok := seen[name]; ok {
+					continue
+				}
+				seen[name] = struct{}{}
+				out = append(out, Finding{
+					At:    tearoutAt(page, m.Line),
+					Check: "template-classes",
+					What:  "class ." + name + " is used in a template but app.css does not define it",
 				})
 			}
 		}

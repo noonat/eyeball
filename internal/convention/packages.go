@@ -15,7 +15,12 @@ const layoutPath = "docs/architecture.md"
 
 // layoutLine matches one entry in the layout block: a path ending in a slash,
 // then the one-line description.
-var layoutLine = regexp.MustCompile(`^((?:cmd|internal|tool|web)/[a-z0-9/_-]*)/?\s{2,}\S`)
+var layoutLine = regexp.MustCompile(`^((?:cmd|internal|tool|web)/[a-z0-9/_-]*/?|[a-z0-9_-]+\.go)\s{2,}\S`)
+
+// rootPackage is how the package at the repository root is named in the list
+// of packages on disk. The layout block names it by one of its files instead,
+// since a lone dot would say nothing about what it is.
+const rootPackage = "."
 
 // PackagesListed reports a package on disk that the layout block in
 // docs/architecture.md does not name.
@@ -71,7 +76,11 @@ func listedPackages(root string) (map[string]struct{}, error) {
 		if m == nil {
 			continue
 		}
-		out[strings.TrimSuffix(m[1], "/")] = struct{}{}
+		entry := strings.TrimSuffix(m[1], "/")
+		if strings.HasSuffix(entry, ".go") {
+			entry = rootPackage
+		}
+		out[entry] = struct{}{}
 	}
 	if len(out) == 0 {
 		return nil, errors.Newf("no layout block found in %s", layoutPath)
@@ -83,6 +92,15 @@ func listedPackages(root string) (map[string]struct{}, error) {
 // Go source.
 func packageDirs(root string) ([]string, error) {
 	var out []string
+	// A package at the root is outside every directory walked below, so it is
+	// checked on its own, or it would be the one package the list could omit.
+	atRoot, err := hasGo(root)
+	if err != nil {
+		return nil, err
+	}
+	if atRoot {
+		out = append(out, rootPackage)
+	}
 	tops := []string{"cmd", "internal", "tool", "web"}
 	for _, top := range tops {
 		base := filepath.Join(root, top)

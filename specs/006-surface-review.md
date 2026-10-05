@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-05T00:00:00Z
-updated: 2026-10-05T08:22:58.449577104Z
+updated: 2026-10-05T08:25:02.000128591Z
 required_acks:
   - reviewed
 required_commands:
@@ -246,9 +246,9 @@ holds to `app.css` the same way. Templates drifting from the tearouts they are
 seeded from is the likeliest failure in this spec, and an undefined class
 renders its text unstyled, which looks deliberate.
 
-**Light theme only, until 008.** `app.css` defines dark tokens under
-`[data-theme="dark"]` only, so following the device needs a script or a change
-to the approved stylesheet. The script arrives with the write path (008).
+**Light theme only, until the write path (008).** `app.css` defines dark tokens
+under `[data-theme="dark"]` only, so following the device needs a script or a
+change to the approved stylesheet. The script arrives with the write path (008).
 
 ### Rendering a diff
 
@@ -279,7 +279,7 @@ and a line saying which. What a browser could display instead is rendered files
 **`GET /{$}` is the queue.** `GET /` is a prefix pattern that matches every
 path, confirmed, so it would answer `/agent/daemon` on the surface's side and
 fail 005's listener test. The route test's path substitution grows to cover
-`{$}`, `{round}` and the wildcards 007 adds.
+`{$}`, `{round}` and the wildcards widening and documents (007) adds.
 
 **The sections follow the tearout.** Waiting rows carry the project, agent,
 title, round, size and age. Working rows carry no size, because the tearout says
@@ -334,10 +334,11 @@ carries. Scope is `store.Covers` over the review's paths, as the store's own sum
 uses. A test holds the page's totals to the stored size for each of those cases.
 
 **Up to ten files and three hundred changed lines, added plus removed, the page
-opens expanded. Past either it opens as a list of collapsed files.** These are
-product.md's numbers and its open question. A collapsed file still carries its
-body here, because loading a body when its disclosure opens needs htmx, which
-arrives with the write path (008).
+opens expanded. Past either it opens as a list of collapsed files.** Ten files
+is product.md's number. Three hundred lines is this spec's reading of its "a few
+hundred", and both are product.md's open question. A collapsed file still
+carries its body here, because loading a body when its disclosure opens needs
+htmx, which arrives with the write path (008).
 
 **A markdown file shows as a diff here.** product.md opens markdown as a
 rendered document, which is widening and documents (007). Until then a document
@@ -401,8 +402,8 @@ owner-only step taken once, after notification (009), with push.
 ### Checks
 
 **Pages are tested as HTML, not as strings.** A test parses the response with
-`golang.org/x/net/html`, already a test dependency, and asserts on elements and
-classes.
+`golang.org/x/net/html`, already a module dependency, and asserts on elements
+and classes.
 
 ## Out of scope
 
@@ -432,9 +433,10 @@ Decided here rather than by product.md, and reported to the owner at the end of
 the run: the loopback listener, which exposes nothing new to this user and
 exposes reviews to other accounts on the machine while the flag is set, tsnet's
 log upload turned off, `app.css` left in `docs/design/`, the queue filter
-deferred for want of a tearout, light theme only until 008, and the full title
-in the topbar rather than the tearouts' hand-written short ones, and ages that
-turn into a date after a week where the queue tearout's note says a weekday.
+deferred for want of a tearout, light theme only until the write path (008), and
+the full title in the topbar rather than the tearouts' hand-written short ones,
+and ages that turn into a date after a week where the queue tearout's note says
+a weekday.
 
 The stand-in's review of the spec added the node interface and the fake that
 every tailnet behavior is proved against, the unconditional terminal for the
@@ -443,18 +445,18 @@ the three review passes and were checked by the stand-in only.
 
 ## Iteration 1: Closing the live-read hole, and the asset checks
 
-- [ ] `capture.Reader` refusing a working-copy read through a symlinked
+- [x] `capture.Reader` refusing a working-copy read through a symlinked
       directory, sharing the walk's check from 0a242b1, with a test reading
       nothing through a link to outside the project
-- [ ] The packages-listed check covering a package at the repository root, with
+- [x] The packages-listed check covering a package at the repository root, with
       a fixture it must flag
-- [ ] A template-classes check holding `web/templates` to `app.css` alone, with
+- [x] A template-classes check holding `web/templates` to `app.css` alone, with
       template actions stripped, and a fixture with an undefined class it must
       flag
-- [ ] `assets.go` at the repository root embedding `docs/design/app.css` and
+- [x] `assets.go` at the repository root embedding `docs/design/app.css` and
       `web/templates`, with a first `layout.html`, and an `assets.go` line in
       architecture.md's layout block
-- [ ] architecture.md recording that `app.css` stays in `docs/design/` and why,
+- [x] architecture.md recording that `app.css` stays in `docs/design/` and why,
       and its `web/` line no longer claiming the stylesheet
 
 ## Iteration 2: The listeners

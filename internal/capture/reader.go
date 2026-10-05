@@ -152,6 +152,9 @@ func (r *Reader) fromBase(ctx context.Context, clean string) (io.ReadCloser, Sou
 
 // fromWorking reads a path off disk as it is now.
 func (r *Reader) fromWorking(clean string) (io.ReadCloser, Source, error) {
+	if link := linkedParent(r.root, clean); link != "" {
+		return nil, "", errors.Wrapf(ErrNotFound, "%s runs through %s, a symlink, so the working copy is not read for it", clean, link)
+	}
 	full := filepath.Join(r.root, filepath.FromSlash(clean))
 	info, err := os.Lstat(full)
 	if err != nil {

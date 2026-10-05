@@ -44,6 +44,7 @@ migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
+assets.go             the files the binary embeds: app.css and the templates
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -58,7 +59,7 @@ internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 tool/icons/           regenerates the icon mask table in app.css
 tool/tearout/         serves docs/design over the tailnet
-web/                  app.css, the TypeScript sources, the manifest
+web/                  the templates, the TypeScript sources, the manifest
 ```
 
 **A new package is listed here in the change that creates it**, with one line
@@ -298,9 +299,16 @@ phone to re-derive what the server already knows.
 ## The surface
 
 **Server-rendered `html/template`, with htmx for the interactions.** The
-tearouts under `docs/design/` are HTML and CSS already, and `app.css` moves to
-`web/` and ships as it is. Templates are seeded from the tearout markup rather
-than written a second time from a description of it.
+tearouts under `docs/design/` are HTML and CSS already, and `app.css` ships as
+it is. Templates are seeded from the tearout markup rather than written a second
+time from a description of it.
+
+**`app.css` stays in `docs/design/`, where every tearout links it.** Moving it
+to `web/` would mean editing the stylesheet link in every tearout, and the
+tearouts are approved against the real phone, so they are not edited for a
+file's location. `go:embed` cannot reach a parent directory, so `assets.go` at
+the repository root embeds both `docs/design/app.css` and `web/templates`. The
+tearouts and the surface then use one stylesheet, not two copies that drift.
 
 Routes:
 

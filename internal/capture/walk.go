@@ -60,8 +60,8 @@ func walkOne(root, p string, found map[string]Entry) error {
 		return errors.Wrapf(ErrNoSuchPath, "%q is not a path inside the project", p)
 	}
 	p = inside
-	if err := refuseLinkedParent(root, p); err != nil {
-		return err
+	if link := linkedParent(root, p); link != "" {
+		return errors.Wrapf(ErrNoSuchPath, "%s runs through %s, a symlink, which can lead outside the project; name the path it points to", p, link)
 	}
 	full := filepath.Join(root, filepath.FromSlash(p))
 	info, err := os.Lstat(full)
@@ -78,28 +78,30 @@ func walkOne(root, p string, found map[string]Entry) error {
 	return walkDir(root, p, full, found)
 }
 
-// refuseLinkedParent refuses a review path that runs through a symlinked
-// directory. os.Lstat follows every component of a path but the last, so a
-// path of link/s.txt, where link points outside the project, reads a file from
-// outside it into the blob store. A review path is checked component by
-// component instead, and the final one may itself be a link, which is captured
-// as the target it names.
-func refuseLinkedParent(root, p string) error {
+// linkedParent names the first directory in a slash-separated path, relative to
+// root, that is a symlink, and is empty when none is.
+//
+// os.Lstat follows every component of a path but the last, so a path of
+// link/s.txt, where link points outside the project, reads a file from outside
+// it. Both the walk outside git and the reader's working-copy fallback check a
+// path with this before touching it. The final component may itself be a link,
+// which each caller handles as a link. A missing component is not a link, and
+// the caller's own read reports it as missing.
+func linkedParent(root, p string) string {
 	parts := strings.Split(p, "/")
 	dir := root
 	for _, part := range parts[:len(parts)-1] {
 		dir = filepath.Join(dir, part)
 		info, err := os.Lstat(dir)
 		if err != nil {
-			// A missing component is the not-found refusal below.
-			return nil
+			return ""
 		}
 		if info.Mode()&fs.ModeSymlink != 0 {
 			rel, _ := filepath.Rel(root, dir)
-			return errors.Wrapf(ErrNoSuchPath, "%s runs through %s, a symlink, which can lead outside the project; name the path it points to", p, filepath.ToSlash(rel))
+			return filepath.ToSlash(rel)
 		}
 	}
-	return nil
+	return ""
 }
 
 // walkDir adds every file under one of the review's directories.
