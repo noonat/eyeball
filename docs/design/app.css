@@ -101,6 +101,18 @@
   --shadow-pop: 0 8px 28px rgb(0 0 0 / 50%);
 }
 
+/* Native controls follow the theme, not the viewer's OS setting. Without this
+ * a task list's checkbox drew in the OS scheme: a dark filled box on the light
+ * theme. Bound to the attribute alone, because the surface stamps it on <html>,
+ * and :root here would also restyle the tearout chrome around the frames. */
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 :root {
   --prose:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
@@ -475,6 +487,17 @@
 .project {
   font-weight: 620;
   color: var(--ink-dim);
+}
+
+/* The brief's project is the one way from a review to its project view. The
+ * name above sets its own color and would otherwise outrank the link default,
+ * leaving a link nobody can tell from the text beside it. The whole bit is the
+ * link, folder included, because the name alone is an 11px target. */
+a.bit,
+a.bit .project,
+.who a.bit .i {
+  color: var(--accent);
+  text-decoration: none;
 }
 
 /* The agent is the working copy it runs in, so it is set as an identifier and
@@ -876,6 +899,60 @@ tr.sel {
   margin-top: 0.3em;
 }
 
+/* A code block and a table own their horizontal overflow, as .code does, so a
+ * long line or a wide table scrolls inside the passage and the page never
+ * scrolls sideways. A table ignores overflow until it is a block. */
+.prose pre,
+.prose table {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose pre {
+  font-family: var(--mono);
+  font-size: var(--t-code);
+  line-height: 1.55;
+  tab-size: 2;
+  background: var(--bg-sunk);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+
+/* The inline code chip would otherwise pad and tint every line of the block a
+ * second time. */
+.prose pre code {
+  font-size: inherit;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.prose table {
+  display: block;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+
+.prose th,
+.prose td {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--panel-2);
+  font-weight: 620;
+}
+
+/* A header cell with no alignment of its own reads from the left, like the
+ * cells under it. Written without :not, this rule would also beat the align
+ * attribute, which carries no specificity at all. */
+.prose th:not([align]) {
+  text-align: left;
+}
+
 /* A changed passage gets a rule beside it, not a wash through it. A heavily
  * edited document has to stay readable as a document. */
 .blk {
@@ -901,7 +978,33 @@ tr.sel {
   border-left-color: var(--add-vivid);
 }
 
-.blk.changed.was {
+/* A changed passage with replaced text is a details element, so showing what
+ * it replaced is one tap with no script. Its rendering is the summary, and the
+ * summary has to read as the passage rather than as a control. The file card's
+ * summary rules select only a direct child of .file, so they never reach here. */
+.blk > summary {
+  display: block;
+  list-style: none;
+}
+
+.blk > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A margin inside a details element stays inside it, where the same margin in
+ * a div collapses through. Left alone, the rule beside a details passage ran a
+ * line above and below its text, and the passage read as a taller block than
+ * the div passages around it. The summary holds one block, so zeroing it is
+ * safe. */
+.blk > summary > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Amber means the passage is showing what it replaced: open, or removed with
+ * nothing in its place, where there is nothing to collapse it to. */
+.blk.changed.was,
+.blk.changed[open] {
   border-left-color: var(--warn-vivid);
 }
 
@@ -1291,6 +1394,19 @@ tr.sel {
 .filecomposer {
   padding: 10px 12px;
   border-top: 1px solid var(--line);
+}
+
+/* The way out of a card to the file's own page: "Whole file" for code, "Raw
+ * diff" for a rendered document. It sits at the foot, where reading the card
+ * ends, so the summary keeps its whole width for the path, which already
+ * truncates on a phone. */
+.filelinks {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
 }
 
 /* -------------------------------------------------------------- buttons */

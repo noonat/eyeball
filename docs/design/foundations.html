@@ -443,18 +443,41 @@
           <div class="blk"><h2>A round is frozen</h2></div>
           <div class="blk"><p>Every round captures the content it is asking
           about, at the moment it asks. The reviewer reads that capture.</p></div>
-          <div class="blk changed"><p>The cost is storage, and it is small:
-          captures are content addressed, so a round that changes four files
-          stores four new blobs and a list of names.</p></div>
-          <div class="blk changed was"><p>A review&rsquo;s first round needs
-          something to change against. In a git repository the base is HEAD by
-          default, and the agent can name a different one.</p>
-          <span class="was-text">The base of a first round is always the empty
-          tree.</span></div>
+          <div class="blk changed"><p>Nothing moves under the reviewer, and a
+          comment points at an exact line that never drifts.</p></div>
+          <details class="blk changed"><summary><p>The cost is storage, and it
+          is small: captures are content addressed, so a round that changes four
+          files stores four new blobs and a list of names.</p></summary><span class="was-text">The cost is storage, and nobody has measured
+          it yet.</span></details>
+          <details class="blk changed" open><summary><p>A review&rsquo;s first
+          round needs something to change against. In a git repository the base
+          is HEAD by default, and the agent can name a different one.</p></summary><span class="was-text">The base of a first round is always the empty
+          tree.</span></details>
+          <div class="blk changed was"><span class="was-text">Rounds are numbered
+          from zero, so the first request is round 0.</span></div>
           <div class="blk"><ul>
-            <li>Nothing moves under the reviewer.</li>
-            <li>A comment points at an exact line and never drifts.</li>
+            <li><input checked="" disabled="" type="checkbox"> Capture the files under the review&rsquo;s paths</li>
+            <li><input checked="" disabled="" type="checkbox"> Record the base commit</li>
+            <li><input disabled="" type="checkbox"> Drop blobs no round refers to</li>
           </ul></div>
+          <div class="blk"><pre><code><span class="k">func</span> (s *Store) <span class="f">Freeze</span>(ctx context.Context, id <span class="k">int64</span>) <span class="k">error</span> {
+	<span class="c">// Capture before the reply, so a crash cannot leave a round with no content.</span>
+	<span class="k">if</span> err := s.<span class="f">capture</span>(ctx, id, <span class="n">0</span>); err != <span class="k">nil</span> {
+		<span class="k">return</span> errors.<span class="f">Wrap</span>(err, <span class="s">"capture round"</span>)
+	}
+	<span class="k">return</span> <span class="k">nil</span>
+}
+</code></pre></div>
+          <div class="blk"><table>
+            <thead>
+              <tr><th>Link</th><th>Route</th><th align="right">Iteration</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>a code card&rsquo;s &ldquo;Whole file&rdquo;</td><td>file route</td><td align="right">5</td></tr>
+              <tr><td>the review page&rsquo;s &ldquo;All files&rdquo; row</td><td>file route, tree</td><td align="right">6</td></tr>
+              <tr><td>the brief&rsquo;s project</td><td>project view</td><td align="right">9</td></tr>
+            </tbody>
+          </table></div>
         </div>
       </div></div></div>
     </figure>
@@ -466,18 +489,41 @@
           <div class="blk"><h2>A round is frozen</h2></div>
           <div class="blk"><p>Every round captures the content it is asking
           about, at the moment it asks. The reviewer reads that capture.</p></div>
-          <div class="blk changed"><p>The cost is storage, and it is small:
-          captures are content addressed, so a round that changes four files
-          stores four new blobs and a list of names.</p></div>
-          <div class="blk changed was"><p>A review&rsquo;s first round needs
-          something to change against. In a git repository the base is HEAD by
-          default, and the agent can name a different one.</p>
-          <span class="was-text">The base of a first round is always the empty
-          tree.</span></div>
+          <div class="blk changed"><p>Nothing moves under the reviewer, and a
+          comment points at an exact line that never drifts.</p></div>
+          <details class="blk changed"><summary><p>The cost is storage, and it
+          is small: captures are content addressed, so a round that changes four
+          files stores four new blobs and a list of names.</p></summary><span class="was-text">The cost is storage, and nobody has measured
+          it yet.</span></details>
+          <details class="blk changed" open><summary><p>A review&rsquo;s first
+          round needs something to change against. In a git repository the base
+          is HEAD by default, and the agent can name a different one.</p></summary><span class="was-text">The base of a first round is always the empty
+          tree.</span></details>
+          <div class="blk changed was"><span class="was-text">Rounds are numbered
+          from zero, so the first request is round 0.</span></div>
           <div class="blk"><ul>
-            <li>Nothing moves under the reviewer.</li>
-            <li>A comment points at an exact line and never drifts.</li>
+            <li><input checked="" disabled="" type="checkbox"> Capture the files under the review&rsquo;s paths</li>
+            <li><input checked="" disabled="" type="checkbox"> Record the base commit</li>
+            <li><input disabled="" type="checkbox"> Drop blobs no round refers to</li>
           </ul></div>
+          <div class="blk"><pre><code><span class="k">func</span> (s *Store) <span class="f">Freeze</span>(ctx context.Context, id <span class="k">int64</span>) <span class="k">error</span> {
+	<span class="c">// Capture before the reply, so a crash cannot leave a round with no content.</span>
+	<span class="k">if</span> err := s.<span class="f">capture</span>(ctx, id, <span class="n">0</span>); err != <span class="k">nil</span> {
+		<span class="k">return</span> errors.<span class="f">Wrap</span>(err, <span class="s">"capture round"</span>)
+	}
+	<span class="k">return</span> <span class="k">nil</span>
+}
+</code></pre></div>
+          <div class="blk"><table>
+            <thead>
+              <tr><th>Link</th><th>Route</th><th align="right">Iteration</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>a code card&rsquo;s &ldquo;Whole file&rdquo;</td><td>file route</td><td align="right">5</td></tr>
+              <tr><td>the review page&rsquo;s &ldquo;All files&rdquo; row</td><td>file route, tree</td><td align="right">6</td></tr>
+              <tr><td>the brief&rsquo;s project</td><td>project view</td><td align="right">9</td></tr>
+            </tbody>
+          </table></div>
         </div>
       </div></div></div>
     </figure>
@@ -487,6 +533,21 @@
     <li><b>A teal rule marks a changed passage, an amber rule marks one that is
     showing what it replaced.</b> Two states of the same control, so the reader
     can tell an expanded passage from a collapsed one while scrolling past.</li>
+    <li><b>The control is a <code>details</code> element.</b> The passage is its
+    summary and the replaced text is its body, so a tap opens it with no script.
+    The surface&rsquo;s policy blocks inline styles, so both states are rules in
+    <code>app.css</code>. A passage with nothing replaced stays a <code>div</code> with the
+    teal rule.</li>
+    <li><b>A removed passage keeps the amber rule and holds only what was
+    removed.</b> Nothing is left to collapse it to, and a removal with no rule
+    beside it would not show in the rendered view at all.</li>
+    <li><b>A code block and a table scroll inside the passage</b>, as the diff
+    does, so a long line never takes the page sideways. The code block uses the
+    diff&rsquo;s five syntax roles.</li>
+    <li><b>A table aligns its cells with the <code>align</code> attribute.</b>
+    The renderer&rsquo;s default is an inline style, which the policy blocks.</li>
+    <li><b>A task list&rsquo;s boxes are disabled.</b> They show what is done,
+    and nothing on this surface edits a document.</li>
     <li><b>Nothing is marked when the base is empty.</b> A document written from
     scratch is entirely new, and marking every passage marks none of them.</li>
   </ul>

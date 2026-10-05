@@ -29,22 +29,19 @@
 
 <section class="spec" id="hunk">
   <h2>Step one: the hunk <span class="tag">where reading starts</span></h2>
-  <p>The change with enough surrounding lines to make sense of it. A reference
-  the hunk cannot show is a link rather than a note telling the reviewer to go
-  and look.</p>
+  <p>The change with enough surrounding lines to make sense of it, read in its
+  file card on the review page. <b>Whole file</b> at the foot of the card is the
+  step out. A reference the hunk cannot show is a link rather than a note
+  telling the reviewer to go and look.</p>
   <div class="pair">
     <figure class="frame">
       <figcaption>light &mdash; a reference the hunk cannot show</figcaption>
       <div class="phone md" data-theme="light"><div class="app">
         <div class="topbar">
-          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
           <h1>Retry ladder</h1>
         </div>
         <div class="scroll"><div class="page">
-          <div class="toolbar">
-            <span class="counts"><b class="files">1 of 6 files</b></span>
-            <a class="btn small" href="#hunk"><span class="i i-maximize-2" aria-hidden="true"></span>Whole file</a>
-          </div>
           <details class="file" open>
             <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary>
             <div class="code narrow">
@@ -60,6 +57,7 @@
                 <tr><td class="ln">48</td><td class="sign"></td><td class="src">		<span class="k">if</span> err := w.<span class="f">once</span>(ctx, job); err == <span class="k">nil</span> {</td></tr>
               </table>
             </div>
+            <div class="filelinks"><a class="btn small" href="#whole">Whole file</a></div>
           </details>
           <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span><code>backoff</code> is defined in <a href="#file">internal/upload/backoff.go</a>, which this review also changes.</span></div>
         </div></div>
@@ -69,14 +67,10 @@
       <figcaption>dark</figcaption>
       <div class="phone md" data-theme="dark"><div class="app">
         <div class="topbar">
-          <a class="back" href="review.html"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
           <h1>Retry ladder</h1>
         </div>
         <div class="scroll"><div class="page">
-          <div class="toolbar">
-            <span class="counts"><b class="files">1 of 6 files</b></span>
-            <a class="btn small" href="#hunk"><span class="i i-maximize-2" aria-hidden="true"></span>Whole file</a>
-          </div>
           <details class="file" open>
             <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary>
             <div class="code narrow">
@@ -92,6 +86,7 @@
                 <tr><td class="ln">48</td><td class="sign"></td><td class="src">		<span class="k">if</span> err := w.<span class="f">once</span>(ctx, job); err == <span class="k">nil</span> {</td></tr>
               </table>
             </div>
+            <div class="filelinks"><a class="btn small" href="#whole">Whole file</a></div>
           </details>
           <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span><code>backoff</code> is defined in <a href="#file">internal/upload/backoff.go</a>, which this review also changes.</span></div>
         </div></div>
@@ -102,6 +97,9 @@
     <li><b>The link out is in a notice, not buried in the code.</b> A tappable
     identifier inside a monospace line is a target about eight pixels wide, and
     the line has to keep its column alignment.</li>
+    <li><b>The step out lives on the card, not on a page of its own.</b> The
+    review page already shows each file&rsquo;s hunks in its card, so a second
+    page holding one file&rsquo;s hunks would only repeat them.</li>
   </ul>
 </section>
 

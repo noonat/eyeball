@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-05T00:00:00Z
-updated: 2026-10-05T14:27:12.518537781Z
+updated: 2026-10-05T20:59:48.227706244Z
 required_acks:
   - reviewed
 required_commands:
@@ -1477,21 +1477,21 @@ required_acks:
   - phone-approved
 ```
 
-- [ ] foundations.html's prose specimen showing a changed passage closed and
+- [x] foundations.html's prose specimen showing a changed passage closed and
       open as `<details class="blk changed">`, a removed passage, a fenced code
       block, a table and a task list
-- [ ] app.css rules for a block's `summary`, `.blk.changed[open]`, `pre` and
+- [x] app.css rules for a block's `summary`, `.blk.changed[open]`, `pre` and
       `table` owning their overflow inside `.prose`, a file card's link row, and
       the brief's project as a link
-- [ ] review.html's round2 frame using `<details>` for its replaced passage,
+- [x] review.html's round2 frame using `<details>` for its replaced passage,
       each file card carrying "Whole file" or "Raw diff", an "All files" row,
       and the project as a link
-- [ ] widening.html's step-one frame showing "Whole file" on the review page's
+- [x] widening.html's step-one frame showing "Whole file" on the review page's
       file card, with the definition notice kept as the target
-- [ ] project.html's working row reading "Changes requested, round 2" and its
+- [x] project.html's working row reading "Changes requested, round 2" and its
       no-git warning no longer saying there is no marker file
-- [ ] A question to the owner, with the closed-passage frame, about whether a
-      block that opens needs a cue beside the teal rule, answered in this spec
+- [/] A question to the owner, with the closed-passage frame, about whether a
+  block that opens needs a cue beside the teal rule, answered in this spec
 
 ## Iteration 2: The project's state
 
