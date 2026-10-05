@@ -17,6 +17,11 @@ const releasedWhere = `(d.round_id IS NOT NULL OR r.state <> 'open')`
 
 // lateExpr is whether a released comment arrived after the batch it belongs to:
 // written after its round's decision, or on a round that never got one.
+//
+// A comment written in the same millisecond as the verdict counts as on time.
+// The timestamps cannot order the two. Calling it late would label a comment
+// written before the verdict as written after it, and calling it on time costs
+// only that it waits for the next verdict's batch, where it still arrives.
 const lateExpr = `CASE WHEN d.round_id IS NULL OR c.created > d.decided THEN 1 ELSE 0 END`
 
 // commentColumns are the columns every comment read scans, in scanComment's
@@ -147,6 +152,17 @@ func (s *Store) MarkDelivered(ctx context.Context, reviewID int64, ids []int64) 
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, update, args...)
 		return errors.Wrap(err, "mark comments delivered")
+	})
+}
+
+// MarkVerdictDelivered stamps the verdict on one round of a review as received
+// by the agent. A round with no verdict, or one already stamped, is left alone.
+func (s *Store) MarkVerdictDelivered(ctx context.Context, reviewID int64, round int) error {
+	update := `UPDATE decisions SET delivered = ?
+		WHERE delivered = '' AND round_id = (SELECT id FROM rounds WHERE review_id = ? AND number = ?)`
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, update, FormatTime(s.now()), reviewID, round)
+		return errors.Wrap(err, "mark the verdict delivered")
 	})
 }
 

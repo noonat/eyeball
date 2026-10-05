@@ -87,6 +87,49 @@ func TestStore_MarkDelivered(t *testing.T) {
 	g.Expect(s.MarkDelivered(t.Context(), other.ID, nil)).To(Succeed())
 }
 
+func TestStore_MarkVerdictDelivered(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	clock := stepClock(s)
+	project := ensureProject(g, t, s)
+	review, round := openReview(g, t, s, project.ID, "docs")
+	other, otherRound := openReview(g, t, s, project.ID, "web")
+
+	row := func(id int64) ReviewRow {
+		rows, err := s.ReviewsIn(t.Context(), project.ID)
+		g.Expect(err).NotTo(HaveOccurred())
+		for _, r := range rows {
+			if r.ReviewID == id {
+				return r
+			}
+		}
+		g.Expect(false).To(BeTrue(), "no row for review")
+		return ReviewRow{}
+	}
+	g.Expect(s.MarkVerdictDelivered(t.Context(), review.ID, 1)).To(Succeed(), "no verdict yet is not an error")
+	g.Expect(row(review.ID).VerdictUndelivered).To(BeFalse(), "an undecided round has no verdict to receive")
+
+	g.Expect(s.Decide(t.Context(), round.ID, VerdictApprove, "")).To(Succeed())
+	g.Expect(s.Decide(t.Context(), otherRound.ID, VerdictApprove, "")).To(Succeed())
+	g.Expect(row(review.ID).VerdictUndelivered).To(BeTrue())
+
+	g.Expect(s.MarkVerdictDelivered(t.Context(), review.ID, 1)).To(Succeed())
+	g.Expect(row(review.ID).VerdictUndelivered).To(BeFalse())
+	g.Expect(row(other.ID).VerdictUndelivered).To(BeTrue(), "another review's verdict was stamped")
+
+	var first string
+	read := func() string {
+		var stamped string
+		q := "SELECT delivered FROM decisions WHERE round_id = ?"
+		g.Expect(s.db.QueryRowContext(t.Context(), q, round.ID).Scan(&stamped)).To(Succeed())
+		return stamped
+	}
+	first = read()
+	clock()
+	g.Expect(s.MarkVerdictDelivered(t.Context(), review.ID, 1)).To(Succeed())
+	g.Expect(read()).To(Equal(first), "a stamped verdict keeps its first time")
+}
+
 func TestStore_Released(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)
@@ -135,7 +178,7 @@ func TestStore_Released_sameInstantIsNotLate(t *testing.T) {
 	got, err := s.Released(t.Context(), review.ID)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(HaveLen(1))
-	g.Expect(got[0].Late).To(BeFalse())
+	g.Expect(got[0].Late).To(BeFalse(), "a comment written before the verdict is not labeled as written after it")
 }
 
 func TestStore_Reply(t *testing.T) {

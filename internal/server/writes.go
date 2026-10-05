@@ -75,6 +75,11 @@ func (d *db) MarkDelivered(ctx context.Context, reviewID int64, ids []int64) err
 	return d.publish(d.s.MarkDelivered(ctx, reviewID, ids))
 }
 
+// MarkVerdictDelivered stamps a verdict as received, then publishes.
+func (d *db) MarkVerdictDelivered(ctx context.Context, reviewID int64, round int) error {
+	return d.publish(d.s.MarkVerdictDelivered(ctx, reviewID, round))
+}
+
 // Reply stores an agent's reply, then publishes.
 func (d *db) Reply(ctx context.Context, commentID int64, body string) error {
 	return d.publish(d.s.Reply(ctx, commentID, body))
@@ -113,6 +118,11 @@ func (d *db) ReviewsFor(ctx context.Context, projectID int64, agent string) ([]s
 // ReviewsIn lists every review in a project.
 func (d *db) ReviewsIn(ctx context.Context, projectID int64) ([]store.ReviewRow, error) {
 	return d.s.ReviewsIn(ctx, projectID)
+}
+
+// ProjectByRoot reads the project at a root, if it has been seen.
+func (d *db) ProjectByRoot(ctx context.Context, root string) (store.Project, error) {
+	return d.s.ProjectByRoot(ctx, root)
 }
 
 // Project reads one project.

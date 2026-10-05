@@ -40,26 +40,49 @@ func (s *Server) resolve(ctx context.Context, c api.Caller) (caller, error) {
 	if err != nil {
 		return caller{}, err
 	}
-	name, err := capture.ProjectName(ctx, root.Resolved)
-	if err != nil {
-		// The name is for display only and is read once, when the project is
-		// first seen. Failing the request over it would be worse than a
-		// project named after its directory.
-		s.log.Warn("project name", "root", root.Resolved, "err", err)
-		name = ""
-	}
-	project, err := s.db.EnsureProject(ctx, root.Resolved, name)
+	project, err := s.project(ctx, root)
 	if err != nil {
 		return caller{}, err
 	}
-	agent := capture.AgentName(c.Agent, "", root, s.home)
+	agent := capture.AgentName(c.Agent, "", root, s.homeOf(c))
 	return caller{dir: c.Dir, root: root, project: project, agent: agent}, nil
+}
+
+// project finds the project at root, registering it on first sight. Its name
+// costs a git call and is read only then, so a later request does not run git
+// for it, and a name that failed once is not retried into a different one.
+func (s *Server) project(ctx context.Context, root capture.Root) (store.Project, error) {
+	known, err := s.db.ProjectByRoot(ctx, root.Resolved)
+	if err == nil || !errors.Is(err, store.ErrNotFound) {
+		return known, err
+	}
+	name, err := capture.ProjectName(ctx, root.Resolved)
+	if err != nil {
+		// The name is for display only. Failing the request over it would be
+		// worse than a project named after its directory.
+		s.log.Warn("project name", "root", root.Resolved, "err", err)
+		name = ""
+	}
+	return s.db.EnsureProject(ctx, root.Resolved, name)
+}
+
+// homeOf is the home directory a caller's default agent name is written
+// relative to: the caller's own, resolved through symlinks as the root is, or
+// the daemon's for a caller that sent none.
+func (s *Server) homeOf(c api.Caller) string {
+	if !filepath.IsAbs(c.Home) {
+		return s.home
+	}
+	if resolved, err := filepath.EvalSymlinks(c.Home); err == nil {
+		return resolved
+	}
+	return c.Home
 }
 
 // callerFromQuery reads the caller from a GET request's query parameters.
 func callerFromQuery(r *http.Request) api.Caller {
 	q := r.URL.Query()
-	return api.Caller{Dir: q.Get("dir"), Agent: q.Get("agent")}
+	return api.Caller{Dir: q.Get("dir"), Agent: q.Get("agent"), Home: q.Get("home")}
 }
 
 // decode reads a JSON request body into v.
@@ -227,6 +250,12 @@ func (s *Server) firstRound(ctx context.Context, c caller, body api.RequestBody)
 			return api.RequestResult{}, err
 		}
 		paths = append(paths, normalized)
+	}
+	if body.Base != "" {
+		if _, err := os.Lstat(filepath.Join(c.root.Resolved, ".git")); err != nil {
+			message := fmt.Sprintf("%s is not a git repository, so it has no commit for --base to name", c.root.Resolved)
+			return api.RequestResult{}, refuse(http.StatusBadRequest, api.CodeBadBase, message, "leave out --base; outside git a first round shows whole files")
+		}
 	}
 	base, err := capture.ResolveBase(ctx, c.root.Resolved, body.Base)
 	if err != nil {
@@ -476,6 +505,13 @@ func (s *Server) handleWait(w http.ResponseWriter, r *http.Request) error {
 // round the agent has not acknowledged, so none is lost once a later round
 // exists.
 func (s *Server) waitState(ctx context.Context, reviewID int64) (api.WaitResult, bool, error) {
+	// The reads are separate queries, so a verdict or an abandon landing among
+	// them can mix two states into one answer: a verdict for a review still
+	// called open, or late comments for one just withdrawn. The write that
+	// caused it publishes, so a wait that has not answered reads again at
+	// once, and an answer that went out mixed is corrected by the next wait,
+	// which its next line asks for. A retry loop around the reads was tried
+	// and dropped: no test could show it changed an outcome.
 	review, err := s.db.Review(ctx, reviewID)
 	if err != nil {
 		return api.WaitResult{}, false, err
@@ -576,6 +612,11 @@ func (s *Server) handleReceipt(w http.ResponseWriter, r *http.Request) error {
 	}
 	if err := s.db.MarkDelivered(r.Context(), id, body.Comments); err != nil {
 		return err
+	}
+	if body.Round > 0 {
+		if err := s.db.MarkVerdictDelivered(r.Context(), id, body.Round); err != nil {
+			return err
+		}
 	}
 	ids := body.Comments
 	if ids == nil {
@@ -682,13 +723,16 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 			result.Others++
 		}
 	}
+	// An ended review stays listed until the agent has received both its
+	// last verdict and every comment. An approval with no comments is still
+	// owed to an agent whose wait was killed before it read it.
 	for _, row := range listed {
-		if !all && row.State != store.StateOpen && row.Undelivered == 0 {
+		if !all && row.State != store.StateOpen && row.Undelivered == 0 && !row.VerdictUndelivered {
 			continue
 		}
 		result.Reviews = append(result.Reviews, statusRow(row))
 	}
-	result.Next = statusNext(result, all)
+	result.Next = statusNext(result, all, owed(listed))
 	writeJSON(w, http.StatusOK, result)
 	return nil
 }
@@ -716,15 +760,35 @@ func statusRow(row store.ReviewRow) api.StatusRow {
 	}
 }
 
-// statusNext is what status suggests, from what it found.
-func statusNext(result api.StatusResult, all bool) string {
+// owed is the set of reviews whose last verdict the agent has not received.
+func owed(rows []store.ReviewRow) map[int64]struct{} {
+	out := map[int64]struct{}{}
+	for _, row := range rows {
+		if row.VerdictUndelivered {
+			out[row.ReviewID] = struct{}{}
+		}
+	}
+	return out
+}
+
+// statusNext is what status suggests, from what it found. A suggestion for a
+// review opened under another name carries that name, since the command would
+// be refused without it.
+func statusNext(result api.StatusResult, all bool, unreceived map[int64]struct{}) string {
 	var lines []string
 	for _, row := range result.Reviews {
+		wait := fmt.Sprintf("eyeball wait %d", row.ID)
+		if row.Agent != result.Agent {
+			wait = fmt.Sprintf("eyeball wait %d --agent %q", row.ID, row.Agent)
+		}
+		_, verdictOwed := unreceived[row.ID]
 		switch {
 		case row.State == api.StateWaiting:
-			lines = append(lines, fmt.Sprintf("review %d is waiting for a verdict: run eyeball wait %d", row.ID, row.ID))
+			lines = append(lines, fmt.Sprintf("review %d is waiting for a verdict: run %s", row.ID, wait))
+		case verdictOwed:
+			lines = append(lines, fmt.Sprintf("review %d has a verdict not yet read: run %s", row.ID, wait))
 		case row.Undelivered > 0 || row.State == api.StateChangesRequested:
-			lines = append(lines, fmt.Sprintf("review %d has comments to read: run eyeball wait %d", row.ID, row.ID))
+			lines = append(lines, fmt.Sprintf("review %d has comments to read: run %s", row.ID, wait))
 		}
 	}
 	if !all && result.Others > 0 {
@@ -769,6 +833,7 @@ func (s *Server) handleShow(w http.ResponseWriter, r *http.Request) error {
 		switch {
 		case err == nil:
 			entry.Verdict = api.Verdict(decision.Verdict)
+			entry.VerdictNote = decision.Note
 			decided := decision.Decided.Truncate(time.Millisecond)
 			entry.DecidedAt = &decided
 		case !errors.Is(err, store.ErrNotFound):

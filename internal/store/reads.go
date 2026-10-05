@@ -24,6 +24,7 @@ const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		o.number, o.created,
 		o.files_changed, o.lines_added, o.lines_removed,
 		coalesce(d.verdict, ''),
+		CASE WHEN d.round_id IS NOT NULL AND d.delivered = '' AND r.state <> 'abandoned' THEN 1 ELSE 0 END,
 		(SELECT count(*) FROM comments c
 			JOIN rounds o2 ON o2.id = c.round_id
 			LEFT JOIN decisions d ON d.round_id = o2.id
@@ -67,6 +68,11 @@ type ReviewRow struct {
 	RequestedAt time.Time
 	// Verdict is the decision on the latest round, and empty while it waits.
 	Verdict Verdict
+	// VerdictUndelivered says the latest round has a verdict the agent has not
+	// received, on a review it has not withdrawn. Withdrawing a review is the
+	// agent saying it no longer needs the answer, and a wait on it returns
+	// abandoned, which acknowledges no verdict.
+	VerdictUndelivered bool
 	// Undelivered counts the released comments the agent has not acknowledged.
 	Undelivered int
 }
@@ -138,6 +144,21 @@ func (s *Store) ReviewsFor(ctx context.Context, projectID int64, agent string) (
 		return err
 	})
 	return out, err
+}
+
+// ProjectByRoot reads the project at root, and ErrNotFound for a root never
+// seen. A caller looks before registering, so the work of naming a project is
+// done once, when it is first seen.
+func (s *Store) ProjectByRoot(ctx context.Context, root string) (Project, error) {
+	var out Project
+	row := s.db.QueryRowContext(ctx, "SELECT id, root, name FROM projects WHERE root = ?", root)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Project{}, errors.Wrapf(ErrNotFound, "project at %s", root)
+		}
+		return Project{}, errors.Wrap(err, "read project")
+	}
+	return out, nil
 }
 
 // ReviewsIn lists every review in one project, whichever agent opened it,
@@ -305,6 +326,7 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 			&row.Added,
 			&row.Removed,
 			&row.Verdict,
+			&row.VerdictUndelivered,
 			&row.Undelivered,
 		)
 		if err != nil {

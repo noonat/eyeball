@@ -442,6 +442,9 @@ func TestRun_wait(t *testing.T) {
 	g.Expect(res.stdout).To(ContainSubstring("changes requested"))
 	g.Expect(res.stdout).To(ContainSubstring("a point"))
 	g.Expect(f.delivered(g, t, 1, c.ID)).To(BeTrue(), "the receipt went out after printing")
+	rows, err := f.store.ReviewsIn(t.Context(), 1)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rows[0].VerdictUndelivered).To(BeFalse(), "the receipt stamped the verdict as received")
 }
 
 func TestRun_waitDroppedConnection(t *testing.T) {
@@ -534,6 +537,8 @@ func TestRun_waitTimeout(t *testing.T) {
 	g.Expect(json.Unmarshal([]byte(res.stdout), &got)).To(Succeed(), res.stdout)
 	g.Expect(got.Kind).To(Equal(api.KindStillWaiting))
 	g.Expect(got.Review.ID).To(Equal(int64(1)))
+	g.Expect(got.Review.Title).To(Equal("look"), "the review's fields are filled in from show")
+	g.Expect(res.stdout).To(ContainSubstring(`"decided_at": null`), "a template naming it does not fail")
 }
 
 func TestRun_waitWriteFails(t *testing.T) {

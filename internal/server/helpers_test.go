@@ -196,6 +196,9 @@ func waitPath(reviewID int64, c api.Caller) string {
 func query(c api.Caller) string {
 	v := make([]string, 0, 2)
 	v = append(v, "dir="+url.QueryEscape(c.Dir))
+	if c.Home != "" {
+		v = append(v, "home="+url.QueryEscape(c.Home))
+	}
 	if c.Agent != "" {
 		v = append(v, "agent="+url.QueryEscape(c.Agent))
 	}

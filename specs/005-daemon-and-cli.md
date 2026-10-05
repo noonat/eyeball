@@ -667,6 +667,33 @@ agent driving the tool from the manual alone.
 - A failed write of human output fails the command, so `wait` posts no receipt
   for comments that never reached the screen.
 
+- The caller sends its home directory, and an agent's default name is written
+  relative to it. The daemon inherits whichever agent started it, so a name
+  taken from the daemon's home changed when a different agent started the next
+  daemon, and an agent lost its own reviews.
+- A verdict has a receipt of its own, in migration `0004`, stamped when a wait
+  prints it. `status` lists an ended review until both its last verdict and
+  every comment are received. The spec's rule listed an ended review only while
+  it held unread comments, so an approval with none dropped out of `status` the
+  moment it was given, reachable after a killed wait only by an id the agent no
+  longer had. `show` also returns the reviewer's note on each round.
+- The project's name is read once, when the project is first seen, as the spec
+  said. A version ran `git rev-parse` on every request. No test can tell the
+  difference, since the name is kept from the first registration either way.
+- `--base` is refused outside git, where it was silently ignored.
+- `decided_at` and `stop`'s `daemon` are always present, as null when empty, so
+  a `--format` template naming one does not fail on an answer without it. The
+  `still_waiting` body the client writes fills the review's fields from `show`.
+- Not changed: a comment written in the same millisecond as its round's verdict
+  counts as on time, not late. Counting it late was tried, and it labeled a
+  comment written before the verdict as written after it. On time costs only
+  that it arrives with the next verdict rather than at once.
+- Not changed: `wait`'s reads are separate queries, so a write landing among
+  them can mix two states into one answer. The write publishes, so a wait reads
+  again at once, and an answer already sent is corrected by the next wait. A
+  retry loop was tried and dropped, because no test could show it changing an
+  outcome.
+
 **Departures, iteration 6.**
 
 - `eyeball stop` waits until the lock is free as well as until the socket stops

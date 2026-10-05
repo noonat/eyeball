@@ -287,13 +287,14 @@ func unavailableFix(err error, paths daemon.Paths) string {
 
 // caller is who this command says it is.
 func (a *app) caller() api.Caller {
-	return api.Caller{Dir: a.env.Dir, Agent: a.agent}
+	return api.Caller{Dir: a.env.Dir, Agent: a.agent, Home: a.env.Home}
 }
 
 // callerQuery is the caller as query parameters.
 func (a *app) callerQuery() string {
 	v := url.Values{}
 	v.Set("dir", a.env.Dir)
+	v.Set("home", a.env.Home)
 	if a.agent != "" {
 		v.Set("agent", a.agent)
 	}
@@ -417,7 +418,7 @@ func (a *app) waitCommand() *ucli.Command {
 			status, raw, err := a.client.call(waitCtx, http.MethodGet, path, nil)
 			switch {
 			case errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil:
-				return a.stillWaiting(reviewID)
+				return a.stillWaiting(ctx, reviewID)
 			case errors.Is(err, errDropped):
 				return &failure{code: api.CodeConnectionLost, message: err.Error(), fix: fmt.Sprintf("run eyeball wait %d again", reviewID)}
 			case err != nil:
@@ -436,12 +437,15 @@ func (a *app) waitCommand() *ucli.Command {
 			// The receipt goes after printing, so a command killed between
 			// the two leaves the comments owed rather than lost. A template
 			// may have printed none of them, so --format posts none.
-			if a.out.format == "" && len(result.Comments) > 0 {
+			if a.out.format == "" && (len(result.Comments) > 0 || result.Kind == api.KindVerdict) {
 				ids := make([]int64, 0, len(result.Comments))
 				for _, c := range result.Comments {
 					ids = append(ids, c.ID)
 				}
 				receipt := api.ReceiptBody{Caller: a.caller(), Comments: ids}
+				if result.Kind == api.KindVerdict {
+					receipt.Round = result.Review.Round
+				}
 				// The comments are printed already, so a receipt that fails
 				// changes nothing the agent read. It leaves them owed, and the
 				// next wait shows them again.
@@ -460,12 +464,19 @@ func (a *app) waitCommand() *ucli.Command {
 
 // stillWaiting prints the body a wait that gave up at its timeout reports.
 // The client writes it: the daemon never saw the timeout.
-func (a *app) stillWaiting(reviewID int64) error {
+func (a *app) stillWaiting(ctx context.Context, reviewID int64) error {
 	result := api.WaitResult{
 		Kind:     api.KindStillWaiting,
-		Review:   api.Review{ID: reviewID},
+		Review:   api.Review{ID: reviewID, Paths: []string{}},
 		Comments: []api.Comment{},
 		Next:     fmt.Sprintf("no verdict yet. Run eyeball wait %d again, and do not continue this work until it returns.", reviewID),
+	}
+	// The review's own fields come from show, which reads without side
+	// effects. Without them a template naming one would print nothing useful.
+	status, shownRaw, err := a.client.call(ctx, http.MethodGet, fmt.Sprintf("/agent/reviews/%d", reviewID), nil)
+	var shown api.ShowResult
+	if err == nil && status == http.StatusOK && json.Unmarshal(shownRaw, &shown) == nil {
+		result.Review = shown.Review
 	}
 	raw, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {

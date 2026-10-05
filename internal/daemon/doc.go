@@ -7,9 +7,9 @@
 //
 // Shutdown runs in one order and the lock is released last: waits are ended,
 // the lock file is marked stopping, the server unlinks the socket and gives a
-// capture in progress time to finish, the store closes, then the lock goes. A closing Go unix listener unlinks whatever is at its
-// path, so a daemon that released the lock first would delete its successor's
-// socket.
+// capture in progress time to finish, the store closes, then the lock goes. A
+// closing Go unix listener unlinks whatever is at its path, so a daemon that
+// released the lock first would delete its successor's socket.
 //
 // A started daemon is detached: its own session, stdin and stdout on
 // /dev/null, stderr appended to the log, and the state directory as its

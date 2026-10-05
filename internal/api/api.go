@@ -103,6 +103,10 @@ type Caller struct {
 	Dir string `json:"dir"`
 	// Agent is the explicit agent name, empty when none was given.
 	Agent string `json:"agent"`
+	// Home is the caller's home directory, which a default agent name is
+	// written relative to. It is the caller's and not the daemon's, because
+	// the daemon inherits whichever agent started it.
+	Home string `json:"home"`
 }
 
 // RequestBody opens a review, or asks for the next round of one.
@@ -128,6 +132,9 @@ type ReceiptBody struct {
 	Caller
 	// Comments are the ids printed.
 	Comments []int64 `json:"comments"`
+	// Round is the number of the round whose verdict was printed, and zero
+	// when none was.
+	Round int `json:"round"`
 }
 
 // ReplyBody is the agent's reply to one comment.
@@ -279,9 +286,10 @@ type WaitResult struct {
 	Verdict Verdict `json:"verdict"`
 	// Note is the reviewer's note on the round, empty if none.
 	Note string `json:"note"`
-	// DecidedAt is when the verdict was given, and absent from the JSON
-	// without one.
-	DecidedAt *time.Time `json:"decided_at,omitempty"`
+	// DecidedAt is when the verdict was given, and null without one. It is
+	// always present, so a --format template that names it does not fail on
+	// an answer with no verdict.
+	DecidedAt *time.Time `json:"decided_at"`
 	// Comments are the comments being handed over.
 	Comments []Comment `json:"comments"`
 	// Next says what to do now.
@@ -347,9 +355,10 @@ type Round struct {
 	Base string `json:"base"`
 	// Verdict is the decision on the round, empty while it waits.
 	Verdict Verdict `json:"verdict"`
-	// DecidedAt is when it was decided, and absent from the JSON while it
-	// waits.
-	DecidedAt *time.Time `json:"decided_at,omitempty"`
+	// VerdictNote is the reviewer's note on the round, empty if none.
+	VerdictNote string `json:"verdict_note"`
+	// DecidedAt is when it was decided, and null while it waits.
+	DecidedAt *time.Time `json:"decided_at"`
 	// Size is what the round moved.
 	Size Size `json:"size"`
 }
@@ -392,7 +401,6 @@ type StopResult struct {
 	// Stopped says a daemon was running and was asked to stop. It is false
 	// when there was nothing to stop.
 	Stopped bool `json:"stopped"`
-	// Daemon is the daemon that stopped, and absent from the JSON when none
-	// was running.
-	Daemon *Daemon `json:"daemon,omitempty"`
+	// Daemon is the daemon that stopped, and null when none was running.
+	Daemon *Daemon `json:"daemon"`
 }

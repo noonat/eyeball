@@ -108,6 +108,17 @@ func TestStore_Project(t *testing.T) {
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 }
 
+func TestStore_ProjectByRoot(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	want := ensureProject(g, t, s)
+	got, err := s.ProjectByRoot(t.Context(), want.Root)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal(want))
+	_, err = s.ProjectByRoot(t.Context(), "/never/seen")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+}
+
 func TestStore_Queue(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)

@@ -89,13 +89,14 @@ is what `--timeout` prints when it expires.
 
 Under `--format`, `wait` acknowledges nothing, because it cannot know which
 comments the template printed. The same comments are handed over again until a
-plain or `--json` wait acknowledges them.
+plain or `--json` wait acknowledges them, and `status` keeps listing an ended
+review until one has received its verdict.
 
 ### `eyeball status`
 
 `eyeball status` prints the daemon and this agent's reviews in this project: the
-open ones, and any ended review with comments not yet read. Run it first after a
-restart or a cleared context.
+open ones, and any ended review whose verdict or comments the agent has not yet
+received. Run it first after a restart or a cleared context.
 
 | Flag    | Meaning                                                     |
 | ------- | ----------------------------------------------------------- |
@@ -241,7 +242,7 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
   `review.paths`, `review.project.name`, `review.project.root`
 - `verdict`: `approve` or `changes`, empty unless `kind` is `verdict`
 - `note`: the person's note on the whole round
-- `decided_at`: when the verdict was given, absent without one
+- `decided_at`: when the verdict was given, null without one
 - `comments.id`, the id `eyeball reply` takes
 - `comments.round`, the round the comment was written on
 - `comments.level`: `line`, `passage`, `file` or `review`
@@ -273,7 +274,8 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
   `review.paths`, `review.project.name`, `review.project.root`
 - `rounds.number`, `rounds.note`, `rounds.base`
 - `rounds.verdict`: `approve` or `changes`, empty while the round waits
-- `rounds.decided_at`: absent while the round waits
+- `rounds.verdict_note`: the person's note on the round's verdict
+- `rounds.decided_at`: null while the round waits
 - `rounds.size.files`, `rounds.size.added`, `rounds.size.removed`
 - `files.path`, `files.digest`, `files.size`, `files.in_scope`: the latest
   round's captured files, with an empty digest for a deleted file
@@ -298,8 +300,8 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 ### stop
 
 - `stopped`: false when no daemon was running
-- `daemon.pid`, `daemon.started`, `daemon.build`, `daemon.state_dir`: absent
-  when none was running
+- `daemon.pid`, `daemon.started`, `daemon.build`, `daemon.state_dir`: `daemon`
+  is null when none was running
 
 ### refusal
 

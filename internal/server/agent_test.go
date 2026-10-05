@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -159,6 +160,23 @@ func Test_routesMatchOnTheirOwnListenerOnly(t *testing.T) {
 	}
 }
 
+func TestServer_abandonedReviewOwesNoVerdict(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "more")
+
+	// The verdict was never received, and then the agent withdrew the review.
+	// A wait on it now returns abandoned and stamps no verdict, so listing it
+	// as owed would list it forever.
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(id)+"/abandon", api.AbandonBody{Caller: me}, &api.AbandonResult{})
+	var got api.StatusResult
+	f.ok(g, t, http.MethodGet, "/agent/status?"+query(me), nil, &got)
+	g.Expect(got.Reviews).To(BeEmpty())
+}
+
 func TestServer_asksForANextRound(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -228,6 +246,23 @@ func TestServer_handsOverLateComments(t *testing.T) {
 	g.Expect(got.Kind).To(Equal(api.KindVerdict))
 	g.Expect(ids(got.Comments)).To(Equal([]int64{unread.ID}), "the late one was acknowledged above")
 	g.Expect(got.Review.State).To(Equal(api.StateApproved))
+}
+
+func TestServer_namesTheAgentFromTheCallersHome(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	home := t.TempDir()
+	repo := gitRepo(g, filepath.Join(home, "src", "harbor"))
+
+	// The daemon's home is another directory: it is whichever agent started
+	// it, and the name must not change when a different one does.
+	got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo, Home: home}, Paths: []string{"a.txt"}, Note: "n"})
+	g.Expect(got.Review.Agent).To(Equal("~/src/harbor"))
+
+	var status api.StatusResult
+	f.ok(g, t, http.MethodGet, "/agent/status?"+query(api.Caller{Dir: repo, Home: home}), nil, &status)
+	g.Expect(status.Agent).To(Equal("~/src/harbor"))
+	g.Expect(statusIDs(status.Reviews)).To(Equal([]int64{got.Review.ID}))
 }
 
 func TestServer_opensAReview(t *testing.T) {
@@ -414,6 +449,11 @@ func TestServer_refusesBadRequests(t *testing.T) {
 			code: api.CodeBadBase,
 		},
 		{
+			name: "a base outside git",
+			body: api.RequestBody{Caller: api.Caller{Dir: marked(g, t)}, Paths: []string{"notes.md"}, Base: "HEAD", Note: "n"},
+			code: api.CodeBadBase,
+		},
+		{
 			name: "no project",
 			body: api.RequestBody{Caller: api.Caller{Dir: t.TempDir()}, Paths: []string{"a.txt"}, Note: "n"},
 			code: api.CodeNoProject,
@@ -489,6 +529,7 @@ func TestServer_show(t *testing.T) {
 	g.Expect(got.Review.State).To(Equal(api.StateApproved))
 	g.Expect(got.Rounds).To(HaveLen(1))
 	g.Expect(got.Rounds[0].Verdict).To(Equal(api.VerdictApprove))
+	g.Expect(got.Rounds[0].VerdictNote).To(Equal("good"))
 	g.Expect(got.Rounds[0].DecidedAt).NotTo(BeNil())
 	g.Expect(got.Files).To(HaveLen(1))
 	g.Expect(got.Files[0].Path).To(Equal("a.txt"))
@@ -516,12 +557,20 @@ func TestServer_status(t *testing.T) {
 	theirs := api.Caller{Dir: repo, Agent: "agent-2"}
 	f.request(g, t, api.RequestBody{Caller: theirs, Paths: []string{"c.txt"}, Note: "theirs"})
 
+	// An approval stays listed until the agent has received it, even with no
+	// comment to read: a wait killed before it printed the verdict must not
+	// leave the approval reachable only by an id the agent forgot.
 	var got api.StatusResult
 	f.ok(g, t, http.MethodGet, "/agent/status?"+query(me), nil, &got)
 	g.Expect(got.Agent).To(Equal("agent-1"))
 	g.Expect(got.Daemon.PID).To(Equal(42))
 	g.Expect(got.Project.Name).To(Equal("harbor"))
-	g.Expect(statusIDs(got.Reviews)).To(Equal([]int64{unread, waiting}), "an ended review with nothing unread is not listed")
+	g.Expect(statusIDs(got.Reviews)).To(Equal([]int64{unread, approved, waiting}))
+	g.Expect(got.Next).To(ContainSubstring(fmt.Sprintf("review %d has a verdict not yet read", approved)))
+
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(approved)+"/receipt", api.ReceiptBody{Caller: me, Round: 1}, &api.ReceiptResult{})
+	f.ok(g, t, http.MethodGet, "/agent/status?"+query(me), nil, &got)
+	g.Expect(statusIDs(got.Reviews)).To(Equal([]int64{unread, waiting}), "a received approval with nothing unread is not listed")
 	g.Expect(got.Reviews[0].State).To(Equal(api.StateApproved))
 	g.Expect(got.Reviews[0].Undelivered).To(Equal(1))
 	g.Expect(got.Reviews[1].State).To(Equal(api.StateWaiting))
@@ -531,6 +580,7 @@ func TestServer_status(t *testing.T) {
 	var all api.StatusResult
 	f.ok(g, t, http.MethodGet, "/agent/status?"+query(me)+"&all=1", nil, &all)
 	g.Expect(all.Reviews).To(HaveLen(4))
+	g.Expect(all.Next).To(ContainSubstring(`--agent "agent-2"`), "a suggestion for another agent's review names that agent")
 }
 
 func TestServer_waitAnswersWhenStopping(t *testing.T) {
@@ -615,6 +665,15 @@ func TestServer_waitsForTheVerdict(t *testing.T) {
 	g.Expect(released[0].Delivered).NotTo(BeZero(), "the receipt stamped it")
 	again := f.wait(g, t, id, me)
 	g.Expect(again.Comments).To(HaveLen(1))
+}
+
+// marked builds a project outside git, named by a marker file, with one file.
+func marked(g *WithT, t *testing.T) string {
+	g.THelper()
+	dir := filepath.Join(t.TempDir(), "notes")
+	write(g, dir, ".eyeball", "")
+	write(g, dir, "notes.md", "a note\n")
+	return dir
 }
 
 // callNoFail sends a GET and reports a status of zero when the context ended
