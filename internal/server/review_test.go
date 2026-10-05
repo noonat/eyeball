@@ -93,7 +93,7 @@ func TestServer_Surface_reviewChangesRequested(t *testing.T) {
 	f.decide(g, t, id, store.VerdictChanges, "Redo it.")
 
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requested nowRound 1"))
+	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requested just nowRound 1"))
 	g.Expect(text(find(doc, "notice"))).To(Equal("Changes requested. The verdict went out just now."))
 }
 
@@ -113,7 +113,7 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	f.addComment(g, t, store.NewComment{RoundID: roundID, Level: store.LevelReview, Body: "One more thing."})
 
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Approved nowRound 1"))
+	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Approved just nowRound 1"))
 	g.Expect(text(find(doc, "notice"))).To(Equal("Approved. 3 comments and the verdict went out just now."), "the late comment went out on its own")
 	notes := findAll(doc, hasClass("note"))
 	g.Expect(notes).To(HaveLen(2))
@@ -138,6 +138,101 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	}
 	g.Expect(onReview).To(Equal([]string{"This review Overall fine.", "This reviewafter the verdict One more thing."}))
 	g.Expect(findAll(doc, func(n *html.Node) bool { return n.Data == "form" || n.Data == "textarea" })).To(BeEmpty(), "comments are read-only")
+	g.Expect(find(doc, "section")).NotTo(BeNil())
+	g.Expect(text(doc)).NotTo(ContainSubstring("What was done"), "nothing has been answered yet")
+
+	// An approved round is the last, so a reply the agent writes to it can
+	// show nowhere else.
+	comments, err := f.store.Comments(t.Context(), roundID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(f.store.Reply(t.Context(), comments[0].ID, "Renamed it.")).To(Succeed())
+	doc = f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	sections := findAll(doc, hasClass("section"))
+	g.Expect(text(sections[len(sections)-1])).To(Equal("What was done 1 a.txt:1\u20132 Renamed it."))
+}
+
+func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	first := f.latestRound(g, t, id)
+	line := f.addComment(g, t, store.NewComment{RoundID: first, Level: store.LevelLine, Path: "a.txt", StartLine: 2, EndLine: 2, Quoted: "two", Body: "Name it."})
+	f.addComment(g, t, store.NewComment{RoundID: first, Level: store.LevelReview, Body: "Move the empty case."})
+	f.decide(g, t, id, store.VerdictChanges, "Two things.")
+	g.Expect(f.store.Reply(t.Context(), line.ID, "Named it.")).To(Succeed())
+	write(g, repo, "a.txt", "one\ntwo\nthree\n")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+
+	// The current round lists the earlier one.
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	rows := findAll(doc, hasClass("treerow"))
+	g.Expect(rows).To(HaveLen(1))
+	g.Expect(attr(rows[0], "href")).To(Equal("/reviews/" + itoa(id) + "/rounds/1"))
+	g.Expect(text(find(rows[0], "nm"))).To(Equal("Round 1 \u00b7 changes requested"))
+	g.Expect(text(find(rows[0], "hint"))).To(Equal("just now"))
+
+	// The earlier round is closed, and lists its comments and what was done.
+	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/1", http.StatusOK)
+	g.Expect(text(find(doc, "topbar"))).To(Equal("ReviewRound 1"))
+	g.Expect(attr(find(doc, "back"), "href")).To(Equal("/reviews/" + itoa(id)))
+	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requestedRound 1"))
+	g.Expect(text(find(doc, "notice"))).To(Equal("Closed just now. Round 2 is the current one."))
+	g.Expect(find(doc, "treerow")).To(BeNil(), "an earlier round lists no earlier rounds")
+	// The tearout's sections come first, then the notes and the files.
+	g.Expect(classOrder(doc, "section", "note", "toolbar")).To(Equal([]string{"section", "section", "note", "note", "toolbar"}))
+	var sections []string
+	for _, sec := range findAll(doc, hasClass("section")) {
+		var cards []string
+		for _, c := range findAll(sec, hasClass("comment")) {
+			cards = append(cards, text(c))
+		}
+		sections = append(sections, text(find(sec, "count"))+": "+strings.Join(cards, " | "))
+	}
+	g.Expect(sections).To(Equal([]string{
+		"2: a.txt:2 two Name it. | This review Move the empty case.",
+		"1: a.txt:2 Named it.",
+	}))
+
+	// The latest round under the rounds address is the review's own page.
+	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/2", http.StatusOK)
+	g.Expect(text(find(doc, "topbar"))).To(Equal("Queuefirst"))
+	g.Expect(find(doc, "treerow")).NotTo(BeNil())
+
+	missing := []string{"/reviews/" + itoa(id) + "/rounds/3", "/reviews/" + itoa(id) + "/rounds/0", "/reviews/" + itoa(id) + "/rounds/x", "/reviews/999/rounds/1"}
+	for _, path := range missing {
+		doc := f.page(g, path, http.StatusNotFound)
+		g.Expect(text(find(doc, "empty"))).To(ContainSubstring("There is no page at this address."), path)
+	}
+}
+
+func TestServer_Surface_reviewEarlierRoundsNewestFirst(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	contents := []string{"one\ntwo\nthree\n", "one\ntwo\nthree\nfour\n"}
+	for i, content := range contents {
+		f.decide(g, t, id, store.VerdictChanges, "more")
+		write(g, repo, "a.txt", content)
+		f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "round " + strconv.Itoa(i+2)})
+	}
+	f.decide(g, t, id, store.VerdictApprove, "")
+	// The server's clock is its own, so moving it ages everything the store
+	// stamped. Two hours tells the pill's short form from the notice's long
+	// one.
+	f.s.now = func() time.Time { return time.Now().Add(2 * time.Hour) }
+
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Approved 2h agoRound 3"))
+	g.Expect(text(find(doc, "notice"))).To(Equal("Approved. The verdict went out 2 hours ago."))
+	var rows []string
+	for _, row := range findAll(doc, hasClass("treerow")) {
+		rows = append(rows, text(find(row, "nm"))+" "+text(find(row, "hint")))
+	}
+	g.Expect(rows).To(Equal([]string{"Round 2 \u00b7 changes requested 2h ago", "Round 1 \u00b7 changes requested 2h ago"}))
 }
 
 func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
@@ -320,10 +415,11 @@ func (f *fixture) latestRound(g *WithT, t *testing.T, reviewID int64) int64 {
 }
 
 // addComment writes a comment through the server's wrapper.
-func (f *fixture) addComment(g *WithT, t *testing.T, c store.NewComment) {
+func (f *fixture) addComment(g *WithT, t *testing.T, c store.NewComment) store.Comment {
 	g.THelper()
-	_, err := f.s.db.AddComment(t.Context(), c)
+	comment, err := f.s.db.AddComment(t.Context(), c)
 	g.Expect(err).NotTo(HaveOccurred())
+	return comment
 }
 
 // expectStoredTotals holds the review page's totals to the size the store
@@ -347,6 +443,25 @@ func nextMillisecond() {
 	for time.Now().Truncate(time.Millisecond).Equal(start) {
 		runtime.Gosched()
 	}
+}
+
+// classOrder lists, in document order, each element carrying one of classes,
+// by that class.
+func classOrder(n *html.Node, classes ...string) []string {
+	var out []string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		for _, c := range classes {
+			if hasClass(c)(n) {
+				out = append(out, c)
+			}
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(n)
+	return out
 }
 
 // hasAttr reports whether an element carries an attribute at all.

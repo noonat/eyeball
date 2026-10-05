@@ -465,6 +465,35 @@ file route until widening and documents (007) adds them.
 - Highlighting a line recovers from a panic in chroma and leaves the line plain,
   found by the stand-in's fourth review of iteration 4.
 
+**Departures, iteration 7.**
+
+- `web/static/shell.css` joins `app.css`, served at `/static/shell.css`. The
+  first screenshots showed the browser's default margin as a strip around every
+  page, which the tearouts never show because their phone frame provides the
+  page around the app. The rules stay out of `app.css` because every tearout
+  loads it. This is the one visual change made without the owner's phone, and it
+  is in the end-of-run report for the phone check after 009.
+- An earlier round shows the tearout's sections first, the closed notice, the
+  comments and what was done, and then its notes, its size and its files, which
+  the design's list for any round asks for and the tearout's frame leaves out.
+- The current round lists the agent's replies under "What was done" too, where
+  the tearout keeps them on an earlier round only. An agent can reply as soon as
+  a comment is released, and on an approved round, which is the last, the
+  current round is the only place a reply could show.
+- A decided round keeps the agent's note, which the design's list for any round
+  asks for and the decided tearout frame leaves out.
+- The queue lists Waiting longest wait first, as 003 decided, where both queue
+  tearout frames list the newest first. Two approved documents disagree, and
+  choosing between them is the owner's, so it is a `design:` entry in
+  specs/TODO.md and in the end-of-run report.
+- `render.AgeAgo` writes the verdict pill's form, "2h ago", and the earlier
+  rounds' list uses it, as the review tearout writes both.
+- The screenshots were taken with headless Chromium at 390 pixels rather than
+  the Chrome tools, because headless Chromium writes each one to a file the
+  iteration's reviewer can read, and each sits beside a crop of its tearout
+  frame. `tool/seed -nothing-waiting` answers every waiting round, for the empty
+  queue's screenshot.
+
 ### What every surface response carries
 
 - **`Content-Security-Policy: default-src 'self'; img-src 'self' data:; frame-ancestors 'none'`.**
@@ -705,16 +734,22 @@ the three review passes and were checked by the stand-in only.
 - [x] Binary and too-large files rendered as their header and one line naming
       which
 
+> **Completed** 2026-10-05 10:57 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.4s
+> - `go test -race ./...` — 20.9s
+
 ## Iteration 7: Earlier rounds, seeding, and the look
 
-- [ ] `GET /reviews/{review}/rounds/{round}` for any round, with the rounds
+- [x] `GET /reviews/{review}/rounds/{round}` for any round, with the rounds
       listed and reachable from the current one
-- [ ] An earlier round listing its comments with the agent's replies
-- [ ] `tool/seed` writing a backdated, populated state directory through
+- [x] An earlier round listing its comments with the agent's replies
+- [x] `tool/seed` writing a backdated, populated state directory through
       `store.OpenWithClock` and capture, listed in architecture.md's layout
       block
-- [ ] Screenshots at 390 pixels of the queue, the empty queue, a review, a
+- [x] Screenshots at 390 pixels of the queue, the empty queue, a review, a
       decided review and an earlier round beside their tearout frames, saved for
       the reviewer
-- [ ] architecture.md's routes table marking which routes exist and adding
+- [x] architecture.md's routes table marking which routes exist and adding
       `/static/app.css`, and specs/TODO.md entries for this spec's departures

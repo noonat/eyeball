@@ -136,3 +136,10 @@ func (s *Server) handleStylesheet(w http.ResponseWriter, _ *http.Request) error 
 	_, _ = w.Write(eyeball.Stylesheet)
 	return nil
 }
+
+// handleShell serves shell.css from the binary.
+func (s *Server) handleShell(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	_, _ = w.Write(eyeball.Shell)
+	return nil
+}

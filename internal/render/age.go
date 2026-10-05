@@ -49,6 +49,21 @@ func Ago(now, t time.Time) string {
 	return "on " + date(now, t)
 }
 
+// AgeAgo is Age's short form finishing a sentence, as the review tearout's
+// verdict pill writes it: "just now", "2h ago", "yesterday", "on Sep 28".
+func AgeAgo(now, t time.Time) string {
+	switch a := Age(now, t); {
+	case a == "now":
+		return "just now"
+	case a == "Yesterday":
+		return "yesterday"
+	case now.Sub(t) < 7*24*time.Hour:
+		return a + " ago"
+	default:
+		return "on " + a
+	}
+}
+
 // date is t's date as the clock showing now would show it, with the year when
 // it is not now's.
 func date(now, t time.Time) string {

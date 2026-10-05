@@ -20,7 +20,8 @@ requirement in either document that none of them names is a gap in this list.
    working copy. Markdown rendered as a document with changed passages marked
    and the replaced text one tap away, nothing marked on an empty base, and the
    switch between the rendered view and the diff. The reading routes join the
-   surface's handler only.
+   surface's handler only. The empty queue's project rows become links to the
+   project view, which 006 left as plain rows.
 2. **008 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
    and `oxlint` gates, the comment composer at all four levels, editing and
    deleting before the verdict, the decision bar and its refusal, the comment
@@ -39,7 +40,8 @@ requirement in either document that none of them names is a gap in this list.
    the icon, and the lapsed-subscription state the surface has to report. Its
    last iteration is the owner's: joining the tailnet with
    `eyeball tailnet login`, installing the page, granting permission, and
-   checking every screen on the phone.
+   checking every screen on the phone, including the page shell 006 added in
+   `shell.css` without a phone.
 4. **010 Rendered files.** `internal/kind`, images before and after, audio,
    video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
    view override on `request`, and a file too large to send.
@@ -99,6 +101,9 @@ requirement in either document that none of them names is a gap in this list.
       split it, and no tearout shows a filter control.
 - [ ] design: a mark on the last line of a file with no final newline. The row
       model carries the flag, and no tearout or class in `app.css` draws it.
+- [ ] design: the queue's Waiting order. 003 lists the longest wait first,
+      because that is what holds an agent up, and both queue tearout frames list
+      the newest first. The code follows 003 until the owner chooses.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.

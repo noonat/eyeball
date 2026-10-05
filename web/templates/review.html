@@ -1,11 +1,24 @@
 {{define "review"}}<div class="scroll"><div class="page">
 <div class="brief">
-<div class="where">{{with .Decided}}{{if .Approved}}<span class="pill approved">Approved {{.Age}}</span>{{else}}<span class="pill changes">Changes requested {{.Age}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
+<div class="where">{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
 <h2 class="title">{{.Title}}</h2>
 </div>
-{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
+{{if .Earlier}}<div class="section">
+<h2>Earlier rounds <span class="count">{{len .Earlier}}</span></h2>
+<div class="tree">
+{{range .Earlier}}<a class="treerow" href="{{.Href}}"><span class="i i-message-square" aria-hidden="true"></span><span class="nm">{{.Label}}</span><span class="hint">{{.Age}}</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+{{end}}</div>
+</div>
+{{end}}{{if .Closed}}<div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>{{.Closed}}</span></div>
+{{else}}{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
 {{else}}<div class="notice"><span class="glyph i i-message-square" aria-hidden="true"></span><span><strong>Changes requested.</strong> {{.Sentence}}</span></div>
-{{end}}{{if .Note}}<div class="note">
+{{end}}{{end}}{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}<div class="toolbar">
+<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
+{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
+{{end}}</div>
+{{range .Shown}}{{template "file" .}}{{end}}{{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
+{{end}}
+{{define "notes"}}{{with .Decided}}{{if .Note}}<div class="note">
 <span class="from">Verdict note</span>
 {{range .Note}}<p>{{.}}</p>
 {{end}}</div>
@@ -13,17 +26,18 @@
 <span class="from">Note</span>
 {{range .Note}}<p>{{.}}</p>
 {{end}}</div>
-<div class="toolbar">
-<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
-{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
-{{end}}</div>
-{{range .Shown}}{{template "file" .}}{{end}}{{if .Comments}}<div class="section">
+{{end}}
+{{define "discussion"}}{{if .Comments}}<div class="section">
 <h2>Comments <span class="count">{{len .Comments}}</span></h2>
 <div>
 {{range .Comments}}{{template "comment" .}}{{end}}</div>
 </div>
-{{end}}</div></div>
-{{end}}
+{{end}}{{if .Replies}}<div class="section">
+<h2>What was done <span class="count">{{len .Replies}}</span></h2>
+<div>
+{{range .Replies}}{{template "comment" .}}{{end}}</div>
+</div>
+{{end}}{{end}}
 {{define "file"}}<details class="file"{{if .Open}} open{{end}}>
 <summary><span class="path"><bdi>{{.Path}}</bdi></span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></summary>
 {{if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>

@@ -19,3 +19,9 @@ var Stylesheet []byte
 //
 //go:embed web/templates
 var Templates embed.FS
+
+// Shell is web/static/shell.css: the page around the app, which a tearout's
+// phone frame provides and a real page does not.
+//
+//go:embed web/static/shell.css
+var Shell []byte

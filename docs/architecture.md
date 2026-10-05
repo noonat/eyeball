@@ -44,7 +44,7 @@ migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: app.css and the templates
+assets.go             the files the binary embeds: app.css, shell.css and the templates
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -59,8 +59,9 @@ internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
 tool/icons/           regenerates the icon mask table in app.css
+tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves docs/design over the tailnet
-web/                  the templates, the TypeScript sources, the manifest
+web/                  the templates, shell.css, the TypeScript sources, the manifest
 ```
 
 **A new package is listed here in the change that creates it**, with one line
@@ -340,22 +341,33 @@ file's location. `go:embed` cannot reach a parent directory, so `assets.go` at
 the repository root embeds both `docs/design/app.css` and `web/templates`. The
 tearouts and the surface then use one stylesheet, not two copies that drift.
 
-Routes:
+**`web/static/shell.css` holds the page around the app**, which a tearout's
+phone frame provides and a real page does not: no margin on the body, and a
+height for `.app`'s to resolve against. It stays out of `app.css` because every
+tearout loads `app.css` too, and a height on the body would change how the
+tearout pages lay out.
 
-| Pattern                                                | Answers                                       |
-| ------------------------------------------------------ | --------------------------------------------- |
-| `GET /`                                                | the queue                                     |
-| `GET /reviews/{review}`                                | the current round                             |
-| `GET /reviews/{review}/rounds/{round}`                 | an earlier round                              |
-| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         |
-| `GET /projects/{project}`                              | the project view and its working copy         |
-| `POST /reviews/{review}/comments`                      | one comment                                   |
-| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   |
-| `POST /reviews/{review}/decision`                      | the verdict, releasing the round              |
-| `POST /subscriptions`                                  | a device's push subscription                  |
-| `GET /events`                                          | the live stream, and therefore the connection |
-| `GET /healthz`                                         | liveness, after touching the database         |
+Routes, with the spec that builds each:
+
+| Pattern                                                | Answers                                       | Spec |
+| ------------------------------------------------------ | --------------------------------------------- | ---- |
+| `GET /{$}`                                             | the queue                                     | 006  |
+| `GET /reviews/{review}`                                | the current round                             | 006  |
+| `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
+| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  | 007  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         | 007  |
+| `GET /projects/{project}`                              | the project view and its working copy         | 007  |
+| `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
+| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
+| `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
+| `GET /events`                                          | the live stream, and therefore the connection | 008  |
+| `POST /subscriptions`                                  | a device's push subscription                  | 009  |
+| `GET /static/app.css`                                  | the stylesheet, from the binary               | 006  |
+| `GET /static/shell.css`                                | the page around the app, from the binary      | 006  |
+| `GET /healthz`                                         | liveness, after touching the database         | 006  |
+
+`GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
+every path, and would answer `/agent/daemon` on the surface's listener.
 
 **Paths are spelled out.** `/reviews/` rather than `/r/`, `/files/` rather than
 `/f/`. These are read in a browser address bar, quoted in a comment, and typed

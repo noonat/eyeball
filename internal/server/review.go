@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/capture"
@@ -43,16 +44,36 @@ type reviewPage struct {
 	// Shown is every in-scope file that moved, in path order.
 	Shown []fileView
 	// Comments are the comments that belong to no file shown: the review-level
-	// ones, and any on a file this comparison does not show.
+	// ones, and any on a file this comparison does not show. On an earlier
+	// round they are every comment, listed before the files as the tearout
+	// lists them.
 	Comments []commentView
+	// Replies are the comments the agent has answered, each with its answer.
+	Replies []commentView
+	// Earlier lists the rounds before this one, on the current round only.
+	Earlier []earlierRound
+	// Closed says an earlier round is closed and which round is current, and
+	// is empty on the current round.
+	Closed string
+}
+
+// earlierRound is one row of the list of earlier rounds.
+type earlierRound struct {
+	// Href is the round's page.
+	Href string
+	// Label names the round and its verdict.
+	Label string
+	// Age is how long ago it was decided.
+	Age string
 }
 
 // decidedView is a round's verdict as the page shows it.
 type decidedView struct {
 	// Approved says which verdict it was.
 	Approved bool
-	// Age is how long ago it went out, short, for the pill.
-	Age string
+	// Pill is the brief's state pill: the verdict and how long ago it went
+	// out, or the verdict alone on a closed round.
+	Pill string
 	// Sentence says what went out with it and when.
 	Sentence string
 	// Note is the verdict note, a paragraph to an element, and empty for none.
@@ -88,7 +109,8 @@ type commentView struct {
 	Where string
 	// Quoted is the text it points at, empty where it points at none.
 	Quoted string
-	// Body is what the reviewer wrote.
+	// Body is what the reviewer wrote, or the agent's reply in a list of
+	// replies.
 	Body string
 	// Late says it was written after the verdict.
 	Late bool
@@ -114,6 +136,45 @@ func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 	s.renderPage(w, http.StatusOK, "review", page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view})
+	return nil
+}
+
+// handleRoundPage answers GET /reviews/{review}/rounds/{round}: any round. The
+// latest round is the review's page, under either address.
+func (s *Server) handleRoundPage(w http.ResponseWriter, r *http.Request) error {
+	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
+	if err != nil {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	number, err := strconv.Atoi(r.PathValue("round"))
+	if err != nil {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	review, err := s.db.s.Review(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// A round the review does not have is the store's not-found, from the
+	// round's own read.
+	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base")
+	if errors.Is(err, store.ErrNotFound) {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	p := page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view}
+	if number < review.LatestRound {
+		p = page{Title: fmt.Sprintf("Round %d", number), Back: "/reviews/" + strconv.FormatInt(review.ID, 10), BackLabel: "Review", Body: view}
+	}
+	s.renderPage(w, http.StatusOK, "review", p)
 	return nil
 }
 
@@ -154,6 +215,12 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if round.Number > 1 {
 		view.Against = &againstControl{Previous: fmt.Sprintf("Since round %d", round.Number-1), Base: wholeReview}
 	}
+	current := round.Number == review.LatestRound
+	if current {
+		if view.Earlier, err = s.earlierRounds(ctx, review, now); err != nil {
+			return reviewPage{}, err
+		}
+	}
 
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
@@ -186,7 +253,10 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			batched++
 		}
 		card := commentView{Where: where(c), Quoted: c.Quoted, Body: c.Body, Late: late}
-		if i, ok := byPath[c.Path]; ok {
+		if c.Reply != "" {
+			view.Replies = append(view.Replies, commentView{Where: card.Where, Body: c.Reply})
+		}
+		if i, ok := byPath[c.Path]; ok && current {
 			view.Shown[i].Comments = append(view.Shown[i].Comments, card)
 			continue
 		}
@@ -200,12 +270,46 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		}
 		view.Decided = &decidedView{
 			Approved: decision.Verdict == store.VerdictApprove,
-			Age:      render.Age(now, decision.Decided),
+			Pill:     verdictText(decision.Verdict) + " " + render.AgeAgo(now, decision.Decided),
 			Sentence: went,
 			Note:     paragraphs(decision.Note),
 		}
+		if !current {
+			view.Decided.Pill = verdictText(decision.Verdict)
+			view.Closed = fmt.Sprintf("Closed %s. Round %d is the current one.", render.Ago(now, decision.Decided), review.LatestRound)
+		}
 	}
 	return view, nil
+}
+
+// earlierRounds lists every round before a review's latest, newest first.
+func (s *Server) earlierRounds(ctx context.Context, review store.Review, now time.Time) ([]earlierRound, error) {
+	var out []earlierRound
+	for n := review.LatestRound - 1; n >= 1; n-- {
+		round, err := s.db.s.Round(ctx, review.ID, n)
+		if err != nil {
+			return nil, err
+		}
+		row := earlierRound{Href: fmt.Sprintf("/reviews/%d/rounds/%d", review.ID, n), Label: fmt.Sprintf("Round %d", n)}
+		decision, err := s.db.s.Decision(ctx, round.ID)
+		switch {
+		case err == nil:
+			row.Label += " \u00b7 " + strings.ToLower(verdictText(decision.Verdict))
+			row.Age = render.AgeAgo(now, decision.Decided)
+		case !errors.Is(err, store.ErrNotFound):
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+// verdictText is a verdict as the page names it.
+func verdictText(v store.Verdict) string {
+	if v == store.VerdictApprove {
+		return "Approved"
+	}
+	return "Changes requested"
 }
 
 // compare diffs a round against the previous one, or against its base for the

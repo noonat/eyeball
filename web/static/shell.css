@@ -1,0 +1,15 @@
+/* The page around the app, which a tearout's phone frame provides and a real
+ * page does not. Without it the browser's default margin draws a strip around
+ * every page, and .app's height has nothing to resolve against.
+ *
+ * It stays out of app.css because every tearout loads app.css too, and a
+ * height on body would change how the tearout pages themselves lay out. */
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+}

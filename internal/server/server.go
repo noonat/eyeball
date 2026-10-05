@@ -193,6 +193,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /reviews/{review}/rounds/{round}",
+		handle:  (*Server).handleRoundPage,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /healthz",
 		handle:  (*Server).handleHealthz,
 	},
@@ -200,6 +205,11 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /static/app.css",
 		handle:  (*Server).handleStylesheet,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/shell.css",
+		handle:  (*Server).handleShell,
 	},
 }
 

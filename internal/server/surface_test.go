@@ -46,6 +46,11 @@ func TestServer_Surface(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/css"))
 	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Stylesheet))
+
+	res = serveSurface(surface, http.MethodGet, "/static/shell.css")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/css"))
+	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Shell))
 }
 
 func TestServer_Surface_errorPages(t *testing.T) {
@@ -63,6 +68,7 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	// The layout carries the topbar, the light theme and the stylesheet.
 	g.Expect(res.Body.String()).To(ContainSubstring(`<html lang="en" data-theme="light">`))
 	g.Expect(res.Body.String()).To(ContainSubstring(`<link rel="stylesheet" href="/static/app.css">`))
+	g.Expect(res.Body.String()).To(ContainSubstring(`<link rel="stylesheet" href="/static/shell.css">`))
 	g.Expect(res.Body.String()).To(ContainSubstring(`<div class="topbar"><a class="back" href="/">`))
 	g.Expect(res.Body.String()).To(ContainSubstring(`<h1>Not found</h1>`))
 

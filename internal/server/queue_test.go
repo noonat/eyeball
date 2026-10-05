@@ -194,6 +194,16 @@ func TestServer_Surface_queueKeepsFiveSettled(t *testing.T) {
 	g.Expect(titles).To(Equal([]string{"approved 5", "approved 4", "approved 3", "approved 2", "approved 1"}))
 }
 
+func TestServer_Surface_queueWritesLargeCountsWithSeparators(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	q.openSized(g, t, project, "agent", "big", "a", 1284, 903)
+
+	doc := parse(g, serveSurface(q.s.Surface(), http.MethodGet, "/").Body.String())
+	g.Expect(text(find(find(doc, "row"), "counts"))).To(Equal("+1,284 \u2212903"))
+}
+
 // queueFixture is a surface over a store whose clock the test moves.
 type queueFixture struct {
 	s     *Server
@@ -230,6 +240,12 @@ func (q *queueFixture) project(g *WithT, t *testing.T, root, name string) int64 
 // open opens a review whose one round changed one line of one file.
 func (q *queueFixture) open(g *WithT, t *testing.T, projectID int64, agent, title, claim string) int64 {
 	g.THelper()
+	return q.openSized(g, t, projectID, agent, title, claim, 1, 0)
+}
+
+// openSized opens a review whose one round moved added and removed lines.
+func (q *queueFixture) openSized(g *WithT, t *testing.T, projectID int64, agent, title, claim string, added, removed int) int64 {
+	g.THelper()
 	review, _, err := q.store.OpenReview(t.Context(), store.NewReview{
 		ProjectID: projectID,
 		Agent:     agent,
@@ -238,7 +254,7 @@ func (q *queueFixture) open(g *WithT, t *testing.T, projectID int64, agent, titl
 		Request: store.Request{
 			Note:    "look",
 			Files:   []store.File{{Path: claim, Digest: strings.Repeat("a", 64), Size: 1}},
-			Changes: []store.Change{{Path: claim, Added: 1}},
+			Changes: []store.Change{{Path: claim, Added: added, Removed: removed}},
 		},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
