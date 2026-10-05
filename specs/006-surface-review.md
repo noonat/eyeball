@@ -501,8 +501,12 @@ file route until widening and documents (007) adds them.
   sets only after it has found its executable, made its directory and checked
   that it is one, confirmed in v1.102.3's source, so a `Start` that fails first
   leaves a nil to dereference. A node whose `Start` failed is never closed now,
-  by the daemon or by the login. tsnet's `Start` closes what it opened when it
-  fails.
+  by the daemon or by the login. A `Start` that fails late can leave parts of
+  the node running until the process exits, so a daemon whose surface failed
+  that way holds them until it stops. `Sys()` tells a late failure from an early
+  one, but `Close` after a late one would close again what `Start`'s own cleanup
+  closed, which nothing shows is safe, and it does not reach an engine whose
+  backend was never built. The cost is accepted and is in specs/TODO.md.
 - Two pages rendered at once wrote to the shared templates. `renderPage` added
   the shared page tree to its clone, and executing a template escapes its tree
   in place, which the race detector reported. The clone's own copy is added now,

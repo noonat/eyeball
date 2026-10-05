@@ -90,6 +90,13 @@ requirement in either document that none of them names is a gap in this list.
       is not.
 - [ ] tooling: rotating or capping `eyeball.log`. It is appended to forever,
       which at a few lines per request is assumed harmless for a long time.
+- [ ] tooling: a tsnet node whose `Start` fails late can leave parts of itself
+      running until the process exits, and eyeball never closes a failed node,
+      so a daemon whose surface failed that way holds them until it stops.
+      `Sys()` tells a late failure from an early one, after which `Close`
+      dereferences nil in v1.102.3. Whether `Close` is safe after a late one,
+      where it would close again what `Start`'s cleanup closed, is not checked,
+      and it would not reach an engine whose backend was never built.
 - [ ] tooling: whether the daemon and CLI need testing on macOS. Nothing in 005
       is Linux-only by intent and nothing is tested elsewhere.
 - [ ] design: highlighting a line on its own loses state that spans lines, such

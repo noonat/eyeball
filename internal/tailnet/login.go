@@ -57,7 +57,8 @@ func Login(ctx context.Context, stateDir string, newNode Constructor, note Logf)
 	}
 	node := newNode(dir, note)
 	// A failed Start is not followed by Close, which would dereference state
-	// such a Start never set. tsnet's Start closes what it opened on failure.
+	// a Start that failed early never set. One that failed late can leave
+	// parts of the node running, and the login exits after it.
 	if err := node.Start(); err != nil {
 		return Enrollment{}, err
 	}

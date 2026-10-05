@@ -152,8 +152,9 @@ func (s *Surface) run(ctx context.Context, dir string, newNode Constructor, hand
 	err := node.Start()
 	s.mu.Lock()
 	// A node whose Start failed is never closed: tsnet's Close dereferences
-	// state a Start that failed early never set, and a failed Start has
-	// already closed what it opened.
+	// state a Start that failed early never set. One that failed late can
+	// leave parts of the node running until the daemon exits, which is in
+	// specs/TODO.md.
 	if err == nil {
 		s.node = node
 	}

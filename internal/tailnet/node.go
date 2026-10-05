@@ -63,7 +63,9 @@ type Node interface {
 	ListenTLS(addr string) (net.Listener, error)
 	// Close stops the node. It must not be called before Start returns, nor
 	// after a Start that failed: tsnet's dereferences state an early failure
-	// never set, and its Start closes what it opened when it fails.
+	// never set, and after a late one it would close again what Start's own
+	// cleanup closed, which nothing here shows is safe. A Start that fails late
+	// can leave parts of the node running until the process exits.
 	Close() error
 }
 
