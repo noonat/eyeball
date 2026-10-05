@@ -281,6 +281,25 @@ func TestReader_Open_deletedPathStaysDeleted(t *testing.T) {
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 }
 
+func TestReader_Open_linkedParent(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	root := filepath.Join(dir, "project")
+	outside := filepath.Join(dir, "outside")
+	g.Expect(os.MkdirAll(root, 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(outside, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("not the project's\n"), 0o600)).To(Succeed())
+	g.Expect(os.Symlink(outside, filepath.Join(root, "link"))).To(Succeed())
+	blobs, err := blob.Open(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// No base and no capture, so the working copy is the only source, and the
+	// path runs through a link to outside the project.
+	_, _, err = NewReader(root, "", blobs, nil).Open(t.Context(), "link/secret.txt")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+	g.Expect(err.Error()).To(ContainSubstring("runs through link"))
+}
+
 func TestReader_Open_notARegularFile(t *testing.T) {
 	g := NewWithT(t)
 	r, blobs := readerRepo(g, t)

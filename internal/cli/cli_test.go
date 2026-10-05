@@ -21,6 +21,7 @@ import (
 	"github.com/noonat/eyeball/internal/daemon"
 	"github.com/noonat/eyeball/internal/server"
 	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/tailnet"
 	. "github.com/onsi/gomega"
 )
 
@@ -678,6 +679,9 @@ func testEnv(paths daemon.Paths, dir string) Env {
 		Home:  "/nonexistent-home",
 		Exe:   "/nonexistent/eyeball",
 		Build: "test",
+		NewNode: func(string, tailnet.Logf) tailnet.Node {
+			panic("a CLI test started a tailnet node")
+		},
 	}
 }
 

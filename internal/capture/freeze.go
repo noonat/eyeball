@@ -77,7 +77,7 @@ func Freeze(ctx context.Context, opts Options) (store.Request, error) {
 
 	before := NewReader(opts.Root, opts.Base, opts.Blobs, opts.Previous)
 	now := NewReader(opts.Root, opts.Base, opts.Blobs, files)
-	changes, err := measure(ctx, opts, files, before, now)
+	changes, err := measure(ctx, before, now)
 	if err != nil {
 		return store.Request{}, err
 	}

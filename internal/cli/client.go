@@ -40,8 +40,9 @@ const maxStarts = 3
 
 // stuckGrace is how long a lock held by a daemon that does not answer, and has
 // not marked itself stopping, is given before the daemon is called stuck. A
-// daemon that has marked itself stopping is given its whole shutdown grace,
-// because it removes its socket first and may then finish a capture.
+// daemon that has marked itself stopping is given daemon.StoppingGrace,
+// because it removes its socket first and may then finish a capture and close
+// its tailnet node.
 const stuckGrace = time.Second
 
 // stuckError reports a daemon that holds the lock and does not answer on the
@@ -54,6 +55,17 @@ type stuckError struct {
 // Error names the daemon.
 func (e *stuckError) Error() string {
 	return fmt.Sprintf("daemon pid %d holds the lock and does not answer on its socket", e.holder.PID)
+}
+
+// loginError reports the lock held by eyeball tailnet login. No daemon can
+// start until the login finishes, and nothing is stuck.
+type loginError struct {
+	holder daemon.Holder
+}
+
+// Error names the login.
+func (e *loginError) Error() string {
+	return fmt.Sprintf("a tailnet login (pid %d) holds the daemon's lock, so no daemon can start until it finishes", e.holder.PID)
 }
 
 // client talks to the daemon over its socket.
@@ -153,7 +165,8 @@ func (c *client) connect(ctx context.Context, start bool) error {
 }
 
 // stuck reports a daemon that holds the lock and has not answered within its
-// grace: stuckGrace, or the whole shutdown grace for one marked stopping.
+// grace: stuckGrace, or daemon.StoppingGrace for one marked stopping. A lock
+// held by a login is reported at once.
 func (c *client) stuck(ctx context.Context) error {
 	began := time.Now()
 	for daemon.Held(c.paths.Lock) {
@@ -161,9 +174,12 @@ func (c *client) stuck(ctx context.Context) error {
 			return nil
 		}
 		holder, err := daemon.ReadHolder(c.paths.Lock)
+		if err == nil && holder.Login {
+			return &loginError{holder: holder}
+		}
 		grace := stuckGrace
 		if err == nil && holder.Stopping {
-			grace = daemon.ShutdownGrace + time.Second
+			grace = daemon.StoppingGrace + time.Second
 		}
 		if time.Since(began) > grace {
 			if err != nil {

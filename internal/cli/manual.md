@@ -128,10 +128,31 @@ answer, whether or not a verdict is pending. A `wait` on it returns `abandoned`.
 Any command starts the daemon when none is running, so these are rarely needed.
 `eyeball start` starts it if needed and prints it. `eyeball stop` stops it and
 waits until it has gone, and never starts one. `eyeball serve` runs it in the
-foreground, which is what a person debugging it runs.
+foreground, and is the person's, for debugging: an agent does not run it.
+
+`eyeball serve` with `--surface-addr` also serves the reviewer's surface on a
+loopback address, such as `127.0.0.1:8111`. It is the person's flag, for
+debugging. A loopback port can be reached by every account on the machine.
+
+**The surface** is the page the person reviews on. The daemon serves it on the
+tailnet once the owner has set it up, which only the owner does. `status`
+reports it under `daemon.surface`: `off`, `starting`, `serving` with its `url`,
+or `failed` with a `reason` saying what the owner does. Nothing in that reason
+is a command for an agent to run.
 
 When a command warns that the daemon is a different build, run `eyeball stop`
 once the person is not mid-review. The next command starts the new build.
+
+### `eyeball tailnet login`
+
+`eyeball tailnet login` is the owner's, and an agent never runs it. It logs this
+machine in to the tailnet so the daemon can serve the surface there, and needs a
+person at a terminal to open the login page it prints. Without a terminal it is
+refused with `owner_only`. It needs the daemon's lock, so the owner runs
+`eyeball stop && eyeball tailnet login` as one line: a waiting agent told the
+daemon stopped runs `eyeball wait` again, and that starts a new daemon at once.
+While the login runs, a command that needs the daemon is refused with
+`daemon_unavailable` and says to try again once the login is done.
 
 ### `eyeball doc`
 
@@ -184,11 +205,13 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `base_gained`          | the repository gained its first commit after the review opened |
 | `base_moved`           | a round was measured from a base other than the review's       |
 | `connection_lost`      | the daemon closed the connection before answering              |
+| `daemon_running`       | a tailnet login found a daemon or another login running        |
 | `daemon_stopping`      | the daemon stopped while the command waited                    |
 | `daemon_unavailable`   | no daemon could be reached or started                          |
 | `empty_change_request` | a change request with no comment and no note                   |
 | `internal`             | a failure inside the daemon; its log says more                 |
 | `invalid_path`         | a path that is empty or names the project root                 |
+| `login_failed`         | a tailnet login did not finish, or the tailnet cannot serve    |
 | `missing`              | a required value was not given                                 |
 | `no_git`               | the project is a git repository and git is not on PATH         |
 | `no_project`           | no `.git` or `.eyeball` above the working directory            |
@@ -200,6 +223,7 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `nothing_captured`     | nothing differs from the base                                  |
 | `nothing_in_scope`     | nothing under the review's paths differs from the base         |
 | `outside_project`      | a path outside the project                                     |
+| `owner_only`           | a command only the owner runs, at a terminal                   |
 | `path_claimed`         | another open review in the project covers the path             |
 | `path_unmatched`       | a path that is neither on disk nor among the captured changes  |
 | `round_closed`         | an edit to a comment whose round has a verdict                 |
@@ -258,6 +282,8 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 ### status
 
 - `daemon.pid`, `daemon.started`, `daemon.build`, `daemon.state_dir`
+- `daemon.surface.state`, `daemon.surface.url`, `daemon.surface.reason`: the
+  reviewer's surface, as described above
 - `project.name`, `project.root`
 - `agent`: the name this command ran as
 - `reviews.id`, `reviews.title`, `reviews.agent`, `reviews.round`,
@@ -296,12 +322,21 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 ### start
 
 - `pid`, `started`, `build`, `state_dir`
+- `surface.state`, `surface.url`, `surface.reason`
 
 ### stop
 
 - `stopped`: false when no daemon was running
+- `daemon.surface.state`, `daemon.surface.url`, `daemon.surface.reason`
 - `daemon.pid`, `daemon.started`, `daemon.build`, `daemon.state_dir`: `daemon`
   is null when none was running
+
+### tailnet login
+
+- `dir`, where the node's state lives
+- `url`, the surface's address once a daemon serves it
+- `first`: true when the login enrolled the node, false when it logged an
+  enrolled node in again
 
 ### refusal
 

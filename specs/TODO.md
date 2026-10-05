@@ -14,25 +14,35 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-1. **006 The surface: reading.** The HTTPS listener on tsnet, `app.css` moved to
-   `web/`, templates seeded from the tearouts, and every reading route: the
-   queue with its empty state, a review page, an earlier round, widening to the
-   whole file, any file and the tree, the compare control, the expand-or-list
-   threshold, the project view's live working copy, and `/healthz`. Markdown
-   rendered with changed passages marked, code highlighted, nothing marked on an
-   empty base. No JavaScript. Its routes join the surface's handler only, under
-   the test from 005 that keeps the agent API and the surface apart.
-2. **007 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
+1. **007 Widening and documents.** Every file route: a file at a round, widening
+   from a hunk to the whole file with the change marked, any file in the project
+   at that round with its source labeled, the tree, and the project view's live
+   working copy. Markdown rendered as a document with changed passages marked
+   and the replaced text one tap away, nothing marked on an empty base, and the
+   switch between the rendered view and the diff. The reading routes join the
+   surface's handler only. The empty queue's project rows become links to the
+   project view, which 006 left as plain rows.
+2. **008 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
    and `oxlint` gates, the comment composer at all four levels, editing and
-   deleting before the verdict, the decision bar and its refusal, the live
-   stream, the connection notice, a failure reported on the control that failed,
-   and a failed save that keeps its text. The verdict route is the surface's
-   alone, and 005's listener test is extended to prove the socket cannot reach
-   it.
-3. **008 Notification.** Web push with VAPID, the service worker that exists for
+   deleting before the verdict, the decision bar and its refusal, the comment
+   box on a decided round, the live stream, the connection notice, a failure
+   reported on the control that failed, a failed save that keeps its text, the
+   theme following the device, file bodies loaded when their disclosure opens,
+   and a review half-read and closed reopening where it was. The verdict route
+   is the surface's alone, and 005's listener test is extended to prove the
+   socket cannot reach it. Any process that can reach a surface listener can
+   then approve a review, including an agent on this machine through the
+   loopback listener. 006 records why reading through it gives a local process
+   nothing it lacks, and 008 has to say the same, or something else, about
+   deciding.
+3. **009 Notification.** Web push with VAPID, the service worker that exists for
    it, the manifest and installed page, the first-run steps, the badge count on
-   the icon, and the lapsed-subscription state the surface has to report.
-4. **009 Rendered files.** `internal/kind`, images before and after, audio,
+   the icon, and the lapsed-subscription state the surface has to report. Its
+   last iteration is the owner's: joining the tailnet with
+   `eyeball tailnet login`, installing the page, granting permission, and
+   checking every screen on the phone, including the page shell 006 added in
+   `shell.css` without a phone.
+4. **010 Rendered files.** `internal/kind`, images before and after, audio,
    video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
    view override on `request`, and a file too large to send.
 
@@ -80,8 +90,33 @@ requirement in either document that none of them names is a gap in this list.
       is not.
 - [ ] tooling: rotating or capping `eyeball.log`. It is appended to forever,
       which at a few lines per request is assumed harmless for a long time.
+- [ ] tooling: a tsnet node whose `Start` fails late can leave parts of itself
+      running until the process exits, and eyeball never closes a failed node,
+      so a daemon whose surface failed that way holds them until it stops.
+      `Sys()` tells a late failure from an early one, after which `Close`
+      dereferences nil in v1.102.3. Whether `Close` is safe after a late one,
+      where it would close again what `Start`'s cleanup closed, is not checked,
+      and it would not reach an engine whose backend was never built.
 - [ ] tooling: whether the daemon and CLI need testing on macOS. Nothing in 005
       is Linux-only by intent and nothing is tested elsewhere.
+- [ ] design: highlighting a line on its own loses state that spans lines, such
+      as a block comment. Highlighting the whole file and slicing it would fix
+      it, at the cost of reading both whole files for every hunk. Assumed rare,
+      not measured.
+- [ ] design: a tearout of the queue filter. product.md says the queue can be
+      filtered, every queue row is one link so a filter link inside a row would
+      split it, and no tearout shows a filter control.
+- [ ] design: a mark on the last line of a file with no final newline. The row
+      model carries the flag, and no tearout or class in `app.css` draws it.
+- [ ] design: the queue's Waiting order. 003 lists the longest wait first,
+      because that is what holds an agent up, and both queue tearout frames list
+      the newest first. The code follows 003 until the owner chooses.
+- [ ] design: a hunk header naming the function it is in, as the review tearout
+      shows. `diff.Hunk` carries no section heading, and finding one means a
+      rule per language or git's own funcname patterns.
+- [ ] product: whether the surface should follow a dark device before the write
+      path brings a script. `app.css` switches only on `data-theme`, so it is
+      light until then.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can

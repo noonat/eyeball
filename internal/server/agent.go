@@ -186,14 +186,21 @@ func (s *Server) apiReview(ctx context.Context, review store.Review) (api.Review
 
 // handleDaemon reports the daemon.
 func (s *Server) handleDaemon(w http.ResponseWriter, _ *http.Request) error {
-	writeJSON(w, http.StatusOK, s.daemon)
+	writeJSON(w, http.StatusOK, s.daemonInfo())
 	return nil
+}
+
+// daemonInfo is the daemon with its surface's current state.
+func (s *Server) daemonInfo() api.Daemon {
+	d := s.daemon
+	d.Surface = s.surface()
+	return d
 }
 
 // handleStop answers, then asks the daemon to exit. The shutdown cannot run in
 // here: it waits for active requests, and this request is one of them.
 func (s *Server) handleStop(w http.ResponseWriter, _ *http.Request) error {
-	daemon := s.daemon
+	daemon := s.daemonInfo()
 	writeJSON(w, http.StatusOK, api.StopResult{Stopped: true, Daemon: &daemon})
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
@@ -713,7 +720,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	result := api.StatusResult{
-		Daemon:  s.daemon,
+		Daemon:  s.daemonInfo(),
 		Project: api.Project{Name: c.project.Name, Root: c.project.Root},
 		Agent:   c.agent,
 		Reviews: []api.StatusRow{},

@@ -1,4 +1,5 @@
 daemon pid 4242, running since <time>
+surface: off; the owner sets it up with eyeball tailnet login
 project <repo-name> at <repo>, agent <repo>
 review 1, round 1, waiting: Add a second line (<repo>)
 next: review 1 is waiting for a verdict: run eyeball wait 1

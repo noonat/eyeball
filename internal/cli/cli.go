@@ -7,14 +7,18 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/daemon"
+	"github.com/noonat/eyeball/internal/tailnet"
 	ucli "github.com/urfave/cli/v3"
 )
 
@@ -35,6 +39,14 @@ type Env struct {
 	Exe string
 	// Build identifies this binary, compared with the daemon's.
 	Build string
+	// Terminal says stdin is a terminal. An agent's command runs without one,
+	// though a process that allocates a pseudo-terminal can pass, so this
+	// keeps an agent from starting a login by accident rather than by intent.
+	Terminal bool
+	// NewNode builds a tailnet node, and nil means tsnet. The tests' shared
+	// environment sets one that fails if it is called, since a real node
+	// contacts Tailscale.
+	NewNode tailnet.Constructor
 }
 
 // Status is the exit status a command finished with, when it is not zero.
@@ -186,20 +198,27 @@ func (a *app) command() *ucli.Command {
 		a.startCommand(),
 		a.stopCommand(),
 		a.serveCommand(),
+		a.tailnetCommand(),
 		a.docCommand(),
 	}
 	// v3 applies these per command, so the root's settings do not reach a
 	// subcommand: a bad flag on request printed help to stdout until each
 	// subcommand carried its own.
-	for _, c := range commands {
-		c.OnUsageError = onUsage
-		c.DisableSliceFlagSeparator = true
-		action := c.Action
-		c.Action = func(ctx context.Context, cmd *ucli.Command) error {
-			a.ran = true
-			return action(ctx, cmd)
+	var configure func(cs []*ucli.Command)
+	configure = func(cs []*ucli.Command) {
+		for _, c := range cs {
+			c.OnUsageError = onUsage
+			c.DisableSliceFlagSeparator = true
+			if action := c.Action; action != nil {
+				c.Action = func(ctx context.Context, cmd *ucli.Command) error {
+					a.ran = true
+					return action(ctx, cmd)
+				}
+			}
+			configure(c.Commands)
 		}
 	}
+	configure(commands)
 	return &ucli.Command{
 		Name:                      "eyeball",
 		Usage:                     "ask a person to review work, and wait for the verdict",
@@ -270,8 +289,13 @@ func (a *app) connect(ctx context.Context, start bool) error {
 // unavailableFix is what to do about a daemon that could not be reached or
 // started, which depends on why.
 func unavailableFix(err error, paths daemon.Paths) string {
-	var stuck *stuckError
+	var (
+		stuck *stuckError
+		login *loginError
+	)
 	switch {
+	case errors.As(err, &login):
+		return "the owner is logging this machine in to the tailnet; run the command again once the login finishes"
 	case errors.As(err, &stuck):
 		return fmt.Sprintf("run kill %d, and the next command starts a new daemon", stuck.holder.PID)
 	case errors.Is(err, daemon.ErrSocketPath):
@@ -281,7 +305,7 @@ func unavailableFix(err error, paths daemon.Paths) string {
 	case errors.Is(err, errNoDaemon):
 		return "run eyeball start, or unset EYEBALL_NO_START so commands start a daemon themselves"
 	default:
-		return "read eyeball.log in " + paths.Dir + ", or run eyeball serve to watch a daemon start in the foreground"
+		return "read eyeball.log in " + paths.Dir
 	}
 }
 
@@ -583,6 +607,7 @@ func (a *app) statusCommand() *ucli.Command {
 					started = ", started by this command"
 				}
 				_, _ = fmt.Fprintf(w, "daemon pid %d, running since %s%s\n", r.Daemon.PID, r.Daemon.Started.Local().Format(time.RFC3339), started)
+				_, _ = fmt.Fprintf(w, "surface: %s\n", surfaceText(r.Daemon.Surface))
 				_, _ = fmt.Fprintf(w, "project %s at %s, agent %s\n", r.Project.Name, r.Project.Root, r.Agent)
 				if len(r.Reviews) == 0 {
 					_, _ = fmt.Fprintln(w, "no reviews to show")
@@ -657,6 +682,20 @@ func (a *app) abandonCommand() *ucli.Command {
 	}
 }
 
+// surfaceText is the surface's state as status prints it.
+func surfaceText(s api.Surface) string {
+	switch s.State {
+	case "serving":
+		return "serving at " + s.URL
+	case "failed":
+		return "not serving: " + s.Reason
+	case "starting":
+		return "starting"
+	default:
+		return "off; the owner sets it up with eyeball tailnet login"
+	}
+}
+
 // startCommand starts a daemon if none is running.
 func (a *app) startCommand() *ucli.Command {
 	return &ucli.Command{
@@ -717,14 +756,15 @@ func (a *app) stopCommand() *ucli.Command {
 			if err := json.Unmarshal(raw, &stopped); err != nil || stopped.Daemon == nil {
 				return errors.New("the daemon's answer to stop did not say which daemon it was")
 			}
-			deadline := time.Now().Add(10 * time.Second)
+			wait := daemon.StoppingGrace + 5*time.Second
+			deadline := time.Now().Add(wait)
 			for {
 				holder, err := daemon.ReadHolder(a.client.paths.Lock)
 				if !daemon.Held(a.client.paths.Lock) || err != nil || holder.PID != stopped.Daemon.PID {
 					break
 				}
 				if time.Now().After(deadline) {
-					return errors.Newf("daemon pid %d was asked to stop and has not exited after 10s", stopped.Daemon.PID)
+					return errors.Newf("daemon pid %d was asked to stop and has not exited after %s", stopped.Daemon.PID, wait)
 				}
 				time.Sleep(20 * time.Millisecond)
 			}
@@ -744,18 +784,124 @@ func (a *app) serveCommand() *ucli.Command {
 	return &ucli.Command{
 		Name:  "serve",
 		Usage: "run the daemon in the foreground (what start runs, and what a person debugging runs)",
-		Action: func(ctx context.Context, _ *ucli.Command) error {
+		Flags: []ucli.Flag{
+			&ucli.StringFlag{Name: "surface-addr", Usage: "also serve the surface on this loopback address, for a person debugging, such as 127.0.0.1:8111"},
+		},
+		Action: func(ctx context.Context, cmd *ucli.Command) error {
 			paths, err := a.paths()
 			if err != nil {
 				return err
 			}
 			return daemon.Run(ctx, daemon.Config{
-				Paths:  paths,
-				Build:  a.env.Build,
-				Home:   a.env.Home,
-				Stderr: a.env.Stderr,
+				Paths:       paths,
+				Build:       a.env.Build,
+				Home:        a.env.Home,
+				Stderr:      a.env.Stderr,
+				SurfaceAddr: cmd.String("surface-addr"),
+				NewNode:     a.env.NewNode,
 			})
 		},
+	}
+}
+
+// tailnetCommand groups the owner's commands for the tailnet.
+func (a *app) tailnetCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:     "tailnet",
+		Usage:    "the owner's commands for the tailnet the surface is served on",
+		Commands: []*ucli.Command{a.loginCommand()},
+	}
+}
+
+// loginCommand logs this machine's node in to the tailnet. It is the owner's,
+// and refuses anything that is not a person at a terminal.
+func (a *app) loginCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:  "login",
+		Usage: "log this machine in to the tailnet, so the daemon serves the surface there (the owner's, at a terminal)",
+		Action: func(ctx context.Context, _ *ucli.Command) error {
+			// First, before anything is read or taken. An agent has no
+			// terminal, and an auth key in its environment would let the
+			// login finish with nobody there.
+			if !a.env.Terminal {
+				return &failure{code: api.CodeOwnerOnly, message: "eyeball tailnet login needs a person at a terminal", fix: "this is the owner's step, done in a terminal on this machine; nothing in it is for an agent"}
+			}
+			paths, err := a.paths()
+			if err != nil {
+				return err
+			}
+			held, err := daemon.TakeLoginLock(paths)
+			if errors.Is(err, daemon.ErrRunning) {
+				holder, herr := daemon.ReadHolder(paths.Lock)
+				if herr == nil && holder.Login {
+					return &failure{code: api.CodeDaemonRunning, message: fmt.Sprintf("another tailnet login (pid %d) is running", holder.PID), fix: "finish that login, or end it, and run this again"}
+				}
+				return &failure{code: api.CodeDaemonRunning, message: err.Error(), fix: "run eyeball stop && eyeball tailnet login as one line, since a waiting agent's next command starts the daemon again"}
+			}
+			if err != nil {
+				return err
+			}
+			defer func() { _ = held.Release() }()
+
+			// tsnet reads an auth key and its other settings from the process
+			// environment when the node starts. The terminal check keeps an
+			// agent from starting a login by accident, and a pseudo-terminal
+			// passes it, so an auth key inherited from an agent would still
+			// enroll the node with nobody there. The login is interactive or
+			// nothing.
+			clearTailscaleEnv()
+			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			newNode := a.env.NewNode
+			if newNode == nil {
+				newNode = tailnet.New
+			}
+			note := func(format string, args ...any) {
+				_, _ = fmt.Fprintf(a.env.Stderr, format+"\n", args...)
+			}
+			note("starting the tailnet node; if it needs a login, it prints a URL to open")
+			enrolled, err := tailnet.Login(ctx, paths.Dir, newNode, note)
+			if err != nil {
+				return &failure{code: api.CodeLoginFailed, message: err.Error(), fix: loginFix(err)}
+			}
+			raw, err := json.MarshalIndent(api.LoginResult{Dir: enrolled.Dir, URL: enrolled.URL, First: enrolled.First}, "", "  ")
+			if err != nil {
+				return errors.Wrap(err, "encode the answer")
+			}
+			return a.out.emit(raw, func(w io.Writer) {
+				verb := "logged in again"
+				if enrolled.First {
+					verb = "enrolled"
+				}
+				_, _ = fmt.Fprintf(w, "the tailnet node is %s, in %s\n", verb, enrolled.Dir)
+				_, _ = fmt.Fprintf(w, "the next daemon serves the surface at %s\n", enrolled.URL)
+			})
+		},
+	}
+}
+
+// clearTailscaleEnv removes every TS_ and TSNET_ variable from this process's
+// environment.
+func clearTailscaleEnv() {
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if strings.HasPrefix(name, "TS_") || strings.HasPrefix(name, "TSNET_") {
+			_ = os.Unsetenv(name)
+		}
+	}
+}
+
+// loginFix is what the owner does about a login that did not finish.
+func loginFix(err error) string {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return "run eyeball tailnet login again to finish it"
+	case errors.Is(err, tailnet.ErrNoMagicDNS):
+		return "turn MagicDNS on in the tailnet's admin console, then run eyeball tailnet login again"
+	case errors.Is(err, tailnet.ErrNoHTTPS):
+		return "turn HTTPS certificates on in the tailnet's admin console, then run eyeball tailnet login again"
+	default:
+		return "read the messages above, then run eyeball tailnet login again"
 	}
 }
 

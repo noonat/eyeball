@@ -23,7 +23,7 @@ import (
 const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		o.number, o.created,
 		o.files_changed, o.lines_added, o.lines_removed,
-		coalesce(d.verdict, ''),
+		coalesce(d.verdict, ''), coalesce(d.decided, ''),
 		CASE WHEN d.round_id IS NOT NULL AND d.delivered = '' AND r.state <> 'abandoned' THEN 1 ELSE 0 END,
 		(SELECT count(*) FROM comments c
 			JOIN rounds o2 ON o2.id = c.round_id
@@ -68,6 +68,9 @@ type ReviewRow struct {
 	RequestedAt time.Time
 	// Verdict is the decision on the latest round, and empty while it waits.
 	Verdict Verdict
+	// DecidedAt is when that decision was given, and zero while the round
+	// waits. A working or settled row's age is measured from it.
+	DecidedAt time.Time
 	// VerdictUndelivered says the latest round has a verdict the agent has not
 	// received, on a review it has not withdrawn. Withdrawing a review is the
 	// agent saying it no longer needs the answer, and a wait on it returns
@@ -207,9 +210,12 @@ func (s *Store) Review(ctx context.Context, reviewID int64) (Review, error) {
 // everywhere outside the store.
 func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, error) {
 	query := `SELECT id, review_id, number, note, base_commit,
-			files_changed, lines_added, lines_removed
+			files_changed, lines_added, lines_removed, created
 		FROM rounds WHERE review_id = ? AND number = ?`
-	var out Round
+	var (
+		out     Round
+		created string
+	)
 	row := s.db.QueryRowContext(ctx, query, reviewID, number)
 	err := row.Scan(
 		&out.ID,
@@ -220,12 +226,16 @@ func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, e
 		&out.Files,
 		&out.Added,
 		&out.Removed,
+		&created,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Round{}, errors.Wrapf(ErrNotFound, "review %d round %d", reviewID, number)
 		}
 		return Round{}, errors.Wrap(err, "read round")
+	}
+	if out.Created, err = ParseTime(created); err != nil {
+		return Round{}, err
 	}
 	return out, nil
 }
@@ -312,6 +322,7 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 		var (
 			row       ReviewRow
 			requested string
+			decided   string
 		)
 		err := found.Scan(
 			&row.ReviewID,
@@ -326,6 +337,7 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 			&row.Added,
 			&row.Removed,
 			&row.Verdict,
+			&decided,
 			&row.VerdictUndelivered,
 			&row.Undelivered,
 		)
@@ -335,9 +347,46 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 		if row.RequestedAt, err = ParseTime(requested); err != nil {
 			return nil, err
 		}
+		if decided != "" {
+			if row.DecidedAt, err = ParseTime(decided); err != nil {
+				return nil, err
+			}
+		}
 		out = append(out, row)
 	}
 	return out, errors.Wrap(found.Err(), "read reviews")
+}
+
+// ProjectRow is one project as the empty queue lists it.
+type ProjectRow struct {
+	// Project is the project's id, root and name.
+	Project
+	// Agents counts the agents with an open review in the project, which is
+	// what says whether anything is happening there.
+	Agents int
+}
+
+// Projects lists every project eyeball has seen, by name.
+func (s *Store) Projects(ctx context.Context) ([]ProjectRow, error) {
+	query := `SELECT p.id, p.root, p.name, count(DISTINCT r.agent)
+		FROM projects p
+		LEFT JOIN reviews r ON r.project_id = p.id AND r.state = ?
+		GROUP BY p.id
+		ORDER BY p.name, p.id`
+	found, err := s.db.QueryContext(ctx, query, StateOpen)
+	if err != nil {
+		return nil, errors.Wrap(err, "read projects")
+	}
+	defer func() { _ = found.Close() }()
+	var out []ProjectRow
+	for found.Next() {
+		var row ProjectRow
+		if err := found.Scan(&row.ID, &row.Root, &row.Name, &row.Agents); err != nil {
+			return nil, errors.Wrap(err, "scan project")
+		}
+		out = append(out, row)
+	}
+	return out, errors.Wrap(found.Err(), "read projects")
 }
 
 // Project reads one project by its id.

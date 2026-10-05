@@ -18,15 +18,16 @@ import (
 // manualSections maps each heading under the manual's JSON fields to the type
 // that command prints with --json.
 var manualSections = map[string]any{
-	"request": api.RequestResult{},
-	"wait":    api.WaitResult{},
-	"status":  api.StatusResult{},
-	"show":    api.ShowResult{},
-	"reply":   api.ReplyResult{},
-	"abandon": api.AbandonResult{},
-	"start":   api.Daemon{},
-	"stop":    api.StopResult{},
-	"refusal": api.ErrorBody{},
+	"request":       api.RequestResult{},
+	"wait":          api.WaitResult{},
+	"status":        api.StatusResult{},
+	"show":          api.ShowResult{},
+	"reply":         api.ReplyResult{},
+	"abandon":       api.AbandonResult{},
+	"start":         api.Daemon{},
+	"stop":          api.StopResult{},
+	"tailnet login": api.LoginResult{},
+	"refusal":       api.ErrorBody{},
 }
 
 func Test_manualChecksCanFail(t *testing.T) {
@@ -35,6 +36,7 @@ func Test_manualChecksCanFail(t *testing.T) {
 	g := NewWithT(t)
 	g.Expect(missingCommandsAndFlags(strings.ReplaceAll(manual, "`eyeball abandon`", ""))).To(ContainElement("eyeball abandon"))
 	g.Expect(missingCommandsAndFlags(strings.ReplaceAll(manual, "`--timeout`", ""))).To(ContainElement("--timeout"))
+	g.Expect(missingCommandsAndFlags(strings.ReplaceAll(manual, "`eyeball tailnet login`", ""))).To(ContainElement("eyeball tailnet login"))
 	g.Expect(missingFields(strings.ReplaceAll(manual, "`comments.late`", ""))).To(ContainElement("wait: comments.late"))
 }
 
@@ -58,8 +60,9 @@ func Test_manualNamesEveryField(t *testing.T) {
 	g.Expect(missingFields(manual)).To(BeEmpty())
 }
 
-// missingCommandsAndFlags lists every command, as `eyeball <name>`, and every
-// flag, as `--<name>`, that the manual does not show in a code span.
+// missingCommandsAndFlags lists every command, as `eyeball <name>` or
+// `eyeball <group> <name>`, and every flag, as `--<name>`, that the manual
+// does not show in a code span.
 func missingCommandsAndFlags(text string) []string {
 	var missing []string
 	root := (&app{env: Env{Getenv: func(string) string { return "" }}}).command()
@@ -80,10 +83,19 @@ func missingCommandsAndFlags(text string) []string {
 		}
 	}
 	flags(root)
-	for _, cmd := range root.Commands {
-		check("eyeball " + cmd.Name)
-		flags(cmd)
+	var walk func(prefix string, cmds []*ucli.Command)
+	walk = func(prefix string, cmds []*ucli.Command) {
+		for _, cmd := range cmds {
+			// A group such as tailnet does nothing itself. Its commands are
+			// what the manual names.
+			if len(cmd.Commands) == 0 {
+				check(prefix + cmd.Name)
+			}
+			flags(cmd)
+			walk(prefix+cmd.Name+" ", cmd.Commands)
+		}
 	}
+	walk("eyeball ", root.Commands)
 	return missing
 }
 

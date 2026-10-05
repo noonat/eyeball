@@ -8,6 +8,27 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func Test_packagesListedFlagsAnUnlistedRootPackage(t *testing.T) {
+	g := NewWithT(t)
+	root := t.TempDir()
+	doc := filepath.Join(root, "docs")
+	g.Expect(os.MkdirAll(doc, 0o755)).To(Succeed())
+	docPath := filepath.Join(doc, "architecture.md")
+	g.Expect(os.WriteFile(docPath, []byte("```\ninternal/store/       the database\n```\n"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(root, "assets.go"), []byte("package x\n"), 0o644)).To(Succeed())
+
+	found, err := packagesListedIn(root)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(HaveLen(1))
+	g.Expect(found[0].What).To(ContainSubstring("package . is not"))
+
+	listed := "```\nassets.go             the embedded files\ninternal/store/       the database\n```\n"
+	g.Expect(os.WriteFile(docPath, []byte(listed), 0o644)).To(Succeed())
+	found, err = packagesListedIn(root)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeEmpty())
+}
+
 func Test_packagesListedFlagsUnlisted(t *testing.T) {
 	g := NewWithT(t)
 	root := t.TempDir()

@@ -1,0 +1,17 @@
+{{define "layout"}}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} &middot; eyeball</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/shell.css">
+</head>
+<body>
+<div class="app">
+<div class="topbar">{{if .Back}}<a class="back" href="{{.Back}}"><span class="i i-chevron-left" aria-hidden="true"></span>{{.BackLabel}}</a><h1>{{.Title}}</h1>{{else}}<span class="wordmark">eyeball</span>{{with .Pill}}<span class="pill waiting">{{.}}</span>{{end}}{{end}}</div>
+{{template "page" .Body}}
+</div>
+</body>
+</html>
+{{end}}

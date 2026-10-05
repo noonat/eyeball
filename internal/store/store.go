@@ -47,6 +47,12 @@ type Store struct {
 // already have. The path must be absolute, so that what it names does not
 // depend on the working directory of whoever opened it.
 func Open(ctx context.Context, path string) (*Store, error) {
+	return OpenWithClock(ctx, path, func() time.Time { return time.Now().UTC() })
+}
+
+// OpenWithClock is Open with the clock every stored time is read from. A test
+// of ages, and a seed that backdates what it writes, pass one of their own.
+func OpenWithClock(ctx context.Context, path string, now func() time.Time) (*Store, error) {
 	if !filepath.IsAbs(path) {
 		return nil, errors.Newf("database path %q is relative; pass an absolute path", path)
 	}
@@ -60,12 +66,18 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// slow enough to stall a write.
 	db.SetMaxOpenConns(1)
 
-	now := func() time.Time { return time.Now().UTC() }
 	if err := migrate(ctx, db, migrationFS(), now); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
 	return &Store{db: db, now: now}, nil
+}
+
+// Ping touches the database with a query, which is what a liveness check asks:
+// that the store answers, not only that the process is up.
+func (s *Store) Ping(ctx context.Context) error {
+	var one int
+	return errors.Wrap(s.db.QueryRowContext(ctx, "SELECT 1").Scan(&one), "ping the database")
 }
 
 // Close releases the connection pool.

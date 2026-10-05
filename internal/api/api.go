@@ -23,6 +23,9 @@ const (
 	// CodeConnectionLost is a connection the daemon closed before answering.
 	// The client reports it: the daemon cannot.
 	CodeConnectionLost Code = "connection_lost"
+	// CodeDaemonRunning is a tailnet login refused because a daemon holds the
+	// lock. The client reports it.
+	CodeDaemonRunning Code = "daemon_running"
 	// CodeDaemonStopping is a request cut short because the daemon is exiting.
 	CodeDaemonStopping Code = "daemon_stopping"
 	// CodeDaemonUnavailable is a daemon that could not be reached or started.
@@ -36,6 +39,9 @@ const (
 	// CodeInvalidPath is a path that is empty, absolute where it cannot be, or
 	// names the project root.
 	CodeInvalidPath Code = "invalid_path"
+	// CodeLoginFailed is a tailnet login that did not finish, or whose
+	// tailnet cannot serve the surface. The client reports it.
+	CodeLoginFailed Code = "login_failed"
 	// CodeMissing is a required field left empty.
 	CodeMissing Code = "missing"
 	// CodeNoGit is a git repository on a machine with no git on PATH.
@@ -60,6 +66,9 @@ const (
 	CodeNothingInScope Code = "nothing_in_scope"
 	// CodeOutsideProject is a review path that leaves the project root.
 	CodeOutsideProject Code = "outside_project"
+	// CodeOwnerOnly is a command only a person at a terminal can run. The
+	// client reports it.
+	CodeOwnerOnly Code = "owner_only"
 	// CodePathClaimed is a path an open review in the project already covers.
 	CodePathClaimed Code = "path_claimed"
 	// CodePathUnmatched is a first-round path that is neither on disk nor
@@ -161,6 +170,18 @@ type Daemon struct {
 	Build string `json:"build"`
 	// StateDir is where the daemon keeps its database, blobs and socket.
 	StateDir string `json:"state_dir"`
+	// Surface is the reviewer's surface on the tailnet.
+	Surface Surface `json:"surface"`
+}
+
+// Surface is the reviewer's surface on the tailnet, as the daemon reports it.
+type Surface struct {
+	// State is off, starting, serving or failed.
+	State string `json:"state"`
+	// URL is the surface's address while it is serving.
+	URL string `json:"url"`
+	// Reason says why it failed and what the owner does about it.
+	Reason string `json:"reason"`
 }
 
 // Project is the project a command ran in.
@@ -394,6 +415,17 @@ type ReplyResult struct {
 type ReceiptResult struct {
 	// Comments are the ids the agent acknowledged.
 	Comments []int64 `json:"comments"`
+}
+
+// LoginResult is what eyeball tailnet login prints.
+type LoginResult struct {
+	// Dir is where the node's state lives.
+	Dir string `json:"dir"`
+	// URL is the surface's address once a daemon serves it.
+	URL string `json:"url"`
+	// First says the login enrolled the node, rather than logging an enrolled
+	// one in again.
+	First bool `json:"first"`
 }
 
 // StopResult is what eyeball stop prints.

@@ -44,6 +44,7 @@ migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
+assets.go             the files the binary embeds: app.css, shell.css and the templates
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -53,12 +54,14 @@ internal/daemon/      single-instance lock, socket, start and stop
 internal/diff/        two captures to hunks, word marking
 internal/kind/        what a file is, and therefore how it opens
 internal/push/        web push, VAPID, subscription lifecycle
-internal/render/      markdown, syntax highlighting, templates
+internal/render/      a diff as rows, syntax highlighting, ages, and markdown
 internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
+internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
 tool/icons/           regenerates the icon mask table in app.css
+tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves docs/design over the tailnet
-web/                  app.css, the TypeScript sources, the manifest
+web/                  the templates, shell.css, the TypeScript sources, the manifest
 ```
 
 **A new package is listed here in the change that creates it**, with one line
@@ -85,6 +88,12 @@ stale socket as a running daemon leaves the machine unable to start one. Holding
 true: on startup the daemon takes the lock, and only then unlinks and rebinds
 the socket. Losing the race means another daemon is live, so the loser connects
 to it instead.
+
+**A daemon that will not start says why in `eyeball.log`**, in the state
+directory, which is where a started daemon's stderr goes. The fix a command
+prints for it points there. It never suggests `eyeball serve`: a daemon run that
+way keeps the environment of whoever runs it, and an agent's environment can
+hold variables tsnet reads.
 
 **It does not exit when idle**, and this is where it stops behaving like a
 language server. A language server dies with the editor that spawned it. eyeball
@@ -134,10 +143,11 @@ Everything else in the environment stays, including `GIT_CONFIG_GLOBAL` and
 
 ## The two listeners
 
-| Listener     | Carries                | Reachable from                   |
-| ------------ | ---------------------- | -------------------------------- |
-| unix socket  | the agent API          | this machine, by file permission |
-| tsnet `:443` | the reviewer's surface | the tailnet                      |
+| Listener     | Carries                | Reachable from                            |
+| ------------ | ---------------------- | ----------------------------------------- |
+| unix socket  | the agent API          | this machine, by file permission          |
+| tsnet `:443` | the reviewer's surface | the tailnet                               |
+| loopback     | the reviewer's surface | every account on this machine, when asked |
 
 **The CLI speaks HTTP over the unix socket.** One set of handlers, one
 serialization, and `--json` is the response body rather than a second code path.
@@ -148,6 +158,26 @@ read rather than a loop.
 push requires, an installed page requires HTTPS with a trusted certificate, and
 tsnet provisions one without anything to trust on the device. The listener is
 virtual, so `:443` needs no privilege.
+
+**The daemon starts tsnet only for a node the owner enrolled.** Any agent
+command starts the daemon, and every test runs one. A daemon that started tsnet
+whenever it started would contact Tailscale and print a login URL from every
+agent on the machine. So the node exists only once the owner runs
+`eyeball tailnet login` at a terminal, which enrolls it into `node.new` and
+renames that to `node/` once MagicDNS and HTTPS certificates check out. The
+login refuses to run without a terminal, whatever the environment holds, and
+holds the daemon's lock while it runs. A daemon that `eyeball start` or an agent
+command starts gets an environment with every `TS_` and `TSNET_` variable
+removed, so an auth key an agent inherited cannot reach tsnet. tsnet's own log
+upload to Tailscale is turned off.
+
+**The loopback listener is for a person debugging, and is asked for by flag.**
+`eyeball serve --surface-addr 127.0.0.1:8111` serves the surface on a literal
+loopback address. A started daemon never does. It gives a process running as
+this user nothing new: that process can already open `eyeball.db`. It does
+expose every review to the other accounts on the machine, since a loopback port
+is reachable by every local user where the state directory is `0700`. That is
+why it is a flag a person passes, and never a default.
 
 **A preview renders in an iframe with `sandbox="allow-scripts"` and nothing
 else.** Omitting `allow-same-origin` gives the frame an opaque origin, so
@@ -182,9 +212,11 @@ is ever written into a project.
 ```
 eyeball.db            SQLite: reviews, rounds, comments, decisions, subscriptions
 blobs/aa/bb/<sha256>  captured file content, content addressed
-node/                 the tsnet identity
+node/                 the tsnet identity, once eyeball tailnet login enrolls it
+node.new/             a first enrollment that has not passed its checks yet
 eyeball.sock          the agent API
-eyeball.lock          the single-instance lock
+eyeball.lock          the single-instance lock, also held by eyeball tailnet login
+eyeball.log           the daemon's stderr
 ```
 
 **SQLite through `modernc.org/sqlite`**, which is pure Go, so the binary stays
@@ -291,33 +323,51 @@ an `<img>` element it cannot execute, and that is how a thumbnail renders it,
 but opening it as a document goes through the preview origin like any other
 page.
 
-Syntax highlighting is `alecthomas/chroma`, server side, into the five roles the
-stylesheet defines. Client-side highlighting would ship a second parser to a
+Syntax highlighting is `alecthomas/chroma/v2`, server side, into the five roles
+the stylesheet defines. Client-side highlighting would ship a second parser to a
 phone to re-derive what the server already knows.
 
 ## The surface
 
 **Server-rendered `html/template`, with htmx for the interactions.** The
-tearouts under `docs/design/` are HTML and CSS already, and `app.css` moves to
-`web/` and ships as it is. Templates are seeded from the tearout markup rather
-than written a second time from a description of it.
+tearouts under `docs/design/` are HTML and CSS already, and `app.css` ships as
+it is. Templates are seeded from the tearout markup rather than written a second
+time from a description of it.
 
-Routes:
+**`app.css` stays in `docs/design/`, where every tearout links it.** Moving it
+to `web/` would mean editing the stylesheet link in every tearout, and the
+tearouts are approved against the real phone, so they are not edited for a
+file's location. `go:embed` cannot reach a parent directory, so `assets.go` at
+the repository root embeds both `docs/design/app.css` and `web/templates`. The
+tearouts and the surface then use one stylesheet, not two copies that drift.
 
-| Pattern                                                | Answers                                       |
-| ------------------------------------------------------ | --------------------------------------------- |
-| `GET /`                                                | the queue                                     |
-| `GET /reviews/{review}`                                | the current round                             |
-| `GET /reviews/{review}/rounds/{round}`                 | an earlier round                              |
-| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         |
-| `GET /projects/{project}`                              | the project view and its working copy         |
-| `POST /reviews/{review}/comments`                      | one comment                                   |
-| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   |
-| `POST /reviews/{review}/decision`                      | the verdict, releasing the round              |
-| `POST /subscriptions`                                  | a device's push subscription                  |
-| `GET /events`                                          | the live stream, and therefore the connection |
-| `GET /healthz`                                         | liveness, after touching the database         |
+**`web/static/shell.css` holds the page around the app**, which a tearout's
+phone frame provides and a real page does not: no margin on the body, and a
+height for `.app`'s to resolve against. It stays out of `app.css` because every
+tearout loads `app.css` too, and a height on the body would change how the
+tearout pages lay out.
+
+Routes, with the spec that builds each:
+
+| Pattern                                                | Answers                                       | Spec |
+| ------------------------------------------------------ | --------------------------------------------- | ---- |
+| `GET /{$}`                                             | the queue                                     | 006  |
+| `GET /reviews/{review}`                                | the current round                             | 006  |
+| `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
+| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  | 007  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         | 007  |
+| `GET /projects/{project}`                              | the project view and its working copy         | 007  |
+| `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
+| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
+| `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
+| `GET /events`                                          | the live stream, and therefore the connection | 008  |
+| `POST /subscriptions`                                  | a device's push subscription                  | 009  |
+| `GET /static/app.css`                                  | the stylesheet, from the binary               | 006  |
+| `GET /static/shell.css`                                | the page around the app, from the binary      | 006  |
+| `GET /healthz`                                         | liveness, after touching the database         | 006  |
+
+`GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
+every path, and would answer `/agent/daemon` on the surface's listener.
 
 **Paths are spelled out.** `/reviews/` rather than `/r/`, `/files/` rather than
 `/f/`. These are read in a browser address bar, quoted in a comment, and typed
@@ -489,7 +539,7 @@ closes.
 
 | Dependency                              | Why                                                               |
 | --------------------------------------- | ----------------------------------------------------------------- |
-| `github.com/alecthomas/chroma`          | syntax highlighting, server side                                  |
+| `github.com/alecthomas/chroma/v2`       | syntax highlighting, server side                                  |
 | `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads       |
 | `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                     |
 | `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
@@ -498,6 +548,7 @@ closes.
 | `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                |
 | `github.com/yuin/goldmark`              | markdown                                                          |
 | `golang.org/x/net/html` (test)          | tokenizing the tearouts                                           |
+| `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires     |
 | `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                    |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                        |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate    |

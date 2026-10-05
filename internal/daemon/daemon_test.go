@@ -14,12 +14,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/api"
+	"github.com/noonat/eyeball/internal/tailnet"
 	. "github.com/onsi/gomega"
 )
 
@@ -38,11 +40,17 @@ func init() {
 		// A daemon in a process of its own, for the signal test.
 		p, err := Locate(os.Getenv, "/nonexistent")
 		if err == nil {
-			err = Run(context.Background(), Config{Paths: p, Build: "signal", Stderr: os.Stderr})
+			err = Run(context.Background(), Config{Paths: p, Build: "signal", Stderr: os.Stderr, NewNode: noNode})
 		}
 		if err != nil {
 			_, _ = os.Stderr.WriteString(err.Error())
 			os.Exit(1)
+		}
+		os.Exit(0)
+	case "environment":
+		// A started process that writes its environment to its log.
+		for _, kv := range os.Environ() {
+			_, _ = os.Stderr.WriteString(kv + "\n")
 		}
 		os.Exit(0)
 	case "parent":
@@ -65,6 +73,12 @@ func Test_buildIsStable(t *testing.T) {
 	first := Build()
 	g.Expect(first).NotTo(BeEmpty())
 	g.Expect(Build()).To(Equal(first))
+}
+
+func Test_daemonEnvDropsTailscaleVariables(t *testing.T) {
+	g := NewWithT(t)
+	got := daemonEnv([]string{"HOME=/h", "TS_AUTHKEY=k", "TSNET_FORCE_LOGIN=1", "TS_CONTROL_URL=u", "PATH=/bin"})
+	g.Expect(got).To(Equal([]string{"HOME=/h", "PATH=/bin"}))
 }
 
 func TestCheck(t *testing.T) {
@@ -274,13 +288,219 @@ func TestRun_staleSocket(t *testing.T) {
 	g.Expect(get(g, t, p, "/agent/daemon", &api.Daemon{})).To(Equal(http.StatusOK))
 }
 
+func TestRun_surfaceAddrInUse(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = taken.Close() }()
+	err = Run(t.Context(), Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: taken.Addr().String()})
+	g.Expect(err).To(MatchError(ContainSubstring("listen on " + taken.Addr().String())))
+}
+
+func TestRun_surfaceAddrRefused(t *testing.T) {
+	cases := []struct {
+		name string
+		addr string
+		want string
+	}{
+		{
+			name: "every interface",
+			addr: "0.0.0.0:8111",
+			want: "not a loopback address",
+		},
+		{
+			name: "an empty host",
+			addr: ":8111",
+			want: "not a loopback address",
+		},
+		{
+			name: "a name",
+			addr: "localhost:8111",
+			want: "not a loopback address",
+		},
+		{
+			name: "no port",
+			addr: "127.0.0.1",
+			want: "not a host and a port",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			p := testPaths(g, t)
+			err := Run(t.Context(), Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: c.addr})
+			g.Expect(err).To(MatchError(ContainSubstring(c.want)))
+			_, statErr := os.Stat(p.Socket)
+			g.Expect(errors.Is(statErr, os.ErrNotExist)).To(BeTrue(), "a daemon that failed startup left its socket")
+			relock, err := takeLock(p.Lock, 1, time.Now())
+			g.Expect(err).NotTo(HaveOccurred(), "a daemon that failed startup kept its lock")
+			g.Expect(relock.release()).To(Succeed())
+		})
+	}
+}
+
+func TestRun_surfaceOnLoopback(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	// A free port, found by binding and releasing one.
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := probe.Addr().String()
+	g.Expect(probe.Close()).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: addr})
+	}()
+	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
+
+	res, err := http.Get("http://" + addr + "/healthz")
+	g.Expect(err).NotTo(HaveOccurred())
+	_ = res.Body.Close()
+	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
+	g.Expect(res.Header.Get("Cache-Control")).To(Equal("no-store"))
+
+	cancel()
+	var runErr error
+	g.Eventually(done, 10*time.Second).Should(Receive(&runErr))
+	g.Expect(runErr).NotTo(HaveOccurred())
+	_, err = http.Get("http://" + addr + "/healthz")
+	g.Expect(err).To(HaveOccurred(), "the loopback listener outlived the daemon")
+}
+
+func TestRun_tailnetCloseOverrun(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits out the close budget")
+	}
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	g.Expect(Prepare(p)).To(Succeed())
+	g.Expect(os.Mkdir(tailnet.NodeDir(p.Dir), 0o700)).To(Succeed())
+
+	// A node whose close never returns. The daemon must not release its lock,
+	// or a successor could start a second node on the same directory while
+	// this one is still closing.
+	node := &fakeNode{closeGate: make(chan struct{})}
+	t.Cleanup(func() { close(node.closeGate) })
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: node.construct})
+	}()
+	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
+	g.Eventually(func() bool { return node.listening() }, 5*time.Second).Should(BeTrue())
+
+	cancel()
+	var runErr error
+	g.Eventually(done, tailnet.CloseBudget+5*time.Second).Should(Receive(&runErr))
+	g.Expect(errors.Is(runErr, tailnet.ErrCloseOverrun)).To(BeTrue())
+	g.Expect(Held(p.Lock)).To(BeTrue(), "the lock was released while the node was still closing")
+	g.Expect(keptUntilExit).NotTo(BeNil(), "the lock's file is not held where the collector cannot close it")
+	keptUntilExit = nil
+}
+
+func TestRun_tailnetForAnEnrolledNode(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	g.Expect(Prepare(p)).To(Succeed())
+	g.Expect(os.Mkdir(tailnet.NodeDir(p.Dir), 0o700)).To(Succeed())
+
+	node := &fakeNode{}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: node.construct})
+	}()
+	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
+
+	g.Eventually(func() api.Surface {
+		var info api.Daemon
+		get(g, t, p, "/agent/daemon", &info)
+		return info.Surface
+	}, 5*time.Second, 20*time.Millisecond).Should(Equal(api.Surface{State: "serving", URL: "https://eyeball.example.ts.net"}))
+	g.Expect(node.dir).To(Equal(tailnet.NodeDir(p.Dir)))
+
+	// The surface answers on the node's listener.
+	res, err := http.Get("http://" + node.addr() + "/healthz")
+	g.Expect(err).NotTo(HaveOccurred())
+	_ = res.Body.Close()
+	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
+	g.Expect(res.Header.Get("Content-Security-Policy")).NotTo(BeEmpty())
+
+	cancel()
+	g.Eventually(done, 10*time.Second).Should(Receive(BeNil()))
+	g.Expect(node.closed.Load()).To(BeTrue(), "the node was closed on shutdown")
+}
+
+func TestRun_tailnetStopsWithTheSocket(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	g.Expect(Prepare(p)).To(Succeed())
+	g.Expect(os.Mkdir(tailnet.NodeDir(p.Dir), 0o700)).To(Succeed())
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	// A git that sleeps before every call keeps a capture running, and with
+	// it the socket's shutdown, after the daemon is told to stop.
+	slow := t.TempDir()
+	real, err := exec.LookPath("git")
+	g.Expect(err).NotTo(HaveOccurred())
+	script := "#!/bin/sh\nsleep 0.1\nexec " + real + " \"$@\"\n"
+	g.Expect(os.WriteFile(filepath.Join(slow, "git"), []byte(script), 0o700)).To(Succeed())
+	t.Setenv("PATH", slow+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	node := &fakeNode{}
+	ctx, cancel := context.WithCancel(context.Background())
+	var runErr error
+	ran := make(chan struct{})
+	go func() {
+		runErr = Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: node.construct})
+		close(ran)
+	}()
+	t.Cleanup(func() { cancel(); <-ran })
+	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
+	g.Eventually(func() string {
+		var info api.Daemon
+		get(g, t, p, "/agent/daemon", &info)
+		return info.Surface.State
+	}, 5*time.Second, 20*time.Millisecond).Should(Equal("serving"))
+
+	answered := make(chan int, 1)
+	go func() {
+		body := `{"dir": "` + repo + `", "paths": ["a.txt"], "note": "look"}`
+		status, _, _ := rawPost(context.Background(), p, "/agent/requests", body)
+		answered <- status
+	}()
+	time.Sleep(250 * time.Millisecond)
+	cancel()
+
+	// While the socket's capture finishes, the tailnet's server has already
+	// stopped taking connections. It shuts down with the socket's server,
+	// rather than serving on until the node closes.
+	g.Eventually(func() bool {
+		holder, err := ReadHolder(p.Lock)
+		return err == nil && holder.Stopping
+	}, 2*time.Second, 10*time.Millisecond).Should(BeTrue())
+	g.Eventually(func() error {
+		conn, err := net.Dial("tcp", node.addr())
+		if err == nil {
+			_ = conn.Close()
+		}
+		return err
+	}, time.Second, 10*time.Millisecond).Should(HaveOccurred())
+	g.Expect(answered).NotTo(Receive(), "the capture finished before the tailnet's listener was checked")
+	g.Eventually(answered, 10*time.Second).Should(Receive(Equal(http.StatusOK)))
+	g.Eventually(ran, 10*time.Second).Should(BeClosed())
+	g.Expect(runErr).NotTo(HaveOccurred())
+}
+
 func TestRun_twoDaemons(t *testing.T) {
 	g := NewWithT(t)
 	p := testPaths(g, t)
 	first := startDaemon(g, t, p)
 
 	var stderr bytes.Buffer
-	err := Run(t.Context(), Config{Paths: p, Build: "second", Stderr: &stderr})
+	err := Run(t.Context(), Config{Paths: p, Build: "second", Stderr: &stderr, NewNode: noNode})
 	g.Expect(err).NotTo(HaveOccurred(), "the loser exits cleanly")
 	g.Expect(stderr.String()).To(ContainSubstring("already running"))
 	g.Expect(stderr.String()).To(ContainSubstring("pid " + strconv.Itoa(os.Getpid())))
@@ -358,6 +578,51 @@ func TestStart(t *testing.T) {
 	g.Expect(cwd).To(Equal(dir), "the child runs in the state directory")
 }
 
+func TestStart_dropsTailscaleVariables(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	t.Setenv("TS_AUTHKEY", "not-a-real-key")
+	t.Setenv("TSNET_FORCE_LOGIN", "1")
+	t.Setenv(roleEnv, "environment")
+	cmd, err := Start(p, os.Args[0], "-test.run=^$")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(cmd.Wait()).To(Succeed())
+	logged, err := os.ReadFile(p.Log)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(logged)).To(ContainSubstring(roleEnv+"=environment"), "the started process wrote its environment")
+	g.Expect(string(logged)).NotTo(ContainSubstring("TS_AUTHKEY"))
+	g.Expect(string(logged)).NotTo(ContainSubstring("TSNET_FORCE_LOGIN"))
+}
+
+func TestTakeLoginLock(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	held, err := TakeLoginLock(p)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = held.Release() }()
+
+	holder, err := ReadHolder(p.Lock)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(holder).To(Equal(Holder{PID: os.Getpid(), Started: holder.Started, Login: true}))
+
+	// A daemon started during the login loses the lock and exits, so no
+	// second tsnet server opens the node's directory.
+	var stderr bytes.Buffer
+	g.Expect(Run(t.Context(), Config{Paths: p, Build: "b", Stderr: &stderr, NewNode: noNode})).To(Succeed())
+	g.Expect(stderr.String()).To(ContainSubstring("already running"))
+	_, err = TakeLoginLock(p)
+	g.Expect(errors.Is(err, ErrRunning)).To(BeTrue(), "a second login took the lock")
+
+	g.Expect(held.Release()).To(Succeed())
+	g.Expect(Held(p.Lock)).To(BeFalse())
+}
+
+// noNode is the node constructor every daemon test runs with. Calling it would
+// mean a test started a tailnet node, which contacts Tailscale.
+func noNode(string, tailnet.Logf) tailnet.Node {
+	panic("a daemon test started a tailnet node")
+}
+
 // daemon is a daemon running in this process for one test.
 type daemon struct {
 	cancel context.CancelFunc
@@ -375,7 +640,7 @@ func startDaemon(g *WithT, t *testing.T, p Paths) *daemon {
 	d := &daemon{cancel: cancel, done: make(chan struct{})}
 	var logged syncBuffer
 	go func() {
-		d.err = Run(ctx, Config{Paths: p, Build: "test-build", Home: "/nonexistent", Stderr: &logged})
+		d.err = Run(ctx, Config{Paths: p, Build: "test-build", Home: "/nonexistent", Stderr: &logged, NewNode: noNode})
 		close(d.done)
 	}()
 	t.Cleanup(func() {
@@ -521,6 +786,96 @@ func rawPost(ctx context.Context, p Paths, path, body string) (int, string, erro
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(raw), err
+}
+
+// dialSocket reports whether the daemon's socket answers.
+func dialSocket(p Paths) error {
+	conn, err := net.Dial("unix", p.Socket)
+	if err == nil {
+		_ = conn.Close()
+	}
+	return err
+}
+
+// fakeNode is a tailnet node that reaches running at once and listens on
+// loopback, so no test starts tsnet.
+type fakeNode struct {
+	mu        sync.Mutex
+	dir       string
+	ln        net.Listener
+	closed    atomic.Bool
+	closeGate chan struct{}
+}
+
+// listening reports whether the surface has listened on the fake.
+func (f *fakeNode) listening() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ln != nil
+}
+
+// construct is the fake's constructor.
+func (f *fakeNode) construct(dir string, _ tailnet.Logf) tailnet.Node {
+	f.mu.Lock()
+	f.dir = dir
+	f.mu.Unlock()
+	return f
+}
+
+// addr is where the fake listens.
+func (f *fakeNode) addr() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ln.Addr().String()
+}
+
+// Start does nothing.
+func (f *fakeNode) Start() error {
+	return nil
+}
+
+// Watch reports running, then waits for the watch to end.
+func (f *fakeNode) Watch(ctx context.Context) (tailnet.Watcher, error) {
+	return &fakeWatch{ctx: ctx}, nil
+}
+
+// Status reports a tailnet with HTTPS.
+func (f *fakeNode) Status(context.Context) (tailnet.Status, error) {
+	return tailnet.Status{MagicDNS: true, CertDomains: []string{"eyeball.example.ts.net"}}, nil
+}
+
+// ListenTLS listens on loopback, without TLS.
+func (f *fakeNode) ListenTLS(string) (net.Listener, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	f.mu.Lock()
+	f.ln = ln
+	f.mu.Unlock()
+	return ln, err
+}
+
+// Close records that it ran, and blocks on closeGate when one is set.
+func (f *fakeNode) Close() error {
+	f.closed.Store(true)
+	if f.closeGate != nil {
+		<-f.closeGate
+	}
+	return nil
+}
+
+// fakeWatch reports running once.
+type fakeWatch struct {
+	ctx  context.Context
+	sent bool
+}
+
+// Next reports running, then blocks until the watch ends.
+func (w *fakeWatch) Next() (tailnet.State, error) {
+	if !w.sent {
+		w.sent = true
+		return tailnet.StateRunning, nil
+	}
+	<-w.ctx.Done()
+	return "", w.ctx.Err()
 }
 
 // sessionOf reads a process's session id from /proc, field 6 of its stat line.

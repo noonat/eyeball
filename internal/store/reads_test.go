@@ -119,6 +119,40 @@ func TestStore_ProjectByRoot(t *testing.T) {
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 }
 
+func TestStore_Projects(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	harbor, err := s.EnsureProject(t.Context(), "/home/a/src/harbor", "harbor")
+	g.Expect(err).NotTo(HaveOccurred())
+	eyeball, err := s.EnsureProject(t.Context(), "/home/a/src/eyeball", "eyeball")
+	g.Expect(err).NotTo(HaveOccurred())
+	idle, err := s.EnsureProject(t.Context(), "/home/a/src/idle", "idle")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Two agents open reviews in eyeball, one of them twice. An approved and
+	// an abandoned review in harbor count for nothing: nobody is at work
+	// there.
+	agents := []string{"one", "one", "two"}
+	for i, agent := range agents {
+		review := newReview(eyeball.ID, "claim"+strconv.Itoa(i))
+		review.Agent = agent
+		_, _, err := s.OpenReview(t.Context(), review)
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+	_, round := openReview(g, t, s, harbor.ID, "a")
+	g.Expect(s.Decide(t.Context(), round.ID, VerdictApprove, "")).To(Succeed())
+	gone, _ := openReview(g, t, s, harbor.ID, "b")
+	g.Expect(s.Abandon(t.Context(), gone.ID)).To(Succeed())
+
+	got, err := s.Projects(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal([]ProjectRow{
+		{Project: eyeball, Agents: 2},
+		{Project: harbor, Agents: 0},
+		{Project: idle, Agents: 0},
+	}))
+}
+
 func TestStore_Queue(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)
@@ -185,6 +219,9 @@ func TestStore_Queue(t *testing.T) {
 	g.Expect(row.Added).To(Equal(15))
 	g.Expect(row.Removed).To(Equal(2))
 	g.Expect(row.RequestedAt).To(BeTemporally("~", time.Now().UTC(), time.Minute))
+	g.Expect(row.DecidedAt.IsZero()).To(BeTrue(), "a waiting round has no decision time")
+	g.Expect(queue.Working[0].DecidedAt).To(BeTemporally("~", time.Now().UTC(), time.Minute))
+	g.Expect(queue.Settled[0].DecidedAt).To(BeTemporally("~", time.Now().UTC(), time.Minute))
 
 	// The abandoned review is in none of the three: the question was withdrawn,
 	// so there is nothing waiting, nothing being acted on and nothing decided.

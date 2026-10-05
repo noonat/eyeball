@@ -1,0 +1,158 @@
+package server
+
+import (
+	"bytes"
+	"net/http"
+
+	"github.com/noonat/eyeball"
+)
+
+// contentSecurityPolicy is sent with every surface response.
+//
+// img-src allows data: because app.css draws every icon and the disclosure
+// caret as a data: mask, and a policy without it hides all of them, which a
+// review pass confirmed in Chromium. No inline script exists to allow, and a
+// review page framed somewhere else is a page somebody can click through.
+const contentSecurityPolicy = "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
+
+// Surface is the handler for the reviewer's listeners: the surface's mux, with
+// the headers every response carries and a page in place of the mux's own
+// plain-text 404 and 405.
+//
+// An empty pattern from the mux means its fallback will answer, and only then
+// is the request served through a writer that catches the fallback's status.
+// The pattern alone cannot tell a 404 from a 405, and the writer alone would
+// replace a handler's own 404 page.
+func (s *Server) Surface() http.Handler {
+	mux := s.SurfaceHandler()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		h.Set("Cache-Control", "no-store")
+		h.Set("X-Content-Type-Options", "nosniff")
+		if _, pattern := mux.Handler(r); pattern != "" {
+			mux.ServeHTTP(w, r)
+			return
+		}
+		caught := &statusCatcher{header: h}
+		mux.ServeHTTP(caught, r)
+		s.errorPage(w, caught.status)
+	})
+}
+
+// statusCatcher records the status the mux's fallback writes and drops its
+// plain-text body. It shares the real writer's header, so an Allow header the
+// fallback sets on a 405 survives.
+type statusCatcher struct {
+	header http.Header
+	status int
+}
+
+// Header is the real writer's header.
+func (c *statusCatcher) Header() http.Header {
+	return c.header
+}
+
+// WriteHeader records the status.
+func (c *statusCatcher) WriteHeader(status int) {
+	c.status = status
+}
+
+// Write drops the body.
+func (c *statusCatcher) Write(p []byte) (int, error) {
+	if c.status == 0 {
+		c.status = http.StatusOK
+	}
+	return len(p), nil
+}
+
+// page is what the layout prints around one page template: the document's
+// title, the topbar, and the data the page template reads as its dot.
+type page struct {
+	// Title is the document's title and the topbar's heading.
+	Title string
+	// Back is where the topbar's back link goes. It is empty on the queue,
+	// whose topbar carries the wordmark instead.
+	Back string
+	// BackLabel is the back link's text.
+	BackLabel string
+	// Pill is the waiting count beside the wordmark, and empty for none.
+	Pill string
+	// Body is the page template's data.
+	Body any
+}
+
+// message is a page that says one thing.
+type message struct {
+	// Heading is what happened, and Text says more.
+	Heading, Text string
+}
+
+// failurePage answers a surface request whose handler failed, as a page. The
+// agent API's JSON refusal would reach a phone as text, and its fix speaks to
+// an agent at a terminal.
+func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) {
+	s.log.Error("surface request failed", "method", r.Method, "path", r.URL.Path, "err", err)
+	p := page{Title: "Something went wrong", Back: "/", BackLabel: "Queue", Body: message{Heading: "This page could not be read", Text: "The daemon's log says why."}}
+	s.renderPage(w, http.StatusInternalServerError, "error", p)
+}
+
+// errorPage writes a page for a status the surface answers with on its own.
+func (s *Server) errorPage(w http.ResponseWriter, status int) {
+	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address."}}
+	if status == http.StatusMethodNotAllowed {
+		p.Title = "Not allowed"
+		p.Body = message{Heading: "Not allowed", Text: "This address does not answer that kind of request."}
+	} else {
+		status = http.StatusNotFound
+	}
+	s.renderPage(w, status, "error", p)
+}
+
+// renderPage executes a page template inside the layout and writes it.
+func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
+	// The clone's own copy of the page's tree, never s.pages's: executing a
+	// template escapes its tree in place, so adding the shared tree let every
+	// request write to it while others cloned it, which the race detector
+	// reported for two pages rendered at once.
+	t, err := s.pages.Clone()
+	if err == nil {
+		_, err = t.AddParseTree("page", t.Lookup(name).Tree)
+	}
+	var buf bytes.Buffer
+	if err == nil {
+		err = t.ExecuteTemplate(&buf, "layout", data)
+	}
+	if err != nil {
+		s.log.Error("render page", "page", name, "err", err)
+		http.Error(w, "the page could not be rendered", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write(buf.Bytes())
+}
+
+// handleHealthz answers once the store does.
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) error {
+	if err := s.db.s.Ping(r.Context()); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("ok\n"))
+	return nil
+}
+
+// handleStylesheet serves app.css from the binary.
+func (s *Server) handleStylesheet(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	_, _ = w.Write(eyeball.Stylesheet)
+	return nil
+}
+
+// handleShell serves shell.css from the binary.
+func (s *Server) handleShell(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	_, _ = w.Write(eyeball.Shell)
+	return nil
+}
