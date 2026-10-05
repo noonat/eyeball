@@ -816,31 +816,37 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
       that fails on an exported `Err` variable with no mapping, and one that a
       500 carries no raw error text
 
+> **Completed** 2026-10-05 06:05 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.6s
+> - `go test -race ./...` — 3.9s
+
 ## Iteration 4: The daemon
 
-- [ ] The state directory from an absolute `XDG_STATE_HOME` or `~/.local/state`,
+- [x] The state directory from an absolute `XDG_STATE_HOME` or `~/.local/state`,
       created `0700`, with an existing one carrying group or other bits refused
       by mode
-- [ ] One check function for the directory mode and the 107-byte socket path,
+- [x] One check function for the directory mode and the 107-byte socket path,
       called by the daemon before binding and exported for the client
-- [ ] The lock file opened without truncation, locked, then truncated and
+- [x] The lock file opened without truncation, locked, then truncated and
       written with the pid and start time, before the socket is unlinked and
       bound
-- [ ] A losing daemon exiting zero and naming the holder on stderr
-- [ ] Shutdown in the spec's order, the stop handler answering before it starts,
+- [x] A losing daemon exiting zero and naming the holder on stderr
+- [x] Shutdown in the spec's order, the stop handler answering before it starts,
       the lock released last, and SIGINT and SIGTERM taking the same path
-- [ ] The socket server configured with no `WriteTimeout` and with a
+- [x] The socket server configured with no `WriteTimeout` and with a
       `ReadHeaderTimeout`
-- [ ] A build identifier computed once at startup from the VCS fields and the
+- [x] A build identifier computed once at startup from the VCS fields and the
       executable's size and mtime
-- [ ] Starting a daemon detached: `Setsid`, stdin and stdout on `/dev/null`,
+- [x] Starting a daemon detached: `Setsid`, stdin and stdout on `/dev/null`,
       stderr appended to `eyeball.log`, working directory the state directory
-- [ ] A test that starts a child that way through a pipe and sees the pipe reach
+- [x] A test that starts a child that way through a pipe and sees the pipe reach
       end-of-file while the child is still running
-- [ ] Tests: two daemons on one directory with one winning, a stale socket from
+- [x] Tests: two daemons on one directory with one winning, a stale socket from
       `SetUnlinkOnClose(false)`, a waiter receiving `503 daemon_stopping`, and
       the mode refusal
-- [ ] architecture.md's What runs section corrected to put the socket in the
+- [x] architecture.md's What runs section corrected to put the socket in the
       state directory
 
 ## Iteration 5: The command line

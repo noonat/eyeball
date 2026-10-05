@@ -22,9 +22,15 @@ One process, on the machine the projects are on.
 ```
 
 **The agent side never touches the tailnet.** An agent talks to the daemon over
-a unix socket in the user's runtime directory. Nothing reachable over the
-network can open a review, read one as an agent, or release a batch of comments.
-The tailnet carries the reviewer's surface and nothing else.
+a unix socket in the state directory, beside the database. Nothing reachable
+over the network can open a review, read one as an agent, or release a batch of
+comments. The tailnet carries the reviewer's surface and nothing else.
+
+The socket is not in the user's runtime directory, although that directory is
+cleared at logout and would suit it. `XDG_RUNTIME_DIR` is set by a login session
+and is missing under cron, under `ssh` without a session manager and in some
+harnesses, so a client and a daemon could compute two different places for it.
+Every process computes the state directory the same way.
 
 That split is free. The CLI and the phone were never going to share an
 interface, and putting the agent API on a socket means file permissions are the
