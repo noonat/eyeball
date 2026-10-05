@@ -632,6 +632,9 @@ Each addition is written by something this spec builds.
   and `ReviewsIn` for every review in a project. `ReviewRow` gains the latest
   round's `Verdict` and a count of undelivered released comments, which is what
   `status` needs per row and what the queue will show in the surface (006).
+- **Departure, iteration 1:** `ErrNotReleased` was added for a reply to a
+  comment the agent cannot have seen. The spec named the refusal and no sentinel
+  for it, and the handler needs one to map it to a code.
 - **New refusals:** `ErrMissing` for an empty required field, `ClaimedError` for
   an overlap, `ErrNothingInScope` for a first round with nothing in scope, and
   the exported `NormalizePath` and `Covers`.
@@ -739,22 +742,28 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
       round both released as late, another review's id ignored by
       `MarkDelivered`
 
+> **Completed** 2026-10-05 05:30 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.6s
+> - `go test -race ./...` — 1.8s
+
 ## Iteration 2: Finding the project and naming the agent
 
-- [ ] `capture.FindRoot(dir)` walking up to the nearest directory holding `.git`
+- [x] `capture.FindRoot(dir)` walking up to the nearest directory holding `.git`
       or `.eyeball`, returning the logical root and the resolved one, and
       refusing at `/` with the fix named
-- [ ] `capture.ProjectName(ctx, root)` naming a linked worktree from its common
+- [x] `capture.ProjectName(ctx, root)` naming a linked worktree from its common
       directory, stripping `.git` and `.bare`, and using the root's base name
       everywhere else
-- [ ] capture's git runner removing the variables
+- [x] capture's git runner removing the variables
       `git rev-parse --local-env-vars` lists, asked once and cached, with a test
       that sets `GIT_DIR` to another repository and captures correctly
-- [ ] An agent name resolved from `--agent`, then `EYEBALL_AGENT`, then the
+- [x] An agent name resolved from `--agent`, then `EYEBALL_AGENT`, then the
       root's path with the resolved home directory written as `~`
-- [ ] Review paths, relative ones joined to the logical working directory, made
+- [x] Review paths, relative ones joined to the logical working directory, made
       relative to the logical root and refused when they leave it
-- [ ] Tests against real repositories: a subdirectory, a relative path from a
+- [x] Tests against real repositories: a subdirectory, a relative path from a
       symlinked directory, an absolute path through one, a linked worktree, a
       worktree of a bare repository, a submodule, a marker inside a repository,
       and no project at all

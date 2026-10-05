@@ -15,17 +15,19 @@ import (
 // because a review with an earlier round decided and its newest one waiting is
 // waiting, not working.
 //
-// The undelivered count uses the same released condition as Released, so the
-// number status reports and the comments wait hands over cannot disagree.
+// The undelivered count is every released comment the agent has not
+// acknowledged, whether or not it was late. It reads releasedWhere, the
+// condition Released reads, so the two cannot drift apart. The subquery's own
+// decisions alias d shadows the outer one on purpose, because that is the name
+// releasedWhere refers to.
 const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		o.number, o.created,
 		o.files_changed, o.lines_added, o.lines_removed,
 		coalesce(d.verdict, ''),
 		(SELECT count(*) FROM comments c
 			JOIN rounds o2 ON o2.id = c.round_id
-			LEFT JOIN decisions d2 ON d2.round_id = o2.id
-			WHERE o2.review_id = r.id AND c.delivered = ''
-			AND (d2.round_id IS NOT NULL OR r.state <> 'open'))
+			LEFT JOIN decisions d ON d.round_id = o2.id
+			WHERE o2.review_id = r.id AND c.delivered = '' AND ` + releasedWhere + `)
 	FROM reviews r
 	JOIN projects p ON p.id = r.project_id
 	JOIN rounds o

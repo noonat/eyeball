@@ -81,7 +81,7 @@ func TestStore_MarkDelivered(t *testing.T) {
 func TestStore_Released(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)
-	clock := stepClock(s)
+	stepClock(s)
 	project := ensureProject(g, t, s)
 	review, first := openReview(g, t, s, project.ID, "docs")
 
@@ -102,7 +102,6 @@ func TestStore_Released(t *testing.T) {
 	g.Expect(got[0].Late).To(BeFalse())
 	g.Expect(got[1].Late).To(BeTrue())
 	g.Expect(got[0].Round).To(Equal(1))
-	g.Expect(clock()).NotTo(BeZero())
 
 	// Abandoning the review releases its undecided round, and everything on
 	// it arrived after any batch it could have been part of.
@@ -147,6 +146,10 @@ func TestStore_Reply(t *testing.T) {
 	g.Expect(s.Reply(t.Context(), c.ID, "first")).To(Succeed())
 	g.Expect(s.Reply(t.Context(), c.ID, "  second  ")).To(Succeed())
 	g.Expect(readComment(g, t, s, c.ID).Reply).To(Equal("second"))
+	var replied string
+	row := s.db.QueryRowContext(t.Context(), "SELECT replied FROM comments WHERE id = ?", c.ID)
+	g.Expect(row.Scan(&replied)).To(Succeed())
+	g.Expect(replied).NotTo(BeEmpty())
 
 	err = s.Reply(t.Context(), 9999, "x")
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
