@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -32,8 +33,42 @@ var ErrBaseMoved = errors.New("a review's base is fixed at its first round")
 var ErrInvalidPath = errors.New("invalid path")
 
 // ErrPathClaimed reports a path an open review in the same project already
-// covers. The message names that review, because the fix is to look at it.
+// covers. The error carrying it is a ClaimedError, which names that review,
+// because the fix is to look at it.
 var ErrPathClaimed = errors.New("path already claimed")
+
+// ClaimedError is the overlap refusal, carrying the review that holds the path
+// so a caller can say what to do about it without parsing a message.
+type ClaimedError struct {
+	// Path is the path the new review asked for.
+	Path string
+	// Claimed is the holding review's path that covers it.
+	Claimed string
+	// ReviewID is the holding review's id.
+	ReviewID int64
+	// Title is the holding review's title.
+	Title string
+	// Agent is the agent that opened the holding review.
+	Agent string
+}
+
+// Error names the path and the review holding it.
+func (e *ClaimedError) Error() string {
+	return fmt.Sprintf("%s: %q is covered by %q in review %d (%s)", ErrPathClaimed, e.Path, e.Claimed, e.ReviewID, e.Title)
+}
+
+// Is makes errors.Is(err, ErrPathClaimed) hold for a ClaimedError.
+func (e *ClaimedError) Is(target error) bool {
+	return target == ErrPathClaimed
+}
+
+// ErrMissing reports a required field left empty. It is wrapped with the
+// field's name, so the message says which.
+var ErrMissing = errors.New("a required field is empty")
+
+// ErrNothingInScope reports a first round whose capture holds nothing under the
+// review's paths. Its paths are wrong, or its base already contains the work.
+var ErrNothingInScope = errors.New("nothing under the review's paths differs from the base")
 
 // ErrNotFound reports a row that is not there.
 var ErrNotFound = errors.New("not found")
@@ -201,13 +236,13 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 		State:     StateOpen,
 	}
 	if review.Agent == "" {
-		return Review{}, Round{}, errors.New("a review needs an agent")
+		return Review{}, Round{}, errors.Wrap(ErrMissing, "a review needs an agent")
 	}
 	if review.Title == "" {
-		return Review{}, Round{}, errors.New("a review needs a title")
+		return Review{}, Round{}, errors.Wrap(ErrMissing, "a review needs a title")
 	}
 	if len(nr.Paths) == 0 {
-		return Review{}, Round{}, errors.New("a review needs at least one path")
+		return Review{}, Round{}, errors.Wrap(ErrMissing, "a review needs at least one path")
 	}
 	paths, err := normalizePaths(nr.Paths)
 	if err != nil {
@@ -218,6 +253,9 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 	round, changes, err := s.checkRequest(nr.Request)
 	if err != nil {
 		return Review{}, Round{}, err
+	}
+	if !anyCovered(paths, nr.Request.Files) {
+		return Review{}, Round{}, errors.Wrapf(ErrNothingInScope, "none of the %d captured files is under %s", len(nr.Request.Files), strings.Join(paths, ", "))
 	}
 	round.Number = 1
 	review.LatestRound = 1
@@ -314,11 +352,11 @@ func (s *Store) Abandon(ctx context.Context, reviewID int64) error {
 func (s *Store) checkRequest(req Request) (Round, []Change, error) {
 	note := strings.TrimSpace(req.Note)
 	if note == "" {
-		return Round{}, nil, errors.New("a request needs a note saying what to look at")
+		return Round{}, nil, errors.Wrap(ErrMissing, "a request needs a note saying what to look at")
 	}
 	seen := make(map[string]struct{}, len(req.Files))
 	for _, f := range req.Files {
-		path, err := normalizePath(f.Path)
+		path, err := NormalizePath(f.Path)
 		if err != nil {
 			return Round{}, nil, err
 		}
@@ -351,7 +389,7 @@ func checkChanges(changes []Change) ([]Change, error) {
 	seen := make(map[string]struct{}, len(changes))
 	out := make([]Change, 0, len(changes))
 	for _, c := range changes {
-		path, err := normalizePath(c.Path)
+		path, err := NormalizePath(c.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -374,7 +412,7 @@ func checkChanges(changes []Change) ([]Change, error) {
 // the reviewer is being asked about.
 func size(paths []string, changes []Change) (files, added, removed int) {
 	for _, c := range changes {
-		if !pathsCover(paths, c.Path) {
+		if !Covers(paths, c.Path) {
 			continue
 		}
 		files++
@@ -418,12 +456,12 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 		return errors.Wrap(err, "read round id")
 	}
 	for _, f := range req.files {
-		p, err := normalizePath(f.Path)
+		p, err := NormalizePath(f.Path)
 		if err != nil {
 			return err
 		}
 		add := "INSERT INTO round_files (round_id, path, digest, size, in_scope) VALUES (?, ?, ?, ?, ?)"
-		inScope := pathsCover(paths, p)
+		inScope := Covers(paths, p)
 		if _, err := tx.ExecContext(ctx, add, round.ID, p, f.Digest, f.Size, inScope); err != nil {
 			return errors.Wrapf(err, "capture file %s", p)
 		}
@@ -449,8 +487,21 @@ func (s *Store) tx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	return errors.Wrap(tx.Commit(), "commit transaction")
 }
 
-// pathsCover reports whether any of a review's claimed paths covers p.
-func pathsCover(paths []string, p string) bool {
+// anyCovered reports whether a review's paths cover any captured file. The
+// files have already passed checkRequest, so normalizing them cannot fail.
+func anyCovered(paths []string, files []File) bool {
+	for _, f := range files {
+		p, err := NormalizePath(f.Path)
+		if err == nil && Covers(paths, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// Covers reports whether any of a review's claimed paths covers p, at a segment
+// boundary. Both sides must already be normalized by NormalizePath.
+func Covers(paths []string, p string) bool {
 	for _, claimed := range paths {
 		if pathsOverlap(claimed, p) {
 			return true
@@ -459,7 +510,7 @@ func pathsCover(paths []string, p string) bool {
 	return false
 }
 
-// normalizePath cleans one path and refuses anything that is not relative to a
+// NormalizePath cleans one path and refuses anything that is not relative to a
 // project root.
 //
 // The separator is a forward slash and is not translated, because a backslash
@@ -467,7 +518,7 @@ func pathsCover(paths []string, p string) bool {
 // git reports paths with slashes already. A path that escapes its root, is
 // absolute, or is empty is refused rather than clamped: a caller that meant
 // something else should hear about it.
-func normalizePath(p string) (string, error) {
+func NormalizePath(p string) (string, error) {
 	if strings.TrimSpace(p) == "" {
 		return "", errors.Wrap(ErrInvalidPath, "a path cannot be empty")
 	}
@@ -489,7 +540,7 @@ func normalizePath(p string) (string, error) {
 func normalizePaths(in []string) ([]string, error) {
 	out := make([]string, 0, len(in))
 	for _, p := range in {
-		cleaned, err := normalizePath(p)
+		cleaned, err := NormalizePath(p)
 		if err != nil {
 			return nil, err
 		}
@@ -514,7 +565,7 @@ func pathsOverlap(a, b string) bool {
 // refuseClaimed reports a path an open review in the same project already
 // covers, naming that review so the fix is to go and look at it.
 func refuseClaimed(ctx context.Context, tx *sql.Tx, projectID int64, paths []string) error {
-	query := `SELECT p.path, r.id, r.title
+	query := `SELECT p.path, r.id, r.title, r.agent
 		FROM review_paths p JOIN reviews r ON r.id = p.review_id
 		WHERE r.project_id = ? AND r.state = ?`
 	rows, err := tx.QueryContext(ctx, query, projectID, StateOpen)
@@ -525,15 +576,21 @@ func refuseClaimed(ctx context.Context, tx *sql.Tx, projectID int64, paths []str
 
 	for rows.Next() {
 		var (
-			claimed, title string
-			id             int64
+			claimed, title, agent string
+			id                    int64
 		)
-		if err := rows.Scan(&claimed, &id, &title); err != nil {
+		if err := rows.Scan(&claimed, &id, &title, &agent); err != nil {
 			return errors.Wrap(err, "scan claimed path")
 		}
 		for _, want := range paths {
 			if pathsOverlap(claimed, want) {
-				return errors.Wrapf(ErrPathClaimed, "%q is covered by %q in review %d (%s)", want, claimed, id, title)
+				return errors.WithStack(&ClaimedError{
+					Path:     want,
+					Claimed:  claimed,
+					ReviewID: id,
+					Title:    title,
+					Agent:    agent,
+				})
 			}
 		}
 	}

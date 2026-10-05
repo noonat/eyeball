@@ -14,9 +14,18 @@ import (
 // The join picks the latest round rather than aggregating over all of them,
 // because a review with an earlier round decided and its newest one waiting is
 // waiting, not working.
+//
+// The undelivered count uses the same released condition as Released, so the
+// number status reports and the comments wait hands over cannot disagree.
 const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		o.number, o.created,
-		o.files_changed, o.lines_added, o.lines_removed
+		o.files_changed, o.lines_added, o.lines_removed,
+		coalesce(d.verdict, ''),
+		(SELECT count(*) FROM comments c
+			JOIN rounds o2 ON o2.id = c.round_id
+			LEFT JOIN decisions d2 ON d2.round_id = o2.id
+			WHERE o2.review_id = r.id AND c.delivered = ''
+			AND (d2.round_id IS NOT NULL OR r.state <> 'open'))
 	FROM reviews r
 	JOIN projects p ON p.id = r.project_id
 	JOIN rounds o
@@ -54,6 +63,10 @@ type ReviewRow struct {
 	// RequestedAt is when the latest round was asked for, which is what the
 	// queue turns into how long something has been waiting.
 	RequestedAt time.Time
+	// Verdict is the decision on the latest round, and empty while it waits.
+	Verdict Verdict
+	// Undelivered counts the released comments the agent has not acknowledged.
+	Undelivered int
 }
 
 // Queue is what needs attention, in the three groups the surface shows.
@@ -120,6 +133,20 @@ func (s *Store) ReviewsFor(ctx context.Context, projectID int64, agent string) (
 	err := s.readTx(ctx, func(tx *sql.Tx) error {
 		var err error
 		out, err = rows(ctx, tx, query, projectID, agent)
+		return err
+	})
+	return out, err
+}
+
+// ReviewsIn lists every review in one project, whichever agent opened it,
+// newest request first. It is what an agent reads to find reviews it opened
+// under a name it no longer remembers.
+func (s *Store) ReviewsIn(ctx context.Context, projectID int64) ([]ReviewRow, error) {
+	query := rowSelect + " WHERE r.project_id = ? ORDER BY o.created DESC, r.id DESC"
+	var out []ReviewRow
+	err := s.readTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		out, err = rows(ctx, tx, query, projectID)
 		return err
 	})
 	return out, err
@@ -208,10 +235,9 @@ func (s *Store) RoundFiles(ctx context.Context, roundID int64) ([]RoundFile, err
 // whole approach rather than about a place, and it is written once the reading
 // is done.
 func (s *Store) Comments(ctx context.Context, roundID int64) ([]Comment, error) {
-	query := `SELECT id, round_id, level, coalesce(path, ''), coalesce(start_line, 0),
-			coalesce(end_line, 0), coalesce(quoted, ''), body
-		FROM comments WHERE round_id = ?
-		ORDER BY path IS NULL, path, start_line, id`
+	query := `SELECT ` + commentColumns + `
+		FROM comments c WHERE c.round_id = ?
+		ORDER BY c.path IS NULL, c.path, c.start_line, c.id`
 	rows, err := s.db.QueryContext(ctx, query, roundID)
 	if err != nil {
 		return nil, errors.Wrap(err, "read comments")
@@ -220,10 +246,9 @@ func (s *Store) Comments(ctx context.Context, roundID int64) ([]Comment, error) 
 
 	var out []Comment
 	for rows.Next() {
-		var c Comment
-		err := rows.Scan(&c.ID, &c.RoundID, &c.Level, &c.Path, &c.StartLine, &c.EndLine, &c.Quoted, &c.Body)
+		c, err := scanComment(rows)
 		if err != nil {
-			return nil, errors.Wrap(err, "scan comment")
+			return nil, err
 		}
 		out = append(out, c)
 	}
@@ -277,6 +302,8 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 			&row.Files,
 			&row.Added,
 			&row.Removed,
+			&row.Verdict,
+			&row.Undelivered,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "scan review")

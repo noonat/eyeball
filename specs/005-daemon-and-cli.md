@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-04T00:00:00Z
-updated: 2026-10-05T05:20:07.546492879Z
+updated: 2026-10-05T05:21:34.906225183Z
 required_acks:
   - reviewed
 required_commands:
@@ -709,32 +709,32 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
 
 ## Iteration 1: Replies, receipts and the store's refusals
 
-- [ ] Migration `0003` adding `reply`, `replied` and `delivered` to `comments`,
+- [x] Migration `0003` adding `reply`, `replied` and `delivered` to `comments`,
       each `TEXT NOT NULL DEFAULT ''`, with a comment saying why empty means
       absent
-- [ ] `store.Comment` carrying `Created`, `Reply` and `Delivered`, read by
+- [x] `store.Comment` carrying `Created`, `Reply` and `Delivered`, read by
       `Comments` and every new read
-- [ ] `Decision(ctx, roundID)` returning the verdict, the note and when it was
+- [x] `Decision(ctx, roundID)` returning the verdict, the note and when it was
       given, and `ErrNotFound` for an undecided round
-- [ ] `Released(ctx, reviewID)` returning comments on decided rounds and on any
+- [x] `Released(ctx, reviewID)` returning comments on decided rounds and on any
       round of an ended review, each marked late or not, in round order
-- [ ] `MarkDelivered(ctx, reviewID, ids)` stamping only released comments of
+- [x] `MarkDelivered(ctx, reviewID, ids)` stamping only released comments of
       that review, ignoring an id that is not, and leaving a stamped one alone
-- [ ] `Reply(ctx, commentID, body)` refused on an unreleased comment and on an
+- [x] `Reply(ctx, commentID, body)` refused on an unreleased comment and on an
       empty body, replacing an earlier reply and stamping `replied`
-- [ ] `ReviewsIn(ctx, projectID)` listing every review in a project, newest
+- [x] `ReviewsIn(ctx, projectID)` listing every review in a project, newest
       request first, through the shared row query
-- [ ] `ReviewRow` carrying the latest round's `Verdict`, empty when undecided,
+- [x] `ReviewRow` carrying the latest round's `Verdict`, empty when undecided,
       and `Undelivered`, the count of released comments not yet stamped
-- [ ] `ErrMissing` wrapped with the field's name for an empty note, title, agent
+- [x] `ErrMissing` wrapped with the field's name for an empty note, title, agent
       or path, replacing the plain errors `OpenReview` returns today
-- [ ] `ClaimedError` carrying the path and the holding review's id and agent,
+- [x] `ClaimedError` carrying the path and the holding review's id and agent,
       matching `ErrPathClaimed` through `errors.Is`
-- [ ] `OpenReview` refusing a first round with no captured file in scope with
+- [x] `OpenReview` refusing a first round with no captured file in scope with
       `ErrNothingInScope`, and `NormalizePath` and `Covers` exported
-- [ ] The store's test helper `newReview` and its callers given an in-scope
+- [x] The store's test helper `newReview` and its callers given an in-scope
       file, so `ErrNothingInScope` does not fail tests written before it
-- [ ] Tests: an open round's comment absent from `Released` and refused a reply,
+- [x] Tests: an open round's comment absent from `Released` and refused a reply,
       a comment after the verdict and one on an abandoned review's undecided
       round both released as late, another review's id ignored by
       `MarkDelivered`

@@ -298,7 +298,7 @@ func TestStore_ReviewsFor(t *testing.T) {
 		Agent:     "agent-2",
 		Title:     "not mine",
 		Paths:     []string{"web"},
-		Request:   Request{Note: "n"},
+		Request:   Request{Note: "n", Files: []File{{Path: "web"}}},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 	elsewhereProject, _, err := s.OpenReview(t.Context(), NewReview{
@@ -306,7 +306,7 @@ func TestStore_ReviewsFor(t *testing.T) {
 		Agent:     "agent-1",
 		Title:     "another project",
 		Paths:     []string{"docs"},
-		Request:   Request{Note: "n"},
+		Request:   Request{Note: "n", Files: []File{{Path: "docs"}}},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -335,7 +335,7 @@ func TestStore_Round(t *testing.T) {
 		Agent:     "agent-1",
 		Title:     "a title",
 		Paths:     []string{"docs"},
-		Request:   Request{Note: "look at this", BaseCommit: "abc123"},
+		Request:   Request{Note: "look at this", BaseCommit: "abc123", Files: []File{{Path: "docs"}}},
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 
