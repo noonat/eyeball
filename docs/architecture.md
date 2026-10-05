@@ -98,6 +98,40 @@ Exiting when nothing is outstanding, meaning no open reviews and no connected
 agents, is a defensible smaller rule and is not adopted yet. It is in
 [specs/TODO.md](../specs/TODO.md).
 
+## The project and the agent
+
+**A project is the nearest directory above the caller's working directory that
+holds a `.git` entry or a `.eyeball` marker file.** The nearest wins, whichever
+it is, so a marker inside a repository names a smaller project that is walked
+rather than diffed. The marker is an empty file and nothing is read from it.
+
+**A git worktree is its own project**, because its root holds a `.git` file of
+its own. Capture runs git at the project root, and a worktree's changes are
+visible only from the worktree. Overlapping scopes are refused within a project,
+so two worktrees can claim the same path, which is right: sharing a repository
+is no more a reason to share a verdict than sharing a working copy is. A linked
+worktree is displayed under its repository's name, taken from
+`git rev-parse --git-common-dir`, so every worktree of `harbor` shows as
+`harbor`.
+
+**The root is resolved through symlinks for its identity**, so two shells
+reaching one repository by two spellings are one project. Review paths are
+computed against the root as the shell spelled it, because an agent builds an
+absolute path from the directory it sees.
+
+**An agent is named by `--agent`, then `EYEBALL_AGENT`, then its project root's
+path with the home directory written as `~`.** The working copy is the identity
+product.md asks for, and the root's path is the working copy. The current branch
+reads better in a queue and was rejected because it moves: an agent that
+switched branches would stop seeing its own reviews.
+
+**git runs without the variables git itself calls repository-local.** The daemon
+serves every project and inherits the environment of whichever agent started it,
+so a `GIT_DIR` or `GIT_INDEX_FILE` left by a git hook would point every later
+capture at one repository. The list comes from `git rev-parse --local-env-vars`.
+Everything else in the environment stays, including `GIT_CONFIG_GLOBAL` and
+`GIT_SSH_COMMAND`, which belong to the user.
+
 ## The two listeners
 
 | Listener     | Carries                | Reachable from                   |

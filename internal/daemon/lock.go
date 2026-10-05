@@ -65,6 +65,23 @@ func takeLock(path string, pid int, started time.Time) (*lock, error) {
 	return &lock{f: f}, nil
 }
 
+// Held reports whether a daemon holds the lock at path.
+//
+// It asks by taking the lock and dropping it at once. A daemon starting in that
+// instant loses the race and exits, as it would to any live daemon, and the
+// command that started it starts another.
+func Held(path string) bool {
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = f.Close() }()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		return errors.Is(err, syscall.EWOULDBLOCK)
+	}
+	return false
+}
+
 // release gives the lock up by closing the file, which drops the flock.
 func (l *lock) release() error {
 	return errors.Wrap(l.f.Close(), "release the lock")

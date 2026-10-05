@@ -640,6 +640,14 @@ agent driving the tool from the manual alone.
   without a binary to start. Iteration 6's manual documents it, with the other
   environment variables.
 
+**Departures, iteration 6.**
+
+- `eyeball stop` waits until the lock is free as well as until the socket stops
+  answering, through a new `daemon.Held`. The daemon closes its socket before it
+  releases its lock, so a stop that returned on the socket alone let the next
+  command's daemon lose the lock to one still exiting. The end-to-end test found
+  it.
+
 ### The store
 
 Each addition is written by something this spec builds.
@@ -910,22 +918,28 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
       the subcommand, `--` before a dashed path, a bad subcommand flag under
       `--json`, and `--format` comparing a number
 
+> **Completed** 2026-10-05 06:43 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.8s
+> - `go test -race ./...` — 8.2s
+
 ## Iteration 6: The manual and the whole loop
 
-- [ ] `eyeball doc` printing an embedded manual, without dialing the daemon,
+- [x] `eyeball doc` printing an embedded manual, without dialing the daemon,
       covering every command, flag, exit status and refusal code, with a
       reference section of every response field by dotted path
-- [ ] The manual listing every environment variable the CLI reads:
+- [x] The manual listing every environment variable the CLI reads:
       `EYEBALL_AGENT`, `EYEBALL_NO_START` and `XDG_STATE_HOME`
-- [ ] A test failing when a command, a flag or a dotted path is absent from the
+- [x] A test failing when a command, a flag or a dotted path is absent from the
       manual, proved by deleting one of each
-- [ ] An end-to-end test building the binary with a short `XDG_STATE_HOME`:
+- [x] An end-to-end test building the binary with a short `XDG_STATE_HOME`:
       `request` starting a detached daemon, `status`, `abandon` waking a
       background `wait`, and `stop`
-- [ ] The comment in `cmd/eyeball` corrected to say bare `eyeball` prints help
-- [ ] `docs/architecture.md` naming the marker file `.eyeball`, the worktree
+- [x] The comment in `cmd/eyeball` corrected to say bare `eyeball` prints help
+- [x] `docs/architecture.md` naming the marker file `.eyeball`, the worktree
       rule, the agent's default name and the git environment scrub, in the
       sections those belong to
-- [ ] `internal/daemon/doc.go`, `internal/cli/doc.go` and `internal/api/doc.go`
+- [x] `internal/daemon/doc.go`, `internal/cli/doc.go` and `internal/api/doc.go`
       stating their packages' invariants: detachment and shutdown order, receipt
       after printing, and the schema being the manual's

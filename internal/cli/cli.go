@@ -152,7 +152,9 @@ func Run(ctx context.Context, args []string, env Env) error {
 	case errors.As(err, &fail):
 		a.out.printRefusal(api.Error{Code: fail.code, Message: fail.message, Fix: fail.fix})
 	case errors.Is(err, errDropped):
-		a.out.printRefusal(api.Error{Code: api.CodeConnectionLost, Message: err.Error(), Fix: "run the same command again; it starts a daemon if none is running"})
+		// The daemon may have acted before the connection dropped, so the fix
+		// is to look before repeating: a request run twice opens two reviews.
+		a.out.printRefusal(api.Error{Code: api.CodeConnectionLost, Message: err.Error(), Fix: "run eyeball status to see whether it took effect, and run the command again if it did not"})
 	case !a.ran:
 		// urfave raised it before any action ran: an unknown subcommand, or
 		// a command line it could not parse.
@@ -674,12 +676,13 @@ func (a *app) stopCommand() *ucli.Command {
 				a.out.refuse(raw)
 				return refused{}
 			}
-			// Waiting until nothing answers is what lets the next command
-			// start a fresh daemon rather than reach the dying one.
+			// The daemon closes its socket before it releases its lock, so
+			// stop waits for both. Returning on the socket alone would let the
+			// next command's daemon lose the lock to one that is still exiting.
 			deadline := time.Now().Add(10 * time.Second)
-			for a.client.dial(ctx) == nil {
+			for a.client.dial(ctx) == nil || daemon.Held(a.client.paths.Lock) {
 				if time.Now().After(deadline) {
-					return errors.New("the daemon was asked to stop and is still answering after 10s")
+					return errors.New("the daemon was asked to stop and has not exited after 10s")
 				}
 				time.Sleep(20 * time.Millisecond)
 			}
@@ -714,7 +717,7 @@ func (a *app) serveCommand() *ucli.Command {
 	}
 }
 
-// docCommand prints the manual. It arrives with the manual itself.
+// docCommand prints the manual, with no daemon.
 func (a *app) docCommand() *ucli.Command {
 	return &ucli.Command{
 		Name:  "doc",

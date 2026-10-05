@@ -8,10 +8,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 
+	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/cli"
 	"github.com/noonat/eyeball/internal/daemon"
 )

@@ -106,6 +106,18 @@ func TestCheck_socketPath(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("108 bytes"))
 }
 
+func TestHeld(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	g.Expect(Held(p.Lock)).To(BeFalse(), "no lock file at all")
+
+	d := startDaemon(g, t, p)
+	g.Expect(Held(p.Lock)).To(BeTrue())
+	d.cancel()
+	g.Eventually(d.done, 5*time.Second).Should(BeClosed())
+	g.Expect(Held(p.Lock)).To(BeFalse(), "a lock file left by a daemon that exited")
+}
+
 func TestLocate(t *testing.T) {
 	cases := []struct {
 		name string
