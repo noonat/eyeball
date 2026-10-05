@@ -66,27 +66,40 @@ func (c *statusCatcher) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// page is what the layout prints around one page template: the document's
+// title, the topbar, and the data the page template reads as its dot.
+type page struct {
+	// Title is the document's title and the topbar's heading.
+	Title string
+	// Back is where the topbar's back link goes. It is empty on the queue,
+	// whose topbar carries the wordmark instead.
+	Back string
+	// BackLabel is the back link's text.
+	BackLabel string
+	// Body is the page template's data.
+	Body any
+}
+
+// message is a page that says one thing.
+type message struct {
+	// Heading is what happened, and Text says more.
+	Heading, Text string
+}
+
 // errorPage writes a page for a status the surface answers with on its own.
 func (s *Server) errorPage(w http.ResponseWriter, status int) {
-	page := struct {
-		Title   string
-		Heading string
-		Message string
-	}{Title: "Not found", Heading: "Nothing here", Message: "There is no page at this address."}
+	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address."}}
 	if status == http.StatusMethodNotAllowed {
-		page = struct {
-			Title   string
-			Heading string
-			Message string
-		}{Title: "Not allowed", Heading: "Not allowed", Message: "This address does not answer that kind of request."}
+		p.Title = "Not allowed"
+		p.Body = message{Heading: "Not allowed", Text: "This address does not answer that kind of request."}
 	} else {
 		status = http.StatusNotFound
 	}
-	s.renderPage(w, status, "error", page)
+	s.renderPage(w, status, "error", p)
 }
 
 // renderPage executes a page template inside the layout and writes it.
-func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data any) {
+func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
 	t, err := s.pages.Clone()
 	if err == nil {
 		_, err = t.AddParseTree("page", s.pages.Lookup(name).Tree)

@@ -322,8 +322,8 @@ an `<img>` element it cannot execute, and that is how a thumbnail renders it,
 but opening it as a document goes through the preview origin like any other
 page.
 
-Syntax highlighting is `alecthomas/chroma`, server side, into the five roles the
-stylesheet defines. Client-side highlighting would ship a second parser to a
+Syntax highlighting is `alecthomas/chroma/v2`, server side, into the five roles
+the stylesheet defines. Client-side highlighting would ship a second parser to a
 phone to re-derive what the server already knows.
 
 ## The surface
@@ -527,7 +527,7 @@ closes.
 
 | Dependency                              | Why                                                               |
 | --------------------------------------- | ----------------------------------------------------------------- |
-| `github.com/alecthomas/chroma`          | syntax highlighting, server side                                  |
+| `github.com/alecthomas/chroma/v2`       | syntax highlighting, server side                                  |
 | `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads       |
 | `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                     |
 | `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |

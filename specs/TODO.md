@@ -94,6 +94,9 @@ requirement in either document that none of them names is a gap in this list.
       as a block comment. Highlighting the whole file and slicing it would fix
       it, at the cost of reading both whole files for every hunk. Assumed rare,
       not measured.
+- [ ] design: a hunk header naming the function it is in, as the review tearout
+      shows. `diff.Hunk` carries no section heading, and finding one means a
+      rule per language or git's own funcname patterns.
 - [ ] product: whether the surface should follow a dark device before the write
       path brings a script. `app.css` switches only on `data-theme`, so it is
       light until then.

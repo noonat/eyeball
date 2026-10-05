@@ -307,6 +307,41 @@ comment, which is in [specs/TODO.md](TODO.md).
 and a line saying which. What a browser could display instead is rendered files
 (010).
 
+**Departures, iteration 4.**
+
+- A hunk header is written in git's form, `@@ -41,7 +41,14 @@`, which leaves out
+  a count of one, as in `@@ -1 +1 @@`. The review tearout follows it with the
+  enclosing function's name, which `diff.Hunk` does not carry, and writes the
+  old range without git's minus sign. The function name is in specs/TODO.md.
+- The layout's topbar takes a back link and a title, or the wordmark when there
+  is no back link. The queue's count pill joins it in iteration 5, with the
+  queue.
+- Segments are not merged when two neighbors share a role and a mark. Mutation
+  testing showed the merge changed nothing a reader sees, so it was removed.
+- Correction: the design above credits the Go lexer with turning `\r` into `\n`.
+  It is chroma's default `EnsureLF` option, applied to every lexer, found by the
+  stand-in's review. Tokenizing with it off keeps a line holding a carriage
+  return highlighted, confirmed against the Go and Python lexers.
+- Correction: the design above treats the Makefile lexer's newline as a corner
+  case that leaves a line plain. 32 of chroma's lexers set `EnsureNL`,
+  TypeScript, C, Rust and PHP among them, and their line-comment rule runs to
+  the newline, so every line ending in a `//` comment or in spaces would have
+  gone plain, found by the stand-in's second review and confirmed for
+  TypeScript, Rust and C. The one newline such a lexer appends is trimmed from
+  the last token. Tokens that differ from the line in any other way still leave
+  it plain.
+- Reading a line's tokens is bounded. chroma's Jungle lexer emits empty tokens
+  forever for a comment with no newline, which is how every line reaches it,
+  found by the stand-in's third review. A lexer that gives back more than four
+  tokens per byte of the line, plus sixteen, leaves the line plain.
+- This iteration's review ran four rounds where the stop rule allows three. The
+  third found the unbounded loop above, which would hang the daemon on one line
+  of one kind of file, and a commit needs a review to pass the gate. The fourth
+  round was scoped to the bound alone.
+- Binary and too-large files get no rows from `render.Diff`, only the flag
+  saying which. The page's header and line for them are printed in iteration 6,
+  which now lists them.
+
 ### The queue
 
 **`GET /{$}` is the queue.** `GET /` is a prefix pattern that matches every
@@ -566,23 +601,29 @@ the three review passes and were checked by the stand-in only.
       accounts, and the fix for a daemon that will not start pointing at
       `eyeball.log`
 
+> **Completed** 2026-10-05 09:59 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.5s
+> - `go test -race ./...` — 8.4s
+
 ## Iteration 4: Rendering a diff
 
-- [ ] Templates parsed from the embedded `web/templates` at startup, the layout
+- [x] Templates parsed from the embedded `web/templates` at startup, the layout
       carrying the topbar, `data-theme="light"` and the stylesheet link
-- [ ] A row model from `diff.Result`: hunk headers, the old line number on a
+- [x] A row model from `diff.Result`: hunk headers, the old line number on a
       removed line and the new one otherwise, the sign, and the no-newline flag
-- [ ] chroma v2 added and its row in architecture.md's table corrected to the
+- [x] chroma v2 added and its row in architecture.md's table corrected to the
       `/v2` module, highlighting a line by its file's lexer into the five role
       classes, plain with no lexer
-- [ ] A line whose tokens do not reproduce it rendered plain, with tests for the
+- [x] A line whose tokens do not reproduce it rendered plain, with tests for the
       Makefile lexer's newline and a carriage return
-- [ ] Segments nesting a word mark around a role span, with a test of a mark
+- [x] Segments nesting a word mark around a role span, with a test of a mark
       crossing a token boundary
-- [ ] The classes render chooses at runtime in one table, held to `app.css` by a
+- [x] The classes render chooses at runtime in one table, held to `app.css` by a
       test
-- [ ] Binary and too-large files rendered as a header and one line naming which
-- [ ] Ages written as now, minutes, hours, Yesterday, days or a date, with a
+- [x] Binary and too-large files given no rows, with the flag saying which
+- [x] Ages written as now, minutes, hours, Yesterday, days or a date, with a
       table test at each boundary
 
 ## Iteration 5: The queue
@@ -616,6 +657,8 @@ the three review passes and were checked by the stand-in only.
 - [ ] A decided round showing the verdict notice and the verdict note, and no
       decision bar on any round
 - [ ] A review or round that does not exist answered with the 404 page
+- [ ] Binary and too-large files rendered as their header and one line naming
+      which
 
 ## Iteration 7: Earlier rounds, seeding, and the look
 

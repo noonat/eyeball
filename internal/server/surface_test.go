@@ -60,6 +60,11 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
 	g.Expect(res.Header().Get("Content-Security-Policy")).To(Equal(contentSecurityPolicy))
 	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("There is no page at this address."))
+	// The layout carries the topbar, the light theme and the stylesheet.
+	g.Expect(res.Body.String()).To(ContainSubstring(`<html lang="en" data-theme="light">`))
+	g.Expect(res.Body.String()).To(ContainSubstring(`<link rel="stylesheet" href="/static/app.css">`))
+	g.Expect(res.Body.String()).To(ContainSubstring(`<div class="topbar"><a class="back" href="/">`))
+	g.Expect(res.Body.String()).To(ContainSubstring(`<h1>Not found</h1>`))
 
 	res = serveSurface(surface, http.MethodPost, "/healthz")
 	g.Expect(res.Code).To(Equal(http.StatusMethodNotAllowed))
