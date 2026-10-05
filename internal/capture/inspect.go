@@ -199,7 +199,8 @@ func CheckoutAround(root string) (bool, error) {
 // marker beside it, since a marker outlives a .git moved from beside it. A .git
 // file naming a git directory that is gone has lost it as well: in a linked
 // worktree whose directory was removed, every git call exits 128 and none
-// falls back to an outer repository.
+// falls back to an outer repository. So has a .git directory git does not
+// accept as a repository, such as an emptied one.
 func lostRepository(root, base string) (lost, git bool, err error) {
 	git, err = holds(root, gitDir)
 	if err != nil {
@@ -219,13 +220,14 @@ func lostRepository(root, base string) (lost, git bool, err error) {
 	return !usable, true, nil
 }
 
-// gitDirUsable reports whether the .git entry at root leads to a git
-// directory that exists.
+// gitDirUsable reports whether the .git entry at root leads to a directory
+// git accepts as a repository.
 //
-// A directory does. A file is a linked worktree's or a submodule's pointer,
-// "gitdir: <path>", with a relative path read against the root, which is how
-// a submodule writes it. A pointer git could not parse is as unusable as one
-// whose target is gone, since git refuses it with "invalid gitfile format".
+// A directory is checked as it stands. A file is a linked worktree's or a
+// submodule's pointer, "gitdir: <path>", with a relative path read against the
+// root, which is how a submodule writes it, and its target is checked. A
+// pointer git could not parse is as unusable as one whose target is gone,
+// since git refuses it with "invalid gitfile format".
 func gitDirUsable(root string) (bool, error) {
 	full := filepath.Join(root, gitDir)
 	info, err := os.Stat(full)
@@ -238,7 +240,7 @@ func gitDirUsable(root string) (bool, error) {
 		return false, errors.Wrapf(err, "stat %s", full)
 	}
 	if info.IsDir() {
-		return true, nil
+		return isGitDirectory(full)
 	}
 	if !info.Mode().IsRegular() {
 		return false, nil
@@ -254,14 +256,51 @@ func gitDirUsable(root string) (bool, error) {
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(root, target)
 	}
-	info, err = os.Stat(target)
-	if err != nil {
-		if absent(err) {
+	return isGitDirectory(target)
+}
+
+// isGitDirectory reports whether dir holds what git looks for before it
+// accepts a directory as a repository: a HEAD, and objects and refs
+// directories in its common directory. A linked worktree's git directory names
+// its common directory in a commondir file, and every other git directory is
+// its own.
+//
+// A .git directory git does not accept is skipped: an emptied one inside an
+// outer repository let rev-parse answer for the outer one, and a pointer to a
+// directory that is not a repository made every git call exit 128. Both read
+// as a lost repository here. HEAD's content is not checked, though git checks
+// that too, so a HEAD holding garbage passes here and fails in git.
+func isGitDirectory(dir string) (bool, error) {
+	head, err := holds(dir, "HEAD")
+	if err != nil || !head {
+		return false, err
+	}
+	common := dir
+	pointer, err := os.ReadFile(filepath.Join(dir, "commondir"))
+	switch {
+	case err == nil:
+		common = strings.TrimSpace(string(pointer))
+		if !filepath.IsAbs(common) {
+			common = filepath.Join(dir, common)
+		}
+	case !absent(err) && !errors.Is(err, os.ErrPermission):
+		return false, errors.Wrapf(err, "read the commondir in %s", dir)
+	}
+	names := []string{"objects", "refs"}
+	for _, name := range names {
+		full := filepath.Join(common, name)
+		info, err := os.Stat(full)
+		if err != nil {
+			if absent(err) || errors.Is(err, os.ErrPermission) {
+				return false, nil
+			}
+			return false, errors.Wrapf(err, "stat %s", full)
+		}
+		if !info.IsDir() {
 			return false, nil
 		}
-		return false, errors.Wrapf(err, "stat %s", target)
 	}
-	return info.IsDir(), nil
+	return true, nil
 }
 
 // rootRules asks the outer checkout whether it ignores a marker project as a

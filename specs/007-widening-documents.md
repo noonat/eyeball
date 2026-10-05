@@ -1323,6 +1323,71 @@ leaves one alive has a test that cannot fail:
   state is the same either way: dropping `AND inside_checkout = 0` from the
   update, and walking a project that is already flagged.
 
+**Departures, iteration 3.**
+
+- A per-path check-ignore that fails with anything but 0, 1, or the submodule's
+  128 returns `capture.ErrRulesUnreadable`, marked as `ErrNotFound` too. The
+  design says both that such a failure is an error and that a failed ignore
+  check refuses only live reads, with the 404 page and a banner. The sentinel
+  serves the second: a caller that knows only `ErrNotFound` still refuses, and
+  one that knows both can name the reason. A reader whose state is
+  `LiveRulesUnreadable` refuses with the same sentinel, so the banner reads one
+  error whichever check failed. A truncated index made check-ignore exit 128
+  with "index file smaller than expected", confirmed, and that is the row. The
+  agent API's error table gains a row for the sentinel, since every sentinel
+  needs one, and the `ErrNotFound` row above it answers first.
+- `NewReader` allows live reads under `LiveIgnoreRules` where the root holds a
+  `.git` entry, and under `LiveOpen` otherwise. Iteration 2 left it at
+  `LiveOpen`, so a reader no `Inspect` built would still serve a git project's
+  ignored files. The cost is one `Lstat` per reader. It still knows nothing of a
+  lost repository or of a marker project inside a checkout, so a reader for a
+  page comes from `State.Reader`, as before.
+- The parent check refuses a parent that is not a directory, before git is
+  asked, rather than leaving it to `ENOTDIR` at step 3. check-ignore exits 1 for
+  `./go.mod/x`, confirmed, so the answer is the same and one git call is saved.
+  With symlinked parents also refused there, `ENOTDIR`, `ELOOP` and the escape
+  reach the read only through a race. So the error mapping is tested on its own,
+  against errors from real `os.Root` calls, and the read is tested through a
+  `pause` field on `Reader`, which a test sets to change the disk between the
+  steps: a parent swapped for a link to outside, a file replaced, removed, or
+  swapped for a FIFO, and a link removed or its parent swapped.
+- The todo's link-loop row is `loop/x`, refused by the parent check. A link to
+  itself named as the final component reads as its target text, `loop`, as any
+  link does, and a row asserts that.
+- The `a%00b` row is `a\x00b` at the capture level, since the mux hands the
+  handler the unescaped path. The submodule row uses a deinitialized submodule
+  with a file written into it: a checked-out one holds a `.git` file, so the
+  parent check refuses its paths before git is asked. Its `LANGUAGE=de` half
+  skips where git has no German messages, since the pin cannot be observed
+  there.
+- A `.git` directory git does not accept as a repository reads as a lost
+  repository, and so does a `gitdir:` pointer whose target is a directory git
+  does not accept. Against git 2.55.0, an emptied `.git` inside an outer
+  repository let `rev-parse --show-toplevel` answer for the outer one, and a
+  pointer to a plain directory made it exit 128, both confirmed. The check looks
+  for what git looks for: a `HEAD`, and `objects` and `refs` directories in the
+  common directory, which a linked worktree names in its `commondir` file.
+  `HEAD`'s content is not read, though git reads it, so a `HEAD` holding garbage
+  passes here and fails in git, and every route under that root would then be
+  a 500.
+- `FindRoot` reads entries through `holds` since iteration 2, which counts
+  `ENOTDIR` as absent. A working directory below a file now walks upward instead
+  of failing. A working directory cannot sit below a file, so only a path typed
+  by hand reaches it.
+- `capture.Walk` cleans review paths through `CleanPath`, so a review path with
+  a `.git` segment at any depth is `ErrNoSuchPath`. Before, a file inside a
+  nested repository's `.git` named directly was captured.
+- Five mutants survive and are argued equivalent. Dropping `LANGUAGE=` from the
+  pin: under `LC_ALL=C`, git ignored `LANGUAGE=de` and wrote English, confirmed.
+  `root.Lstat` replaced by `os.Lstat`, and `root.OpenFile` by `os.OpenFile`: the
+  step after each still goes through the root or through `SameFile`, so a
+  swapped parent is refused either way, and the one file `SameFile` passes is
+  the same inode the `Lstat` saw. The regular-file check after the open: only an
+  inode freed and reused by a FIFO between the `Lstat` and the open gets past
+  `SameFile`, which no test can arrange. A `.git` lookup in the parent check
+  failing with anything but not found: a directory whose `.git` cannot be looked
+  up cannot be read below either, so the read fails with the same error.
+
 ## Out of scope
 
 - **Comments on a line or a passage, and mapping a passage to source lines.**
@@ -1616,31 +1681,37 @@ required_acks:
       level that a captured file still reads and a live read returns
       `ErrNotFound`
 
+> **Completed** 2026-10-05 22:18 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.8s
+> - `go test -race ./...` — 21.1s
+
 ## Iteration 3: The live read
 
-- [ ] `capture.CleanPath` exported from `safePath`, refusing a `.git` segment at
+- [x] `capture.CleanPath` exported from `safePath`, refusing a `.git` segment at
       any depth and a NUL, with rows reading `vendor/x/.git/config` and `a%00b`
       refused
-- [ ] The live read refusing an ignored path through
+- [x] The live read refusing an ignored path through
       `git check-ignore -q -- ./<path>`, with rows for `private.txt`,
       `build/out` and an untracked ignored `:other.txt`
-- [ ] A marker-project row: `notes/creds.txt`, named by the outer checkout's
+- [x] A marker-project row: `notes/creds.txt`, named by the outer checkout's
       ignore rules, refused on the live read, and under
       `GIT_CEILING_DIRECTORIES` refused with the "rules unreadable" reason
-- [ ] A submodule's exit 128 read as not found under `LC_ALL=C` and `LANGUAGE=`,
+- [x] A submodule's exit 128 read as not found under `LC_ALL=C` and `LANGUAGE=`,
       with a row run under `LANGUAGE=de`, and any other 128 an error
-- [ ] The live read through `os.Root`: the parent check, links read by
+- [x] The live read through `os.Root`: the parent check, links read by
       `Readlink`, regular files opened `O_NONBLOCK` and checked by `SameFile`,
       and an escape mapped to not found
-- [ ] `os.Root` rows: a link to `/etc/hostname`, a path through a link to
+- [x] `os.Root` rows: a link to `/etc/hostname`, a path through a link to
       `/etc`, a link inside the root read as its target text, and a FIFO
-- [ ] Not found for `ENOTDIR`, `ENAMETOOLONG`, `ELOOP` and the escape by its
+- [x] Not found for `ENOTDIR`, `ENAMETOOLONG`, `ELOOP` and the escape by its
       text, with rows for `go.mod/x`, a 300-byte segment and a link loop
-- [ ] A path inside a directory holding `.git` refused by the parent check, with
+- [x] A path inside a directory holding `.git` refused by the parent check, with
       a `vendor/y/bar.go` row
-- [ ] `Reader.Open`'s fallback moved onto the same read, with 006's tests still
+- [x] `Reader.Open`'s fallback moved onto the same read, with 006's tests still
       passing
-- [ ] `capture/doc.go` recording the project's states, the live read's refusals
+- [x] `capture/doc.go` recording the project's states, the live read's refusals
       and the move to `os.Root`
 
 ## Iteration 4: What the routes read

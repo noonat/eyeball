@@ -3,6 +3,7 @@ package capture
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/cockroachdb/errors"
@@ -10,6 +11,93 @@ import (
 
 	"github.com/noonat/eyeball/internal/store"
 )
+
+func Test_isGitDirectory(t *testing.T) {
+	setup := NewWithT(t)
+	dir := t.TempDir()
+	// layout lays out a directory with the named entries, a trailing slash
+	// marking a directory, and returns its path.
+	layout := func(name string, entries ...string) string {
+		full := filepath.Join(dir, name)
+		setup.Expect(os.MkdirAll(full, 0o700)).To(Succeed())
+		for _, entry := range entries {
+			if strings.HasSuffix(entry, "/") {
+				setup.Expect(os.MkdirAll(filepath.Join(full, entry), 0o700)).To(Succeed())
+				continue
+			}
+			writeFile(setup, full, entry, "ref: refs/heads/main\n")
+		}
+		return full
+	}
+	common := layout("common", "HEAD", "objects/", "refs/")
+	relative := layout("worktrees/relative", "HEAD")
+	writeFile(setup, relative, "commondir", "../../common\n")
+	absolute := layout("worktrees/absolute", "HEAD")
+	writeFile(setup, absolute, "commondir", common+"\n")
+	broken := layout("worktrees/broken", "HEAD")
+	writeFile(setup, broken, "commondir", "../../no-objects\n")
+	layout("no-objects", "HEAD", "refs/")
+
+	dirs := []struct {
+		name string
+		dir  string
+		want bool
+	}{
+		{
+			name: "HEAD, objects and refs",
+			dir:  common,
+			want: true,
+		},
+		{
+			name: "an empty directory",
+			dir:  layout("empty"),
+			want: false,
+		},
+		{
+			name: "no HEAD",
+			dir:  layout("no-head", "objects/", "refs/"),
+			want: false,
+		},
+		{
+			name: "no objects",
+			dir:  filepath.Join(dir, "no-objects"),
+			want: false,
+		},
+		{
+			name: "no refs",
+			dir:  layout("no-refs", "HEAD", "objects/"),
+			want: false,
+		},
+		{
+			name: "objects a file",
+			dir:  layout("objects-file", "HEAD", "objects", "refs/"),
+			want: false,
+		},
+		{
+			name: "a worktree's directory with a relative commondir",
+			dir:  relative,
+			want: true,
+		},
+		{
+			name: "a worktree's directory with an absolute commondir",
+			dir:  absolute,
+			want: true,
+		},
+		{
+			name: "a commondir naming a directory with no objects",
+			dir:  broken,
+			want: false,
+		},
+	}
+	for _, c := range dirs {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			got, err := isGitDirectory(c.dir)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(got).To(Equal(c.want))
+		})
+	}
+}
 
 func TestBaseGone(t *testing.T) {
 	g := NewWithT(t)
@@ -100,6 +188,13 @@ func TestInspect(t *testing.T) {
 	r.write(g, "a.txt", "a\n")
 	base := r.commit(g, "base")
 	writeFile(g, dir, "outside/.eyeball", "")
+	linked := filepath.Join(dir, "linked")
+	r.git(g, "worktree", "add", "--quiet", linked)
+	inner := newRepo(g, filepath.Join(dir, "inner"))
+	inner.write(g, "f.txt", "one\n")
+	inner.commit(g, "inner base")
+	outer := newRepo(g, filepath.Join(dir, "outer"))
+	addSubmodule(g, outer, inner.root, "mod")
 
 	states := []struct {
 		name string
@@ -124,6 +219,18 @@ func TestInspect(t *testing.T) {
 			root: r.root,
 			base: "",
 			want: State{Root: r.root, Live: LiveIgnoreRules},
+		},
+		{
+			name: "a linked worktree, whose git directory finds its objects through commondir",
+			root: linked,
+			base: base,
+			want: State{Root: linked, Base: base, Live: LiveIgnoreRules},
+		},
+		{
+			name: "a checked-out submodule, whose .git points into the superproject",
+			root: filepath.Join(outer.root, "mod"),
+			base: "",
+			want: State{Root: filepath.Join(outer.root, "mod"), Live: LiveIgnoreRules},
 		},
 		{
 			name: "a project outside git never seen in a checkout",
@@ -254,6 +361,17 @@ func TestInspect_lostRepository(t *testing.T) {
 	main.git(setup, "worktree", "add", "--quiet", linked)
 	setup.Expect(os.RemoveAll(filepath.Join(main.root, gitDir, "worktrees"))).To(Succeed())
 
+	// An emptied .git inside an outer repository. git does not accept it as
+	// a repository, walks past it, and answers for the outer one.
+	emptied := filepath.Join(outer.root, "emptied")
+	setup.Expect(os.MkdirAll(filepath.Join(emptied, gitDir), 0o700)).To(Succeed())
+
+	// A pointer to a directory that is no repository makes every git call
+	// exit 128 with "not a git repository".
+	pointsAtNothing := filepath.Join(dir, "points")
+	setup.Expect(os.MkdirAll(filepath.Join(dir, "notrepo"), 0o700)).To(Succeed())
+	writeFile(setup, pointsAtNothing, gitDir, "gitdir: ../notrepo\n")
+
 	// A pointer git cannot parse is refused by git as an invalid gitfile.
 	garbled := filepath.Join(dir, "garbled")
 	writeFile(setup, garbled, gitDir, "not a pointer\n")
@@ -309,6 +427,18 @@ func TestInspect_lostRepository(t *testing.T) {
 		{
 			name: "a .git link whose target is gone",
 			root: dangling,
+			base: "",
+			want: LiveLost,
+		},
+		{
+			name: "an emptied .git inside an outer repository",
+			root: emptied,
+			base: "",
+			want: LiveLost,
+		},
+		{
+			name: "a .git file pointing at a directory that is no repository",
+			root: pointsAtNothing,
 			base: "",
 			want: LiveLost,
 		},
@@ -382,7 +512,9 @@ func TestInspect_markerWithBase(t *testing.T) {
 func TestInspect_relativeGitPointer(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
-	g.Expect(os.MkdirAll(filepath.Join(dir, "modules", "lib"), 0o700)).To(Succeed())
+	writeFile(g, dir, "modules/lib/HEAD", "ref: refs/heads/main\n")
+	g.Expect(os.MkdirAll(filepath.Join(dir, "modules", "lib", "objects"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(dir, "modules", "lib", "refs"), 0o700)).To(Succeed())
 	writeFile(g, dir, "lib/.git", "gitdir: ../modules/lib\n")
 
 	// A submodule writes its pointer relative to its own root. Read against
@@ -544,6 +676,42 @@ func TestState_Reader_lostRepository(t *testing.T) {
 		_, _, err = reader.Open(t.Context(), p)
 		g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue(), p)
 	}
+}
+
+func TestState_Reader_markerProject(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	outer, notes := markerInCheckout(g, t.TempDir())
+	blobs, _ := newBlobs(g, t)
+
+	// notes holds no .git of its own, so it is not a git project, and its
+	// rules come from the checkout around it. creds.txt is named by that
+	// checkout's .gitignore.
+	got, err := Inspect(t.Context(), notes, "", false)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.Live).To(Equal(LiveIgnoreRules))
+	reader := got.Reader(blobs, nil)
+	_, _, err = reader.Open(t.Context(), "creds.txt")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+	g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeFalse())
+	rc, source, err := reader.Open(t.Context(), "plan.md")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(source).To(Equal(SourceWorking))
+	g.Expect(readAll(g, rc)).To(Equal("the plan\n"))
+
+	// The ceiling stops git short of the checkout's .git. Asked after the
+	// reader was built, the path's own check fails, and asked before, the
+	// root's check does. Either way the read is refused with the reason.
+	t.Setenv("GIT_CEILING_DIRECTORIES", outer.root)
+	_, _, err = reader.Open(t.Context(), "creds.txt")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+	g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeTrue())
+	got, err = Inspect(t.Context(), notes, "", false)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.Live).To(Equal(LiveRulesUnreadable))
+	_, _, err = got.Reader(blobs, nil).Open(t.Context(), "creds.txt")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+	g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeTrue())
 }
 
 func TestState_Reader_missingRoot(t *testing.T) {

@@ -19,4 +19,21 @@
 // not by asking git. With git missing from PATH the question cannot be put to
 // git at all, so its failure could not separate a repository whose tool is
 // absent from a directory that was never one.
+//
+// A page reads a round through a Reader built by State.Reader, after Inspect
+// has settled the project's state once for the request: whether the root
+// exists, whether the project has lost its repository, whether the base still
+// exists, and which ignore rules a live read follows. Lost is decided from the
+// filesystem alone, before any git call, because git in a lost repository
+// either fails or answers for an outer one. Every state but two refuses a live
+// read, and a refused live read never stops a captured file from opening.
+//
+// A live read, of a file no frozen source holds, refuses a path with a .git
+// segment or a NUL, a path through a symlinked directory or into a directory
+// holding another repository, a path git ignores, and a path inside a
+// submodule. It reads through an os.Root on the project root, which refuses in
+// the kernel a path that leaves it, so a directory swapped for a link after
+// the checks still cannot lead outside. A link reads as its target text. The
+// walk and Freeze still check parents with linkedParent: they write to the
+// blob store at an agent's request, not to a page.
 package capture
