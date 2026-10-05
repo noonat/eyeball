@@ -188,6 +188,24 @@ the module proxy. v1.102.3 builds with `CGO_ENABLED=0` against Go 1.26.8 and
 raises the `go` directive to 1.26.6, confirmed. A trivial program linking it is
 28.5 MB, which the architecture already accepts for esbuild.
 
+**Departures, iteration 3.**
+
+- A `state/node.new` left by a first login that failed its checks is used again
+  by the next login, rather than replaced. That node is already a machine on the
+  tailnet, and a fresh directory would make a second one, under a new name,
+  after the owner fixes the setting the first login reported. It still means
+  nothing to a daemon.
+- `eyeball tailnet login` reports with three codes the client gives:
+  `owner_only` for no terminal, `daemon_running` for a lock held by a daemon or
+  another login, and `login_failed` for a login that did not finish or a tailnet
+  that cannot serve. Its `--json` answer is `api.LoginResult`. The spec named no
+  codes or output for it.
+- `golang.org/x/term` decides whether stdin is a terminal. A mode check on stdin
+  would pass `/dev/null`, which is a character device too, and `/dev/null` is
+  what a started process is given.
+- The manual's command check walks subcommands, so `eyeball tailnet login` is
+  checked like the rest.
+
 ### Shutdown, with the surface
 
 005's shutdown order is extended, and the lock is still released last:
@@ -227,7 +245,7 @@ daemon and `stop`'s wait are sized to that sum.
   a device approval, and a surface left in starting forever says nothing.
 - A failure the node reports for itself, from its start, its watch, its status
   or its listen, has no fix eyeball can name. Its reason carries the error and
-  points the owner at `eyeball.log`, where it is logged in full.
+  points the owner at the daemon's log, where it is logged in full.
 
 ### Assets
 
@@ -518,26 +536,32 @@ the three review passes and were checked by the stand-in only.
 - [x] tailscale.com v1.102.3 added, its row in architecture.md's table checked,
       and `go install ./cmd/eyeball` still producing a working binary
 
+> **Completed** 2026-10-05 09:34 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.4s
+> - `go test -race ./...` — 20.8s
+
 ## Iteration 3: Joining the tailnet
 
-- [ ] `eyeball tailnet login` refusing with no terminal on stdin, whatever the
+- [x] `eyeball tailnet login` refusing with no terminal on stdin, whatever the
       environment holds, before anything else it does
-- [ ] `eyeball tailnet login` holding the daemon's lock for its whole run, with
+- [x] `eyeball tailnet login` holding the daemon's lock for its whole run, with
       the lock file marked `login` and the holder read back reporting it
-- [ ] A command finding a login in progress refusing with `daemon_unavailable`
+- [x] A command finding a login in progress refusing with `daemon_unavailable`
       and saying to retry once it finishes, with a CLI test that it prints no
       `kill` fix
-- [ ] A first enrollment into `state/node.new` with `logtail.Disable()`, the
+- [x] A first enrollment into `state/node.new` with `logtail.Disable()`, the
       login URL printed, and a wait for the node to run, proved against the fake
-- [ ] MagicDNS and certificate domains checked, the node closed, and the
+- [x] MagicDNS and certificate domains checked, the node closed, and the
       directory renamed to `state/node` only after both pass, proved against the
       fake
-- [ ] A login with `state/node` present re-authenticating that node in place,
+- [x] A login with `state/node` present re-authenticating that node in place,
       proved against the fake
-- [ ] `eyeball tailnet login` in the manual marked as the owner's, with the stop
+- [x] `eyeball tailnet login` in the manual marked as the owner's, with the stop
       it needs first and no mention of `TS_AUTHKEY`, and `serve` and
       `--surface-addr` marked as the person's
-- [ ] architecture.md stating that the daemon starts tsnet only for an enrolled
+- [x] architecture.md stating that the daemon starts tsnet only for an enrolled
       node, what the loopback listener exposes to this user and to other
       accounts, and the fix for a daemon that will not start pointing at
       `eyeball.log`

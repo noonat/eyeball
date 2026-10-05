@@ -88,6 +88,12 @@ true: on startup the daemon takes the lock, and only then unlinks and rebinds
 the socket. Losing the race means another daemon is live, so the loser connects
 to it instead.
 
+**A daemon that will not start says why in `eyeball.log`**, in the state
+directory, which is where a started daemon's stderr goes. The fix a command
+prints for it points there. It never suggests `eyeball serve`: a daemon run that
+way keeps the environment of whoever runs it, and an agent's environment can
+hold variables tsnet reads.
+
 **It does not exit when idle**, and this is where it stops behaving like a
 language server. A language server dies with the editor that spawned it. eyeball
 is spawned by an agent and used by a person hours later, from a phone, by
@@ -136,10 +142,11 @@ Everything else in the environment stays, including `GIT_CONFIG_GLOBAL` and
 
 ## The two listeners
 
-| Listener     | Carries                | Reachable from                   |
-| ------------ | ---------------------- | -------------------------------- |
-| unix socket  | the agent API          | this machine, by file permission |
-| tsnet `:443` | the reviewer's surface | the tailnet                      |
+| Listener     | Carries                | Reachable from                            |
+| ------------ | ---------------------- | ----------------------------------------- |
+| unix socket  | the agent API          | this machine, by file permission          |
+| tsnet `:443` | the reviewer's surface | the tailnet                               |
+| loopback     | the reviewer's surface | every account on this machine, when asked |
 
 **The CLI speaks HTTP over the unix socket.** One set of handlers, one
 serialization, and `--json` is the response body rather than a second code path.
@@ -150,6 +157,26 @@ read rather than a loop.
 push requires, an installed page requires HTTPS with a trusted certificate, and
 tsnet provisions one without anything to trust on the device. The listener is
 virtual, so `:443` needs no privilege.
+
+**The daemon starts tsnet only for a node the owner enrolled.** Any agent
+command starts the daemon, and every test runs one. A daemon that started tsnet
+whenever it started would contact Tailscale and print a login URL from every
+agent on the machine. So the node exists only once the owner runs
+`eyeball tailnet login` at a terminal, which enrolls it into `node.new` and
+renames that to `node/` once MagicDNS and HTTPS certificates check out. The
+login refuses to run without a terminal, whatever the environment holds, and
+holds the daemon's lock while it runs. A daemon that `eyeball start` or an agent
+command starts gets an environment with every `TS_` and `TSNET_` variable
+removed, so an auth key an agent inherited cannot reach tsnet. tsnet's own log
+upload to Tailscale is turned off.
+
+**The loopback listener is for a person debugging, and is asked for by flag.**
+`eyeball serve --surface-addr 127.0.0.1:8111` serves the surface on a literal
+loopback address. A started daemon never does. It gives a process running as
+this user nothing new: that process can already open `eyeball.db`. It does
+expose every review to the other accounts on the machine, since a loopback port
+is reachable by every local user where the state directory is `0700`. That is
+why it is a flag a person passes, and never a default.
 
 **A preview renders in an iframe with `sandbox="allow-scripts"` and nothing
 else.** Omitting `allow-same-origin` gives the frame an opaque origin, so
@@ -184,9 +211,11 @@ is ever written into a project.
 ```
 eyeball.db            SQLite: reviews, rounds, comments, decisions, subscriptions
 blobs/aa/bb/<sha256>  captured file content, content addressed
-node/                 the tsnet identity
+node/                 the tsnet identity, once eyeball tailnet login enrolls it
+node.new/             a first enrollment that has not passed its checks yet
 eyeball.sock          the agent API
-eyeball.lock          the single-instance lock
+eyeball.lock          the single-instance lock, also held by eyeball tailnet login
+eyeball.log           the daemon's stderr
 ```
 
 **SQLite through `modernc.org/sqlite`**, which is pure Go, so the binary stays
@@ -507,6 +536,7 @@ closes.
 | `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                |
 | `github.com/yuin/goldmark`              | markdown                                                          |
 | `golang.org/x/net/html` (test)          | tokenizing the tearouts                                           |
+| `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires     |
 | `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                    |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                        |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate    |

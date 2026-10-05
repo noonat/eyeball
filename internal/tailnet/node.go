@@ -183,7 +183,7 @@ func NodeDir(stateDir string) string {
 // Enrolled reports whether stateDir holds a node eyeball tailnet login
 // enrolled. A first login enrolls into node.new and renames it only once the
 // node is running with HTTPS available, so a node directory existing means
-// the enrollment finished, and a leftover node.new means nothing.
+// the enrollment finished, and a leftover node.new means nothing to a daemon.
 func Enrolled(stateDir string) bool {
 	info, err := os.Stat(NodeDir(stateDir))
 	return err == nil && info.IsDir()

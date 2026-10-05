@@ -7,14 +7,18 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/daemon"
+	"github.com/noonat/eyeball/internal/tailnet"
 	ucli "github.com/urfave/cli/v3"
 )
 
@@ -35,6 +39,13 @@ type Env struct {
 	Exe string
 	// Build identifies this binary, compared with the daemon's.
 	Build string
+	// Terminal says stdin is a terminal. An agent's command runs without one,
+	// though a process that allocates a pseudo-terminal can pass, so this
+	// keeps an agent from starting a login by accident rather than by intent.
+	Terminal bool
+	// NewNode builds a tailnet node. Nil means tsnet, and every test sets it,
+	// since a real node contacts Tailscale.
+	NewNode tailnet.Constructor
 }
 
 // Status is the exit status a command finished with, when it is not zero.
@@ -186,20 +197,27 @@ func (a *app) command() *ucli.Command {
 		a.startCommand(),
 		a.stopCommand(),
 		a.serveCommand(),
+		a.tailnetCommand(),
 		a.docCommand(),
 	}
 	// v3 applies these per command, so the root's settings do not reach a
 	// subcommand: a bad flag on request printed help to stdout until each
 	// subcommand carried its own.
-	for _, c := range commands {
-		c.OnUsageError = onUsage
-		c.DisableSliceFlagSeparator = true
-		action := c.Action
-		c.Action = func(ctx context.Context, cmd *ucli.Command) error {
-			a.ran = true
-			return action(ctx, cmd)
+	var configure func(cs []*ucli.Command)
+	configure = func(cs []*ucli.Command) {
+		for _, c := range cs {
+			c.OnUsageError = onUsage
+			c.DisableSliceFlagSeparator = true
+			if action := c.Action; action != nil {
+				c.Action = func(ctx context.Context, cmd *ucli.Command) error {
+					a.ran = true
+					return action(ctx, cmd)
+				}
+			}
+			configure(c.Commands)
 		}
 	}
+	configure(commands)
 	return &ucli.Command{
 		Name:                      "eyeball",
 		Usage:                     "ask a person to review work, and wait for the verdict",
@@ -270,8 +288,13 @@ func (a *app) connect(ctx context.Context, start bool) error {
 // unavailableFix is what to do about a daemon that could not be reached or
 // started, which depends on why.
 func unavailableFix(err error, paths daemon.Paths) string {
-	var stuck *stuckError
+	var (
+		stuck *stuckError
+		login *loginError
+	)
 	switch {
+	case errors.As(err, &login):
+		return "the owner is logging this machine in to the tailnet; run the command again once the login finishes"
 	case errors.As(err, &stuck):
 		return fmt.Sprintf("run kill %d, and the next command starts a new daemon", stuck.holder.PID)
 	case errors.Is(err, daemon.ErrSocketPath):
@@ -281,7 +304,7 @@ func unavailableFix(err error, paths daemon.Paths) string {
 	case errors.Is(err, errNoDaemon):
 		return "run eyeball start, or unset EYEBALL_NO_START so commands start a daemon themselves"
 	default:
-		return "read eyeball.log in " + paths.Dir + ", or run eyeball serve to watch a daemon start in the foreground"
+		return "read eyeball.log in " + paths.Dir
 	}
 }
 
@@ -774,8 +797,92 @@ func (a *app) serveCommand() *ucli.Command {
 				Home:        a.env.Home,
 				Stderr:      a.env.Stderr,
 				SurfaceAddr: cmd.String("surface-addr"),
+				NewNode:     a.env.NewNode,
 			})
 		},
+	}
+}
+
+// tailnetCommand groups the owner's commands for the tailnet.
+func (a *app) tailnetCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:     "tailnet",
+		Usage:    "the owner's commands for the tailnet the surface is served on",
+		Commands: []*ucli.Command{a.loginCommand()},
+	}
+}
+
+// loginCommand logs this machine's node in to the tailnet. It is the owner's,
+// and refuses anything that is not a person at a terminal.
+func (a *app) loginCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:  "login",
+		Usage: "log this machine in to the tailnet, so the daemon serves the surface there (the owner's, at a terminal)",
+		Action: func(ctx context.Context, _ *ucli.Command) error {
+			// First, before anything is read or taken. An agent has no
+			// terminal, and an auth key in its environment would let the
+			// login finish with nobody there.
+			if !a.env.Terminal {
+				return &failure{code: api.CodeOwnerOnly, message: "eyeball tailnet login needs a person at a terminal", fix: "this is the owner's step, done in a terminal on this machine; nothing in it is for an agent"}
+			}
+			paths, err := a.paths()
+			if err != nil {
+				return err
+			}
+			held, err := daemon.TakeLoginLock(paths)
+			if errors.Is(err, daemon.ErrRunning) {
+				holder, herr := daemon.ReadHolder(paths.Lock)
+				if herr == nil && holder.Login {
+					return &failure{code: api.CodeDaemonRunning, message: fmt.Sprintf("another tailnet login (pid %d) is running", holder.PID), fix: "finish that login, or end it, and run this again"}
+				}
+				return &failure{code: api.CodeDaemonRunning, message: err.Error(), fix: "run eyeball stop, then eyeball tailnet login; the next agent command starts the daemon again"}
+			}
+			if err != nil {
+				return err
+			}
+			defer func() { _ = held.Release() }()
+
+			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			newNode := a.env.NewNode
+			if newNode == nil {
+				newNode = tailnet.New
+			}
+			note := func(format string, args ...any) {
+				_, _ = fmt.Fprintf(a.env.Stderr, format+"\n", args...)
+			}
+			note("starting the tailnet node; if it needs a login, it prints a URL to open")
+			enrolled, err := tailnet.Login(ctx, paths.Dir, newNode, note)
+			if err != nil {
+				return &failure{code: api.CodeLoginFailed, message: err.Error(), fix: loginFix(err)}
+			}
+			raw, err := json.MarshalIndent(api.LoginResult{Dir: enrolled.Dir, URL: enrolled.URL, First: enrolled.First}, "", "  ")
+			if err != nil {
+				return errors.Wrap(err, "encode the answer")
+			}
+			return a.out.emit(raw, func(w io.Writer) {
+				verb := "logged in again"
+				if enrolled.First {
+					verb = "enrolled"
+				}
+				_, _ = fmt.Fprintf(w, "the tailnet node is %s, in %s\n", verb, enrolled.Dir)
+				_, _ = fmt.Fprintf(w, "the next daemon serves the surface at %s\n", enrolled.URL)
+			})
+		},
+	}
+}
+
+// loginFix is what the owner does about a login that did not finish.
+func loginFix(err error) string {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return "run eyeball tailnet login again to finish it"
+	case errors.Is(err, tailnet.ErrNoMagicDNS):
+		return "turn MagicDNS on in the tailnet's admin console, then run eyeball tailnet login again"
+	case errors.Is(err, tailnet.ErrNoHTTPS):
+		return "turn HTTPS certificates on in the tailnet's admin console, then run eyeball tailnet login again"
+	default:
+		return "read the messages above, then run eyeball tailnet login again"
 	}
 }
 

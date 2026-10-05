@@ -594,6 +594,29 @@ func TestStart_dropsTailscaleVariables(t *testing.T) {
 	g.Expect(string(logged)).NotTo(ContainSubstring("TSNET_FORCE_LOGIN"))
 }
 
+func TestTakeLoginLock(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	held, err := TakeLoginLock(p)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = held.Release() }()
+
+	holder, err := ReadHolder(p.Lock)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(holder).To(Equal(Holder{PID: os.Getpid(), Started: holder.Started, Login: true}))
+
+	// A daemon started during the login loses the lock and exits, so no
+	// second tsnet server opens the node's directory.
+	var stderr bytes.Buffer
+	g.Expect(Run(t.Context(), Config{Paths: p, Build: "b", Stderr: &stderr, NewNode: noNode})).To(Succeed())
+	g.Expect(stderr.String()).To(ContainSubstring("already running"))
+	_, err = TakeLoginLock(p)
+	g.Expect(errors.Is(err, ErrRunning)).To(BeTrue(), "a second login took the lock")
+
+	g.Expect(held.Release()).To(Succeed())
+	g.Expect(Held(p.Lock)).To(BeFalse())
+}
+
 // noNode is the node constructor every daemon test runs with. Calling it would
 // mean a test started a tailnet node, which contacts Tailscale.
 func noNode(string, tailnet.Logf) tailnet.Node {

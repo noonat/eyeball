@@ -24,10 +24,18 @@ type Holder struct {
 	// it may still be finishing a capture and closing its tailnet node, for up
 	// to StoppingGrace, before it releases the lock.
 	Stopping bool
+	// Login says the holder is eyeball tailnet login, not a daemon. It has no
+	// socket, and holds the lock for as long as the owner takes to log in.
+	Login bool
 }
 
-// stoppingLine is appended to the lock file when shutdown begins.
-const stoppingLine = "stopping\n"
+// The third line a lock file may hold, after the pid and the start time.
+const (
+	// stoppingLine is appended when a daemon's shutdown begins.
+	stoppingLine = "stopping\n"
+	// loginLine is appended by eyeball tailnet login once it holds the lock.
+	loginLine = "login\n"
+)
 
 // lock is the held single-instance lock.
 type lock struct {
@@ -93,12 +101,52 @@ func Held(path string) bool {
 // that finds no socket can tell a daemon finishing its work from one that is
 // stuck.
 func (l *lock) markStopping() error {
+	return l.mark(stoppingLine)
+}
+
+// mark appends a third line to the lock file.
+func (l *lock) mark(line string) error {
 	info, err := l.f.Stat()
 	if err != nil {
 		return errors.Wrap(err, "inspect the lock file")
 	}
-	_, err = l.f.WriteAt([]byte(stoppingLine), info.Size())
-	return errors.Wrap(err, "mark the lock file stopping")
+	_, err = l.f.WriteAt([]byte(line), info.Size())
+	return errors.Wrapf(err, "mark the lock file %s", strings.TrimSpace(line))
+}
+
+// LoginLock is the daemon's lock, held by eyeball tailnet login for its whole
+// run.
+//
+// Two tsnet servers on one directory corrupt it, and the owner may spend
+// minutes in a browser, long enough for any agent's command to start a daemon.
+// Holding the lock refuses that daemon. The lock file says login, so a command
+// that finds the lock held and no socket reports a login in progress rather
+// than a stuck daemon to kill.
+type LoginLock struct {
+	l *lock
+}
+
+// TakeLoginLock prepares the state directory and takes the lock for a login.
+// It returns ErrRunning, naming the holder, when a daemon or another login
+// holds it.
+func TakeLoginLock(p Paths) (*LoginLock, error) {
+	if err := Prepare(p); err != nil {
+		return nil, err
+	}
+	l, err := takeLock(p.Lock, os.Getpid(), time.Now())
+	if err != nil {
+		return nil, err
+	}
+	if err := l.mark(loginLine); err != nil {
+		_ = l.release()
+		return nil, err
+	}
+	return &LoginLock{l: l}, nil
+}
+
+// Release gives the lock up.
+func (l *LoginLock) Release() error {
+	return l.l.release()
 }
 
 // release gives the lock up by closing the file, which drops the flock.
@@ -114,7 +162,8 @@ func ReadHolder(path string) (Holder, error) {
 	}
 	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
 	stopping := len(lines) == 3 && lines[2]+"\n" == stoppingLine
-	if stopping {
+	login := len(lines) == 3 && lines[2]+"\n" == loginLine
+	if stopping || login {
 		lines = lines[:2]
 	}
 	if len(lines) != 2 {
@@ -128,5 +177,5 @@ func ReadHolder(path string) (Holder, error) {
 	if err != nil {
 		return Holder{}, errors.Wrapf(err, "read the start time in %s", path)
 	}
-	return Holder{PID: pid, Started: started, Stopping: stopping}, nil
+	return Holder{PID: pid, Started: started, Stopping: stopping, Login: login}, nil
 }

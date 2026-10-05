@@ -54,10 +54,11 @@ const (
 )
 
 // reasonFailed is the reason for a node that failed for a reason of its own,
-// which is logged in full where the owner reads it.
+// which is logged in full where the owner reads it: eyeball.log for a started
+// daemon, the terminal for one a person runs with eyeball serve.
 func reasonFailed(err error, logf Logf) string {
 	logf("the tailnet node failed: %v", err)
-	return "the tailnet node failed (" + err.Error() + "): the owner reads eyeball.log in the state directory"
+	return "the tailnet node failed (" + err.Error() + "): the owner reads the daemon's log for the rest"
 }
 
 // Surface owns one node for the daemon's life: it starts it, watches it,
@@ -69,8 +70,8 @@ func reasonFailed(err error, logf Logf) string {
 // then waits for tsnet's own Start to return if one is in progress, and closes
 // the node itself, through the same sync.Once the failed path uses, so that it
 // can give up on a close that overruns its budget. tsnet's Close must not run
-// before or during Start, and an offline node never reaches the running state,
-// so Stop waits for neither.
+// before or during Start. Stop never waits for the running state, which an
+// offline node never reaches.
 type Surface struct {
 	report atomic.Pointer[Report]
 
@@ -207,6 +208,9 @@ func (s *Surface) serve(ctx context.Context, node Node, handler http.Handler, lo
 	}
 	status, err := node.Status(ctx)
 	switch {
+	case err != nil && ctx.Err() != nil:
+		// Shutdown canceled the read. Stop closes the node.
+		return false
 	case err != nil:
 		s.fail(reasonFailed(err, logf))
 		return false

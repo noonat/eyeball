@@ -188,6 +188,25 @@ func TestSurface_Shutdown_duringServe(t *testing.T) {
 	g.Expect(node.closes.Load()).To(Equal(int32(1)))
 }
 
+func TestSurface_Shutdown_duringStatus(t *testing.T) {
+	g := NewWithT(t)
+	node := newFake(Status{MagicDNS: true, CertDomains: []string{"x"}}, StateRunning)
+	node.statusGate = make(chan struct{})
+	defer close(node.statusGate)
+	node.statusHonorsCtx = true
+	s := StartSurface("dir", node.construct, http.NotFoundHandler(), discard)
+	g.Eventually(node.statusCalled.Load, 5*time.Second).Should(BeTrue())
+
+	// Shutdown cancels the status read. That is not the node failing: the
+	// surface is not reported failed, and Stop is what closes the node.
+	s.Shutdown(stopCtx(t))
+	g.Eventually(s.done, 5*time.Second).Should(BeClosed())
+	g.Expect(s.Report().State).NotTo(Equal(ReportFailed))
+	g.Expect(node.closes.Load()).To(BeZero())
+	g.Expect(s.Stop(stopCtx(t))).To(Succeed())
+	g.Expect(node.closes.Load()).To(Equal(int32(1)))
+}
+
 func TestSurface_Stop_beforeStart(t *testing.T) {
 	g := NewWithT(t)
 	node := newFake(Status{}, StateStarting)
@@ -259,7 +278,17 @@ type fake struct {
 	closeGate  chan struct{}
 	statusGate chan struct{}
 	watchEnd   error
-	ln         atomic.Pointer[net.Listener]
+	// statusHonorsCtx makes a Status blocked on statusGate return when its
+	// context ends, as a real node's does.
+	statusHonorsCtx bool
+	// mkdir makes Start create the node's directory, as tsnet does.
+	mkdir bool
+	dir   string
+	// loginURL is said through the constructor's Logf on Start, as tsnet says
+	// a login URL through UserLogf.
+	loginURL string
+	logf     Logf
+	ln       atomic.Pointer[net.Listener]
 
 	startCalled       atomic.Bool
 	starting          atomic.Bool
@@ -277,13 +306,23 @@ func newFake(status Status, states ...State) *fake {
 }
 
 // construct is the fake's Constructor.
-func (f *fake) construct(string, Logf) Node {
+func (f *fake) construct(dir string, logf Logf) Node {
+	f.dir = dir
+	f.logf = logf
 	return f
 }
 
 // Start blocks on startGate when one is set.
 func (f *fake) Start() error {
 	f.startCalled.Store(true)
+	if f.mkdir {
+		if err := os.MkdirAll(f.dir, 0o700); err != nil {
+			return err
+		}
+	}
+	if f.loginURL != "" {
+		f.logf("To authenticate, visit:\n\n\t%s", f.loginURL)
+	}
 	f.starting.Store(true)
 	defer f.starting.Store(false)
 	if f.startGate != nil {
@@ -299,12 +338,21 @@ func (f *fake) Watch(ctx context.Context) (Watcher, error) {
 }
 
 // Status returns the scripted status, blocking on statusGate when one is set.
-func (f *fake) Status(context.Context) (Status, error) {
+func (f *fake) Status(ctx context.Context) (Status, error) {
 	f.statusCalled.Store(true)
-	if f.statusGate != nil {
-		<-f.statusGate
+	if f.statusGate == nil {
+		return f.status, nil
 	}
-	return f.status, nil
+	if !f.statusHonorsCtx {
+		<-f.statusGate
+		return f.status, nil
+	}
+	select {
+	case <-f.statusGate:
+		return f.status, nil
+	case <-ctx.Done():
+		return Status{}, ctx.Err()
+	}
 }
 
 // ListenTLS listens on loopback in place of the tailnet.

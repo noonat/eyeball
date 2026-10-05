@@ -143,6 +143,15 @@ is a command for an agent to run.
 When a command warns that the daemon is a different build, run `eyeball stop`
 once the person is not mid-review. The next command starts the new build.
 
+### `eyeball tailnet login`
+
+`eyeball tailnet login` is the owner's, and an agent never runs it. It logs this
+machine in to the tailnet so the daemon can serve the surface there, and needs a
+person at a terminal to open the login page it prints. Without a terminal it is
+refused with `owner_only`. The owner runs `eyeball stop` first, since the login
+holds the daemon's lock, and while it runs, a command that needs the daemon is
+refused with `daemon_unavailable` and says to try again once the login is done.
+
 ### `eyeball doc`
 
 `eyeball doc` prints this manual. It needs no daemon.
@@ -194,11 +203,13 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `base_gained`          | the repository gained its first commit after the review opened |
 | `base_moved`           | a round was measured from a base other than the review's       |
 | `connection_lost`      | the daemon closed the connection before answering              |
+| `daemon_running`       | a tailnet login found a daemon or another login running        |
 | `daemon_stopping`      | the daemon stopped while the command waited                    |
 | `daemon_unavailable`   | no daemon could be reached or started                          |
 | `empty_change_request` | a change request with no comment and no note                   |
 | `internal`             | a failure inside the daemon; its log says more                 |
 | `invalid_path`         | a path that is empty or names the project root                 |
+| `login_failed`         | a tailnet login did not finish, or the tailnet cannot serve    |
 | `missing`              | a required value was not given                                 |
 | `no_git`               | the project is a git repository and git is not on PATH         |
 | `no_project`           | no `.git` or `.eyeball` above the working directory            |
@@ -210,6 +221,7 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `nothing_captured`     | nothing differs from the base                                  |
 | `nothing_in_scope`     | nothing under the review's paths differs from the base         |
 | `outside_project`      | a path outside the project                                     |
+| `owner_only`           | a command only the owner runs, at a terminal                   |
 | `path_claimed`         | another open review in the project covers the path             |
 | `path_unmatched`       | a path that is neither on disk nor among the captured changes  |
 | `round_closed`         | an edit to a comment whose round has a verdict                 |
@@ -316,6 +328,13 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 - `daemon.surface.state`, `daemon.surface.url`, `daemon.surface.reason`
 - `daemon.pid`, `daemon.started`, `daemon.build`, `daemon.state_dir`: `daemon`
   is null when none was running
+
+### tailnet login
+
+- `dir`, where the node's state lives
+- `url`, the surface's address once a daemon serves it
+- `first`: true when the login enrolled the node, false when it logged an
+  enrolled node in again
 
 ### refusal
 

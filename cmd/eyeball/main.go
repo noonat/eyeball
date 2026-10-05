@@ -14,6 +14,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/cli"
 	"github.com/noonat/eyeball/internal/daemon"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -50,13 +51,14 @@ func run(args []string) error {
 		return err
 	}
 	return cli.Run(context.Background(), args, cli.Env{
-		Dir:    dir,
-		Getenv: os.Getenv,
-		Home:   home,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Exe:    exe,
-		Build:  daemon.Build(),
+		Dir:      dir,
+		Getenv:   os.Getenv,
+		Home:     home,
+		Stdout:   os.Stdout,
+		Stderr:   os.Stderr,
+		Exe:      exe,
+		Build:    daemon.Build(),
+		Terminal: term.IsTerminal(int(os.Stdin.Fd())),
 	})
 }
 
