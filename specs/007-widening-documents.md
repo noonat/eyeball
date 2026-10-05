@@ -905,9 +905,24 @@ static frames do, needs nothing at all, and turns a heavily edited document into
 a column of struck-through text, which product.md's rule against a wash through
 the passage exists to prevent.
 
-**A closed block with replaced text looks the same as an insertion.** Both show
-the teal rule. Whether a block that opens needs a cue is a design question, and
-iteration 1 puts it in front of the owner.
+**A block that opens carries a cue that it opens.** A closed block with replaced
+text showed the same teal rule as an insertion, so nothing told a reviewer which
+passages held replaced text without tapping each one. The owner decided on
+2026-10-05, after looking at foundations.html's prose specimen, that it needs a
+visible cue. Three candidates went in front of the owner on the phone: a
+disclosure chevron like the file cards', a quiet text hint, and a dashed rule.
+The owner chose the text hint. A closed block that opens ends its summary with
+"Show what it replaced" in the small faint hint style, which reads "Hide what it
+replaced" when the block is open, two spans switched by
+`details.blk.changed[open]` with no script. `render.Document` writes both spans,
+`<span class="hint cue-show">` and `<span class="hint cue-hide">`, as the last
+children of every `details.blk.changed` summary it writes, since it writes the
+whole element and no template reaches inside it. A `div.blk.changed` with
+nothing replaced carries neither. The cost is a line of height per passage that
+opens. The reasons the other two lost are this spec's analysis, not the owner's
+stated ones: the chevron took a strip down the right of every such passage on a
+narrow screen, and the dashed rule was a pattern a reader had to learn before it
+told them anything.
 
 ### Documents on the page
 
@@ -1176,11 +1191,11 @@ grows `{path...}` and `{project}`, so the listener test covers every new route.
 **Classes render chooses join `render.Classes`**, which a test holds to
 `app.css`, as 006 set up. That covers a class a template prints through an
 action, and every class in a document's HTML, which render writes and no
-template check sees: `blk`, `changed`, `was`, `was-text` and the five roles.
-Literal classes in a template are covered by the `template-classes` check
-already. A test renders a document with every block kind, parses its HTML, and
-holds every class in it to `render.Classes`, so a class render starts writing
-without listing fails.
+template check sees: `blk`, `changed`, `was`, `was-text`, `hint`, `cue-show`,
+`cue-hide` and the five roles. Literal classes in a template are covered by the
+`template-classes` check already. A test renders a document with every block
+kind, parses its HTML, and holds every class in it to `render.Classes`, so a
+class render starts writing without listing fails.
 
 **Each iteration ends with a mutation pass**, per the dev workflow. The tests
 named here are written to kill these mutations, and an iteration whose pass
@@ -1490,8 +1505,11 @@ required_acks:
       file card, with the definition notice kept as the target
 - [x] project.html's working row reading "Changes requested, round 2" and its
       no-git warning no longer saying there is no marker file
-- [/] A question to the owner, with the closed-passage frame, about whether a
-  block that opens needs a cue beside the teal rule, answered in this spec
+- [x] A question to the owner, with the closed-passage frame, about whether a
+      block that opens needs a cue beside the teal rule, answered in this spec
+- [x] The cue the owner chooses from three candidates on the phone, applied to
+      foundations.html's prose specimen and review.html's round2 frames, with
+      the other two candidates removed
 
 ## Iteration 2: The project's state
 
@@ -1680,15 +1698,20 @@ required_acks:
       blocks
 - [ ] Replaced text taken from text nodes, code lines, table cells and task
       boxes as `[ ]` or `[x]`, with a test for each
-- [ ] `blk`, `changed`, `was` and `was-text` in `render.Classes`, and a test
-      holding every class in a rendered document to it
+- [ ] `render.Document` writing the "Show what it replaced" and "Hide what it
+      replaced" spans as the last children of every `details.blk.changed`
+      summary, and neither in a `div.blk.changed`, with a test for each
+- [ ] `blk`, `changed`, `was`, `was-text`, `hint`, `cue-show` and `cue-hide` in
+      `render.Classes`, and a test holding every class in a rendered document to
+      it
 - [ ] Heading ids written only when the caller asks, and `render/doc.go`
       recording the allowlist, the key and the pairing rule
 
 ## Iteration 8: Documents on the page
 
 - [ ] The review page rendering a markdown file in its card as `.prose`, each
-      block with replaced text as a `<details>`, and the card linking "Raw diff"
+      block with replaced text as `render.Document`'s `<details>` with its
+      hints, and the card linking "Raw diff"
 - [ ] A round showing one markdown file with no old blocks rendered on the page,
       with "1 file, new" and "Raw diff" in the toolbar
 - [ ] The file page opening a markdown file on the document with heading ids,

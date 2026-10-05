@@ -994,8 +994,8 @@ tr.sel {
 /* A margin inside a details element stays inside it, where the same margin in
  * a div collapses through. Left alone, the rule beside a details passage ran a
  * line above and below its text, and the passage read as a taller block than
- * the div passages around it. The summary holds one block, so zeroing it is
- * safe. */
+ * the div passages around it. The summary holds one block and its hint, and the
+ * hint sets its own margin above it, so zeroing them here is safe. */
 .blk > summary > * {
   margin-top: 0;
   margin-bottom: 0;
@@ -1018,6 +1018,31 @@ tr.sel {
   margin-top: 6px;
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--del) 45%, transparent);
+}
+
+/* A closed passage holding replaced text otherwise looks the same as a plain
+ * insertion, so a reviewer could not tell which passages open without tapping
+ * each one. A hint line under the passage says what a tap does, with one
+ * wording per state. The owner chose it on the phone on 2026-10-05, over the
+ * file card's chevron and a dashed rule. By this file's own reckoning rather
+ * than the owner's, the chevron took a strip down the right of every such
+ * passage, and the dashed rule was a pattern a reader had to learn.
+ *
+ * The hint is a second child in the summary on purpose, so these selectors
+ * have to outrank the margin reset on .blk > summary > *. */
+details.blk.changed > summary > .cue-show,
+details.blk.changed > summary > .cue-hide {
+  display: block;
+  margin-top: 4px;
+}
+
+details.blk.changed > summary > .cue-hide,
+details.blk.changed[open] > summary > .cue-show {
+  display: none;
+}
+
+details.blk.changed[open] > summary > .cue-hide {
+  display: block;
 }
 
 /* --------------------------------------------------------- small print */

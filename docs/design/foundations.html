@@ -447,11 +447,11 @@
           comment points at an exact line that never drifts.</p></div>
           <details class="blk changed"><summary><p>The cost is storage, and it
           is small: captures are content addressed, so a round that changes four
-          files stores four new blobs and a list of names.</p></summary><span class="was-text">The cost is storage, and nobody has measured
+          files stores four new blobs and a list of names.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The cost is storage, and nobody has measured
           it yet.</span></details>
           <details class="blk changed" open><summary><p>A review&rsquo;s first
           round needs something to change against. In a git repository the base
-          is HEAD by default, and the agent can name a different one.</p></summary><span class="was-text">The base of a first round is always the empty
+          is HEAD by default, and the agent can name a different one.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The base of a first round is always the empty
           tree.</span></details>
           <div class="blk changed was"><span class="was-text">Rounds are numbered
           from zero, so the first request is round 0.</span></div>
@@ -493,11 +493,11 @@
           comment points at an exact line that never drifts.</p></div>
           <details class="blk changed"><summary><p>The cost is storage, and it
           is small: captures are content addressed, so a round that changes four
-          files stores four new blobs and a list of names.</p></summary><span class="was-text">The cost is storage, and nobody has measured
+          files stores four new blobs and a list of names.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The cost is storage, and nobody has measured
           it yet.</span></details>
           <details class="blk changed" open><summary><p>A review&rsquo;s first
           round needs something to change against. In a git repository the base
-          is HEAD by default, and the agent can name a different one.</p></summary><span class="was-text">The base of a first round is always the empty
+          is HEAD by default, and the agent can name a different one.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The base of a first round is always the empty
           tree.</span></details>
           <div class="blk changed was"><span class="was-text">Rounds are numbered
           from zero, so the first request is round 0.</span></div>
@@ -538,6 +538,17 @@
     The surface&rsquo;s policy blocks inline styles, so both states are rules in
     <code>app.css</code>. A passage with nothing replaced stays a <code>div</code> with the
     teal rule.</li>
+    <li><b>A passage that opens says so in a hint line under it.</b> It reads
+    &ldquo;Show what it replaced&rdquo; closed and &ldquo;Hide what it
+    replaced&rdquo; open. Without it, a closed passage and a plain insertion
+    draw the same teal rule, and the only way to find which passages open is to
+    tap each one. The hint costs a line per passage that opens. A chevron and a
+    dashed rule were the alternatives the owner chose against on the phone. As
+    this sheet reads them, the chevron took a strip down the right of the text,
+    and the dashed rule was a pattern a reader had to learn. The
+    two hints are spans in the summary, switched by the <code>open</code>
+    attribute in <code>app.css</code>, so the tap target is still the whole
+    passage.</li>
     <li><b>A removed passage keeps the amber rule and holds only what was
     removed.</b> Nothing is left to collapse it to, and a removal with no rule
     beside it would not show in the rendered view at all.</li>
