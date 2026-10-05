@@ -9,6 +9,22 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func TestStore_CommentReview(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	project := ensureProject(g, t, s)
+	openReview(g, t, s, project.ID, "web")
+	review, round := openReview(g, t, s, project.ID, "docs")
+	c, err := s.AddComment(t.Context(), NewComment{RoundID: round.ID, Level: LevelReview, Body: "b"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := s.CommentReview(t.Context(), c.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal(review.ID))
+	_, err = s.CommentReview(t.Context(), 9999)
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+}
+
 func TestStore_Comments(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)
@@ -76,6 +92,20 @@ func TestStore_Comments(t *testing.T) {
 	}))
 	g.Expect(got[0].Level).To(Equal(LevelFile))
 	g.Expect(got[4].Path).To(BeEmpty())
+}
+
+func TestStore_Project(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	ensureProject(g, t, s)
+	want, err := s.EnsureProject(t.Context(), "/tmp/second", "second")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := s.Project(t.Context(), want.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal(want))
+	_, err = s.Project(t.Context(), 9999)
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 }
 
 func TestStore_Queue(t *testing.T) {

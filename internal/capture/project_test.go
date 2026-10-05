@@ -8,6 +8,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/blob"
+	"github.com/noonat/eyeball/internal/store"
 	. "github.com/onsi/gomega"
 )
 
@@ -174,6 +175,25 @@ func TestFindRoot_symlinkedDirectory(t *testing.T) {
 	g.Expect(got).To(Equal(Root{Logical: link, Resolved: r.root}))
 }
 
+func TestFindRoot_symlinkedDirectoryWithReviewPath(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	r := newRepo(g, filepath.Join(dir, "real", "harbor"))
+	g.Expect(os.MkdirAll(filepath.Join(r.root, "sub"), 0o700)).To(Succeed())
+	link := filepath.Join(dir, "link")
+	g.Expect(os.Symlink(r.root, link)).To(Succeed())
+	cwd := filepath.Join(link, "sub")
+
+	root, err := FindRoot(cwd)
+	g.Expect(err).NotTo(HaveOccurred())
+	relative, err := ReviewPath(root, cwd, "a.go")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(relative).To(Equal("sub/a.go"))
+	absolute, err := ReviewPath(root, cwd, filepath.Join(cwd, "b.go"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(absolute).To(Equal("sub/b.go"))
+}
+
 func TestProjectName(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
@@ -290,7 +310,11 @@ func TestReviewPath(t *testing.T) {
 		})
 	}
 
-	outside := []string{"../../elsewhere", "/srv/other/x", "/link/harbor-other/x", ""}
+	_, err := ReviewPath(root, "/link/harbor", " ")
+	g := NewWithT(t)
+	g.Expect(errors.Is(err, store.ErrInvalidPath)).To(BeTrue())
+
+	outside := []string{"../../elsewhere", "/srv/other/x", "/link/harbor-other/x"}
 	for _, p := range outside {
 		t.Run("refuses "+p, func(t *testing.T) {
 			g := NewWithT(t)

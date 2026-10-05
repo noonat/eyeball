@@ -635,6 +635,10 @@ Each addition is written by something this spec builds.
 - **Departure, iteration 1:** `ErrNotReleased` was added for a reply to a
   comment the agent cannot have seen. The spec named the refusal and no sentinel
   for it, and the handler needs one to map it to a code.
+- **Departure, iteration 3:** `Project` and `CommentReview` were added as reads.
+  The handlers need a project's root to name it in a `wrong_project` refusal and
+  in every response, and a comment's review to check ownership before a reply.
+  Neither was listed.
 - **New refusals:** `ErrMissing` for an empty required field, `ClaimedError` for
   an overlap, `ErrNothingInScope` for a first round with nothing in scope, and
   the exported `NormalizePath` and `Covers`.
@@ -768,41 +772,47 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
       worktree of a bare repository, a submodule, a marker inside a repository,
       and no project at all
 
+> **Completed** 2026-10-05 05:39 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.6s
+> - `go test -race ./...` — 7.0s
+
 ## Iteration 3: The agent API
 
-- [ ] `internal/api` holding every request and response type, the error shape
+- [x] `internal/api` holding every request and response type, the error shape
       and the client's `still_waiting` body, listed in architecture.md's layout
-- [ ] A coalescing signal: subscribers with a channel of capacity one, a
+- [x] A coalescing signal: subscribers with a channel of capacity one, a
       non-blocking publish, and an unsubscribe that a test proves releases the
       subscriber
-- [ ] The server holding the store only through a wrapper whose mutating methods
+- [x] The server holding the store only through a wrapper whose mutating methods
       publish after success
-- [ ] One route table naming each route's listener, one mux per listener built
+- [x] One route table naming each route's listener, one mux per listener built
       from it, and a test that `mux.Handler` matches each route on its own side
       only
-- [ ] `POST /agent/requests` opening a review or its next round, refusing paths
+- [x] `POST /agent/requests` opening a review or its next round, refusing paths
       with `--review`, `--base` with `--review`, and a round asked for twice
       before capture
-- [ ] The project and agent checks on `--review`, `wait`, `receipt`, `abandon`
+- [x] The project and agent checks on `--review`, `wait`, `receipt`, `abandon`
       and `reply`, run before any capture or write, refusing with
       `wrong_project` or `wrong_agent` and the fix
-- [ ] The overlap refusal's fix chosen by the holder's state and agent: `wait`,
+- [x] The overlap refusal's fix chosen by the holder's state and agent: `wait`,
       `request --review`, or `--agent <name>`, and an unmatched first-round path
       refused by name
-- [ ] `wait` answering `abandoned`, `verdict` or `comments` in that precedence,
+- [x] `wait` answering `abandoned`, `verdict` or `comments` in that precedence,
       from a subscription taken before the read, with only late comments
       triggering `comments`
-- [ ] A canceled `wait` answering `503` with `daemon_stopping`, and a hook
+- [x] A canceled `wait` answering `503` with `daemon_stopping`, and a hook
       immediately after the read proving a verdict given there is seen
-- [ ] `/receipt` stamping the comments it names through `MarkDelivered`
-- [ ] `/abandon` withdrawing the review and waking its waiters, and `/reply`
+- [x] `/receipt` stamping the comments it names through `MarkDelivered`
+- [x] `/abandon` withdrawing the review and waking its waiters, and `/reply`
       storing a reply through `Reply`
-- [ ] `/status` reading `ReviewsFor` and counting other agents' reviews, or
+- [x] `/status` reading `ReviewsFor` and counting other agents' reviews, or
       `ReviewsIn` with the agent column under `--all`
-- [ ] `GET /agent/reviews/{review}` answering any review with its rounds,
+- [x] `GET /agent/reviews/{review}` answering any review with its rounds,
       verdicts, decision times and latest captured files, with no checks, no
       comments and no receipt
-- [ ] A test parsing `internal/store` and `internal/capture` with `go/parser`
+- [x] A test parsing `internal/store` and `internal/capture` with `go/parser`
       that fails on an exported `Err` variable with no mapping, and one that a
       500 carries no raw error text
 

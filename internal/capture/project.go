@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/noonat/eyeball/internal/store"
 )
 
 // Marker is the file a person creates to name a project that is not a git
@@ -161,7 +162,7 @@ func AgentName(explicit, fromEnv string, root Root, home string) string {
 // review, not a spelling of somewhere else.
 func ReviewPath(root Root, cwd, p string) (string, error) {
 	if strings.TrimSpace(p) == "" {
-		return "", errors.Wrap(ErrOutsideProject, "a path cannot be empty")
+		return "", errors.Wrap(store.ErrInvalidPath, "a path cannot be empty")
 	}
 	full := p
 	if !filepath.IsAbs(full) {

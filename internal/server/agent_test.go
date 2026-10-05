@@ -1,0 +1,675 @@
+package server
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+	"unicode/utf8"
+
+	"github.com/noonat/eyeball/internal/api"
+	"github.com/noonat/eyeball/internal/store"
+	. "github.com/onsi/gomega"
+)
+
+func Test_defaultTitle(t *testing.T) {
+	long := strings.Repeat("word ", 20)
+	cases := []struct {
+		name string
+		note string
+		want string
+	}{
+		{
+			name: "the first line that is not blank",
+			note: "\n \nSummary line\nbody",
+			want: "Summary line",
+		},
+		{
+			name: "cut at a word boundary",
+			note: long,
+			want: strings.TrimSpace(strings.Repeat("word ", 14)),
+		},
+		{
+			name: "cut on a character boundary",
+			note: "x" + strings.Repeat("é", 50),
+			want: "x" + strings.Repeat("é", 35),
+		},
+		{
+			name: "blank throughout",
+			note: " \n\t\n",
+			want: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			got := defaultTitle(c.note)
+			g.Expect(got).To(Equal(c.want))
+			g.Expect(len(got)).To(BeNumerically("<=", titleLimit))
+			g.Expect(utf8.ValidString(got)).To(BeTrue())
+		})
+	}
+}
+
+func Test_everySentinelHasAMapping(t *testing.T) {
+	g := NewWithT(t)
+	mapped := map[string]struct{}{}
+	for _, m := range mappings {
+		mapped[m.name] = struct{}{}
+	}
+	// Parsing the source is the only way to enumerate a package's variables.
+	// A list written here by hand would pass when a sentinel was added there
+	// and forgotten.
+	packages := []string{"store", "capture"}
+	var found []string
+	for _, pkg := range packages {
+		fset := token.NewFileSet()
+		sources, err := filepath.Glob(filepath.Join("..", pkg, "*.go"))
+		g.Expect(err).NotTo(HaveOccurred())
+		for _, source := range sources {
+			if strings.HasSuffix(source, "_test.go") {
+				continue
+			}
+			file, err := parser.ParseFile(fset, source, nil, 0)
+			g.Expect(err).NotTo(HaveOccurred())
+			for _, decl := range file.Decls {
+				gen, ok := decl.(*ast.GenDecl)
+				if !ok || gen.Tok != token.VAR {
+					continue
+				}
+				for _, spec := range gen.Specs {
+					for _, name := range spec.(*ast.ValueSpec).Names {
+						if strings.HasPrefix(name.Name, "Err") && name.IsExported() {
+							found = append(found, pkg+"."+name.Name)
+						}
+					}
+				}
+			}
+		}
+	}
+	g.Expect(found).NotTo(BeEmpty(), "the parse found nothing, so it checked nothing")
+	for _, name := range found {
+		g.Expect(mapped).To(HaveKey(name), "no refusal mapping for "+name)
+	}
+}
+
+func Test_failureCarriesNoRawError(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	g.Expect(f.store.Close()).To(Succeed())
+
+	status, refusal := f.refused(g, t, http.MethodGet, "/agent/status?"+query(api.Caller{Dir: repo}), nil)
+	g.Expect(status).To(Equal(http.StatusInternalServerError))
+	g.Expect(refusal.Code).To(Equal(api.CodeInternal))
+	g.Expect(refusal.Message).To(Equal("the daemon failed to answer"))
+	g.Expect(refusal.Message + refusal.Fix).NotTo(ContainSubstring("sql"))
+}
+
+func Test_hubSignalsAndForgets(t *testing.T) {
+	g := NewWithT(t)
+	h := newHub()
+	ch, unsubscribe := h.subscribe()
+	g.Expect(h.count()).To(Equal(1))
+
+	// Two publishes with nobody draining coalesce into one signal, and
+	// neither blocks.
+	h.publish()
+	h.publish()
+	g.Expect(ch).To(Receive())
+	g.Expect(ch).NotTo(Receive())
+
+	unsubscribe()
+	g.Expect(h.count()).To(BeZero())
+	h.publish()
+	g.Expect(ch).NotTo(Receive())
+}
+
+func Test_routesMatchOnTheirOwnListenerOnly(t *testing.T) {
+	s := New(Config{})
+	handlers := map[side]*http.ServeMux{
+		sideAgent:   s.AgentHandler(),
+		sideSurface: s.SurfaceHandler(),
+	}
+	for _, rt := range routes {
+		t.Run(rt.pattern, func(t *testing.T) {
+			g := NewWithT(t)
+			method, path, _ := strings.Cut(rt.pattern, " ")
+			path = strings.NewReplacer("{review}", "1", "{comment}", "1").Replace(path)
+			req, err := http.NewRequest(method, "http://eyeball"+path, nil)
+			g.Expect(err).NotTo(HaveOccurred())
+			for which, mux := range handlers {
+				_, pattern := mux.Handler(req)
+				if which == rt.side {
+					g.Expect(pattern).To(Equal(rt.pattern))
+				} else {
+					g.Expect(pattern).To(BeEmpty(), "a route reachable from the other listener")
+				}
+			}
+		})
+	}
+}
+
+func TestServer_asksForANextRound(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	first := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"})
+	id := first.Review.ID
+
+	// Asking again before a verdict is refused before anything is captured.
+	// The new content's blob is the evidence: a capture would have written it.
+	write(g, repo, "a.txt", "content no round has seen\n")
+	_, refusal := f.refused(g, t, http.MethodPost, "/agent/requests", api.RequestBody{Caller: me, Review: id, Note: "again"})
+	g.Expect(refusal.Code).To(Equal(api.CodeAwaitingVerdict))
+	g.Expect(refusal.Fix).To(ContainSubstring("eyeball wait"))
+	sum := sha256.Sum256([]byte("content no round has seen\n"))
+	has, err := f.blobs.Has(hex.EncodeToString(sum[:]))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(has).To(BeFalse(), "a refused round captured content")
+
+	f.decide(g, t, id, store.VerdictChanges, "say more")
+	got := f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "rewrote it"})
+	g.Expect(got.Review.Round).To(Equal(2))
+	g.Expect(got.Review.State).To(Equal(api.StateWaiting))
+	g.Expect(got.Size).To(Equal(api.Size{Files: 1, Added: 1, Removed: 2}))
+}
+
+func TestServer_handsOverLateComments(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	unread := f.comment(g, t, id, "in round one's batch")
+	f.decide(g, t, id, store.VerdictChanges, "")
+	write(g, repo, "a.txt", "three\n")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+
+	// Round one's batch was never acknowledged, and round two waits. That
+	// comment is not late, so wait blocks rather than returning it now.
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+	status, _ := callNoFail(f, ctx, waitPath(id, me))
+	g.Expect(status).To(BeZero(), "wait returned while round two still waits")
+
+	// A comment written on round one after its verdict is late, and wakes a
+	// wait that is already blocked, coming out on its own while round two
+	// waits.
+	done := f.blockedWait(g, t, id, me)
+	late := addToRound(g, t, f, id, 1, "after the verdict")
+	var got api.WaitResult
+	g.Eventually(done, 5*time.Second).Should(Receive(&got))
+	g.Expect(got.Kind).To(Equal(api.KindComments))
+	g.Expect(ids(got.Comments)).To(Equal([]int64{late.ID}))
+	g.Expect(got.Next).To(ContainSubstring("still waiting"))
+
+	// Acknowledged, it is not owed any more, and wait blocks again.
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(id)+"/receipt", api.ReceiptBody{Caller: me, Comments: []int64{late.ID}}, &api.ReceiptResult{})
+	ctx2, cancel2 := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel2()
+	status, _ = callNoFail(f, ctx2, waitPath(id, me))
+	g.Expect(status).To(BeZero(), "an acknowledged late comment was handed over again")
+
+	// Once round two is decided, its batch carries round one's unread
+	// comments as well, because no later wait would show them.
+	f.decide(g, t, id, store.VerdictApprove, "")
+	got = f.wait(g, t, id, me)
+	g.Expect(got.Kind).To(Equal(api.KindVerdict))
+	g.Expect(ids(got.Comments)).To(Equal([]int64{unread.ID}), "the late one was acknowledged above")
+	g.Expect(got.Review.State).To(Equal(api.StateApproved))
+}
+
+func TestServer_opensAReview(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo, Agent: "agent-1"}
+
+	got := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "\n  Add a second line\n\nmore detail"})
+	g.Expect(got.Review.ID).NotTo(BeZero())
+	g.Expect(got.Review.Title).To(Equal("Add a second line"))
+	g.Expect(got.Review.State).To(Equal(api.StateWaiting))
+	g.Expect(got.Review.Round).To(Equal(1))
+	g.Expect(got.Review.Agent).To(Equal("agent-1"))
+	g.Expect(got.Review.Project.Name).To(Equal("harbor"))
+	g.Expect(got.Size).To(Equal(api.Size{Files: 1, Added: 1}))
+	g.Expect(got.Next).To(ContainSubstring("eyeball wait"))
+	round, err := f.store.Round(t.Context(), got.Review.ID, 1)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(round.Note).To(Equal("Add a second line\n\nmore detail"))
+
+	// A relative path from a subdirectory is read the way a shell reads it.
+	write(g, repo, "docs/b.md", "new\n")
+	sub := api.Caller{Dir: filepath.Join(repo, "docs"), Agent: "agent-1"}
+	second := f.request(g, t, api.RequestBody{Caller: sub, Paths: []string{"b.md"}, Note: "a doc"})
+	g.Expect(second.Review.Paths).To(Equal([]string{"docs/b.md"}))
+}
+
+func TestServer_ownership(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir := t.TempDir()
+	repo := gitRepo(g, filepath.Join(dir, "harbor"))
+	elsewhere := gitRepo(g, filepath.Join(dir, "field-notes"))
+	me := api.Caller{Dir: repo, Agent: "agent-1"}
+	review := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"})
+	id := review.Review.ID
+	f.comment(g, t, id, "a point")
+	f.decide(g, t, id, store.VerdictChanges, "")
+	released, err := f.store.Released(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	commentID := released[0].ID
+
+	callers := []struct {
+		name   string
+		caller api.Caller
+		code   api.Code
+	}{
+		{
+			name:   "another project",
+			caller: api.Caller{Dir: elsewhere, Agent: "agent-1"},
+			code:   api.CodeWrongProject,
+		},
+		{
+			name:   "another agent",
+			caller: api.Caller{Dir: repo, Agent: "agent-2"},
+			code:   api.CodeWrongAgent,
+		},
+	}
+	for _, c := range callers {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			idPath := "/agent/reviews/" + itoa(id)
+			calls := []struct {
+				method string
+				path   string
+				body   any
+			}{
+				{
+					method: http.MethodPost,
+					path:   "/agent/requests",
+					body:   api.RequestBody{Caller: c.caller, Review: id, Note: "n"},
+				},
+				{
+					method: http.MethodGet,
+					path:   waitPath(id, c.caller),
+					body:   nil,
+				},
+				{
+					method: http.MethodPost,
+					path:   idPath + "/receipt",
+					body:   api.ReceiptBody{Caller: c.caller, Comments: []int64{commentID}},
+				},
+				{
+					method: http.MethodPost,
+					path:   idPath + "/abandon",
+					body:   api.AbandonBody{Caller: c.caller},
+				},
+				{
+					method: http.MethodPost,
+					path:   "/agent/comments/" + itoa(commentID) + "/reply",
+					body:   api.ReplyBody{Caller: c.caller, Body: "x"},
+				},
+			}
+			for _, call := range calls {
+				status, refusal := f.refused(g, t, call.method, call.path, call.body)
+				g.Expect(status).To(Equal(http.StatusForbidden), call.path)
+				g.Expect(refusal.Code).To(Equal(c.code), call.path)
+			}
+		})
+	}
+
+	// None of them changed anything.
+	c, err := f.store.Released(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(c[0].Delivered).To(BeZero())
+	g.Expect(c[0].Reply).To(BeEmpty())
+	got, err := f.store.Review(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.State).To(Equal(store.StateOpen))
+	g.Expect(got.LatestRound).To(Equal(1))
+}
+
+func TestServer_refusesAClaimedPath(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo, Agent: "agent-1"}
+	held := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"})
+	again := api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "again"}
+
+	_, refusal := f.refused(g, t, http.MethodPost, "/agent/requests", again)
+	g.Expect(refusal.Code).To(Equal(api.CodePathClaimed))
+	g.Expect(refusal.Fix).To(ContainSubstring("eyeball wait"), "the holder is waiting")
+
+	f.decide(g, t, held.Review.ID, store.VerdictChanges, "more")
+	_, refusal = f.refused(g, t, http.MethodPost, "/agent/requests", again)
+	g.Expect(refusal.Fix).To(ContainSubstring("--review"), "the holder is decided")
+
+	other := again
+	other.Agent = "agent-2"
+	_, refusal = f.refused(g, t, http.MethodPost, "/agent/requests", other)
+	g.Expect(refusal.Fix).To(ContainSubstring(`--agent "agent-1"`), "the holder belongs to another agent")
+}
+
+func TestServer_refusesBadRequests(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	cases := []struct {
+		name string
+		body api.RequestBody
+		code api.Code
+	}{
+		{
+			name: "no note",
+			body: api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: " \n "},
+			code: api.CodeMissing,
+		},
+		{
+			name: "no paths",
+			body: api.RequestBody{Caller: me, Note: "n"},
+			code: api.CodeMissing,
+		},
+		{
+			name: "paths with a review",
+			body: api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Review: 1, Note: "n"},
+			code: api.CodeUsage,
+		},
+		{
+			name: "a base with a review",
+			body: api.RequestBody{Caller: me, Base: "HEAD", Review: 1, Note: "n"},
+			code: api.CodeUsage,
+		},
+		{
+			name: "a path that matches nothing",
+			body: api.RequestBody{Caller: me, Paths: []string{"a.txt", "a.tx"}, Note: "n"},
+			code: api.CodePathUnmatched,
+		},
+		{
+			name: "nothing in scope",
+			body: api.RequestBody{Caller: me, Paths: []string{"keep.txt"}, Note: "n"},
+			code: api.CodeNothingInScope,
+		},
+		{
+			name: "a path outside the project",
+			body: api.RequestBody{Caller: me, Paths: []string{"../elsewhere"}, Note: "n"},
+			code: api.CodeOutsideProject,
+		},
+		{
+			name: "a base that names nothing",
+			body: api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Base: "no-such-ref", Note: "n"},
+			code: api.CodeBadBase,
+		},
+		{
+			name: "no project",
+			body: api.RequestBody{Caller: api.Caller{Dir: t.TempDir()}, Paths: []string{"a.txt"}, Note: "n"},
+			code: api.CodeNoProject,
+		},
+		{
+			name: "a relative working directory",
+			body: api.RequestBody{Caller: api.Caller{Dir: "harbor"}, Paths: []string{"a.txt"}, Note: "n"},
+			code: api.CodeBadRequest,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			_, refusal := f.refused(g, t, http.MethodPost, "/agent/requests", c.body)
+			g.Expect(refusal.Code).To(Equal(c.code), refusal.Message)
+			g.Expect(refusal.Fix).NotTo(BeEmpty())
+		})
+	}
+}
+
+func TestServer_reply(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	c := f.comment(g, t, id, "a point")
+	path := "/agent/comments/" + itoa(c.ID) + "/reply"
+
+	_, refusal := f.refused(g, t, http.MethodPost, path, api.ReplyBody{Caller: me, Body: "done"})
+	g.Expect(refusal.Code).To(Equal(api.CodeNotReleased))
+
+	f.decide(g, t, id, store.VerdictChanges, "")
+	var got api.ReplyResult
+	f.ok(g, t, http.MethodPost, path, api.ReplyBody{Caller: me, Body: "done"}, &got)
+	g.Expect(got.Comment.Reply).To(Equal("done"))
+	g.Expect(got.Comment.ID).To(Equal(c.ID))
+}
+
+func TestServer_seesAVerdictBetweenReadAndBlock(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+
+	// The verdict lands after the waiter has read an undecided round and
+	// before it blocks. A waiter that subscribed only now would miss the
+	// signal and never return.
+	var once sync.Once
+	hook := func() {
+		once.Do(func() { f.decide(g, t, id, store.VerdictApprove, "") })
+	}
+	f.s.afterRead.Store(&hook)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	status, _ := callNoFail(f, ctx, waitPath(id, me))
+	g.Expect(status).To(Equal(http.StatusOK))
+}
+
+func TestServer_show(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo, Agent: "agent-1"}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	c := f.comment(g, t, id, "a point")
+	f.decide(g, t, id, store.VerdictApprove, "good")
+
+	// No caller at all: show reads any review and marks nothing delivered.
+	var got api.ShowResult
+	f.ok(g, t, http.MethodGet, "/agent/reviews/"+itoa(id), nil, &got)
+	g.Expect(got.Review.State).To(Equal(api.StateApproved))
+	g.Expect(got.Rounds).To(HaveLen(1))
+	g.Expect(got.Rounds[0].Verdict).To(Equal(api.VerdictApprove))
+	g.Expect(got.Rounds[0].DecidedAt).NotTo(BeNil())
+	g.Expect(got.Files).To(HaveLen(1))
+	g.Expect(got.Files[0].Path).To(Equal("a.txt"))
+	g.Expect(got.Files[0].Digest).To(HaveLen(64))
+	released, err := f.store.Released(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(released[0].ID).To(Equal(c.ID))
+	g.Expect(released[0].Delivered).To(BeZero())
+}
+
+func TestServer_status(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "b.txt", "b\n")
+	write(g, repo, "c.txt", "c\n")
+	me := api.Caller{Dir: repo, Agent: "agent-1"}
+	waiting := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "waiting"}).Review.ID
+	approved := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "approved"}).Review.ID
+	f.decide(g, t, approved, store.VerdictApprove, "")
+	write(g, repo, "d.txt", "d\n")
+	unread := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"d.txt"}, Note: "approved, unread"}).Review.ID
+	f.comment(g, t, unread, "read this")
+	f.decide(g, t, unread, store.VerdictApprove, "")
+	theirs := api.Caller{Dir: repo, Agent: "agent-2"}
+	f.request(g, t, api.RequestBody{Caller: theirs, Paths: []string{"c.txt"}, Note: "theirs"})
+
+	var got api.StatusResult
+	f.ok(g, t, http.MethodGet, "/agent/status?"+query(me), nil, &got)
+	g.Expect(got.Agent).To(Equal("agent-1"))
+	g.Expect(got.Daemon.PID).To(Equal(42))
+	g.Expect(got.Project.Name).To(Equal("harbor"))
+	g.Expect(statusIDs(got.Reviews)).To(Equal([]int64{unread, waiting}), "an ended review with nothing unread is not listed")
+	g.Expect(got.Reviews[0].State).To(Equal(api.StateApproved))
+	g.Expect(got.Reviews[0].Undelivered).To(Equal(1))
+	g.Expect(got.Reviews[1].State).To(Equal(api.StateWaiting))
+	g.Expect(got.Others).To(Equal(1))
+	g.Expect(got.Next).To(ContainSubstring("status --all"))
+
+	var all api.StatusResult
+	f.ok(g, t, http.MethodGet, "/agent/status?"+query(me)+"&all=1", nil, &all)
+	g.Expect(all.Reviews).To(HaveLen(4))
+}
+
+func TestServer_waitAnswersWhenStopping(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+
+	type answer struct {
+		status int
+		body   []byte
+	}
+	done := make(chan answer, 1)
+	go func() {
+		status, body := callNoFail(f, t.Context(), waitPath(id, me))
+		done <- answer{status, body}
+	}()
+	g.Eventually(f.s.hub.count, 5*time.Second).Should(Equal(1))
+	f.cancel()
+	var got answer
+	g.Eventually(done, 5*time.Second).Should(Receive(&got))
+	g.Expect(got.status).To(Equal(http.StatusServiceUnavailable))
+	g.Expect(string(got.body)).To(ContainSubstring(string(api.CodeDaemonStopping)))
+}
+
+func TestServer_waitEndsOnAbandon(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "more")
+
+	write(g, repo, "a.txt", "three\n")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+	done := f.blockedWait(g, t, id, me)
+	var abandoned api.AbandonResult
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(id)+"/abandon", api.AbandonBody{Caller: me}, &abandoned)
+	g.Expect(abandoned.Review.State).To(Equal(api.StateAbandoned))
+	var got api.WaitResult
+	g.Eventually(done, 5*time.Second).Should(Receive(&got))
+	g.Expect(got.Kind).To(Equal(api.KindAbandoned))
+
+	// A review withdrawn right after a verdict, with no later round, has a
+	// decided latest round, and abandoned still wins.
+	write(g, repo, "b.txt", "b\n")
+	other := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "other"}).Review.ID
+	f.decide(g, t, other, store.VerdictChanges, "more")
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(other)+"/abandon", api.AbandonBody{Caller: me}, &abandoned)
+	got = f.wait(g, t, other, me)
+	g.Expect(got.Kind).To(Equal(api.KindAbandoned))
+}
+
+func TestServer_waitsForTheVerdict(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+
+	// A wait blocks until the verdict, and a comment written before it is
+	// not handed over early.
+	done := f.blockedWait(g, t, id, me)
+	f.comment(g, t, id, "before the verdict")
+	g.Consistently(done, 300*time.Millisecond).ShouldNot(Receive())
+	f.decide(g, t, id, store.VerdictChanges, "tighten it")
+	var got api.WaitResult
+	g.Eventually(done, 5*time.Second).Should(Receive(&got))
+	g.Expect(got.Kind).To(Equal(api.KindVerdict))
+	g.Expect(got.Verdict).To(Equal(api.VerdictChanges))
+	g.Expect(got.Note).To(Equal("tighten it"))
+	g.Expect(got.DecidedAt).NotTo(BeNil())
+	g.Expect(got.Comments).To(HaveLen(1))
+	g.Expect(got.Review.State).To(Equal(api.StateChangesRequested))
+	g.Expect(got.Next).To(ContainSubstring("--review"))
+
+	// Waiting again returns the same batch, delivered or not.
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(id)+"/receipt", api.ReceiptBody{Caller: me, Comments: []int64{got.Comments[0].ID}}, &api.ReceiptResult{})
+	released, err := f.store.Released(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(released[0].Delivered).NotTo(BeZero(), "the receipt stamped it")
+	again := f.wait(g, t, id, me)
+	g.Expect(again.Comments).To(HaveLen(1))
+}
+
+// callNoFail sends a GET and reports a status of zero when the context ended
+// before an answer, which is what a test asserting that a wait blocks reads.
+func callNoFail(f *fixture, ctx context.Context, path string) (int, []byte) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://eyeball"+path, nil)
+	if err != nil {
+		return 0, nil
+	}
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return 0, nil
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body := make([]byte, 0, 512)
+	buf := make([]byte, 512)
+	for {
+		n, err := resp.Body.Read(buf)
+		body = append(body, buf[:n]...)
+		if err != nil {
+			break
+		}
+	}
+	return resp.StatusCode, body
+}
+
+// addToRound writes a comment on one numbered round through the wrapper.
+func addToRound(g *WithT, t *testing.T, f *fixture, reviewID int64, number int, body string) store.Comment {
+	g.THelper()
+	round, err := f.store.Round(t.Context(), reviewID, number)
+	g.Expect(err).NotTo(HaveOccurred())
+	c, err := f.s.db.AddComment(t.Context(), store.NewComment{RoundID: round.ID, Level: store.LevelReview, Body: body})
+	g.Expect(err).NotTo(HaveOccurred())
+	return c
+}
+
+// ids lists comment ids in order.
+func ids(in []api.Comment) []int64 {
+	out := make([]int64, 0, len(in))
+	for _, c := range in {
+		out = append(out, c.ID)
+	}
+	return out
+}
+
+// statusIDs lists status rows' review ids in order.
+func statusIDs(in []api.StatusRow) []int64 {
+	out := make([]int64, 0, len(in))
+	for _, r := range in {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// itoa writes an id for a URL.
+func itoa(id int64) string {
+	return strconv.FormatInt(id, 10)
+}

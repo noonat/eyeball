@@ -317,3 +317,30 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 	}
 	return out, errors.Wrap(found.Err(), "read reviews")
 }
+
+// Project reads one project by its id.
+func (s *Store) Project(ctx context.Context, projectID int64) (Project, error) {
+	var out Project
+	row := s.db.QueryRowContext(ctx, "SELECT id, root, name FROM projects WHERE id = ?", projectID)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Project{}, errors.Wrapf(ErrNotFound, "project %d", projectID)
+		}
+		return Project{}, errors.Wrap(err, "read project")
+	}
+	return out, nil
+}
+
+// CommentReview reads which review a comment belongs to, which is what a
+// caller checks before letting an agent act on the comment.
+func (s *Store) CommentReview(ctx context.Context, commentID int64) (int64, error) {
+	query := `SELECT o.review_id FROM comments c JOIN rounds o ON o.id = c.round_id WHERE c.id = ?`
+	var reviewID int64
+	if err := s.db.QueryRowContext(ctx, query, commentID).Scan(&reviewID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, errors.Wrapf(ErrNotFound, "comment %d", commentID)
+		}
+		return 0, errors.Wrap(err, "read comment")
+	}
+	return reviewID, nil
+}

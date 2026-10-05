@@ -28,6 +28,15 @@ func TestReviewRow_verdictAndUndelivered(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rows[0].Verdict).To(Equal(VerdictChanges))
 	g.Expect(rows[0].Undelivered).To(Equal(1))
+
+	// With a second round waiting, the outer query's decision is the empty one
+	// on round two, and the count still has to see round one's.
+	_, err = s.OpenRound(t.Context(), review.ID, Request{Note: "again", Files: []File{{Path: "docs"}}})
+	g.Expect(err).NotTo(HaveOccurred())
+	rows, err = s.ReviewsFor(t.Context(), project.ID, "agent-1")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rows[0].Verdict).To(BeEmpty())
+	g.Expect(rows[0].Undelivered).To(Equal(1))
 }
 
 func TestStore_Decision(t *testing.T) {

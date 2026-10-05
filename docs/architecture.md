@@ -38,6 +38,7 @@ migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
+internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
 internal/cli/         subcommands, flags, --json, the coaching lines
