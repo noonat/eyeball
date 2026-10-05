@@ -1,10 +1,12 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/noonat/eyeball"
@@ -53,6 +55,25 @@ func TestServer_Surface(t *testing.T) {
 	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Shell))
 }
 
+func TestServer_Surface_concurrentPages(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	surface := f.s.Surface()
+	// Pages rendered at once share the parsed templates. Run under -race,
+	// this is what caught a page writing to the shared trees.
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			for range 5 {
+				_ = serveSurface(surface, http.MethodGet, "/")
+				_ = serveSurface(surface, http.MethodGet, "/no/such/page")
+			}
+		})
+	}
+	wg.Wait()
+	g.Expect(serveSurface(surface, http.MethodGet, "/").Code).To(Equal(http.StatusOK))
+}
+
 func TestServer_Surface_errorPages(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -81,6 +102,26 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	// 404 page rather than anything an agent route would answer.
 	res = serveSurface(surface, http.MethodGet, "/agent/daemon")
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+}
+
+func TestServer_Surface_failureIsAPage(t *testing.T) {
+	g := NewWithT(t)
+	saved := routes
+	routes = append(append([]route{}, routes...), route{
+		side:    sideSurface,
+		pattern: "GET /test/fails",
+		handle: func(*Server, http.ResponseWriter, *http.Request) error {
+			return errors.New("git: the base commit is gone")
+		},
+	})
+	t.Cleanup(func() { routes = saved })
+	f := newFixture(g, t)
+
+	res := serveSurface(f.s.Surface(), http.MethodGet, "/test/fails")
+	g.Expect(res.Code).To(Equal(http.StatusInternalServerError))
+	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
+	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("This page could not be read"))
+	g.Expect(res.Body.String()).NotTo(ContainSubstring("base commit is gone"), "the error itself goes to the log")
 }
 
 func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {

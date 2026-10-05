@@ -43,8 +43,9 @@ type Env struct {
 	// though a process that allocates a pseudo-terminal can pass, so this
 	// keeps an agent from starting a login by accident rather than by intent.
 	Terminal bool
-	// NewNode builds a tailnet node. Nil means tsnet, and every test sets it,
-	// since a real node contacts Tailscale.
+	// NewNode builds a tailnet node, and nil means tsnet. The tests' shared
+	// environment sets one that fails if it is called, since a real node
+	// contacts Tailscale.
 	NewNode tailnet.Constructor
 }
 
@@ -835,13 +836,20 @@ func (a *app) loginCommand() *ucli.Command {
 				if herr == nil && holder.Login {
 					return &failure{code: api.CodeDaemonRunning, message: fmt.Sprintf("another tailnet login (pid %d) is running", holder.PID), fix: "finish that login, or end it, and run this again"}
 				}
-				return &failure{code: api.CodeDaemonRunning, message: err.Error(), fix: "run eyeball stop, then eyeball tailnet login; the next agent command starts the daemon again"}
+				return &failure{code: api.CodeDaemonRunning, message: err.Error(), fix: "run eyeball stop && eyeball tailnet login as one line, since a waiting agent's next command starts the daemon again"}
 			}
 			if err != nil {
 				return err
 			}
 			defer func() { _ = held.Release() }()
 
+			// tsnet reads an auth key and its other settings from the process
+			// environment when the node starts. The terminal check keeps an
+			// agent from starting a login by accident, and a pseudo-terminal
+			// passes it, so an auth key inherited from an agent would still
+			// enroll the node with nobody there. The login is interactive or
+			// nothing.
+			clearTailscaleEnv()
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			newNode := a.env.NewNode
@@ -869,6 +877,17 @@ func (a *app) loginCommand() *ucli.Command {
 				_, _ = fmt.Fprintf(w, "the next daemon serves the surface at %s\n", enrolled.URL)
 			})
 		},
+	}
+}
+
+// clearTailscaleEnv removes every TS_ and TSNET_ variable from this process's
+// environment.
+func clearTailscaleEnv() {
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if strings.HasPrefix(name, "TS_") || strings.HasPrefix(name, "TSNET_") {
+			_ = os.Unsetenv(name)
+		}
 	}
 }
 

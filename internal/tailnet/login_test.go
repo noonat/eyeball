@@ -35,6 +35,16 @@ func TestLogin(t *testing.T) {
 	g.Expect(node.closes.Load()).To(Equal(int32(1)), "the node was closed before the rename")
 }
 
+func TestLogin_aStartThatFails(t *testing.T) {
+	g := NewWithT(t)
+	state := t.TempDir()
+	node := newFake(Status{}, StateRunning)
+	node.startErr = errors.New("node.new is not a directory")
+	_, err := Login(t.Context(), state, node.construct, discard)
+	g.Expect(err).To(MatchError(ContainSubstring("is not a directory")))
+	g.Expect(node.closes.Load()).To(BeZero(), "a node whose Start failed was closed")
+}
+
 func TestLogin_again(t *testing.T) {
 	g := NewWithT(t)
 	state := t.TempDir()

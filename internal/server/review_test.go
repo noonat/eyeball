@@ -57,6 +57,18 @@ func TestServer_Surface_review(t *testing.T) {
 	g.Expect(rows).To(Equal([]string{"hunkhead @@ -1 +1,2 @@", "1one", "add 2+two"}))
 }
 
+func TestServer_Surface_reviewAbandoned(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(id)+"/abandon", api.AbandonBody{Caller: me}, &api.AbandonResult{})
+
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("AbandonedRound 1"), "a withdrawn review does not wait")
+}
+
 func TestServer_Surface_reviewAgainst(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

@@ -88,6 +88,15 @@ type message struct {
 	Heading, Text string
 }
 
+// failurePage answers a surface request whose handler failed, as a page. The
+// agent API's JSON refusal would reach a phone as text, and its fix speaks to
+// an agent at a terminal.
+func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) {
+	s.log.Error("surface request failed", "method", r.Method, "path", r.URL.Path, "err", err)
+	p := page{Title: "Something went wrong", Back: "/", BackLabel: "Queue", Body: message{Heading: "This page could not be read", Text: "The daemon's log says why."}}
+	s.renderPage(w, http.StatusInternalServerError, "error", p)
+}
+
 // errorPage writes a page for a status the surface answers with on its own.
 func (s *Server) errorPage(w http.ResponseWriter, status int) {
 	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address."}}
@@ -102,9 +111,13 @@ func (s *Server) errorPage(w http.ResponseWriter, status int) {
 
 // renderPage executes a page template inside the layout and writes it.
 func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
+	// The clone's own copy of the page's tree, never s.pages's: executing a
+	// template escapes its tree in place, so adding the shared tree let every
+	// request write to it while others cloned it, which the race detector
+	// reported for two pages rendered at once.
 	t, err := s.pages.Clone()
 	if err == nil {
-		_, err = t.AddParseTree("page", s.pages.Lookup(name).Tree)
+		_, err = t.AddParseTree("page", t.Lookup(name).Tree)
 	}
 	var buf bytes.Buffer
 	if err == nil {

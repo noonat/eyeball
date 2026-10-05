@@ -148,9 +148,11 @@ once the person is not mid-review. The next command starts the new build.
 `eyeball tailnet login` is the owner's, and an agent never runs it. It logs this
 machine in to the tailnet so the daemon can serve the surface there, and needs a
 person at a terminal to open the login page it prints. Without a terminal it is
-refused with `owner_only`. The owner runs `eyeball stop` first, since the login
-holds the daemon's lock, and while it runs, a command that needs the daemon is
-refused with `daemon_unavailable` and says to try again once the login is done.
+refused with `owner_only`. It needs the daemon's lock, so the owner runs
+`eyeball stop && eyeball tailnet login` as one line: a waiting agent told the
+daemon stopped runs `eyeball wait` again, and that starts a new daemon at once.
+While the login runs, a command that needs the daemon is refused with
+`daemon_unavailable` and says to try again once the login is done.
 
 ### `eyeball doc`
 

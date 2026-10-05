@@ -29,6 +29,9 @@ type reviewPage struct {
 	Title, Project, Agent string
 	// Round is the round's number.
 	Round int
+	// Abandoned says the agent withdrew the review, which no round's verdict
+	// records.
+	Abandoned bool
 	// Waiting is how long the round has been asked for, which the page shows
 	// while it has no verdict.
 	Waiting string
@@ -190,12 +193,13 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	now := s.now()
 	view := reviewPage{
-		Title:   review.Title,
-		Project: project.Name,
-		Agent:   review.Agent,
-		Round:   round.Number,
-		Note:    paragraphs(round.Note),
-		Waiting: render.Age(now, round.Created),
+		Title:     review.Title,
+		Project:   project.Name,
+		Agent:     review.Agent,
+		Round:     round.Number,
+		Abandoned: review.State == store.StateAbandoned,
+		Note:      paragraphs(round.Note),
+		Waiting:   render.Age(now, round.Created),
 	}
 
 	decision, err := s.db.s.Decision(ctx, round.ID)

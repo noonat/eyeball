@@ -54,7 +54,7 @@ internal/daemon/      single-instance lock, socket, start and stop
 internal/diff/        two captures to hunks, word marking
 internal/kind/        what a file is, and therefore how it opens
 internal/push/        web push, VAPID, subscription lifecycle
-internal/render/      markdown, syntax highlighting, templates
+internal/render/      a diff as rows, syntax highlighting, ages, and markdown
 internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it

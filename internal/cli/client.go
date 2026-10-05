@@ -40,8 +40,9 @@ const maxStarts = 3
 
 // stuckGrace is how long a lock held by a daemon that does not answer, and has
 // not marked itself stopping, is given before the daemon is called stuck. A
-// daemon that has marked itself stopping is given its whole shutdown grace,
-// because it removes its socket first and may then finish a capture.
+// daemon that has marked itself stopping is given daemon.StoppingGrace,
+// because it removes its socket first and may then finish a capture and close
+// its tailnet node.
 const stuckGrace = time.Second
 
 // stuckError reports a daemon that holds the lock and does not answer on the
@@ -164,8 +165,8 @@ func (c *client) connect(ctx context.Context, start bool) error {
 }
 
 // stuck reports a daemon that holds the lock and has not answered within its
-// grace: stuckGrace, or the whole shutdown grace for one marked stopping. A
-// lock held by a login is reported at once.
+// grace: stuckGrace, or daemon.StoppingGrace for one marked stopping. A lock
+// held by a login is reported at once.
 func (c *client) stuck(ctx context.Context) error {
 	began := time.Now()
 	for daemon.Held(c.paths.Lock) {

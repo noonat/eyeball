@@ -41,8 +41,8 @@ func requireLoopback(addr string) error {
 // ShutdownGrace bounds how long the daemon waits for requests to finish once
 // it has begun to stop. Waits answer at once, so this covers a request in the
 // middle of a capture. One longer than this has its connection cut, which the
-// client reports as connection_lost. A command that finds a stopping daemon
-// waits this long for its lock.
+// client reports as connection_lost. A stopping daemon then closes its
+// tailnet node, so a command that finds one waits StoppingGrace for its lock.
 const ShutdownGrace = 5 * time.Second
 
 // Config is what a daemon runs with.

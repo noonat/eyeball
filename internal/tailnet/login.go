@@ -56,8 +56,9 @@ func Login(ctx context.Context, stateDir string, newNode Constructor, note Logf)
 		dir = NewNodeDir(stateDir)
 	}
 	node := newNode(dir, note)
+	// A failed Start is not followed by Close, which would dereference state
+	// such a Start never set. tsnet's Start closes what it opened on failure.
 	if err := node.Start(); err != nil {
-		_ = node.Close()
 		return Enrollment{}, err
 	}
 	url, err := awaitServable(ctx, node, note)

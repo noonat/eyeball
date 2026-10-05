@@ -63,6 +63,18 @@ func TestStartSurface(t *testing.T) {
 	g.Expect(s.Report().State).To(Equal(ReportOff))
 }
 
+func TestStartSurface_aStartThatFails(t *testing.T) {
+	g := NewWithT(t)
+	node := newFake(Status{}, StateRunning)
+	node.startErr = errors.New("/state/node is not a directory")
+	s := StartSurface("dir", node.construct, http.NotFoundHandler(), discard)
+	g.Eventually(func() string { return s.Report().State }, 5*time.Second).Should(Equal(ReportFailed))
+	g.Expect(s.Report().Reason).To(ContainSubstring("is not a directory"))
+	g.Expect(s.Stop(stopCtx(t))).To(Succeed())
+	// tsnet's Close after a Start that failed early dereferences nil.
+	g.Expect(node.closes.Load()).To(BeZero(), "a node whose Start failed was closed")
+}
+
 func TestStartSurface_fails(t *testing.T) {
 	healthy := Status{MagicDNS: true, CertDomains: []string{"eyeball.example.ts.net"}}
 	cases := []struct {
@@ -274,8 +286,11 @@ type fake struct {
 	status Status
 	states []State
 
-	startGate  chan struct{}
-	closeGate  chan struct{}
+	startGate chan struct{}
+	closeGate chan struct{}
+	// startErr makes Start fail, as tsnet's does when its directory cannot be
+	// made, before it has set what its Close dereferences.
+	startErr   error
 	statusGate chan struct{}
 	watchEnd   error
 	// statusHonorsCtx makes a Status blocked on statusGate return when its
@@ -315,6 +330,9 @@ func (f *fake) construct(dir string, logf Logf) Node {
 // Start blocks on startGate when one is set.
 func (f *fake) Start() error {
 	f.startCalled.Store(true)
+	if f.startErr != nil {
+		return f.startErr
+	}
 	if f.mkdir {
 		if err := os.MkdirAll(f.dir, 0o700); err != nil {
 			return err

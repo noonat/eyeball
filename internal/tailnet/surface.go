@@ -151,7 +151,12 @@ func (s *Surface) run(ctx context.Context, dir string, newNode Constructor, hand
 	node := newNode(dir, logf)
 	err := node.Start()
 	s.mu.Lock()
-	s.node = node
+	// A node whose Start failed is never closed: tsnet's Close dereferences
+	// state a Start that failed early never set, and a failed Start has
+	// already closed what it opened.
+	if err == nil {
+		s.node = node
+	}
 	s.starting = false
 	stopping := s.stopping
 	s.mu.Unlock()

@@ -1,6 +1,6 @@
 {{define "review"}}<div class="scroll"><div class="page">
 <div class="brief">
-<div class="where">{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
+<div class="where">{{if .Abandoned}}<span class="pill plain">Abandoned</span>{{else}}{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
 <h2 class="title">{{.Title}}</h2>
 </div>
 {{if .Earlier}}<div class="section">

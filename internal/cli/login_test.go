@@ -114,6 +114,24 @@ func TestRun_tailnetLogin(t *testing.T) {
 	g.Expect(node.dir).To(Equal(tailnet.NodeDir(paths.Dir)))
 }
 
+func TestRun_tailnetLoginClearsTailscaleVariables(t *testing.T) {
+	g := NewWithT(t)
+	paths := statePaths(g, t)
+	t.Setenv("TS_AUTHKEY", "not-a-real-key")
+	t.Setenv("TSNET_FORCE_LOGIN", "1")
+	node := &loginNode{paths: paths}
+	env := testEnv(paths, t.TempDir())
+	env.Terminal = true
+	env.NewNode = node.construct
+
+	res := runEnv(t, env, "tailnet", "login")
+	g.Expect(res.code).To(BeZero(), res.stderr)
+	// tsnet reads them when the node starts, so the node is where they must
+	// already be gone.
+	g.Expect(node.environment).NotTo(ContainElement(HavePrefix("TS_AUTHKEY=")))
+	g.Expect(node.environment).NotTo(ContainElement(HavePrefix("TSNET_FORCE_LOGIN=")))
+}
+
 func TestRun_tailnetLoginFails(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -252,6 +270,8 @@ type loginNode struct {
 	markedLogin     bool
 	closed          bool
 	logf            tailnet.Logf
+	// environment is the process's environment when the node started.
+	environment []string
 }
 
 // construct is the node's constructor.
@@ -264,6 +284,7 @@ func (n *loginNode) construct(dir string, logf tailnet.Logf) tailnet.Node {
 // Start creates the node's directory, as tsnet does, says a login URL as
 // tsnet does through UserLogf, and looks at the lock.
 func (n *loginNode) Start() error {
+	n.environment = os.Environ()
 	n.logf("To authenticate, visit:\n\n\t%s", "https://login.example.com/a/1234")
 	n.heldDuringStart = daemon.Held(n.paths.Lock)
 	holder, err := daemon.ReadHolder(n.paths.Lock)

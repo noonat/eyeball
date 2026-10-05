@@ -61,7 +61,9 @@ type Node interface {
 	Status(ctx context.Context) (Status, error)
 	// ListenTLS listens on the tailnet with the node's certificate.
 	ListenTLS(addr string) (net.Listener, error)
-	// Close stops the node. It must not be called before Start returns.
+	// Close stops the node. It must not be called before Start returns, nor
+	// after a Start that failed: tsnet's dereferences state an early failure
+	// never set, and its Start closes what it opened when it fails.
 	Close() error
 }
 

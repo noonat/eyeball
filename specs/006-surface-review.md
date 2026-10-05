@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-05T00:00:00Z
-updated: 2026-10-05T08:25:02.000128591Z
+updated: 2026-10-05T12:48:47.985222516Z
 required_acks:
   - reviewed
 required_commands:
@@ -494,6 +494,35 @@ file route until widening and documents (007) adds them.
   frame. `tool/seed -nothing-waiting` answers every waiting round, for the empty
   queue's screenshot.
 
+**Departures, from the review pass over the whole branch.**
+
+- Correction: iteration 2's review read tsnet's `Close` as safe after a `Start`
+  that failed. It is not. `close` ends by closing `s.sys.Bus`, which `start`
+  sets only after it has found its executable, made its directory and checked
+  that it is one, confirmed in v1.102.3's source, so a `Start` that fails first
+  leaves a nil to dereference. A node whose `Start` failed is never closed now,
+  by the daemon or by the login. tsnet's `Start` closes what it opened when it
+  fails.
+- Two pages rendered at once wrote to the shared templates. `renderPage` added
+  the shared page tree to its clone, and executing a template escapes its tree
+  in place, which the race detector reported. The clone's own copy is added now,
+  and a test renders pages concurrently under `-race`.
+- A surface handler that fails answers with a page saying the page could not be
+  read, and logs the error. It answered with the agent API's JSON refusal, which
+  reached the phone as text, so "a page for a refusal" below was true only of
+  the mux's own 404 and 405.
+- An abandoned review's page says "Abandoned" in place of the wait or the
+  verdict. It said "Waiting", since no round's verdict records a withdrawal.
+- `eyeball tailnet login` removes every `TS_` and `TSNET_` variable from its own
+  environment before building the node. tsnet reads an auth key from the
+  environment when the node starts, confirmed in its source, and a
+  pseudo-terminal passes the terminal check, so an auth key an agent inherited
+  could otherwise enroll the node with nobody there.
+- The manual and the login's refusal say to run
+  `eyeball stop && eyeball tailnet login` as one line, because a waiting agent
+  told the daemon stopped runs `eyeball wait` again and starts a new daemon at
+  once.
+
 ### What every surface response carries
 
 - **`Content-Security-Policy: default-src 'self'; img-src 'self' data:; frame-ancestors 'none'`.**
@@ -753,3 +782,9 @@ the three review passes and were checked by the stand-in only.
       the reviewer
 - [x] architecture.md's routes table marking which routes exist and adding
       `/static/app.css`, and specs/TODO.md entries for this spec's departures
+
+> **Completed** 2026-10-05 12:48 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.8s
+> - `go test -race ./...` — 7.3s

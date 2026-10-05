@@ -231,9 +231,13 @@ func (s *Server) mux(which side) *http.ServeMux {
 			continue
 		}
 		handle := rt.handle
+		answer := s.answerError
+		if which == sideSurface {
+			answer = s.failurePage
+		}
 		mux.HandleFunc(rt.pattern, func(w http.ResponseWriter, r *http.Request) {
 			if err := handle(s, w, r); err != nil {
-				s.answerError(w, r, err)
+				answer(w, r, err)
 			}
 		})
 	}
