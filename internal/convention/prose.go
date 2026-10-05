@@ -179,9 +179,8 @@ func strip(text string, at []int) (string, []int) {
 // is untracked until it is added, and a check that reads only the index passes
 // while checking nothing.
 //
-// A symlink is skipped. CLAUDE.md points at AGENTS.md, and reading both reports
-// every finding twice. testdata is skipped because its fixtures break the rules
-// on purpose.
+// A symlink is skipped, so a file linked under a second name is not checked
+// twice. testdata is skipped because its fixtures break the rules on purpose.
 func MarkdownFiles() ([]string, error) {
 	root, err := repoRoot()
 	if err != nil {

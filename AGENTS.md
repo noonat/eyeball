@@ -13,20 +13,19 @@ from it. [docs/conventions.md](docs/conventions.md) is how the code is written.
 pointer or a rule short enough to fit on one line. A context file that grows
 into a manual stops being read, and the things in it stop being followed.
 
-`CLAUDE.md` is a symlink to this file, so both names find it.
+There is no `CLAUDE.md`. Claude Code reads this file when none exists, and a
+`CLAUDE.md` beside it would hide it.
+
+The order work is done in, from tearout to merged spec, is the `dev-workflow`
+skill on the owner's machine. The rules below are the ones specific to this
+repository, and the documents they point at hold the rest.
 
 ## Rules that fit on one line
 
-- Work with a user-visible surface opens with a design tearout, settled on the
-  real phone, before any plumbing. See [docs/design/](docs/design/README.md).
-- Work that is not being done right now goes in [specs/TODO.md](specs/TODO.md),
-  one or two lines. Detail goes in a spec, not there.
-- A change to an existing surface starts by changing the tearout it was approved
-  against.
+- Design tearouts are judged on the real phone. See
+  [docs/design/](docs/design/README.md).
 - Code follows [docs/conventions.md](docs/conventions.md), which says of each
   rule whether it is enforced or left to judgment.
-- Work waits uncommitted until a human has reviewed it. Amend only a commit
-  nobody has seen; a correction to one already shown is a new commit.
 - Never commit or push without asking, and draft the message with the
   `commit-message` skill first. A `PreToolUse` hook refuses a commit whose
   message the skill's gate has not passed. The gate records its own pass, so
