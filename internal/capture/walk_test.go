@@ -31,6 +31,26 @@ func TestWalk(t *testing.T) {
 	}))
 }
 
+func TestWalk_linkedParent(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	root := filepath.Join(dir, "project")
+	outside := filepath.Join(dir, "outside")
+	g.Expect(os.MkdirAll(root, 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(outside, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(outside, "s.txt"), []byte("not the project's\n"), 0o600)).To(Succeed())
+	g.Expect(os.Symlink(outside, filepath.Join(root, "link"))).To(Succeed())
+
+	_, err := Walk(t.Context(), root, []string{"link/s.txt"})
+	g.Expect(errors.Is(err, ErrNoSuchPath)).To(BeTrue())
+	g.Expect(err.Error()).To(ContainSubstring("runs through link"))
+
+	// The link itself, named as the final component, is captured as a link.
+	got, err := Walk(t.Context(), root, []string{"link"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal([]Entry{{Path: "link", Symlink: true}}))
+}
+
 func TestWalk_missingPath(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()

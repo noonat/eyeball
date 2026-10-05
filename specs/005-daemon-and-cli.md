@@ -676,7 +676,13 @@ agent driving the tool from the manual alone.
   every comment are received. The spec's rule listed an ended review only while
   it held unread comments, so an approval with none dropped out of `status` the
   moment it was given, reachable after a killed wait only by an id the agent no
-  longer had. `show` also returns the reviewer's note on each round.
+  longer had. An abandoned review owes no verdict, since a wait on it returns
+  abandoned and receives none, and `0004` marks verdicts already in a database
+  as received. `show` also returns the reviewer's note on each round.
+- Outside git, a review path that runs through a symlinked directory is refused.
+  `os.Lstat` follows every component but the last, so `link/s.txt` with `link`
+  pointing outside the project read an outside file into the blob store, which
+  the walk's own comment says it prevents.
 - The project's name is read once, when the project is first seen, as the spec
   said. A version ran `git rev-parse` on every request. No test can tell the
   difference, since the name is kept from the first registration either way.

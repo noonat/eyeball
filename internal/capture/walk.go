@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 )
@@ -59,6 +60,9 @@ func walkOne(root, p string, found map[string]Entry) error {
 		return errors.Wrapf(ErrNoSuchPath, "%q is not a path inside the project", p)
 	}
 	p = inside
+	if err := refuseLinkedParent(root, p); err != nil {
+		return err
+	}
 	full := filepath.Join(root, filepath.FromSlash(p))
 	info, err := os.Lstat(full)
 	if err != nil {
@@ -72,6 +76,30 @@ func walkOne(root, p string, found map[string]Entry) error {
 		return nil
 	}
 	return walkDir(root, p, full, found)
+}
+
+// refuseLinkedParent refuses a review path that runs through a symlinked
+// directory. os.Lstat follows every component of a path but the last, so a
+// path of link/s.txt, where link points outside the project, reads a file from
+// outside it into the blob store. A review path is checked component by
+// component instead, and the final one may itself be a link, which is captured
+// as the target it names.
+func refuseLinkedParent(root, p string) error {
+	parts := strings.Split(p, "/")
+	dir := root
+	for _, part := range parts[:len(parts)-1] {
+		dir = filepath.Join(dir, part)
+		info, err := os.Lstat(dir)
+		if err != nil {
+			// A missing component is the not-found refusal below.
+			return nil
+		}
+		if info.Mode()&fs.ModeSymlink != 0 {
+			rel, _ := filepath.Rel(root, dir)
+			return errors.Wrapf(ErrNoSuchPath, "%s runs through %s, a symlink, which can lead outside the project; name the path it points to", p, filepath.ToSlash(rel))
+		}
+	}
+	return nil
 }
 
 // walkDir adds every file under one of the review's directories.
