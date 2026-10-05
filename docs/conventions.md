@@ -482,6 +482,10 @@ cannot replace one.
 
 ## Commits
 
+Every message is drafted with the `dev-commit-message` skill and passes its
+gate. The rules below are the ones specific to this repository. The skill holds
+the rest, and the subject format here is the one it defers to.
+
 **Never commit or push without asking.** Approval of one commit is not approval
 of the next. A change to a drafted message is not approval either: redraft, then
 ask again.

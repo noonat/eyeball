@@ -1,1 +1,0 @@
-docs(specs): add 001 foundation and the TODO list

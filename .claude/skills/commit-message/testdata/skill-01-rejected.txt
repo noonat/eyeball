@@ -1,5 +1,0 @@
-fix(skill): stop the commit gate failing a message with no body
-
-Five subject-only messages were checked at once and three failed on step 4b,
-which exists to catch a body that explains too much. The step was phrased as a
-question, and a reader asked whether a body was wanted will supply one.
