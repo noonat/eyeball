@@ -618,6 +618,28 @@ like `id` and `next` appear all over any manual. Without the test the manual
 drifts from the CLI the first time either changes, and product.md's bar is an
 agent driving the tool from the manual alone.
 
+**Departures, iteration 5.**
+
+- The client calls `Check` before its first dial, not only before starting a
+  daemon. A socket path past 107 bytes fails the dial itself with "invalid
+  argument", before any start. A version of this iteration called `Check` only
+  through `daemon.Start`, on the claim that a separate call could not change any
+  outcome. That claim was wrong: mutation testing showed only that no test
+  covered the difference, and a review pass found the case.
+- Two codes the daemon never sends were added for the client to report:
+  `connection_lost`, for a connection closed before an answer on any command,
+  and `daemon_unavailable`, for a daemon that cannot be reached or started.
+- `StopResult` gained `stopped`, so `stop --json` prints one shape whether or
+  not a daemon was running.
+- A receipt that fails after the comments were printed is a warning on stderr,
+  and the exit status stays the one the wait's kind gives.
+- `eyeball doc` is wired in this iteration with a placeholder, and the comment
+  in `cmd/eyeball` is corrected here rather than in iteration 6, because `main`
+  changed in this iteration and the old comment described the new code wrongly.
+- `EYEBALL_NO_START`, which turns autostart off, is how the CLI tests run
+  without a binary to start. Iteration 6's manual documents it, with the other
+  environment variables.
+
 ### The store
 
 Each addition is written by something this spec builds.
@@ -849,36 +871,42 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
 - [x] architecture.md's What runs section corrected to put the socket in the
       state directory
 
+> **Completed** 2026-10-05 06:22 UTC
+>
+> - acks: reviewed
+> - `make check` — 1.6s
+> - `go test -race ./...` — 5.3s
+
 ## Iteration 5: The command line
 
-- [ ] `urfave/cli/v3` added to `go.mod` and imported only by `internal/cli`
-- [ ] A no-op `ExitErrHandler`, the writers from the run function, no root
+- [x] `urfave/cli/v3` added to `go.mod` and imported only by `internal/cli`
+- [x] A no-op `ExitErrHandler`, the writers from the run function, no root
       `Action`, and `OnUsageError` and `DisableSliceFlagSeparator` on the root
       and every subcommand
-- [ ] Exits 2 and 3 carried in the CLI's own status type, `main` exiting 1 on
+- [x] Exits 2 and 3 carried in the CLI's own status type, `main` exiting 1 on
       every other error, and a test that `eyeball wiat 5` exits 1
-- [ ] A dialer that runs the daemon's checks, starts a daemon on `ENOENT` or
+- [x] A dialer that runs the daemon's checks, starts a daemon on `ENOENT` or
       `ECONNREFUSED`, restarts once per early child exit, and prints the log's
       tail on giving up
-- [ ] `request` and `wait`, wired to their routes
-- [ ] `show`, `status`, `reply` and `abandon`, wired to their routes
-- [ ] `start`, `stop` and `serve`, with `stop` never starting a daemon
-- [ ] `-m` repeatable, joined with blank lines, a comma kept inside a value, and
+- [x] `request` and `wait`, wired to their routes
+- [x] `show`, `status`, `reply` and `abandon`, wired to their routes
+- [x] `start`, `stop` and `serve`, with `stop` never starting a daemon
+- [x] `-m` repeatable, joined with blank lines, a comma kept inside a value, and
       a note blank throughout refused before any request is sent
-- [ ] `--json` printing the body as received, a refusal's body on stdout under
+- [x] `--json` printing the body as received, a refusal's body on stdout under
       `--json`, and `--format` over the body with numbers converted to `int64`
       or `float64`
-- [ ] Human output for each command, with a test per command against a golden
+- [x] Human output for each command, with a test per command against a golden
       file, and every mutation ending with the same `next:` text the JSON
       carries
-- [ ] `wait` posting a receipt for exactly the comments it printed, after
+- [x] `wait` posting a receipt for exactly the comments it printed, after
       printing, and none under `--format`
-- [ ] Exit status 1 on a refusal, 2 on `wait --timeout` with the client's
+- [x] Exit status 1 on a refusal, 2 on `wait --timeout` with the client's
       `still_waiting` body, 3 on `comments`, and 1 naming the command on a
       dropped connection
-- [ ] A differing build identifier writing one line to stderr naming
+- [x] A differing build identifier writing one line to stderr naming
       `eyeball stop`, tested with an injected identifier
-- [ ] Tests against an in-process server: flags after paths, a root flag after
+- [x] Tests against an in-process server: flags after paths, a root flag after
       the subcommand, `--` before a dashed path, a bad subcommand flag under
       `--json`, and `--format` comparing a number
 
@@ -887,6 +915,8 @@ while `show` reads any, and `wait --format` never acknowledges a comment.
 - [ ] `eyeball doc` printing an embedded manual, without dialing the daemon,
       covering every command, flag, exit status and refusal code, with a
       reference section of every response field by dotted path
+- [ ] The manual listing every environment variable the CLI reads:
+      `EYEBALL_AGENT`, `EYEBALL_NO_START` and `XDG_STATE_HOME`
 - [ ] A test failing when a command, a flag or a dotted path is absent from the
       manual, proved by deleting one of each
 - [ ] An end-to-end test building the binary with a short `XDG_STATE_HOME`:

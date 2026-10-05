@@ -170,7 +170,8 @@ func (s *Server) handleDaemon(w http.ResponseWriter, _ *http.Request) error {
 // handleStop answers, then asks the daemon to exit. The shutdown cannot run in
 // here: it waits for active requests, and this request is one of them.
 func (s *Server) handleStop(w http.ResponseWriter, _ *http.Request) error {
-	writeJSON(w, http.StatusOK, api.StopResult{Daemon: s.daemon})
+	daemon := s.daemon
+	writeJSON(w, http.StatusOK, api.StopResult{Stopped: true, Daemon: &daemon})
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}

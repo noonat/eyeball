@@ -179,7 +179,7 @@ func TestRun_signal(t *testing.T) {
 			g.Expect(err).NotTo(HaveOccurred())
 			cmd := exec.Command(os.Args[0], "-test.run=^$")
 			cmd.Env = append(os.Environ(), roleEnv+"=daemon", "XDG_STATE_HOME="+base)
-			var stderr bytes.Buffer
+			var stderr syncBuffer
 			cmd.Stderr = &stderr
 			g.Expect(cmd.Start()).To(Succeed())
 			t.Cleanup(func() { _ = cmd.Process.Kill() })

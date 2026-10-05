@@ -20,8 +20,14 @@ const (
 	CodeBaseGained Code = "base_gained"
 	// CodeBaseMoved is a round measured from a base other than the review's.
 	CodeBaseMoved Code = "base_moved"
+	// CodeConnectionLost is a connection the daemon closed before answering.
+	// The client reports it: the daemon cannot.
+	CodeConnectionLost Code = "connection_lost"
 	// CodeDaemonStopping is a request cut short because the daemon is exiting.
 	CodeDaemonStopping Code = "daemon_stopping"
+	// CodeDaemonUnavailable is a daemon that could not be reached or started.
+	// The client reports it.
+	CodeDaemonUnavailable Code = "daemon_unavailable"
 	// CodeEmptyChangeRequest is a change request with no comment and no note.
 	CodeEmptyChangeRequest Code = "empty_change_request"
 	// CodeInternal is a failure inside the daemon. Its message never carries
@@ -381,8 +387,12 @@ type ReceiptResult struct {
 	Comments []int64 `json:"comments"`
 }
 
-// StopResult is what asking the daemon to stop returns, before it does.
+// StopResult is what eyeball stop prints.
 type StopResult struct {
-	// Daemon is the daemon about to exit.
-	Daemon Daemon `json:"daemon"`
+	// Stopped says a daemon was running and was asked to stop. It is false
+	// when there was nothing to stop.
+	Stopped bool `json:"stopped"`
+	// Daemon is the daemon that stopped, and absent from the JSON when none
+	// was running.
+	Daemon *Daemon `json:"daemon,omitempty"`
 }
