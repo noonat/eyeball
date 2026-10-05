@@ -1,1 +1,0 @@
-docs(design): add the tearouts for the surface

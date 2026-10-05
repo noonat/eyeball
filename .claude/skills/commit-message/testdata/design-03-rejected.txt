@@ -1,4 +1,0 @@
-fix(design): match an agent span whatever the tag whitespace
-
-Matching only the tight form fails the wrong way. The strip misses the span, and
-the checker then reports the page for a fault it introduced itself.

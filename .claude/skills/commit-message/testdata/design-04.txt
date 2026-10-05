@@ -1,1 +1,0 @@
-fix(design): match an agent span whatever the tag whitespace
