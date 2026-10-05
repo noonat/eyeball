@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 )
@@ -64,6 +65,38 @@ type Comment struct {
 	Quoted string
 	// Body is what the reviewer wrote.
 	Body string
+	// Created is when the reviewer wrote it. Compared with its round's decision
+	// it says whether the comment was part of the verdict or written after it.
+	Created time.Time
+	// Reply is the agent's answer, empty until it writes one.
+	Reply string
+	// Delivered is when the agent's client acknowledged printing the comment,
+	// and the zero time until it has.
+	Delivered time.Time
+}
+
+// ReleasedComment is a comment the agent may now receive, with where it sits.
+type ReleasedComment struct {
+	// Comment is the comment itself.
+	Comment
+	// Round is the number of the round it was written on.
+	Round int
+	// Late says it was written after its round was decided, or on an abandoned
+	// review's undecided round. Either way it arrived after the batch it would
+	// otherwise have been part of, so it goes out on its own.
+	Late bool
+}
+
+// Decision is the verdict on one round.
+type Decision struct {
+	// RoundID is the round decided.
+	RoundID int64
+	// Verdict is VerdictApprove or VerdictChanges.
+	Verdict Verdict
+	// Note is the reviewer's note on the whole round, empty if none.
+	Note string
+	// Decided is when the verdict was given.
+	Decided time.Time
 }
 
 // NewComment is a comment to store.
@@ -94,11 +127,12 @@ func (s *Store) AddComment(ctx context.Context, nc NewComment) (Comment, error) 
 	if err != nil {
 		return Comment{}, err
 	}
+	var at time.Time
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		if _, _, err := roundState(ctx, tx, nc.RoundID); err != nil {
 			return err
 		}
-		at := FormatTime(s.now())
+		at = s.now()
 		insert := `INSERT INTO comments
 			(round_id, level, path, start_line, end_line, quoted, body, created, updated)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -110,8 +144,8 @@ func (s *Store) AddComment(ctx context.Context, nc NewComment) (Comment, error) 
 			nullLine(comment.EndLine),
 			nullText(comment.Quoted),
 			comment.Body,
-			at,
-			at,
+			FormatTime(at),
+			FormatTime(at),
 		}
 		res, err := tx.ExecContext(ctx, insert, args...)
 		if err != nil {
@@ -125,6 +159,7 @@ func (s *Store) AddComment(ctx context.Context, nc NewComment) (Comment, error) 
 	if err != nil {
 		return Comment{}, err
 	}
+	comment.Created = at.Truncate(time.Millisecond)
 	return comment, nil
 }
 
@@ -244,7 +279,7 @@ func checkComment(nc NewComment) (Comment, error) {
 			return Comment{}, errors.Newf("a review-level comment has nowhere to point, so it cannot name %q", nc.Path)
 		}
 	} else {
-		path, err := normalizePath(nc.Path)
+		path, err := NormalizePath(nc.Path)
 		if err != nil {
 			return Comment{}, err
 		}

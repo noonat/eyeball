@@ -14,9 +14,21 @@ import (
 // The join picks the latest round rather than aggregating over all of them,
 // because a review with an earlier round decided and its newest one waiting is
 // waiting, not working.
+//
+// The undelivered count is every released comment the agent has not
+// acknowledged, whether or not it was late. It reads releasedWhere, the
+// condition Released reads, so the two cannot drift apart. The subquery's own
+// decisions alias d shadows the outer one on purpose, because that is the name
+// releasedWhere refers to.
 const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		o.number, o.created,
-		o.files_changed, o.lines_added, o.lines_removed
+		o.files_changed, o.lines_added, o.lines_removed,
+		coalesce(d.verdict, ''),
+		CASE WHEN d.round_id IS NOT NULL AND d.delivered = '' AND r.state <> 'abandoned' THEN 1 ELSE 0 END,
+		(SELECT count(*) FROM comments c
+			JOIN rounds o2 ON o2.id = c.round_id
+			LEFT JOIN decisions d ON d.round_id = o2.id
+			WHERE o2.review_id = r.id AND c.delivered = '' AND ` + releasedWhere + `)
 	FROM reviews r
 	JOIN projects p ON p.id = r.project_id
 	JOIN rounds o
@@ -54,6 +66,15 @@ type ReviewRow struct {
 	// RequestedAt is when the latest round was asked for, which is what the
 	// queue turns into how long something has been waiting.
 	RequestedAt time.Time
+	// Verdict is the decision on the latest round, and empty while it waits.
+	Verdict Verdict
+	// VerdictUndelivered says the latest round has a verdict the agent has not
+	// received, on a review it has not withdrawn. Withdrawing a review is the
+	// agent saying it no longer needs the answer, and a wait on it returns
+	// abandoned, which acknowledges no verdict.
+	VerdictUndelivered bool
+	// Undelivered counts the released comments the agent has not acknowledged.
+	Undelivered int
 }
 
 // Queue is what needs attention, in the three groups the surface shows.
@@ -120,6 +141,35 @@ func (s *Store) ReviewsFor(ctx context.Context, projectID int64, agent string) (
 	err := s.readTx(ctx, func(tx *sql.Tx) error {
 		var err error
 		out, err = rows(ctx, tx, query, projectID, agent)
+		return err
+	})
+	return out, err
+}
+
+// ProjectByRoot reads the project at root, and ErrNotFound for a root never
+// seen. A caller looks before registering, so the work of naming a project is
+// done once, when it is first seen.
+func (s *Store) ProjectByRoot(ctx context.Context, root string) (Project, error) {
+	var out Project
+	row := s.db.QueryRowContext(ctx, "SELECT id, root, name FROM projects WHERE root = ?", root)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Project{}, errors.Wrapf(ErrNotFound, "project at %s", root)
+		}
+		return Project{}, errors.Wrap(err, "read project")
+	}
+	return out, nil
+}
+
+// ReviewsIn lists every review in one project, whichever agent opened it,
+// newest request first. It is what an agent reads to find reviews it opened
+// under a name it no longer remembers.
+func (s *Store) ReviewsIn(ctx context.Context, projectID int64) ([]ReviewRow, error) {
+	query := rowSelect + " WHERE r.project_id = ? ORDER BY o.created DESC, r.id DESC"
+	var out []ReviewRow
+	err := s.readTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		out, err = rows(ctx, tx, query, projectID)
 		return err
 	})
 	return out, err
@@ -208,10 +258,9 @@ func (s *Store) RoundFiles(ctx context.Context, roundID int64) ([]RoundFile, err
 // whole approach rather than about a place, and it is written once the reading
 // is done.
 func (s *Store) Comments(ctx context.Context, roundID int64) ([]Comment, error) {
-	query := `SELECT id, round_id, level, coalesce(path, ''), coalesce(start_line, 0),
-			coalesce(end_line, 0), coalesce(quoted, ''), body
-		FROM comments WHERE round_id = ?
-		ORDER BY path IS NULL, path, start_line, id`
+	query := `SELECT ` + commentColumns + `
+		FROM comments c WHERE c.round_id = ?
+		ORDER BY c.path IS NULL, c.path, c.start_line, c.id`
 	rows, err := s.db.QueryContext(ctx, query, roundID)
 	if err != nil {
 		return nil, errors.Wrap(err, "read comments")
@@ -220,10 +269,9 @@ func (s *Store) Comments(ctx context.Context, roundID int64) ([]Comment, error) 
 
 	var out []Comment
 	for rows.Next() {
-		var c Comment
-		err := rows.Scan(&c.ID, &c.RoundID, &c.Level, &c.Path, &c.StartLine, &c.EndLine, &c.Quoted, &c.Body)
+		c, err := scanComment(rows)
 		if err != nil {
-			return nil, errors.Wrap(err, "scan comment")
+			return nil, err
 		}
 		out = append(out, c)
 	}
@@ -277,6 +325,9 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 			&row.Files,
 			&row.Added,
 			&row.Removed,
+			&row.Verdict,
+			&row.VerdictUndelivered,
+			&row.Undelivered,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "scan review")
@@ -287,4 +338,31 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 		out = append(out, row)
 	}
 	return out, errors.Wrap(found.Err(), "read reviews")
+}
+
+// Project reads one project by its id.
+func (s *Store) Project(ctx context.Context, projectID int64) (Project, error) {
+	var out Project
+	row := s.db.QueryRowContext(ctx, "SELECT id, root, name FROM projects WHERE id = ?", projectID)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Project{}, errors.Wrapf(ErrNotFound, "project %d", projectID)
+		}
+		return Project{}, errors.Wrap(err, "read project")
+	}
+	return out, nil
+}
+
+// CommentReview reads which review a comment belongs to, which is what a
+// caller checks before letting an agent act on the comment.
+func (s *Store) CommentReview(ctx context.Context, commentID int64) (int64, error) {
+	query := `SELECT o.review_id FROM comments c JOIN rounds o ON o.id = c.round_id WHERE c.id = ?`
+	var reviewID int64
+	if err := s.db.QueryRowContext(ctx, query, commentID).Scan(&reviewID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, errors.Wrapf(ErrNotFound, "comment %d", commentID)
+		}
+		return 0, errors.Wrap(err, "read comment")
+	}
+	return reviewID, nil
 }

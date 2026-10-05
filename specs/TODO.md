@@ -10,21 +10,31 @@ agent forgets it between contexts.
 
 ## Next
 
-Each becomes `specs/NNN-*.md` when it reaches the front.
+Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
+everything product.md and architecture.md describe that does not exist yet, so a
+requirement in either document that none of them names is a gap in this list.
 
-1. **005 The daemon and the CLI.** One process owns the store, the CLI is a thin
-   client over a unix socket, and `wait` is a long poll rather than a loop.
-   `--json` everywhere, flags in any position, `eyeball doc`.
-2. **006 The surface.** Templates seeded from the tearouts: the queue, a review,
-   widening, the project view. Server-rendered, htmx for the interactions, and
-   the live stream that carries updates and doubles as the connection state.
-   Every action reports its own failure, because a tap that does nothing is the
-   worst thing this surface can do.
-3. **007 Notification.** Web push with VAPID, the service worker that exists for
-   it, the installed-page requirement, and the lapsed-subscription state the
-   surface has to report.
-4. **008 Rendered files.** Images, pages, media, and the sandbox that anything
-   executable renders in.
+1. **006 The surface: reading.** The HTTPS listener on tsnet, `app.css` moved to
+   `web/`, templates seeded from the tearouts, and every reading route: the
+   queue with its empty state, a review page, an earlier round, widening to the
+   whole file, any file and the tree, the compare control, the expand-or-list
+   threshold, the project view's live working copy, and `/healthz`. Markdown
+   rendered with changed passages marked, code highlighted, nothing marked on an
+   empty base. No JavaScript. Its routes join the surface's handler only, under
+   the test from 005 that keeps the agent API and the surface apart.
+2. **007 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
+   and `oxlint` gates, the comment composer at all four levels, editing and
+   deleting before the verdict, the decision bar and its refusal, the live
+   stream, the connection notice, a failure reported on the control that failed,
+   and a failed save that keeps its text. The verdict route is the surface's
+   alone, and 005's listener test is extended to prove the socket cannot reach
+   it.
+3. **008 Notification.** Web push with VAPID, the service worker that exists for
+   it, the manifest and installed page, the first-run steps, the badge count on
+   the icon, and the lapsed-subscription state the surface has to report.
+4. **009 Rendered files.** `internal/kind`, images before and after, audio,
+   video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
+   view override on `request`, and a file too large to send.
 
 ## Unscheduled
 
@@ -68,6 +78,10 @@ Each becomes `specs/NNN-*.md` when it reaches the front.
       committed its own work. A capture is the delta from the base, so a base of
       `HEAD` after committing is an empty review and a base of the branch point
       is not.
+- [ ] tooling: rotating or capping `eyeball.log`. It is appended to forever,
+      which at a few lines per request is assumed harmless for a long time.
+- [ ] tooling: whether the daemon and CLI need testing on macOS. Nothing in 005
+      is Linux-only by intent and nothing is tested elsewhere.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can

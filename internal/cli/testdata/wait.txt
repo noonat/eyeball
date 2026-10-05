@@ -1,0 +1,8 @@
+review 1, round 1: changes requested
+note: Close.
+
+comment 1 on a.txt line 2 (round 1)
+  > two
+  Say why.
+
+next: changes requested. Make the changes, reply to a comment with eyeball reply <comment> -m "what was done" where it helps, then run eyeball request --review 1 -m "what changed".

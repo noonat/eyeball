@@ -242,7 +242,7 @@ func (r *Reader) readTree(out string) error {
 
 // catFile streams one object out of the repository.
 func (r *Reader) catFile(ctx context.Context, oid string) (io.ReadCloser, error) {
-	cmd := exec.CommandContext(ctx, "git", runArgs(r.root, []string{"cat-file", "blob", oid})...)
+	cmd := gitCommand(ctx, r.root, []string{"cat-file", "blob", oid})
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()

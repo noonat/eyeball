@@ -8,6 +8,7 @@ require (
 	github.com/aymanbagabas/go-udiff v0.4.1
 	github.com/cockroachdb/errors v1.14.0
 	github.com/onsi/gomega v1.42.1
+	github.com/urfave/cli/v3 v3.14.0
 	golang.org/x/net v0.56.0
 	modernc.org/sqlite v1.57.0
 )
@@ -28,7 +29,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect

@@ -11,40 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func Test_normalizePath(t *testing.T) {
-	paths := []struct {
-		name string
-		in   string
-		want string
-		bad  bool
-	}{
-		{name: "already clean", in: "docs/product.md", want: "docs/product.md"},
-		{name: "a directory", in: "docs", want: "docs"},
-		{name: "leading dot slash", in: "./docs", want: "docs"},
-		{name: "trailing slash", in: "docs/", want: "docs"},
-		{name: "doubled separator", in: "docs//product.md", want: "docs/product.md"},
-		{name: "an interior dot dot that stays inside", in: "docs/x/../product.md", want: "docs/product.md"},
-		{name: "empty", in: "", bad: true},
-		{name: "only spaces", in: "   ", bad: true},
-		{name: "absolute", in: "/etc/passwd", bad: true},
-		{name: "the root itself", in: ".", bad: true},
-		{name: "climbing out", in: "../secrets", bad: true},
-		{name: "climbing out the long way", in: "docs/../../secrets", bad: true},
-	}
-	for _, c := range paths {
-		t.Run(c.name, func(t *testing.T) {
-			g := NewWithT(t)
-			got, err := normalizePath(c.in)
-			if c.bad {
-				g.Expect(errors.Is(err, ErrInvalidPath)).To(BeTrue())
-				return
-			}
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(got).To(Equal(c.want))
-		})
-	}
-}
-
 func Test_pathsOverlap(t *testing.T) {
 	pairs := []struct {
 		name string
@@ -101,6 +67,40 @@ func Test_pathsOverlap(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
 			g.Expect(pathsOverlap(c.a, c.b)).To(Equal(c.want))
+		})
+	}
+}
+
+func TestNormalizePath(t *testing.T) {
+	paths := []struct {
+		name string
+		in   string
+		want string
+		bad  bool
+	}{
+		{name: "already clean", in: "docs/product.md", want: "docs/product.md"},
+		{name: "a directory", in: "docs", want: "docs"},
+		{name: "leading dot slash", in: "./docs", want: "docs"},
+		{name: "trailing slash", in: "docs/", want: "docs"},
+		{name: "doubled separator", in: "docs//product.md", want: "docs/product.md"},
+		{name: "an interior dot dot that stays inside", in: "docs/x/../product.md", want: "docs/product.md"},
+		{name: "empty", in: "", bad: true},
+		{name: "only spaces", in: "   ", bad: true},
+		{name: "absolute", in: "/etc/passwd", bad: true},
+		{name: "the root itself", in: ".", bad: true},
+		{name: "climbing out", in: "../secrets", bad: true},
+		{name: "climbing out the long way", in: "docs/../../secrets", bad: true},
+	}
+	for _, c := range paths {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			got, err := NormalizePath(c.in)
+			if c.bad {
+				g.Expect(errors.Is(err, ErrInvalidPath)).To(BeTrue())
+				return
+			}
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(got).To(Equal(c.want))
 		})
 	}
 }
@@ -223,7 +223,7 @@ func TestStore_OpenReview_concurrentClaims(t *testing.T) {
 				Agent:     "agent-1",
 				Title:     "a claim on docs",
 				Paths:     []string{"docs"},
-				Request:   Request{Note: "look at this"},
+				Request:   Request{Note: "look at this", Files: []File{{Path: "docs"}}},
 			})
 		}()
 	}
@@ -437,6 +437,80 @@ func TestStore_OpenReview_refusals(t *testing.T) {
 	}
 }
 
+func TestStore_OpenReview_sentinels(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	project := ensureProject(g, t, s)
+	held, _ := openReview(g, t, s, project.ID, "docs")
+
+	_, _, err := s.OpenReview(t.Context(), newReview(project.ID, "docs/product.md"))
+	var claimed *ClaimedError
+	g.Expect(errors.As(err, &claimed)).To(BeTrue())
+	g.Expect(*claimed).To(Equal(ClaimedError{
+		Path:     "docs/product.md",
+		Claimed:  "docs",
+		ReviewID: held.ID,
+		Title:    "a title",
+		Agent:    "agent-1",
+	}))
+
+	missing := []struct {
+		name string
+		edit func(nr *NewReview)
+	}{
+		{
+			name: "agent",
+			edit: func(nr *NewReview) { nr.Agent = " " },
+		},
+		{
+			name: "title",
+			edit: func(nr *NewReview) { nr.Title = "" },
+		},
+		{
+			name: "paths",
+			edit: func(nr *NewReview) { nr.Paths = nil },
+		},
+		{
+			name: "note",
+			edit: func(nr *NewReview) { nr.Request.Note = "\n" },
+		},
+	}
+	for _, c := range missing {
+		t.Run("missing "+c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			nr := newReview(project.ID, "web")
+			c.edit(&nr)
+			_, _, err := s.OpenReview(t.Context(), nr)
+			g.Expect(errors.Is(err, ErrMissing)).To(BeTrue())
+		})
+	}
+
+	// A capture that holds nothing, and one that holds only files outside the
+	// scope, both leave the review's own paths showing no change.
+	empty := []struct {
+		name  string
+		files []File
+	}{
+		{
+			name:  "nothing captured",
+			files: nil,
+		},
+		{
+			name:  "only files outside the scope",
+			files: []File{{Path: "internal/a.go"}, {Path: "website/b.md"}},
+		},
+	}
+	for _, c := range empty {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			nr := newReview(project.ID, "web")
+			nr.Request.Files = c.files
+			_, _, err := s.OpenReview(t.Context(), nr)
+			g.Expect(errors.Is(err, ErrNothingInScope)).To(BeTrue())
+		})
+	}
+}
+
 func TestStore_OpenRound(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)
@@ -621,14 +695,15 @@ func ensureProject(g *WithT, t *testing.T, s *Store) Project {
 	return p
 }
 
-// newReview is the smallest review that claims one path.
+// newReview is the smallest review that claims one path. Its round captures
+// that path as deleted, the smallest capture with something in scope.
 func newReview(projectID int64, claim string) NewReview {
 	return NewReview{
 		ProjectID: projectID,
 		Agent:     "agent-1",
 		Title:     "a title",
 		Paths:     []string{claim},
-		Request:   Request{Note: "look at this"},
+		Request:   Request{Note: "look at this", Files: []File{{Path: claim}}},
 	}
 }
 

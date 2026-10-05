@@ -189,8 +189,10 @@ func TestStore_AddComment(t *testing.T) {
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(got.ID).NotTo(BeZero())
 
+			g.Expect(got.Created).NotTo(BeZero())
 			c.want.ID = got.ID
 			c.want.RoundID = round.ID
+			c.want.Created = got.Created
 			g.Expect(got).To(Equal(c.want))
 			g.Expect(readComment(g, t, s, got.ID)).To(Equal(c.want))
 		})
@@ -464,12 +466,8 @@ func openSynchronous(g *WithT, tb testing.TB, ctx context.Context, mode string) 
 // stored rather than what was returned.
 func readComment(g *WithT, t *testing.T, s *Store, commentID int64) Comment {
 	g.THelper()
-	query := `SELECT id, round_id, level, coalesce(path, ''), coalesce(start_line, 0),
-			coalesce(end_line, 0), coalesce(quoted, ''), body
-		FROM comments WHERE id = ?`
-	var out Comment
-	row := s.db.QueryRowContext(t.Context(), query, commentID)
-	err := row.Scan(&out.ID, &out.RoundID, &out.Level, &out.Path, &out.StartLine, &out.EndLine, &out.Quoted, &out.Body)
+	query := `SELECT ` + commentColumns + ` FROM comments c WHERE c.id = ?`
+	out, err := scanComment(s.db.QueryRowContext(t.Context(), query, commentID))
 	g.Expect(err).NotTo(HaveOccurred())
 	return out
 }

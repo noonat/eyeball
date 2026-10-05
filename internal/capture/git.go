@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/cockroachdb/errors"
 )
@@ -42,7 +43,7 @@ const gitDir = ".git"
 // raw diff of a very large working tree, about a megabyte, and file content
 // goes through the reader instead.
 func run(ctx context.Context, root string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "git", runArgs(root, args)...)
+	cmd := gitCommand(ctx, root, args)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -50,6 +51,72 @@ func run(ctx context.Context, root string, args ...string) ([]byte, error) {
 		return nil, errors.Wrapf(err, "git %s: %s", strings.Join(args, " "), message(&stderr))
 	}
 	return out, nil
+}
+
+// gitCommand builds one git process in root, with the environment it runs
+// under.
+//
+// The daemon serves every project and inherits the environment of whichever
+// agent started it, for its whole life. A GIT_DIR or GIT_INDEX_FILE left in
+// that environment by a git hook points every later call at one repository,
+// whatever -C says: with GIT_DIR set, rev-parse --show-toplevel still reports
+// the -C directory, so the top-level check passes, and diff lists the other
+// repository's files. So the variables git itself calls repository-local are
+// removed. Everything else stays, including GIT_CONFIG_GLOBAL, GIT_EXEC_PATH
+// and GIT_SSH_COMMAND, which belong to the user rather than to a repository.
+func gitCommand(ctx context.Context, root string, args []string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "git", runArgs(root, args)...)
+	cmd.Env = scrubEnv(os.Environ(), localVars())
+	return cmd
+}
+
+// localVarNames caches the answer to git rev-parse --local-env-vars, which
+// does not change while the process runs.
+var localVarNames struct {
+	once  sync.Once
+	names map[string]struct{}
+}
+
+// fallbackLocalVars is used when git cannot be asked: the variables that point
+// at a repository in every git version that has them.
+var fallbackLocalVars = []string{
+	"GIT_DIR",
+	"GIT_WORK_TREE",
+	"GIT_INDEX_FILE",
+	"GIT_OBJECT_DIRECTORY",
+	"GIT_COMMON_DIR",
+}
+
+// localVars is the set of variables git lists as repository-local. It is
+// git's own list, used when git recurses into a submodule, so it names exactly
+// the variables that belong to one repository. Asking works outside a
+// repository and under a GIT_DIR that names nothing.
+func localVars() map[string]struct{} {
+	localVarNames.once.Do(func() {
+		names := fallbackLocalVars
+		out, err := exec.Command("git", "rev-parse", "--local-env-vars").Output()
+		if err == nil {
+			names = strings.Fields(string(out))
+		}
+		localVarNames.names = make(map[string]struct{}, len(names))
+		for _, name := range names {
+			localVarNames.names[name] = struct{}{}
+		}
+	})
+	return localVarNames.names
+}
+
+// scrubEnv returns env without the variables named in drop.
+func scrubEnv(env []string, drop map[string]struct{}) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		name, _, _ := strings.Cut(kv, "=")
+		if _, gone := drop[name]; gone {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
 }
 
 // runArgs is the full argument list for one git call, built here so the flags
