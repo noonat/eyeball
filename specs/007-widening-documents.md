@@ -1335,7 +1335,7 @@ leaves one alive has a test that cannot fail:
   error whichever check failed. A truncated index made check-ignore exit 128
   with "index file smaller than expected", confirmed, and that is the row. The
   agent API's error table gains a row for the sentinel, since every sentinel
-  needs one, and the `ErrNotFound` row above it answers first.
+  needs one, and the `ErrNotFound` row, earlier in the table, answers first.
 - `NewReader` allows live reads under `LiveIgnoreRules` where the root holds a
   `.git` entry, and under `LiveOpen` otherwise. Iteration 2 left it at
   `LiveOpen`, so a reader no `Inspect` built would still serve a git project's
@@ -1377,16 +1377,120 @@ leaves one alive has a test that cannot fail:
 - `capture.Walk` cleans review paths through `CleanPath`, so a review path with
   a `.git` segment at any depth is `ErrNoSuchPath`. Before, a file inside a
   nested repository's `.git` named directly was captured.
-- Five mutants survive and are argued equivalent. Dropping `LANGUAGE=` from the
-  pin: under `LC_ALL=C`, git ignored `LANGUAGE=de` and wrote English, confirmed.
-  `root.Lstat` replaced by `os.Lstat`, and `root.OpenFile` by `os.OpenFile`: the
-  step after each still goes through the root or through `SameFile`, so a
-  swapped parent is refused either way, and the one file `SameFile` passes is
-  the same inode the `Lstat` saw. The regular-file check after the open: only an
-  inode freed and reused by a FIFO between the `Lstat` and the open gets past
-  `SameFile`, which no test can arrange. A `.git` lookup in the parent check
-  failing with anything but not found: a directory whose `.git` cannot be looked
-  up cannot be read below either, so the read fails with the same error.
+- Six mutants survive. Three are equivalent and three are untestable.
+  Correction: this bullet first said five survived and all five were equivalent.
+  It missed one, and it called two mutants equivalent that no test can reach,
+  which is a different claim.
+  - Equivalent: dropping `LANGUAGE=` from the pin. Under `LC_ALL=C`, git ignored
+    `LANGUAGE=de` and wrote English, confirmed.
+  - Equivalent: `root.Lstat` replaced by `os.Lstat`. The step after it, an open
+    or a `Readlink`, still goes through the root, and `SameFile` refuses a
+    regular file that differs from the one the `Lstat` saw, so a swapped parent
+    is refused either way.
+  - Equivalent: a `.git` lookup in the parent check failing with anything but
+    not found. A directory whose `.git` cannot be looked up cannot be read below
+    either, so the read fails with the same error.
+  - Untestable: `root.OpenFile` replaced by `os.OpenFile`. Under the mutant, a
+    parent or the last component swapped for a link after the `Lstat` is
+    followed outside the root before `SameFile` runs, and an inode freed and
+    reused outside the root would pass `SameFile`. The first draft reasoned that
+    `SameFile` passes only the inode the `Lstat` saw, which is wrong on both
+    counts. No `pause` step falls inside the open, so no test can make the swap.
+  - Untestable: the regular-file check after the open. Only an inode freed and
+    reused by a FIFO between the `Lstat` and the open gets past `SameFile`,
+    which no test can arrange.
+  - Untestable on the machine that ran the pass: dropping `LC_ALL=C` from the
+    pin. `TestReader_Open_submodule` passed under it, because its German half
+    sets `LC_ALL=en_US.UTF-8` beside `LANGUAGE=de`, and the mutant's `LANGUAGE=`
+    then turns git back to English. Where the daemon inherits a German locale
+    through `LC_ALL` or `LANG`, git stays German, and a path in a submodule is
+    refused as "rules unreadable" rather than not found. That fails closed, with
+    the wrong reason. Iteration 4 adds a subtest under `LC_ALL=de_DE.UTF-8` that
+    kills the mutant where that locale is installed. The machine that ran the
+    pass has none, so the subtest skips there.
+
+**Departures, iteration 4.**
+
+- `Reader.List` returns `capture.DirEntry` values, each a name, a project path,
+  and whether it is a directory or a deletion the round records, in byte order
+  of name. `Reader.Listing` names the source, `ListingFrozen`, `ListingDisk` or
+  `ListingCapture`, for the tree's notice. The design left the shape open, and
+  `capture.Entry` was already `Changed`'s.
+- `List` lists every deletion the round records as a deleted entry and leaves
+  the scope rule to the tree, which drops one outside the review's paths. A
+  reader holds `store.File`, which carries no scope flag, and the tree reads
+  that flag for its bold. A deletion further down lists its directory whatever
+  its scope. A frozen listing lists that directory from the base in any case,
+  and elsewhere it opens on a listing the tree then empties.
+- The source is chosen from whether the root holds a `.git` entry, which
+  `NewReader` already looks up, and not from a new `State` field. A git project
+  with no base and a marker project with per-path rules both have no base and
+  `LiveIgnoreRules`, so something has to tell them apart. A root `NewReader`
+  cannot look at counts as a git project, so it lists the capture alone.
+- check-ignore filters only the entries the disk listed. A captured file opens
+  from the capture whatever git ignores, so it is listed: a marker project
+  captures `creds.txt` when the review names it, and a row asserts the tree
+  shows it.
+- A directory the disk cannot list, because it is gone or a check refuses it,
+  still lists what the capture holds under it, and is `ErrNotFound` where the
+  capture holds nothing. Otherwise a directory the agent created and later
+  removed from disk would be an error in the tree while its files open by
+  address.
+- A failed check-ignore batch returns `ErrRulesUnreadable` without marking it
+  `ErrNotFound`. The capture may still hold entries under the directory, so it
+  is not a page that does not exist. Iteration 6 decides how the tree shows it,
+  and listing the capture alone with the "rules unreadable" notice is the answer
+  that matches a failed live read.
+- A directory that cannot be searched is left out of a listing from disk, since
+  nothing below it can be read. The parent check reports the same case as an
+  error, so a typed address below one is still a 500.
+- `--literal-pathspecs` on the base listing, and the `:cdir/` row, land here.
+  `List` makes its first `ls-tree` call in this iteration, so the mutation
+  belongs to it. The base listing passes no `--full-tree`, which `loadOIDs`
+  does. git runs at the root, so without it the pathspec and the printed paths
+  are both project paths.
+- `checkParents` now calls `checkDir`, which checks a directory and every one
+  above it, so a listing and a live read refuse the same directories. The
+  check-ignore command moved into `ignoreCommand`, which the listing's batch
+  shares. The batch parses no message, so its locale pin only keeps the error
+  for the log in English.
+- `diff.Whole` sets its context inside `text`, through a flag on its limits,
+  since the line counts are known only after the split.
+- `capture.ReadLive` takes a `State`, so nothing reads the disk live without
+  `Inspect` first. The review page still builds its two readers with
+  `NewReader`. They read only frozen sources, and `State.Reader` would clear the
+  base under a gone commit, so `Compare` would count every captured file as
+  added. That is the lost-base fix this spec leaves out of scope.
+- A name the round records as a deleted file while capturing paths below it, `a`
+  deleted and `a/x` added, lists as a directory, in path order, so the answer is
+  the same every time. The answer order's step 3 answers `a` as a deleted file,
+  so the tree and that address disagree. Iteration 6 settles it.
+- Four mutants survive, three equivalent and one untestable. Correction: this
+  bullet first said five survived, four of them equivalent, counting the guard
+  that keeps an empty batch from git as equivalent. It is not: check-ignore
+  exits 1 on empty input only while git can answer, and exits 128 under
+  `GIT_CEILING_DIRECTORIES` or a damaged index, confirmed by the stand-in's
+  review, so without the guard an empty directory in a marker project whose
+  rules have become unreadable answers an error instead of an empty listing.
+  `TestReader_List_ignoreRules` now lists an empty directory at that point and
+  kills it.
+  - Equivalent: `diff.Whole` with its context set to the old side's line count
+    alone. Every gap between changes, and each unchanged end, is made of lines
+    both sides hold, so none is longer than the old side and one hunk still
+    results.
+  - Equivalent: `Listing` asking about a refused state before the base. No
+    reader is built with both, since `State.Reader` clears the base for a lost
+    repository and a missing root, and a marker project never records one.
+  - Equivalent: dropping `LANGUAGE=` from `ignoreCommand`, as iteration 3's
+    bullet says.
+  - Untestable on the machine that ran the pass: dropping `LC_ALL=C` from
+    `ignoreCommand`, as iteration 3's corrected bullet says. The new subtest
+    kills it where a German locale is installed.
+- `ComparePaths` loads object ids for each reader on that reader's own base,
+  where `Compare` gated both loads on the current round's base. A previous round
+  with no base and a current round with one would have run `ls-tree` with an
+  empty base and failed. Rounds of one review share their base, so it never
+  happened, but it changes more than "Compare calls it unchanged" says.
 
 ## Out of scope
 
@@ -1714,29 +1818,35 @@ required_acks:
 - [x] `capture/doc.go` recording the project's states, the live read's refusals
       and the move to `os.Root`
 
+> **Completed** 2026-10-05 22:57 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.6s
+> - `go test -race ./...` — 20.9s
+
 ## Iteration 4: What the routes read
 
-- [ ] `Reader.Deleted` reporting a path the round records as deleted, with a
+- [x] `Reader.Deleted` reporting a path the round records as deleted, with a
       test that a deleted path the working copy has again is still deleted
-- [ ] `capture.ReadLive` exporting the live read, with a test that a changed
+- [x] `capture.ReadLive` exporting the live read, with a test that a changed
       link is read as its target text and not as removed
-- [ ] `Reader.List` choosing its source from `Inspect`: base and capture, the
+- [x] `Reader.List` choosing its source from `Inspect`: base and capture, the
       capture alone, the disk and the capture, or the disk filtered by
       check-ignore, with a row for each
-- [ ] `Reader.List` listing the capture alone for a marker project the outer
+- [x] `Reader.List` listing the capture alone for a marker project the outer
       checkout ignores and for one whose repository's `.git` has gone, with a
       row for each
-- [ ] A listing from disk through `os.Root`, refusing a symlinked directory,
+- [x] A listing from disk through `os.Root`, refusing a symlinked directory,
       with `link/` and `link/sub/` rows, skipping a directory holding `.git`,
       and listing a symlink as a file
-- [ ] A marker project's listing filtered by one `check-ignore --stdin -z` call
+- [x] A marker project's listing filtered by one `check-ignore --stdin -z` call
       with `./` paths, and its exit 128 an error
-- [ ] `capture.ComparePaths` exported from `Compare`'s per-path loop, loading
+- [x] `capture.ComparePaths` exported from `Compare`'s per-path loop, loading
       the object ids in one batch, with `Compare` calling it unchanged
-- [ ] `diff.Whole` with its context set to the two line counts added together,
+- [x] `diff.Whole` with its context set to the two line counts added together,
       and `TestWhole` holding one hunk of every line for a changed pair and none
       for an identical one
-- [ ] `TestWhole`'s changed fixture with changes more than seven lines apart and
+- [x] `TestWhole`'s changed fixture with changes more than seven lines apart and
       more than three unchanged lines at each end, so three lines of context
       fails it
 

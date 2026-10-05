@@ -46,6 +46,10 @@ type Reader struct {
 	// which rules. NewReader guesses it from the root, and State.Reader sets
 	// it from what Inspect found.
 	live Live
+	// git reports a .git entry at the root, which makes the project a git
+	// project. A git project with no base lists the capture alone, where a
+	// marker project lists its disk.
+	git bool
 	// pause runs between the steps of a live read, so a test can change the
 	// disk where a racing process would. It is nil outside tests.
 	pause func(step string)
@@ -87,10 +91,11 @@ func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader
 		held[f.Path] = f
 	}
 	live := LiveOpen
-	if git, err := holds(root, gitDir); err != nil || git {
+	git, err := holds(root, gitDir)
+	if err != nil || git {
 		// A root that cannot be looked at asks git as well, and a failure
 		// there refuses the read rather than serving the root unfiltered.
-		live = LiveIgnoreRules
+		live, git = LiveIgnoreRules, true
 	}
 	return &Reader{
 		root:  root,
@@ -98,6 +103,7 @@ func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader
 		blobs: blobs,
 		files: held,
 		live:  live,
+		git:   git,
 		oids:  map[string]string{},
 		batch: batchBytes,
 	}
@@ -131,6 +137,20 @@ func (r *Reader) frozen(ctx context.Context, clean string) (io.ReadCloser, Sourc
 		return rc, SourceRound, nil
 	}
 	return r.fromBase(ctx, clean)
+}
+
+// Deleted reports whether the round records p as deleted.
+//
+// A deleted path is a file the page shows by its removed lines, whatever the
+// working copy holds at that path now. The round is what is being read, and a
+// file put back on disk is a later fact.
+func (r *Reader) Deleted(p string) bool {
+	clean, err := CleanPath(p)
+	if err != nil {
+		return false
+	}
+	f, held := r.files[clean]
+	return held && f.Digest == ""
 }
 
 // Open reads a path as of the round, falling back to the working copy.

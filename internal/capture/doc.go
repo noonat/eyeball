@@ -36,4 +36,11 @@
 // the checks still cannot lead outside. A link reads as its target text. The
 // walk and Freeze still check parents with linkedParent: they write to the
 // blob store at an agent's request, not to a page.
+//
+// A directory lists one level from the sources the state allows: the base and
+// the capture for a round with a base, the capture alone for a git project
+// with none or for any state that refuses a live read, and otherwise the disk
+// and the capture. A listing from disk passes the live read's directory checks,
+// goes through the same os.Root, and drops what git ignores where the project
+// follows ignore rules, so the tree never names a file the live read refuses.
 package capture

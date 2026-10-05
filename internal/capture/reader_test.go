@@ -138,6 +138,44 @@ func TestNewReader(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(source).To(Equal(SourceWorking))
 	g.Expect(readAll(g, rc)).To(Equal("no repository says to hide it\n"))
+	g.Expect(NewReader(r.root, "", blobs, nil).Listing()).To(Equal(ListingCapture))
+	g.Expect(NewReader(plain, "", blobs, nil).Listing()).To(Equal(ListingDisk))
+
+	// A root that cannot be looked at counts as a git project, so its listing
+	// is the capture alone rather than a disk nothing said how to filter.
+	loop := filepath.Join(t.TempDir(), "loop")
+	g.Expect(os.Symlink(loop, loop)).To(Succeed())
+	g.Expect(NewReader(loop, "", blobs, nil).Listing()).To(Equal(ListingCapture))
+}
+
+func TestReader_Deleted(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	r, blobs := readerRepo(g, t)
+	r.write(g, "kept.txt", "kept\n")
+	base := r.commit(g, "base")
+	g.Expect(os.Remove(filepath.Join(r.root, "untouched.txt"))).To(Succeed())
+	r.write(g, "kept.txt", "changed\n")
+	req, err := Freeze(t.Context(), Options{Round: 1, Root: r.root, Base: base, Blobs: blobs})
+	g.Expect(err).NotTo(HaveOccurred())
+	r.write(g, "untouched.txt", "somebody put it back\n")
+	st, err := Inspect(t.Context(), r.root, base, false)
+	g.Expect(err).NotTo(HaveOccurred())
+	reader := st.Reader(blobs, req.Files)
+
+	// The working copy has the file again, and the round still says it is
+	// gone, which is what the page shows.
+	g.Expect(reader.Deleted("untouched.txt")).To(BeTrue())
+	g.Expect(reader.Deleted("/untouched.txt")).To(BeTrue())
+	_, _, err = reader.Open(t.Context(), "untouched.txt")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+
+	// A changed file, a file the round does not hold, and a path that names
+	// nothing are not deleted.
+	notDeleted := []string{"kept.txt", "nowhere.txt", "../untouched.txt", ""}
+	for _, p := range notDeleted {
+		g.Expect(reader.Deleted(p)).To(BeFalse(), p)
+	}
 }
 
 func TestReader_Frozen(t *testing.T) {
@@ -654,6 +692,23 @@ func TestReader_Open_submodule(t *testing.T) {
 	_, _, err = reader.Open(t.Context(), "mod/m.go")
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 	g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeFalse())
+
+	// A German locale named by LC_ALL rather than LANGUAGE needs LC_ALL=C in
+	// the pin, since LANGUAGE= alone leaves git speaking the locale's
+	// language. It needs that locale installed to be observed.
+	t.Run("German named by LC_ALL", func(t *testing.T) {
+		g := NewWithT(t)
+		t.Setenv("LC_ALL", "de_DE.UTF-8")
+		t.Setenv("LANGUAGE", "")
+		german := exec.Command("git", "-C", r.root, "check-ignore", "-q", "--", "./mod/m.go")
+		out, _ := german.CombinedOutput()
+		if !strings.Contains(string(out), "Submodul") {
+			t.Skipf("the de_DE.UTF-8 locale is not installed, so LC_ALL in the pin cannot be tested: %s", out)
+		}
+		_, _, err := reader.Open(t.Context(), "mod/m.go")
+		g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+		g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeFalse())
+	})
 }
 
 func TestReader_Open_swapped(t *testing.T) {

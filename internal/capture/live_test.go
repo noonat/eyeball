@@ -10,6 +10,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	. "github.com/onsi/gomega"
+
+	"github.com/noonat/eyeball/internal/diff"
 )
 
 func Test_inSubmodule(t *testing.T) {
@@ -133,4 +135,57 @@ func Test_missing(t *testing.T) {
 			g.Expect(missing(c.err)).To(Equal(c.want), c.err.Error())
 		})
 	}
+}
+
+func TestReadLive(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	dir := t.TempDir()
+	r := newRepo(g, filepath.Join(dir, "project"))
+	r.write(g, ".gitignore", "private.txt\n")
+	r.write(g, "tracked.txt", "committed\n")
+	g.Expect(os.Symlink("old-target", filepath.Join(r.root, "link"))).To(Succeed())
+	base := r.commit(g, "base")
+	r.write(g, "tracked.txt", "on disk\n")
+	g.Expect(os.Remove(filepath.Join(r.root, "link"))).To(Succeed())
+	g.Expect(os.Symlink("new-target", filepath.Join(r.root, "link"))).To(Succeed())
+	r.write(g, "private.txt", "a secret\n")
+	blobs, _ := newBlobs(g, t)
+	st, err := Inspect(t.Context(), r.root, base, false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// A tracked file reads from disk, where Open would return the base's
+	// copy before it looked.
+	rc, err := ReadLive(t.Context(), st, "tracked.txt")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(readAll(g, rc)).To(Equal("on disk\n"))
+
+	// A changed link reads as its new target text, so against HEAD it is a
+	// one-line change. Refused as not a regular file, it would compare as
+	// every line removed.
+	rc, err = ReadLive(t.Context(), st, "link")
+	g.Expect(err).NotTo(HaveOccurred())
+	live := readAll(g, rc)
+	g.Expect(live).To(Equal("new-target"))
+	rc, source, err := st.Reader(blobs, nil).Frozen(t.Context(), "link")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(source).To(Equal(SourceBase))
+	moved := diff.Text([]byte(readAll(g, rc)), []byte(live))
+	g.Expect(moved.Added).To(Equal(1))
+	g.Expect(moved.Removed).To(Equal(1))
+
+	// The live read's refusals hold.
+	refused := []string{"private.txt", ".git/config", "nowhere.txt"}
+	for _, p := range refused {
+		_, err := ReadLive(t.Context(), st, p)
+		g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue(), p)
+	}
+
+	// A state that allows no live read refuses every path.
+	g.Expect(os.Rename(filepath.Join(r.root, gitDir), filepath.Join(dir, "moved.git"))).To(Succeed())
+	st, err = Inspect(t.Context(), r.root, base, false)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(st.Live).To(Equal(LiveLost))
+	_, err = ReadLive(t.Context(), st, "tracked.txt")
+	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 }

@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -23,6 +25,22 @@ var ErrRulesUnreadable = errors.New("the ignore rules could not be read")
 // exported sentinel for it, so it is matched by text. The text is Go's own,
 // not the operating system's or the locale's.
 const escapeText = "path escapes from parent"
+
+// ReadLive reads a path off disk as it is now, under the rules Inspect found
+// for the project, whatever any round holds at that path.
+//
+// It is the working copy's side of a comparison against HEAD. Reader.Open
+// cannot be that side, because for a tracked file it returns the base before
+// it looks at the disk. The read refuses what a live read through Open
+// refuses, and a state that allows no live read refuses every path.
+func ReadLive(ctx context.Context, st State, p string) (io.ReadCloser, error) {
+	clean, err := CleanPath(p)
+	if err != nil {
+		return nil, err
+	}
+	rc, _, err := st.Reader(nil, nil).fromWorking(ctx, clean)
+	return rc, err
+}
 
 // fromWorking reads a path off disk as it is now, under the rules the reader's
 // Live value names.
@@ -103,25 +121,36 @@ func (r *Reader) step(name string) {
 // for a path beyond a symlink, and a path inside a nested repository is one
 // git does not ignore.
 func checkParents(root *os.Root, clean string) error {
-	parts := strings.Split(clean, "/")
-	for i := 1; i < len(parts); i++ {
-		dir := strings.Join(parts[:i], "/")
-		info, err := root.Lstat(filepath.FromSlash(dir))
+	parent := path.Dir(clean)
+	if parent == "." {
+		return nil
+	}
+	return checkDir(root, clean, parent)
+}
+
+// checkDir refuses dir, or any directory above it, that is a symlink, is not a
+// directory, or holds a .git entry. clean is the path asked about, which the
+// refusal names.
+func checkDir(root *os.Root, clean, dir string) error {
+	parts := strings.Split(dir, "/")
+	for i := 1; i <= len(parts); i++ {
+		d := strings.Join(parts[:i], "/")
+		info, err := root.Lstat(filepath.FromSlash(d))
 		if err != nil {
-			return notFoundOr(err, "stat "+dir)
+			return notFoundOr(err, "stat "+d)
 		}
 		if info.Mode()&fs.ModeSymlink != 0 {
-			return errors.Wrapf(ErrNotFound, "%s runs through %s, a symlink, so the working copy is not read for it", clean, dir)
+			return errors.Wrapf(ErrNotFound, "%s runs through %s, a symlink, so the working copy is not read for it", clean, d)
 		}
 		if !info.IsDir() {
-			return errors.Wrapf(ErrNotFound, "%s runs through %s, which is not a directory", clean, dir)
+			return errors.Wrapf(ErrNotFound, "%s runs through %s, which is not a directory", clean, d)
 		}
-		_, err = root.Lstat(filepath.FromSlash(dir + "/" + gitDir))
+		_, err = root.Lstat(filepath.FromSlash(d + "/" + gitDir))
 		if err == nil {
-			return errors.Wrapf(ErrNotFound, "%s is inside %s, which holds a repository of its own", clean, dir)
+			return errors.Wrapf(ErrNotFound, "%s is inside %s, which holds a repository of its own", clean, d)
 		}
 		if !missing(err) {
-			return errors.Wrapf(err, "look for %s in %s", gitDir, dir)
+			return errors.Wrapf(err, "look for %s in %s", gitDir, d)
 		}
 	}
 	return nil
@@ -138,10 +167,7 @@ func checkParents(root *os.Root, clean string) error {
 // writes the message in German. Any other failure refuses the read with
 // ErrRulesUnreadable.
 func refuseIgnored(ctx context.Context, root, clean string) error {
-	cmd := gitCommand(ctx, root, []string{"check-ignore", "-q", "--", "./" + clean})
-	// exec keeps the last of two entries for one variable, so these win over
-	// whatever the daemon inherited.
-	cmd.Env = append(cmd.Env, "LC_ALL=C", "LANGUAGE=")
+	cmd := ignoreCommand(ctx, root, "-q", "--", "./"+clean)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()
@@ -157,6 +183,17 @@ func refuseIgnored(ctx context.Context, root, clean string) error {
 	}
 	unreadable := errors.Wrapf(ErrRulesUnreadable, "git check-ignore %s: %s", clean, message(&stderr))
 	return errors.Mark(errors.WithSecondaryError(unreadable, err), ErrNotFound)
+}
+
+// ignoreCommand is git check-ignore with args, run at root under a pinned
+// locale, so its messages are git's English ones whatever the daemon
+// inherited.
+func ignoreCommand(ctx context.Context, root string, args ...string) *exec.Cmd {
+	cmd := gitCommand(ctx, root, append([]string{"check-ignore"}, args...))
+	// exec keeps the last of two entries for one variable, so these win over
+	// whatever the daemon inherited.
+	cmd.Env = append(cmd.Env, "LC_ALL=C", "LANGUAGE=")
+	return cmd
 }
 
 // inSubmodule reports whether git's message says a path is inside a

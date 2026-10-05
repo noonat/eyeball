@@ -52,17 +52,30 @@ type Moved struct {
 // asks git can be counted from outside. Nothing in the results says whether it
 // asked once or once per file.
 func Compare(ctx context.Context, before, now *Reader) ([]Moved, error) {
-	paths := moved(before.capture(), now.capture())
+	return ComparePaths(ctx, before, now, moved(before.capture(), now.capture()))
+}
+
+// ComparePaths diffs each of paths as before reads it against how now reads
+// it, in the order given.
+//
+// It is Compare for a caller that already knows which paths it wants, such as
+// a tree page counting the few rows it shows, where comparing everything that
+// moved would diff the whole capture to label a handful of rows.
+func ComparePaths(ctx context.Context, before, now *Reader, paths []string) ([]Moved, error) {
 	// Left to the per-path lookup this is one git process per file, and on a
 	// first round every path resolves from the base, so it is one per captured
 	// file. Asking about every path first takes as few calls as the argument
 	// list allows.
-	if now.base != "" && len(paths) > 0 {
-		if err := before.loadOIDs(ctx, paths); err != nil {
-			return nil, err
+	if len(paths) > 0 {
+		if before.base != "" {
+			if err := before.loadOIDs(ctx, paths); err != nil {
+				return nil, err
+			}
 		}
-		if err := now.loadOIDs(ctx, paths); err != nil {
-			return nil, err
+		if now.base != "" {
+			if err := now.loadOIDs(ctx, paths); err != nil {
+				return nil, err
+			}
 		}
 	}
 	out := make([]Moved, 0, len(paths))

@@ -74,3 +74,42 @@ func Test_movedTellsAbsentFromDeleted(t *testing.T) {
 
 	g.Expect(moved(previous, current)).To(Equal([]string{"gone.txt"}))
 }
+
+func TestComparePaths(t *testing.T) {
+	g := NewWithT(t)
+	r := newRepo(g, t.TempDir())
+	names := []string{"a.txt", "b.txt", "c.txt", "d.txt"}
+	for _, name := range names {
+		r.write(g, name, "before\n")
+	}
+	base := r.commit(g, "base")
+	for _, name := range names {
+		r.write(g, name, "after\nand more\n")
+	}
+	blobs, _ := newBlobs(g, t)
+	req, err := Freeze(t.Context(), Options{Round: 1, Root: r.root, Base: base, Blobs: blobs})
+	g.Expect(err).NotTo(HaveOccurred())
+	st, err := Inspect(t.Context(), r.root, base, false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Only the paths asked about, in the order asked, with their object ids
+	// loaded in one call per reader rather than one per path.
+	before := st.Reader(blobs, nil)
+	now := st.Reader(blobs, req.Files)
+	got, err := ComparePaths(t.Context(), before, now, []string{"c.txt", "a.txt"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(HaveLen(2))
+	g.Expect(got[0].Path).To(Equal("c.txt"))
+	g.Expect(got[1].Path).To(Equal("a.txt"))
+	g.Expect(before.lookups).To(Equal(1))
+	g.Expect(now.lookups).To(Equal(1))
+
+	// The counts are Compare's for the same paths.
+	all, err := Compare(t.Context(), st.Reader(blobs, nil), st.Reader(blobs, req.Files))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(all).To(HaveLen(4))
+	g.Expect(got[0]).To(Equal(all[2]))
+	g.Expect(got[1]).To(Equal(all[0]))
+	g.Expect(got[0].Result.Added).To(Equal(2))
+	g.Expect(got[0].Result.Removed).To(Equal(1))
+}
