@@ -21,8 +21,8 @@ type Holder struct {
 	// Started is when the holder started.
 	Started time.Time
 	// Stopping says the holder has begun to shut down. Its socket is gone and
-	// it may still be finishing a capture, for up to ShutdownGrace, before it
-	// releases the lock.
+	// it may still be finishing a capture and closing its tailnet node, for up
+	// to StoppingGrace, before it releases the lock.
 	Stopping bool
 }
 

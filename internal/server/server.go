@@ -1,12 +1,14 @@
 package server
 
 import (
+	"html/template"
 	"log/slog"
 	"net/http"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 
+	"github.com/noonat/eyeball"
 	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/blob"
 	"github.com/noonat/eyeball/internal/store"
@@ -29,17 +31,22 @@ type Config struct {
 	// Stop asks the daemon to exit. It must return at once: the stop handler
 	// calls it after answering and before the shutdown it starts has begun.
 	Stop func()
+	// Surface reports the surface's state on the tailnet, and is nil for a
+	// daemon with no tailnet node.
+	Surface func() api.Surface
 }
 
 // Server holds the handlers for both listeners.
 type Server struct {
-	db     *db
-	blobs  *blob.Store
-	hub    *hub
-	daemon api.Daemon
-	home   string
-	log    *slog.Logger
-	stop   func()
+	db      *db
+	surface func() api.Surface
+	pages   *template.Template
+	blobs   *blob.Store
+	hub     *hub
+	daemon  api.Daemon
+	home    string
+	log     *slog.Logger
+	stop    func()
 
 	// stopping closes when the daemon begins to shut down, which ends every
 	// wait at once. Requests doing work are left to finish.
@@ -68,8 +75,14 @@ func New(c Config) *Server {
 	if stop == nil {
 		stop = func() {}
 	}
+	surface := c.Surface
+	if surface == nil {
+		surface = func() api.Surface { return api.Surface{State: "off"} }
+	}
 	return &Server{
 		stopping: make(chan struct{}),
+		surface:  surface,
+		pages:    template.Must(template.ParseFS(eyeball.Templates, "web/templates/*.html")),
 		db:       &db{s: c.Store, hub: h},
 		blobs:    c.Blobs,
 		hub:      h,
@@ -157,6 +170,16 @@ var routes = []route{
 		side:    sideAgent,
 		pattern: "GET /agent/status",
 		handle:  (*Server).handleStatus,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /healthz",
+		handle:  (*Server).handleHealthz,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/app.css",
+		handle:  (*Server).handleStylesheet,
 	},
 }
 

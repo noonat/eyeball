@@ -57,6 +57,7 @@ internal/push/        web push, VAPID, subscription lifecycle
 internal/render/      markdown, syntax highlighting, templates
 internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
+internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
 tool/icons/           regenerates the icon mask table in app.css
 tool/tearout/         serves docs/design over the tailnet
 web/                  the templates, the TypeScript sources, the manifest

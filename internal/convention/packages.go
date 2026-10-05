@@ -71,7 +71,17 @@ func listedPackages(root string) (map[string]struct{}, error) {
 		return nil, errors.Wrapf(err, "read %s", layoutPath)
 	}
 	out := map[string]struct{}{}
+	fenced := false
 	for _, line := range strings.Split(string(body), "\n") {
+		// Only a fenced block can be the layout block. A line of prose that
+		// happens to start with a file name would otherwise count as listing.
+		if strings.HasPrefix(line, "```") {
+			fenced = !fenced
+			continue
+		}
+		if !fenced {
+			continue
+		}
 		m := layoutLine.FindStringSubmatch(line)
 		if m == nil {
 			continue

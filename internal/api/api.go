@@ -161,6 +161,18 @@ type Daemon struct {
 	Build string `json:"build"`
 	// StateDir is where the daemon keeps its database, blobs and socket.
 	StateDir string `json:"state_dir"`
+	// Surface is the reviewer's surface on the tailnet.
+	Surface Surface `json:"surface"`
+}
+
+// Surface is the reviewer's surface on the tailnet, as the daemon reports it.
+type Surface struct {
+	// State is off, starting, serving or failed.
+	State string `json:"state"`
+	// URL is the surface's address while it is serving.
+	URL string `json:"url"`
+	// Reason says why it failed and what the owner does about it.
+	Reason string `json:"reason"`
 }
 
 // Project is the project a command ran in.

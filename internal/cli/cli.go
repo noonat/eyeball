@@ -583,6 +583,7 @@ func (a *app) statusCommand() *ucli.Command {
 					started = ", started by this command"
 				}
 				_, _ = fmt.Fprintf(w, "daemon pid %d, running since %s%s\n", r.Daemon.PID, r.Daemon.Started.Local().Format(time.RFC3339), started)
+				_, _ = fmt.Fprintf(w, "surface: %s\n", surfaceText(r.Daemon.Surface))
 				_, _ = fmt.Fprintf(w, "project %s at %s, agent %s\n", r.Project.Name, r.Project.Root, r.Agent)
 				if len(r.Reviews) == 0 {
 					_, _ = fmt.Fprintln(w, "no reviews to show")
@@ -657,6 +658,20 @@ func (a *app) abandonCommand() *ucli.Command {
 	}
 }
 
+// surfaceText is the surface's state as status prints it.
+func surfaceText(s api.Surface) string {
+	switch s.State {
+	case "serving":
+		return "serving at " + s.URL
+	case "failed":
+		return "not serving: " + s.Reason
+	case "starting":
+		return "starting"
+	default:
+		return "off; the owner sets it up with eyeball tailnet login"
+	}
+}
+
 // startCommand starts a daemon if none is running.
 func (a *app) startCommand() *ucli.Command {
 	return &ucli.Command{
@@ -717,14 +732,15 @@ func (a *app) stopCommand() *ucli.Command {
 			if err := json.Unmarshal(raw, &stopped); err != nil || stopped.Daemon == nil {
 				return errors.New("the daemon's answer to stop did not say which daemon it was")
 			}
-			deadline := time.Now().Add(10 * time.Second)
+			wait := daemon.StoppingGrace + 5*time.Second
+			deadline := time.Now().Add(wait)
 			for {
 				holder, err := daemon.ReadHolder(a.client.paths.Lock)
 				if !daemon.Held(a.client.paths.Lock) || err != nil || holder.PID != stopped.Daemon.PID {
 					break
 				}
 				if time.Now().After(deadline) {
-					return errors.Newf("daemon pid %d was asked to stop and has not exited after 10s", stopped.Daemon.PID)
+					return errors.Newf("daemon pid %d was asked to stop and has not exited after %s", stopped.Daemon.PID, wait)
 				}
 				time.Sleep(20 * time.Millisecond)
 			}
@@ -744,16 +760,20 @@ func (a *app) serveCommand() *ucli.Command {
 	return &ucli.Command{
 		Name:  "serve",
 		Usage: "run the daemon in the foreground (what start runs, and what a person debugging runs)",
-		Action: func(ctx context.Context, _ *ucli.Command) error {
+		Flags: []ucli.Flag{
+			&ucli.StringFlag{Name: "surface-addr", Usage: "also serve the surface on this loopback address, for a person debugging, such as 127.0.0.1:8111"},
+		},
+		Action: func(ctx context.Context, cmd *ucli.Command) error {
 			paths, err := a.paths()
 			if err != nil {
 				return err
 			}
 			return daemon.Run(ctx, daemon.Config{
-				Paths:  paths,
-				Build:  a.env.Build,
-				Home:   a.env.Home,
-				Stderr: a.env.Stderr,
+				Paths:       paths,
+				Build:       a.env.Build,
+				Home:        a.env.Home,
+				Stderr:      a.env.Stderr,
+				SurfaceAddr: cmd.String("surface-addr"),
 			})
 		},
 	}

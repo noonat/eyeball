@@ -436,8 +436,9 @@ neither touches an id.
 ## Tearouts
 
 Every rule here is **enforced by `internal/convention`**, which reads
-`docs/design/` during `make check`. Each describes a fault a browser renders as
-something plausible, which is why none of them can be left to a reading.
+`docs/design/` and the surface's templates in `web/templates/` during
+`make check`. Each describes a fault a browser renders as something plausible,
+which is why none of them can be left to a reading.
 
 - `css-declarations`: `app.css` keeps the declarations that have no fallback, so
   a generator deleting more than its own block fails the build rather than the
@@ -456,6 +457,10 @@ something plausible, which is why none of them can be left to a reading.
   beside the glyph.
 - `tearout-nesting`: tags nest. A browser repairs a stray or unclosed tag, so
   the fault surfaces only when a later edit lands inside the wrong element.
+- `template-classes`: a class a surface template uses is defined by `app.css`
+  alone. `tearout.css` is the tearouts' own chrome and is not shipped, and a
+  template drifting from the tearout it was seeded from renders its text
+  unstyled.
 
 The markup is tokenized, never matched with a regular expression. A pattern
 expecting `<span class="agent">` written tightly stops matching when a line

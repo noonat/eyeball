@@ -68,6 +68,13 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	return &Store{db: db, now: now}, nil
 }
 
+// Ping touches the database with a query, which is what a liveness check asks:
+// that the store answers, not only that the process is up.
+func (s *Store) Ping(ctx context.Context) error {
+	var one int
+	return errors.Wrap(s.db.QueryRowContext(ctx, "SELECT 1").Scan(&one), "ping the database")
+}
+
 // Close releases the connection pool.
 func (s *Store) Close() error {
 	return errors.Wrap(s.db.Close(), "close database")

@@ -163,7 +163,7 @@ func (c *client) stuck(ctx context.Context) error {
 		holder, err := daemon.ReadHolder(c.paths.Lock)
 		grace := stuckGrace
 		if err == nil && holder.Stopping {
-			grace = daemon.ShutdownGrace + time.Second
+			grace = daemon.StoppingGrace + time.Second
 		}
 		if time.Since(began) > grace {
 			if err != nil {

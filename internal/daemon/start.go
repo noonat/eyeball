@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/cockroachdb/errors"
@@ -39,9 +40,29 @@ func Start(p Paths, exe string, args ...string) (*exec.Cmd, error) {
 	cmd.Stdout = devnull
 	cmd.Stderr = logFile
 	cmd.Dir = p.Dir
+	cmd.Env = daemonEnv(os.Environ())
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
 		return nil, errors.Wrapf(err, "start %s", exe)
 	}
 	return cmd, nil
+}
+
+// daemonEnv is the environment a started daemon gets: the starting command's,
+// without any TS_ or TSNET_ variable.
+//
+// The daemon serves every agent and inherits the environment of whichever one
+// started it. tsnet reads an auth key, a control server and a forced login from
+// those variables, some at package initialization before any of the daemon's
+// own code runs, so they are removed before the process exists rather than
+// inside it.
+func daemonEnv(env []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "TS_") || strings.HasPrefix(kv, "TSNET_") {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
 }

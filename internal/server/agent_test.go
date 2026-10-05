@@ -145,7 +145,7 @@ func Test_routesMatchOnTheirOwnListenerOnly(t *testing.T) {
 		t.Run(rt.pattern, func(t *testing.T) {
 			g := NewWithT(t)
 			method, path, _ := strings.Cut(rt.pattern, " ")
-			path = strings.NewReplacer("{review}", "1", "{comment}", "1").Replace(path)
+			path = strings.NewReplacer("{review}", "1", "{comment}", "1", "{round}", "1", "{$}", "").Replace(path)
 			req, err := http.NewRequest(method, "http://eyeball"+path, nil)
 			g.Expect(err).NotTo(HaveOccurred())
 			for which, mux := range handlers {

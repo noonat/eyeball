@@ -214,6 +214,21 @@ finalizer, which would release the lock early. A stopping daemon can hold its
 lock for `ShutdownGrace` plus the budget, and the client's grace for a stopping
 daemon and `stop`'s wait are sized to that sum.
 
+**Departures, iteration 2.**
+
+- `Surface.Stop` closes the node itself, from a goroutine of its own, through
+  the `sync.Once` the failed path shares. The design above says the owning
+  goroutine closes. A close that overruns has to be given up on, and only the
+  caller holding the budget can do that, so the close runs beside the budget.
+  The properties the design asks for still hold: no close before or during
+  `Start`, and at most one close.
+- A node whose watch reports it stopped, or whose watch ends other than by
+  shutdown, is a failed surface and is closed. The design named only a login and
+  a device approval, and a surface left in starting forever says nothing.
+- A failure the node reports for itself, from its start, its watch, its status
+  or its listen, has no fix eyeball can name. Its reason carries the error and
+  points the owner at `eyeball.log`, where it is logged in full.
+
 ### Assets
 
 **The live read refuses a path through a symlinked directory.** No route in this
@@ -459,42 +474,48 @@ the three review passes and were checked by the stand-in only.
 - [x] architecture.md recording that `app.css` stays in `docs/design/` and why,
       and its `web/` line no longer claiming the stylesheet
 
+> **Completed** 2026-10-05 08:30 UTC
+>
+> - acks: reviewed
+> - `make check` — 2.0s
+> - `go test -race ./...` — 2.0s
+
 ## Iteration 2: The listeners
 
-- [ ] `eyeball serve --surface-addr` binding a literal loopback address right
+- [x] `eyeball serve --surface-addr` binding a literal loopback address right
       after the socket, and failing startup on any other address or a bind error
-- [ ] The surface's handler turning the mux's own 404 and 405 into pages, found
+- [x] The surface's handler turning the mux's own 404 and 405 into pages, found
       by an empty pattern and a catching writer, keeping `Allow` and a handler's
       own 404, with the CSP and `no-store` on every response
-- [ ] A test of every `url(` in `app.css` against the CSP
-- [ ] `GET /healthz` touching the database
-- [ ] `GET /static/app.css` serving the embedded file
-- [ ] The route test's substitution covering `{$}` and `{round}`
-- [ ] `daemon.Start` removing every `TS_` and `TSNET_` variable from the
+- [x] A test of every `url(` in `app.css` against the CSP
+- [x] `GET /healthz` touching the database
+- [x] `GET /static/app.css` serving the embedded file
+- [x] The route test's substitution covering `{$}` and `{round}`
+- [x] `daemon.Start` removing every `TS_` and `TSNET_` variable from the
       environment it gives the daemon
-- [ ] The node behind an interface with a tsnet implementation, constructed from
+- [x] The node behind an interface with a tsnet implementation, constructed from
       the daemon's config, and every daemon test injecting a constructor that
       fails if called
-- [ ] A fake node scripting states and status, used by every test of the tailnet
+- [x] A fake node scripting states and status, used by every test of the tailnet
       path, and a unit test of the start decision for no directory, a leftover
       `state/node.new` and an enrolled `state/node`
-- [ ] The node started with `logtail.Disable()` first, watched until running,
+- [x] The node started with `logtail.Disable()` first, watched until running,
       checked for MagicDNS and certificate domains, then listened on with TLS on
       `:443`, proved against the fake
-- [ ] A node needing a login or a device approval reported as failed with what
+- [x] A node needing a login or a device approval reported as failed with what
       the owner does, never a command for an agent, and closed, proved against
       the fake
-- [ ] One goroutine owning the node, closing it at most once, and shutdown
+- [x] One goroutine owning the node, closing it at most once, and shutdown
       canceling the watch and waiting only for an in-progress `Start`, proved
       against the fake
-- [ ] The surface's state and URL from the certificate domains in
+- [x] The surface's state and URL from the certificate domains in
       `/agent/daemon`, `eyeball status`, and the manual with `--surface-addr`
-- [ ] Shutdown in the extended order: watch canceled, node closed within ten
+- [x] Shutdown in the extended order: watch canceled, node closed within ten
       seconds, and an overrun returning without releasing the lock, with the
       lock's file kept reachable until exit
-- [ ] The client's grace for a stopping daemon and `stop`'s wait sized to
+- [x] The client's grace for a stopping daemon and `stop`'s wait sized to
       `ShutdownGrace` plus the close budget
-- [ ] tailscale.com v1.102.3 added, its row in architecture.md's table checked,
+- [x] tailscale.com v1.102.3 added, its row in architecture.md's table checked,
       and `go install ./cmd/eyeball` still producing a working binary
 
 ## Iteration 3: Joining the tailnet
