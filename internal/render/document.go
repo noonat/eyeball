@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"html/template"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/noonat/eyeball/internal/diff"
@@ -17,14 +19,16 @@ import (
 )
 
 const (
-	// keptHTML opens a block that did not change.
-	keptHTML = `<div class="` + classBlk + `">`
-	// addedHTML opens a changed block with nothing replaced.
-	addedHTML = `<div class="` + classBlk + ` ` + classChanged + `">`
-	// removedHTML opens a removed run with nothing in its place.
+	// keptHTML opens a block that did not change, with its range.
+	keptHTML = `<div class="` + classBlk + `"%s>`
+	// addedHTML opens a changed block with nothing replaced, with its range.
+	addedHTML = `<div class="` + classBlk + ` ` + classChanged + `"%s>`
+	// removedHTML opens a removed run with nothing in its place. It is not
+	// in the round's file, so it has no range and takes no comment.
 	removedHTML = `<div class="` + classBlk + ` ` + classChanged + ` ` + classWas + `">`
-	// replacedHTML opens a changed block that holds the text it replaced.
-	replacedHTML = `<details class="` + classBlk + ` ` + classChanged + `"><summary>`
+	// replacedHTML opens a changed block that holds the text it replaced,
+	// with its range.
+	replacedHTML = `<details class="` + classBlk + ` ` + classChanged + `"%s><summary>`
 	// cuesHTML ends that block's summary with what a tap does, one span for
 	// each state. app.css shows one and hides the other by the details
 	// element's open attribute, with no script.
@@ -43,22 +47,36 @@ func Document(old, new []byte, p Page) template.HTML {
 	// The shown parse and the key parse differ only in heading ids, which are
 	// attributes on a node, so both find the same top-level blocks in order.
 	var blocks []string
+	var ranges [][2]int
+	starts := lineStarts(new)
 	for _, n := range topLevel(doc) {
 		blocks = append(blocks, strings.TrimSuffix(renderNode(shown.Renderer(), new, n), "\n"))
+		first, last := blockRange(n, starts)
+		ranges = append(ranges, [2]int{first, last})
 	}
 	var b strings.Builder
 	for _, it := range plan(oldSide, newSide) {
+		if it.block < 0 {
+			b.WriteString(removedHTML + wasTexts(it.replaced) + "</div>\n")
+			continue
+		}
+		rng := ranges[it.block]
+		lines := ""
+		if rng[0] > 0 {
+			lines = fmt.Sprintf(` data-lines="%d-%d"`, rng[0], rng[1])
+		}
 		switch {
-		case it.block < 0:
-			b.WriteString(removedHTML + wasTexts(it.replaced) + "</div>")
 		case len(it.replaced) > 0:
-			b.WriteString(replacedHTML + blocks[it.block] + cuesHTML + wasTexts(it.replaced) + "</details>")
+			b.WriteString(fmt.Sprintf(replacedHTML, lines) + blocks[it.block] + cuesHTML + wasTexts(it.replaced) + "</details>")
 		case it.changed:
-			b.WriteString(addedHTML + blocks[it.block] + "</div>")
+			b.WriteString(fmt.Sprintf(addedHTML, lines) + blocks[it.block] + "</div>")
 		default:
-			b.WriteString(keptHTML + blocks[it.block] + "</div>")
+			b.WriteString(fmt.Sprintf(keptHTML, lines) + blocks[it.block] + "</div>")
 		}
 		b.WriteString("\n")
+		if rng[0] > 0 && p.After != nil {
+			b.WriteString(string(p.After(rng[0], rng[1])))
+		}
 	}
 	// Raw HTML is omitted, every destination went through the allowlist, and
 	// goldmark escapes text, so the markup is the renderer's own.
@@ -325,4 +343,61 @@ func writeLines(w *bufio.Writer, source []byte, lines *text.Segments) {
 		line := lines.At(i)
 		ghtml.DefaultWriter.RawWrite(w, line.Value(source))
 	}
+}
+
+// lineStarts is the byte offset each line of source starts at, so an offset
+// maps to its line by a search.
+func lineStarts(source []byte) []int {
+	starts := []int{0}
+	for i, c := range source {
+		if c == '\n' {
+			starts = append(starts, i+1)
+		}
+	}
+	return starts
+}
+
+// lineOf is the one-based line holding a byte offset.
+func lineOf(starts []int, offset int) int {
+	return sort.Search(len(starts), func(i int) bool { return starts[i] > offset })
+}
+
+// blockRange is the first and last source line of any content beneath a
+// top-level block, or zeros for a block with none.
+//
+// It is read from the parse the page shows, so it cannot disagree with the
+// block a reader taps. goldmark's segments leave out a fenced block's fences
+// and a setext heading's underline, so a comment on either quotes only its
+// text, and a thematic break or an empty fenced block has no content line and
+// takes no comment.
+func blockRange(n ast.Node, starts []int) (int, int) {
+	first, last := 0, 0
+	note := func(seg text.Segment) {
+		if seg.Stop <= seg.Start {
+			return
+		}
+		a, b := lineOf(starts, seg.Start), lineOf(starts, seg.Stop-1)
+		if first == 0 || a < first {
+			first = a
+		}
+		if b > last {
+			last = b
+		}
+	}
+	_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if c.Type() == ast.TypeBlock {
+			lines := c.Lines()
+			for i := 0; i < lines.Len(); i++ {
+				note(lines.At(i))
+			}
+		}
+		if t, ok := c.(*ast.Text); ok {
+			note(t.Segment)
+		}
+		return ast.WalkContinue, nil
+	})
+	return first, last
 }

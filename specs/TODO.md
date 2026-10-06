@@ -14,44 +14,20 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-1. **008 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
-   and `oxlint` gates, the comment composer at all four levels, editing and
-   deleting before the verdict, the decision bar and its refusal, the comment
-   box on a decided round, the live stream, the connection notice, a failure
-   reported on the control that failed, a failed save that keeps its text, the
-   theme following the device, file bodies loaded when their disclosure opens,
-   and a review half-read and closed reopening where it was. The verdict route
-   is the surface's alone, and 005's listener test is extended to prove the
-   socket cannot reach it. Any process that can reach a surface listener can
-   then approve a review, including an agent on this machine through the
-   loopback listener. 006 records why reading through it gives a local process
-   nothing it lacks, and 008 has to say the same, or something else, about
-   deciding.
-2. **009 Notification.** Web push with VAPID, the service worker that exists for
+1. **009 Notification.** Web push with VAPID, the service worker that exists for
    it, the manifest and installed page, the first-run steps, the badge count on
    the icon, and the lapsed-subscription state the surface has to report. Its
    last iteration is the owner's: joining the tailnet with
    `eyeball tailnet login`, installing the page, granting permission, and
    checking every screen on the phone, including the page shell 006 added in
-   `shell.css` without a phone.
-3. **010 Rendered files.** `internal/kind`, images before and after, audio,
+   `shell.css` without a phone. It also decides who may write on the tailnet
+   listener, which 008 left open, with tsnet's `WhoIs` in hand.
+2. **010 Rendered files.** `internal/kind`, images before and after, audio,
    video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
    view override on `request`, and a file too large to send.
 
 ## Unscheduled
 
-- [ ] review: a whole-branch review of everything merged since d8b5b6d (the 006
-      merge), the last point reviewed as a whole, run before the owner's first
-      hands-on testing. Each spec's iterations were reviewed one at a time; this
-      review looks for what spans them. In 006 the whole-branch review found a
-      template race and a nil dereference in tsnet's `Close` that no iteration
-      review saw. Per spec:
-  - 007: every route builds its reader through `capture.State.Reader`, except
-    the review page, which still uses `NewReader`; the inside-checkout flag read
-    and written the same way on the file, tree and project routes; every href
-    escaped per segment; `against` carried on every link; the banner and notice
-    reasons chosen by `errors.Is` across file, tree and project pages; `Locate`,
-    `List` and `ReadWorkingCopy` agreeing on what a path is.
 - [ ] design: a tearout for the comment composer's line-range selection on a
       touch screen. The open question in product.md is whether ranges are worth
       the interaction cost at all.
@@ -101,6 +77,17 @@ requirement in either document that none of them names is a gap in this list.
       dereferences nil in v1.102.3. Whether `Close` is safe after a late one,
       where it would close again what `Start`'s cleanup closed, is not checked,
       and it would not reach an engine whose backend was never built.
+- [ ] tooling: content-hashed addresses under `/static/` with a long cache
+      lifetime. Every surface response is `no-store`, so htmx's 52 KB and the
+      bundle are fetched on every page load. Assumed small on a tailnet, not
+      measured. It changes how 006 serves `app.css` and `shell.css` too.
+- [ ] tooling: HTTP/2 on the tailnet listener. tsnet's `ListenTLS` offers no
+      `NextProtos`, so the phone speaks HTTP/1.1 and each open tab's live stream
+      holds one of the browser's few connections to the host. Advertising `h2`
+      means eyeball wrapping the listener in a TLS configuration of its own.
+- [ ] tooling: answer a collapsed card's body from that file's comparison alone.
+      The cards route builds the whole round's page and takes one card, so each
+      body opened on a large review compares every file again.
 - [ ] tooling: batch the project view's reads of HEAD into one
       `git cat-file --batch`. Each working-copy row runs its own `cat-file blob`
       and its own `check-ignore`. 196 sequential `cat-file blob` calls took 259
@@ -127,15 +114,10 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.
-- [ ] product: whether the surface should follow a dark device before the write
-      path brings a script. `app.css` switches only on `data-theme`, so it is
-      light until then.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can
       serve `docs/design/` in a dev mode.
-- [ ] tooling: whether the surface needs a JS build step beyond esbuild's
-      default bundling.
 - [ ] tooling: whether the spec-reference rule can be checked. A three-digit
       spec number outside parentheses is mechanical to find. Whether a name sits
       beside it is not.
@@ -204,6 +186,21 @@ requirement in either document that none of them names is a gap in this list.
       under that root would be a 500. Reasoned in 007, not tested. A HEAD naming
       a commit that does not exist is handled on the project view, which says
       the working copy cannot be listed.
+- [ ] product: who may write on the tailnet listener, decided in notification
+      (009). 008 requires a token on the loopback listener only. When this
+      machine runs Tailscale on the same tailnet, its own processes reach the
+      node's `:443`, and `curl` passes the cross-origin check, so an agent here
+      could decide a review through it. The owner chose on 2026-10-06 to settle
+      it in 009 with tsnet's `WhoIs` in hand, for example by refusing writes
+      from this machine's own node.
+- [ ] design: commenting from a file page: the whole file, the tree's file and
+      the project's live file. 008 puts the composer on the review page only,
+      where the bar and the tally are.
+- [ ] design: a manual theme override. docs/design/README.md says one wins over
+      the device in both directions, and no tearout draws a control for it.
+- [ ] design: a comment added on a second device shows on the first only after a
+      reload. 008's stamps leave comment counts out, so a reviewer's own comment
+      does not reload the page that wrote it.
 
 ## Open questions
 

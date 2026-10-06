@@ -7,11 +7,19 @@ export PATH := $(shell go env GOPATH)/bin:$(PATH)
 GOFILES = $(shell git ls-files --cached --others --exclude-standard '*.go' \
 	| grep -v '/testdata/')
 
-# The same, for what oxfmt formats. HTML is excluded. See docs/conventions.md.
+# The same, for what oxfmt formats. HTML is excluded, and so is web/vendor/,
+# whose files must stay byte for byte the release they name. See
+# docs/conventions.md.
 FMTFILES = $(shell git ls-files --cached --others --exclude-standard \
-	'*.md' '*.css' '*.json')
+	'*.md' '*.css' '*.json' '*.ts' | grep -v '^web/vendor/')
 
-OXFMT = npx --yes oxfmt@0.65.0
+# A pinned version on npm never changes, so npx is told not to ask the registry
+# about one it already has. Without that, each call waited about 70s with no
+# network before running.
+NPX = npm_config_prefer_offline=true npx --yes
+OXFMT = $(NPX) oxfmt@0.65.0
+TSC = $(NPX) -p typescript@7.0.2 tsc
+OXLINT = $(NPX) -p oxlint@1.87.0 -p oxlint-tsgolint@7.0.2003 oxlint
 
 help: ## Show this help
 	@printf "Usage: make <target>\n\nTargets:\n"
@@ -40,6 +48,8 @@ lint: ## Lint everything; fails on any drift, fixes nothing
 	  files="$(FMTFILES)"; \
 	  if [ -z "$$files" ]; then echo "no formattable files found"; exit 1; fi; \
 	  $(OXFMT) --check $$files
+	@echo "==> tsc"; $(TSC) -p web/tsconfig.json
+	@echo "==> oxlint"; $(OXLINT) --type-aware --tsconfig web/tsconfig.json --deny-warnings web/ts
 	@echo "==> go vet"; go vet ./...
 	@echo "==> staticcheck"; go tool staticcheck ./...
 

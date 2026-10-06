@@ -8,9 +8,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -195,6 +197,59 @@ func TestRun(t *testing.T) {
 	g.Expect(relock.release()).To(Succeed())
 }
 
+// The whole loop through a real daemon: an agent asks over the socket, the
+// reviewer comments and decides through the address serve printed, and the
+// agent's wait returns both.
+func TestRun_reviewLoopOnLoopback(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := probe.Addr().String()
+	g.Expect(probe.Close()).To(Succeed())
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	var stderr syncBuffer
+	go func() {
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: &stderr, NewNode: noNode, SurfaceAddr: addr})
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	printed := regexp.MustCompile(`#token=([A-Z2-7]{26})`)
+	g.Eventually(stderr.String, 5*time.Second).Should(MatchRegexp(printed.String()))
+	token := printed.FindStringSubmatch(stderr.String())[1]
+
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	var opened api.RequestResult
+	body := api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "look"}
+	g.Expect(send(g, t, p, http.MethodPost, "/agent/requests", body, &opened)).To(Equal(http.StatusOK))
+	review := strconv.FormatInt(opened.Review.ID, 10)
+
+	write := func(path string, form url.Values) int {
+		req, err := http.NewRequest(http.MethodPost, "http://"+addr+path, strings.NewReader(form.Encode()))
+		g.Expect(err).NotTo(HaveOccurred())
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("X-Eyeball-Token", token)
+		res, err := http.DefaultClient.Do(req)
+		g.Expect(err).NotTo(HaveOccurred())
+		_ = res.Body.Close()
+		return res.StatusCode
+	}
+	g.Expect(write("/reviews/"+review+"/comments", url.Values{"round": {"1"}, "level": {"line"}, "path": {"a.txt"}, "start": {"2"}, "body": {"Why two?"}})).To(Equal(http.StatusOK))
+	g.Expect(write("/reviews/"+review+"/decision", url.Values{"round": {"1"}, "verdict": {"changes"}, "note": {"Try again."}})).To(Equal(http.StatusOK))
+
+	var waited api.WaitResult
+	g.Expect(get(g, t, p, "/agent/reviews/"+review+"/wait?dir="+repo, &waited)).To(Equal(http.StatusOK))
+	g.Expect(waited.Kind).To(Equal(api.KindVerdict))
+	g.Expect(waited.Note).To(Equal("Try again."))
+	g.Expect(waited.Comments).To(HaveLen(1))
+	g.Expect(waited.Comments[0].Body).To(Equal("Why two?"))
+	g.Expect(waited.Comments[0].Quoted).To(Equal("two"))
+}
+
 func TestRun_shutdownLetsWorkFinish(t *testing.T) {
 	g := NewWithT(t)
 	p := testPaths(g, t)
@@ -288,6 +343,32 @@ func TestRun_staleSocket(t *testing.T) {
 	g.Expect(get(g, t, p, "/agent/daemon", &api.Daemon{})).To(Equal(http.StatusOK))
 }
 
+// A page's live stream ends when the daemon stops, so a stop with a page open
+// does not wait out the shutdown grace.
+func TestRun_stopWithAStreamOpen(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := probe.Addr().String()
+	g.Expect(probe.Close()).To(Succeed())
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: addr})
+	}()
+	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
+	res, err := http.Get("http://" + addr + "/events")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = res.Body.Close() }()
+	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
+
+	began := time.Now()
+	cancel()
+	g.Eventually(done, 5*time.Second).Should(Receive(BeNil()))
+	g.Expect(time.Since(began)).To(BeNumerically("<", time.Second))
+}
+
 func TestRun_surfaceAddrInUse(t *testing.T) {
 	g := NewWithT(t)
 	p := testPaths(g, t)
@@ -351,8 +432,9 @@ func TestRun_surfaceOnLoopback(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
+	var stderr syncBuffer
 	go func() {
-		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: addr})
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: &stderr, NewNode: noNode, SurfaceAddr: addr})
 	}()
 	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
 
@@ -361,6 +443,40 @@ func TestRun_surfaceOnLoopback(t *testing.T) {
 	_ = res.Body.Close()
 	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
 	g.Expect(res.Header.Get("Cache-Control")).To(Equal("no-store"))
+
+	// The address is printed once with the run's token in its fragment, and
+	// the token appears on no other line, the log's included.
+	printed := regexp.MustCompile(`(?m)^eyeball: the surface is at http://` + regexp.QuoteMeta(addr) + `/#token=([A-Z2-7]{26})$`)
+	g.Eventually(stderr.String).Should(MatchRegexp(printed.String()))
+	token := printed.FindStringSubmatch(stderr.String())[1]
+	g.Expect(strings.Count(stderr.String(), token)).To(Equal(1))
+	var info api.Daemon
+	get(g, t, p, "/agent/daemon", &info)
+	raw, err := json.Marshal(info)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring(token))
+
+	// A write needs the token. POST to /healthz is a 405 once past the check,
+	// which tells it apart from the check's 403.
+	writes := []struct {
+		header string
+		status int
+	}{
+		{header: "", status: http.StatusForbidden},
+		{header: "WRONG", status: http.StatusForbidden},
+		{header: token, status: http.StatusMethodNotAllowed},
+	}
+	for _, c := range writes {
+		req, err := http.NewRequest(http.MethodPost, "http://"+addr+"/healthz", nil)
+		g.Expect(err).NotTo(HaveOccurred())
+		if c.header != "" {
+			req.Header.Set("X-Eyeball-Token", c.header)
+		}
+		res, err := http.DefaultClient.Do(req)
+		g.Expect(err).NotTo(HaveOccurred())
+		_ = res.Body.Close()
+		g.Expect(res.StatusCode).To(Equal(c.status), c.header)
+	}
 
 	cancel()
 	var runErr error
@@ -623,16 +739,6 @@ func noNode(string, tailnet.Logf) tailnet.Node {
 	panic("a daemon test started a tailnet node")
 }
 
-// daemon is a daemon running in this process for one test.
-type daemon struct {
-	cancel context.CancelFunc
-	// done closes when Run returns, and err is what it returned. A closed
-	// channel can be waited on by the test and by its cleanup alike, where a
-	// value sent once is taken by whichever reads first.
-	done chan struct{}
-	err  error
-}
-
 // startDaemon runs a daemon on p and waits until its socket answers.
 func startDaemon(g *WithT, t *testing.T, p Paths) *daemon {
 	g.THelper()
@@ -655,13 +761,6 @@ func startDaemon(g *WithT, t *testing.T, p Paths) *daemon {
 		return err
 	}, 5*time.Second, 20*time.Millisecond).Should(Succeed(), logged.String)
 	return d
-}
-
-// syncBuffer is a buffer the daemon's logger writes from one goroutine while
-// a failing test reads it from another.
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
 }
 
 // Write appends to the buffer.
@@ -797,16 +896,6 @@ func dialSocket(p Paths) error {
 	return err
 }
 
-// fakeNode is a tailnet node that reaches running at once and listens on
-// loopback, so no test starts tsnet.
-type fakeNode struct {
-	mu        sync.Mutex
-	dir       string
-	ln        net.Listener
-	closed    atomic.Bool
-	closeGate chan struct{}
-}
-
 // listening reports whether the surface has listened on the fake.
 func (f *fakeNode) listening() bool {
 	f.mu.Lock()
@@ -862,12 +951,6 @@ func (f *fakeNode) Close() error {
 	return nil
 }
 
-// fakeWatch reports running once.
-type fakeWatch struct {
-	ctx  context.Context
-	sent bool
-}
-
 // Next reports running, then blocks until the watch ends.
 func (w *fakeWatch) Next() (tailnet.State, error) {
 	if !w.sent {
@@ -919,4 +1002,37 @@ func gitRepo(g *WithT, dir string) string {
 	run("update-ref", "refs/heads/main", commit)
 	g.Expect(os.WriteFile(filepath.Join(dir, "a.txt"), []byte("one\ntwo\n"), 0o600)).To(Succeed())
 	return dir
+}
+
+// daemon is a daemon running in this process for one test.
+type daemon struct {
+	cancel context.CancelFunc
+	// done closes when Run returns, and err is what it returned. A closed
+	// channel can be waited on by the test and by its cleanup alike, where a
+	// value sent once is taken by whichever reads first.
+	done chan struct{}
+	err  error
+}
+
+// syncBuffer is a buffer the daemon's logger writes from one goroutine while
+// a failing test reads it from another.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+// fakeNode is a tailnet node that reaches running at once and listens on
+// loopback, so no test starts tsnet.
+type fakeNode struct {
+	mu        sync.Mutex
+	dir       string
+	ln        net.Listener
+	closed    atomic.Bool
+	closeGate chan struct{}
+}
+
+// fakeWatch reports running once.
+type fakeWatch struct {
+	ctx  context.Context
+	sent bool
 }

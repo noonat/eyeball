@@ -8,6 +8,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/aymanbagabas/go-udiff v0.4.1
 	github.com/cockroachdb/errors v1.14.0
+	github.com/evanw/esbuild v0.28.2
 	github.com/onsi/gomega v1.42.1
 	github.com/urfave/cli/v3 v3.14.0
 	github.com/yuin/goldmark v1.8.6

@@ -69,6 +69,39 @@ type reviewPage struct {
 	// AllFiles is the tree's root at this round, keeping the page's
 	// comparison.
 	AllFiles string
+	// Acting is what the reviewer can do on the page, and nil on a round
+	// nothing more can be said on.
+	Acting *actingView
+	// Stream and Stamp are the live stream this page opens and the stamp it
+	// was rendered at, which the client compares with what the stream sends.
+	Stream, Stamp string
+	// Place keys where a reader was on this page: the review, the round and
+	// the comparison. The address is no key, since the current round answers
+	// at two.
+	Place string
+	// Unmeasurable says why nothing could be compared, where git can no
+	// longer read the round's base, and is empty otherwise. The files are then
+	// shown as the round captured them.
+	Unmeasurable string
+}
+
+// actingView is what the reviewer can do on the current round: comment and
+// decide while it is open, or add a late comment once it is decided.
+type actingView struct {
+	// Review and Round are what every write names.
+	Review int64
+	Round  int
+	// State is "open" on an undecided round and "late" on a decided one. The
+	// client reads it to know whether a tap opens a composer.
+	State string
+	// Against is the page's comparison, which a removed row's quote needs.
+	Against string
+	// Composer is the review's own box under the agent's note.
+	Composer composerView
+	// List is the review-level comments, where that box's answers go.
+	List listView
+	// Bar is the decision bar, and nil once the round is decided.
+	Bar *barView
 }
 
 // earlierRound is one row of the list of earlier rounds.
@@ -125,6 +158,32 @@ type fileView struct {
 	RawDiff string
 	// Comments are the round's comments on it.
 	Comments []commentView
+	// List holds them as cards on the current round, where a composer's
+	// answer replaces it, and is nil elsewhere.
+	List *listView
+	// Slot is the element id a tapped line's composer is swapped into, and
+	// empty where no composer opens.
+	Slot string
+	// Unmeasured says the file has no counts, because nothing could be
+	// compared, and Deleted that the round captured it as deleted.
+	Unmeasured, Deleted bool
+	// Threads are the line comments on the current round, keyed by the new
+	// side's line number, each shown in a row under its line.
+	Threads map[int]*threadView
+	// Deferred says the card renders closed with an empty body, which
+	// BodyHref answers on its first open. A large review would otherwise send
+	// every body with the page.
+	Deferred bool
+	BodyHref string
+}
+
+// threadView is the row under a line holding its comments, and the composer
+// while one is open there.
+type threadView struct {
+	// ID is the row's element id, which a line comment's answer replaces.
+	ID string
+	// Cards are the line's comments.
+	Cards []cardView
 }
 
 // commentView is one comment card.
@@ -229,8 +288,21 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return reviewPage{}, err
 	}
-	moved, before, after, err := s.compare(ctx, project.Root, review, round, wholeReview)
+	// A base git can no longer read, a lost repository or a missing root,
+	// leaves nothing to compare against. The round's capture still holds every
+	// file the agent changed, so the page shows those as captured and the
+	// review can still be read and decided.
+	st, err := capture.Inspect(ctx, project.Root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
+		return reviewPage{}, err
+	}
+	var moved []capture.Moved
+	var before, after *capture.Reader
+	if st.Measurable() {
+		if moved, before, after, err = s.compare(ctx, project.Root, review, round, wholeReview); err != nil {
+			return reviewPage{}, err
+		}
+	} else if err := s.captured(ctx, &view, st, review, round); err != nil {
 		return reviewPage{}, err
 	}
 	comments, err := s.db.s.Comments(ctx, round.ID)
@@ -253,6 +325,28 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		}
 	}
 
+	open := current && !decided && review.State == store.StateOpen
+	var decisionAt *store.Decision
+	if decided {
+		decisionAt = &decision
+	}
+	acting := current && review.State != store.StateAbandoned
+	// A passage's comments are written under its block, where the page shows
+	// them, and are not listed again elsewhere.
+	placed := map[int64]bool{}
+	passages := map[string]map[[2]int][]store.Comment{}
+	if acting {
+		for _, c := range comments {
+			if c.Level == store.LevelPassage {
+				if passages[c.Path] == nil {
+					passages[c.Path] = map[[2]int][]store.Comment{}
+				}
+				key := [2]int{c.StartLine, c.EndLine}
+				passages[c.Path][key] = append(passages[c.Path][key], c)
+			}
+		}
+	}
+	var renderErr error
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
 	// lastOld is the old side of the last document shown, which decides the
@@ -295,43 +389,118 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		// writes none, and a fragment link goes to the document's own page.
 		doc := at.page()
 		doc.HeadingIDs = false
+		if byRange := passages[m.Path]; byRange != nil {
+			path := m.Path
+			doc.After = func(first, last int) template.HTML {
+				var cards []cardView
+				for _, c := range byRange[[2]int{first, last}] {
+					cards = append(cards, cardOf(review.ID, c, open, decisionAt))
+					placed[c.ID] = true
+				}
+				if len(cards) == 0 {
+					return ""
+				}
+				out, err := s.fragment("passagethread", threadView{ID: passageID(path, first, last), Cards: cards})
+				if err != nil && renderErr == nil {
+					renderErr = err
+				}
+				return out
+			}
+		}
 		file.IsDocument = true
 		file.Document = render.Document(old, content, doc)
 		file.RawDiff = at.viewHref("source")
 		lastOld = old
 		view.Shown = append(view.Shown, file)
 	}
-	open := files <= maxOpenFiles && added+removed <= maxOpenLines
+	expand := files <= maxOpenFiles && added+removed <= maxOpenLines
 	for i := range view.Shown {
-		view.Shown[i].Open = open
+		view.Shown[i].Open = expand
+		if !expand {
+			view.Shown[i].Deferred = true
+			href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
+			view.Shown[i].BodyHref = withQuery(href, against)
+		}
 	}
-	view.Files = count(files, "file", "files")
-	view.Added, view.Removed = thousands(added), thousands(removed)
+	if view.Unmeasurable == "" {
+		view.Files = count(files, "file", "files")
+		view.Added, view.Removed = thousands(added), thousands(removed)
+	}
 	// One new document on its own reads as a document, with nothing marked
 	// and no card around it: marking every passage marks none.
 	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
 		view.Fresh = &view.Shown[0]
 	}
 
+	if renderErr != nil {
+		return reviewPage{}, renderErr
+	}
+	if acting {
+		view.Acting = s.acting(review, round, open, against.Get("against"))
+		for i := range view.Shown {
+			p := view.Shown[i].Path
+			view.Shown[i].List = &listView{ID: listID(store.LevelFile, p)}
+			view.Shown[i].Threads = map[int]*threadView{}
+			if open {
+				view.Shown[i].Slot = slotID(p)
+			}
+		}
+	}
+
 	batched := 0
 	for _, c := range comments {
+		if placed[c.ID] {
+			if decided && c.Created.After(decision.Decided) {
+				continue
+			}
+			batched++
+			continue
+		}
 		late := decided && c.Created.After(decision.Decided)
 		if !late {
 			batched++
 		}
-		card := commentView{Where: where(c), Quoted: c.Quoted, Body: c.Body, Late: late}
+		card := commentView{Where: where(c), Quoted: dedent(c.Quoted), Body: c.Body, Late: late}
 		if c.Reply != "" {
 			view.Replies = append(view.Replies, commentView{Where: card.Where, Body: c.Reply})
 		}
 		// The fresh layout has no card to hold a file's comments, so they
 		// join the review's own.
 		if i, ok := byPath[c.Path]; ok && current && view.Fresh == nil {
-			view.Shown[i].Comments = append(view.Shown[i].Comments, card)
+			file := &view.Shown[i]
+			file.Comments = append(file.Comments, card)
+			if file.List == nil {
+				continue
+			}
+			// A line comment sits under its line when the diff shows that
+			// line, and with the file's own comments otherwise.
+			if c.Level == store.LevelLine && shows(file.Diff, c.StartLine) {
+				t := file.Threads[c.StartLine]
+				if t == nil {
+					t = &threadView{ID: threadID(c.Path, c.StartLine)}
+					file.Threads[c.StartLine] = t
+				}
+				t.Cards = append(t.Cards, cardOf(review.ID, c, open, decisionAt))
+				continue
+			}
+			file.List.Cards = append(file.List.Cards, cardOf(review.ID, c, open, decisionAt))
+			continue
+		}
+		if view.Acting != nil && c.Level == store.LevelReview {
+			view.Acting.List.Cards = append(view.Acting.List.Cards, cardOf(review.ID, c, open, decisionAt))
 			continue
 		}
 		view.Comments = append(view.Comments, card)
 	}
 
+	if view.Acting != nil && view.Acting.Bar != nil {
+		view.Acting.Bar.Tally = tallyView{Count: len(comments)}
+	}
+	view.Stream = fmt.Sprintf("/events?review=%d", review.ID)
+	view.Place = fmt.Sprintf("%d:%d:%s", review.ID, round.Number, against.Get("against"))
+	if view.Stamp, err = s.reviewStamp(ctx, review.ID); err != nil {
+		return reviewPage{}, err
+	}
 	if decided {
 		went := "The verdict went out " + render.Ago(now, decision.Decided) + "."
 		if batched > 0 {
@@ -461,4 +630,109 @@ func thousands(n int) string {
 		b.WriteRune(d)
 	}
 	return b.String()
+}
+
+// acting is what the current round offers the reviewer.
+func (s *Server) acting(review store.Review, round store.Round, open bool, against string) *actingView {
+	a := &actingView{Review: review.ID, Round: round.Number, State: "late", Against: against}
+	a.Composer, _ = composer(review.ID, round.Number, store.LevelReview, "", 0, 0, 0, "")
+	a.List = listView{ID: listID(store.LevelReview, "")}
+	if open {
+		a.State = "open"
+		a.Bar = &barView{Action: decisionHref(review.ID), Round: round.Number}
+	} else {
+		a.Composer.Hint, a.Composer.Button = "Sends immediately", "Send"
+	}
+	return a
+}
+
+// captured fills a page whose round cannot be compared with the files the
+// review changes, each as the round captured it, with no counts.
+func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.State, review store.Review, round store.Round) error {
+	stored, err := s.db.s.RoundFiles(ctx, round.ID)
+	if err != nil {
+		return err
+	}
+	files := make([]store.File, len(stored))
+	for i, f := range stored {
+		files[i] = f.File
+	}
+	reader := st.Reader(s.blobs, files)
+	view.Unmeasurable = unmeasurable(st)
+	shown := 0
+	for _, f := range stored {
+		if !f.InScope {
+			continue
+		}
+		shown++
+		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path}
+		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true, Open: true}
+		if f.Digest == "" {
+			file.Deleted = true
+		} else {
+			content, tooLarge, err := reader.Side(ctx, f.Path)
+			if err != nil {
+				return err
+			}
+			file.Diff = render.Plain(f.Path, content)
+			file.Diff.TooLarge = file.Diff.TooLarge || tooLarge
+		}
+		view.Shown = append(view.Shown, file)
+	}
+	view.Files = count(shown, "file", "files")
+	return nil
+}
+
+// shows says whether a file's diff has a row for a line of the new side.
+func shows(f render.File, line int) bool {
+	for _, r := range f.Rows {
+		if r.Header == "" && r.Class != "del" && r.Number == line {
+			return true
+		}
+	}
+	return false
+}
+
+// handleCardBody answers GET /reviews/{review}/rounds/{round}/cards/{path...}:
+// a collapsed file card's body, on its first open.
+//
+// It builds the round's page and takes the one card from it, so the body is
+// the page's own markup and cannot drift from it. That costs comparing every
+// file of the round for each body asked for, which only a review past the
+// thresholds does.
+func (s *Server) handleCardBody(w http.ResponseWriter, r *http.Request) error {
+	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
+	if err != nil {
+		plain(w, http.StatusNotFound, "There is no such review.")
+		return nil
+	}
+	number, err := strconv.Atoi(r.PathValue("round"))
+	if err != nil {
+		plain(w, http.StatusNotFound, noRound)
+		return nil
+	}
+	review, err := s.db.s.Review(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		plain(w, http.StatusNotFound, "There is no such review.")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base")
+	if errors.Is(err, store.ErrNotFound) {
+		plain(w, http.StatusNotFound, noRound)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, f := range view.Shown {
+		if f.Path == r.PathValue("path") {
+			f.Deferred = false
+			return s.fragments(w, http.StatusOK, fragment{name: "filebody", data: f})
+		}
+	}
+	plain(w, http.StatusNotFound, "This round shows no such file.")
+	return nil
 }

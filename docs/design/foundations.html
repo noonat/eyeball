@@ -587,10 +587,10 @@
 
         <div class="composer">
           <div class="anchor">internal/store/round.go:90&ndash;97</div>
-          <div class="field">The note check belongs in the request path, not in Freeze. Freeze is called from replay too, and an old round with no note would fail to restore.</div>
+          <textarea class="field" aria-label="Comment">The note check belongs in the request path, not in Freeze. Freeze is called from replay too, and an old round with no note would fail to restore.</textarea>
           <div class="foot">
             <span class="hint">Saved as you type</span>
-            <span class="acts"><a class="btn small ghost" href="#comments"><span class="i i-x" aria-hidden="true"></span>Cancel</a><a class="btn small accent" href="#comments">Add</a></span>
+            <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
           </div>
         </div>
 
@@ -600,6 +600,14 @@
             <blockquote class="quoted">Widening is one control, not a navigation.</blockquote>
             <p>This reads as a rule but the section never says what the control looks like. Name it.</p>
             <div class="acts"><a href="#comments"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comments"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+          </div>
+          <div class="composer">
+            <div class="anchor">internal/store/round.go:112</div>
+            <textarea class="field" aria-label="Edit comment">Return the error rather than logging it here. The caller already logs with the round id.</textarea>
+            <div class="foot">
+              <span class="hint">Editing</span>
+              <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Save</button></span>
+            </div>
           </div>
           <div class="comment unsent">
             <div class="anchor"><span class="where">This review</span></div>
@@ -621,10 +629,10 @@
 
         <div class="composer">
           <div class="anchor">internal/store/round.go:90&ndash;97</div>
-          <div class="field">The note check belongs in the request path, not in Freeze. Freeze is called from replay too, and an old round with no note would fail to restore.</div>
+          <textarea class="field" aria-label="Comment">The note check belongs in the request path, not in Freeze. Freeze is called from replay too, and an old round with no note would fail to restore.</textarea>
           <div class="foot">
             <span class="hint">Saved as you type</span>
-            <span class="acts"><a class="btn small ghost" href="#comments"><span class="i i-x" aria-hidden="true"></span>Cancel</a><a class="btn small accent" href="#comments">Add</a></span>
+            <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
           </div>
         </div>
 
@@ -634,6 +642,14 @@
             <blockquote class="quoted">Widening is one control, not a navigation.</blockquote>
             <p>This reads as a rule but the section never says what the control looks like. Name it.</p>
             <div class="acts"><a href="#comments"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comments"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+          </div>
+          <div class="composer">
+            <div class="anchor">internal/store/round.go:112</div>
+            <textarea class="field" aria-label="Edit comment">Return the error rather than logging it here. The caller already logs with the round id.</textarea>
+            <div class="foot">
+              <span class="hint">Editing</span>
+              <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Save</button></span>
+            </div>
           </div>
           <div class="comment unsent">
             <div class="anchor"><span class="where">This review</span></div>
@@ -683,6 +699,7 @@
         <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Round 1 was approved 4 days ago. This round changes 2 of the 3 files it covered.</span></div>
         <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
         <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>1 comment did not save.</strong> Retry it, or delete it, before deciding.</span></div>
+        <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div>
 
         <div class="segmented">
           <a href="#actions" aria-current="true">Since round 1</a>
@@ -715,6 +732,7 @@
         <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Round 1 was approved 4 days ago. This round changes 2 of the 3 files it covered.</span></div>
         <div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
         <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>1 comment did not save.</strong> Retry it, or delete it, before deciding.</span></div>
+        <div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div>
 
         <div class="segmented">
           <a href="#actions" aria-current="true">Since round 1</a>
@@ -799,14 +817,11 @@
             <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span></div>
             <h2 class="title">Product doc, second pass</h2>
           </div>
-          <div class="composer">
-            <div class="anchor">docs/product.md:214</div>
-            <div class="field">The compare control needs naming, not describing.</div>
-            <div class="foot">
-              <span class="hint">Not saved</span>
-              <span class="acts"><a class="btn small ghost" href="#connection"><span class="i i-x" aria-hidden="true"></span>Discard</a><a class="btn small accent" href="#connection"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry</a></span>
-            </div>
+          <div class="comment unsent">
+            <div class="anchor"><span class="where">docs/product.md:214</span></div>
+            <p>The compare control needs naming, not describing.</p>
             <span class="failed"><span class="i i-circle-alert" aria-hidden="true"></span><span>Could not reach eyeball. The text is still here.</span></span>
+            <div class="acts"><a href="#connection"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a href="#connection"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
           </div>
         </div>
         <div class="decide">
@@ -835,9 +850,10 @@
     <li><b>A request that failed reports on the control that made it.</b> The
     banner says the connection is gone; this says what happened to the thing that
     was just attempted, which is a different question.</li>
-    <li><b>The typed text is still there.</b> Retry and Discard are both offered,
-    because a failed save is either worth another attempt or was not worth
-    keeping, and only the reviewer knows which.</li>
+    <li><b>The typed text is still there</b>, on a card marked as not saved.
+    Retry and Delete are both offered, because a failed save is either worth
+    another attempt or was not worth keeping, and only the reviewer knows
+    which.</li>
   </ul>
 </section>
 

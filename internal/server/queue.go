@@ -19,6 +19,9 @@ type queuePage struct {
 	Waiting, Working, Settled []queueRow
 	// Empty is the empty state, shown when nothing is waiting.
 	Empty *emptyQueue
+	// Stamp is the queue's stamp when the page was rendered, which the
+	// client compares with what its stream sends.
+	Stamp string
 }
 
 // queueRow is one review as a queue row shows it.
@@ -67,6 +70,9 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 	}
 	now := s.now()
 	body := queuePage{}
+	if body.Stamp, err = s.queueStamp(r.Context()); err != nil {
+		return err
+	}
 	for _, row := range q.Waiting {
 		body.Waiting = append(body.Waiting, s.queueRow(row, render.Age(now, row.RequestedAt)))
 	}

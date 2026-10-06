@@ -50,10 +50,9 @@ func Test_checkComment(t *testing.T) {
 			},
 		},
 		{
-			name: "a file-level comment carrying quoted text",
+			name: "a review-level comment carrying quoted text",
 			nc: NewComment{
-				Level:  LevelFile,
-				Path:   "a.md",
+				Level:  LevelReview,
 				Quoted: "x",
 				Body:   "a point",
 			},
@@ -220,6 +219,34 @@ func TestStore_AddComment_onAClosedRound(t *testing.T) {
 
 	_, err = s.AddComment(t.Context(), fileComment(9999))
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
+}
+
+// A retry after a lost answer sends the same key, and must not store the
+// comment twice.
+func TestStore_AddComment_repeatedSubmission(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	project := ensureProject(g, t, s)
+	_, round := openReview(g, t, s, project.ID, "docs")
+	nc := fileComment(round.ID)
+	nc.Submission = "k1"
+	first, err := s.AddComment(t.Context(), nc)
+	g.Expect(err).NotTo(HaveOccurred())
+	again, err := s.AddComment(t.Context(), nc)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(again.ID).To(Equal(first.ID))
+	nc.Submission = "k2"
+	other, err := s.AddComment(t.Context(), nc)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(other.ID).NotTo(Equal(first.ID))
+	nc.Submission = ""
+	_, err = s.AddComment(t.Context(), nc)
+	g.Expect(err).NotTo(HaveOccurred())
+	_, err = s.AddComment(t.Context(), nc)
+	g.Expect(err).NotTo(HaveOccurred(), "comments without a key are never deduplicated")
+	comments, err := s.Comments(t.Context(), round.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(comments).To(HaveLen(4))
 }
 
 func TestStore_Decide(t *testing.T) {

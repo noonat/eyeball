@@ -23,8 +23,11 @@ One process, on the machine the projects are on.
 
 **The agent side never touches the tailnet.** An agent talks to the daemon over
 a unix socket in the state directory, beside the database. Nothing reachable
-over the network can open a review, read one as an agent, or release a batch of
-comments. The tailnet carries the reviewer's surface and nothing else.
+over the network can open a review or read one as an agent. The tailnet carries
+the reviewer's surface and nothing else, and since the verdict is the surface's,
+any device on the tailnet that reaches it can release a batch of comments by
+deciding. Who may write on the tailnet listener is decided with notification,
+with tsnet's `WhoIs` in hand.
 
 The socket is not in the user's runtime directory, although that directory is
 cleared at logout and would suit it. `XDG_RUNTIME_DIR` is set by a login session
@@ -44,7 +47,7 @@ migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: app.css, shell.css and the templates
+assets.go             the files the binary embeds: app.css, shell.css, the templates, the TypeScript and htmx
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -179,6 +182,23 @@ expose every review to the other accounts on the machine, since a loopback port
 is reachable by every local user where the state directory is `0700`. That is
 why it is a flag a person passes, and never a default.
 
+**Writing through the loopback listener takes the run's token.** `serve` draws
+one per run and prints the address with it in the fragment, which a browser
+sends to no server and puts in no `Referer`. The page's script stores it in
+`localStorage` and sends it as `X-Eyeball-Token` on every write, and the
+listener refuses a write without it. `localStorage` is isolated per port and a
+cookie is not, so another account's loopback page opened in the same browser
+never sees the token. A page on another origin cannot set the header without a
+CORS preflight the surface never grants. A process running as this user can
+still write `eyeball.db` directly; the token stops other accounts and a casual
+`curl`, not that.
+
+**Every surface request passes Go's cross-origin check**, on both listeners.
+`http.CrossOriginProtection` refuses a write whose `Sec-Fetch-Site` is neither
+`same-origin` nor `none`, or, without that header, whose `Origin` differs from
+its `Host`. The tailnet listener has no token, so without the check any page the
+phone opened could post a verdict there as a plain form.
+
 **A preview renders in an iframe with `sandbox="allow-scripts"` and nothing
 else.** Omitting `allow-same-origin` gives the frame an opaque origin, so
 scripts run and the page renders, and it can reach no cookie, no storage and
@@ -191,6 +211,15 @@ page on `:8443` shares the cookie jar of the surface on `:443`, so the isolation
 would be real for three mechanisms and absent for the fourth, which is the shape
 of a hole nobody finds until something is stored in a cookie. There is no cookie
 today, which is what makes the mistake survivable and invisible.
+
+There is a stored credential, though: the loopback listener's token, in that
+origin's `localStorage`. A frame sandboxed with `allow-scripts` alone cannot
+read it, and its writes carry `Origin: null`, which the cross-origin check
+refuses. `allow-same-origin` would hand the frame the token, which is one more
+reason that flag needs a separate origin. The same holds for a preview opened as
+a page rather than in a frame: agent HTML or SVG served at the surface's origin
+would run with its storage. So a preview served as a page carries
+`Content-Security-Policy: sandbox allow-scripts`, or comes from another origin.
 
 A distinct hostname does isolate cookies, and it costs a second tsnet node. That
 is the answer if previews ever need storage of their own, because the reason
@@ -359,9 +388,15 @@ Routes, with the spec that builds each:
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
 | `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
+| `PUT /reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict      | 008  |
 | `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
+| `GET /reviews/{review}/comments/{comment}`             | a comment's card, or its edit form            | 008  |
 | `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
+| `GET /reviews/{review}/composer`                       | a composer anchored where the query says      | 008  |
+| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a collapsed file card's body, on first open   | 008  |
 | `GET /events`                                          | the live stream, and therefore the connection | 008  |
+| `GET /static/htmx.js`                                  | the vendored htmx, from the binary            | 008  |
+| `GET /static/app.js`                                   | the TypeScript, bundled once from the binary  | 008  |
 | `POST /subscriptions`                                  | a device's push subscription                  | 009  |
 | `GET /static/app.css`                                  | the stylesheet, from the binary               | 006  |
 | `GET /static/shell.css`                                | the page around the app, from the binary      | 006  |
@@ -382,9 +417,10 @@ needs rather than depending on a package-wide one.
 ## The client code
 
 **TypeScript, compiled by esbuild linked into the binary.** The sources are
-embedded with `//go:embed` and transformed at startup into a bundle held in
-memory. No Node at build time, no Node at run time, no committed bundle to drift
-from its source, and `go install` produces something that works.
+embedded with `//go:embed` and transformed, the first time a page asks for the
+script, into a bundle held in memory. No Node at build time, no Node at run
+time, no committed bundle to drift from its source, and `go install` produces
+something that works.
 
 With htmx taking the interactions, what is left to write is small: registering
 the service worker, asking for notification permission, subscribing to push and
@@ -429,9 +465,9 @@ and the selection exist twice, in the templates and in TypeScript, and can
 disagree. On a tailnet the round trip is a few milliseconds, so there is nothing
 to buy by guessing at the answer locally.
 
-What htmx costs: a vendored dependency, about fourteen kilobytes, and handlers
-that answer with a fragment as well as a page. Template blocks cover the second,
-since the fragment is the block the full page already renders.
+What htmx costs: a vendored dependency, 52 KB as sent, 16 KB gzipped, and
+handlers that answer with a fragment as well as a page. Template blocks cover
+the second, since the fragment is the block the full page already renders.
 
 **This is the decision offline was blocking.** With comments stored on the
 device and drained later, the offline write path had no server to ask, so one
@@ -487,10 +523,13 @@ server-rendered surface does by default when the server is gone. It is a product
 requirement in [product.md](product.md). These are the mechanisms.
 
 **A Server-Sent Events stream is the connection, and its state is the answer.**
-The surface opens `GET /events` and holds it. The daemon writes to it when a
-review changes, so the queue and an open review update without a refresh, which
-is what a surface watching an agent work needs anyway. The stream's `readyState`
-is then not an inference about the connection. It is the connection.
+The surface opens `GET /events` and holds it. The stream sends a stamp of what
+its page shows, recomputed after every change in the store and sent only when it
+moved, and a page whose stamp moved reloads once nothing on it is unsaved. So
+the queue and an open review follow what agents do, and a reader's own comment
+reloads nothing. A page that saved its place and its drafts comes back where it
+was. The stream's `readyState` is then not an inference about the connection. It
+is the connection.
 
 `EventSource` reconnects on its own with backoff, and the daemon sends a comment
 line as a keepalive, so an idle stream is distinguishable from a dead one.
@@ -507,11 +546,14 @@ for an unexpected status, and `htmx:timeout` for a slow one. One handler for all
 three writes the reason beside the element that triggered it. With none of that,
 the swap simply never happens, which looks exactly like a tap that missed.
 
-**While the stream is down, write controls are marked unavailable and say why.**
+**While the stream is down, the verdicts are marked unavailable and say why.**
 That is a stronger claim than reporting failures afterward, and it earns it:
 being told beforehand that a verdict will not go through beats attempting it and
 being told it failed. The read surface stays fully usable, because what is on
-screen is already loaded.
+screen is already loaded. The composer stays live, as the approved connection
+frame draws it: a comment typed while the daemon is gone becomes an unsent card
+with Retry rather than being refused. An earlier version of this paragraph said
+every write control was marked unavailable, which the frame never showed.
 
 **Nothing is rendered while the connection is healthy.** The notice appears on
 loss and disappears on recovery.
@@ -563,8 +605,6 @@ Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
   said about it. The tailnet name does not answer when the daemon is down.
 - **Whether previews ever need storage**, which is the one thing that would buy
   a second tsnet hostname.
-- **Whether the surface needs a JS build step at all** beyond esbuild's default
-  bundling, which is in [specs/TODO.md](../specs/TODO.md).
 - **The exact CLI surface.** `eyeball doc` is the contract and it is written
   with the CLI, not ahead of it.
 - **Pruning.** How long a decided review is kept, and whether its blobs go with

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"log/slog"
@@ -188,9 +189,14 @@ func serve(ctx context.Context, c Config, started time.Time, held *lock) error {
 
 	var local *http.Server
 	if loopback != nil {
-		local = &http.Server{Handler: srv.Surface(), ReadHeaderTimeout: 10 * time.Second}
+		// One token per run, printed once to the terminal of the person who
+		// ran serve and never logged. It travels in the address's fragment,
+		// which a browser sends to no server and puts in no Referer.
+		token := rand.Text()
+		local = &http.Server{Handler: srv.LoopbackSurface(token), ReadHeaderTimeout: 10 * time.Second}
 		go func() { _ = local.Serve(loopback) }()
 		log.Info("serving the surface on loopback", "addr", loopback.Addr().String())
+		_, _ = fmt.Fprintf(c.Stderr, "eyeball: the surface is at http://%s/#token=%s\n", loopback.Addr().String(), token)
 	}
 	// The tailnet starts only for a node the owner enrolled, and in a
 	// goroutine, so a node that is offline or needs a login never delays the

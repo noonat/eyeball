@@ -2,6 +2,7 @@ package render
 
 import (
 	"html"
+	"html/template"
 	"net/url"
 	"path"
 	"strings"
@@ -49,6 +50,10 @@ type Page struct {
 	// for a fragment to land on, so a fragment alone goes to the document's
 	// own page, through Href.
 	HeadingIDs bool
+	// After writes what follows a block that has a range, given its first
+	// and last source line: the comments on that passage, on a page that
+	// shows them. Nil writes nothing.
+	After func(first, last int) template.HTML
 }
 
 // extensions are GFM's, with a table cell's alignment written as an align

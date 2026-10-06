@@ -6,10 +6,14 @@
 <title>{{.Title}} &middot; eyeball</title>
 <link rel="stylesheet" href="/static/app.css">
 <link rel="stylesheet" href="/static/shell.css">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"historyEnabled":false,"timeout":10000,"defaultSettleDelay":0,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
+<script src="/static/htmx.js"></script>
+<script src="/static/app.js"></script>
 </head>
 <body>
 <div class="app">
 <div class="topbar">{{if .Back}}<a class="back" href="{{.Back}}"><span class="i i-chevron-left" aria-hidden="true"></span>{{.BackLabel}}</a><h1>{{.Title}}</h1>{{else}}<span class="wordmark">eyeball</span>{{with .Pill}}<span class="pill waiting">{{.}}</span>{{end}}{{end}}</div>
+<div id="offline" hidden><div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" role="button" tabindex="0">Retry</a></div></div>
 {{template "page" .Body}}
 </div>
 </body>

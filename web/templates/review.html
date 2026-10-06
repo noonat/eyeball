@@ -1,4 +1,4 @@
-{{define "review"}}<div class="scroll"><div class="page">
+{{define "review"}}<div class="scroll"><div class="page" data-stream="{{.Stream}}" data-stamp="{{.Stamp}}" data-place="{{.Place}}"{{with .Acting}} data-review="{{.Review}}" data-round="{{.Round}}" data-acting="{{.State}}"{{with .Against}} data-against="{{.}}"{{end}}{{end}}>
 <div class="brief">
 <div class="where">{{if .Abandoned}}<span class="pill plain">Abandoned</span>{{else}}{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><a class="bit" href="{{.ProjectHref}}"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
 <h2 class="title">{{.Title}}</h2>
@@ -12,17 +12,20 @@
 {{end}}{{if .Closed}}<div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>{{.Closed}}</span></div>
 {{else}}{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
 {{else}}<div class="notice"><span class="glyph i i-message-square" aria-hidden="true"></span><span><strong>Changes requested.</strong> {{.Sentence}}</span></div>
-{{end}}{{end}}{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}<div class="toolbar">
+{{end}}{{end}}{{end}}{{with .Unmeasurable}}<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span>{{.}} Each file is shown as this round captured it.</span></div>
+{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}{{with .Acting}}{{template "composer" .Composer}}{{template "commentlist" .List}}{{if .Bar}}<template id="unsent-card"><div class="comment unsent"><div class="anchor"><span class="where"></span></div><p></p><div class="acts"><a role="button" tabindex="0" data-retry><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a role="button" tabindex="0" data-discard><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div></div></template>
+{{end}}{{end}}<div class="toolbar">
 {{with .Fresh}}<span class="counts"><b class="files">1 file, new</b></span>
 <a class="btn small" href="{{.RawDiff}}">Raw diff</a>
+{{else}}{{if .Unmeasurable}}<span class="counts"><b class="files">{{.Files}}</b></span>
 {{else}}<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
-{{end}}{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
+{{end}}{{end}}{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
 {{end}}</div>
-{{with .Fresh}}<div class="prose">{{.Document}}</div>
+{{with .Fresh}}<div class="prose" data-path="{{.Path}}">{{.Document}}</div>
 {{else}}{{range .Shown}}{{template "file" .}}{{end}}{{end}}<div class="tree">
 <a class="treerow" href="{{.AllFiles}}"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
 </div>
-{{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
+{{if not .Closed}}{{template "discussion" .}}{{end}}</div>{{with .Acting}}{{with .Bar}}{{template "bar" .}}{{end}}{{end}}</div>
 {{end}}
 {{define "notes"}}{{with .Decided}}{{if .Note}}<div class="note">
 <span class="from">Verdict note</span>
@@ -44,19 +47,29 @@
 {{range .Replies}}{{template "comment" .}}{{end}}</div>
 </div>
 {{end}}{{end}}
-{{define "file"}}<details class="file"{{if .Open}} open{{end}}>
-<summary><span class="path"><bdi>{{.Path}}</bdi></span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></summary>
-{{if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
+{{define "file"}}<details class="file" data-path="{{.Path}}"{{if .Open}} open{{end}}{{if .Deferred}} hx-get="{{.BodyHref}}" hx-trigger="toggle once" hx-target="find [data-body]" hx-swap="outerHTML"{{end}}>
+<summary><span class="path"><bdi>{{.Path}}</bdi></span>{{if not .Unmeasured}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>{{end}}{{if .IsDocument}}<a class="fileopen" href="{{.RawDiff}}" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a>{{else}}<a class="fileopen" href="{{.Whole}}" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a>{{end}}</summary>
+{{if .Deferred}}<div data-body></div>
+{{else}}{{template "filebody" .}}{{end}}</details>
+{{end}}
+{{define "filebody"}}{{if .Deleted}}<div class="toobig">Deleted as of this round.</div>
+{{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
 {{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
-{{else}}{{template "code" .Diff.Rows}}{{end}}{{range .Comments}}{{template "comment" .}}{{end}}<div class="filelinks">{{if .IsDocument}}<a class="btn small" href="{{.RawDiff}}">Raw diff</a>{{else}}<a class="btn small" href="{{.Whole}}">Whole file</a>{{end}}</div>
-</details>
-{{end}}
+{{else if .List}}{{template "reviewcode" .}}{{else}}{{template "code" .Diff.Rows}}{{end}}{{with .List}}{{template "commentlist" .}}{{else}}{{range .Comments}}{{template "comment" .}}{{end}}{{end}}{{with .Slot}}<div id="{{.}}"></div>
+{{end}}{{end}}
 {{define "code"}}<div class="code narrow">
 <table>
 {{range .}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
-{{else}}<tr{{with .Class}} class="{{.}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
+{{else}}<tr{{with .Class}} class="{{.}}"{{end}}{{if eq .Class "del"}} data-old="{{.Number}}"{{else}} data-line="{{.Number}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
 {{end}}{{end}}</table>
+</div>
+{{end}}
+{{define "reviewcode"}}{{$threads := .Threads}}<div class="code narrow">
+<table>
+{{range .Diff.Rows}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
+{{else}}<tr{{with .Class}} class="{{.}}"{{end}}{{if eq .Class "del"}} data-old="{{.Number}}"{{else}} data-line="{{.Number}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
+{{if ne .Class "del"}}{{with index $threads .Number}}{{template "thread" .}}{{end}}{{end}}{{end}}{{end}}</table>
 </div>
 {{end}}
 {{define "segment"}}{{if .Mark}}<span class="w">{{if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}</span>{{else if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}

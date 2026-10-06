@@ -416,3 +416,18 @@ func (s *Store) CommentReview(ctx context.Context, commentID int64) (int64, erro
 	}
 	return reviewID, nil
 }
+
+// Comment reads one comment and the number of the round it was written on.
+func (s *Store) Comment(ctx context.Context, commentID int64) (Comment, int, error) {
+	query := `SELECT ` + commentColumns + `, o.number
+		FROM comments c JOIN rounds o ON o.id = c.round_id WHERE c.id = ?`
+	var number int
+	c, err := scanComment(s.db.QueryRowContext(ctx, query, commentID), &number)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Comment{}, 0, errors.Wrapf(ErrNotFound, "comment %d", commentID)
+		}
+		return Comment{}, 0, err
+	}
+	return c, number, nil
+}

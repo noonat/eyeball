@@ -231,6 +231,56 @@ var routes = []route{
 		pattern: "GET /static/shell.css",
 		handle:  (*Server).handleShell,
 	},
+	{
+		side:    sideSurface,
+		pattern: "POST /reviews/{review}/comments",
+		handle:  (*Server).handleAddComment,
+	},
+	{
+		side:    sideSurface,
+		pattern: "PUT /reviews/{review}/comments/{comment}",
+		handle:  (*Server).handleEditComment,
+	},
+	{
+		side:    sideSurface,
+		pattern: "DELETE /reviews/{review}/comments/{comment}",
+		handle:  (*Server).handleDeleteComment,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /reviews/{review}/comments/{comment}",
+		handle:  (*Server).handleComment,
+	},
+	{
+		side:    sideSurface,
+		pattern: "POST /reviews/{review}/decision",
+		handle:  (*Server).handleDecide,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /reviews/{review}/composer",
+		handle:  (*Server).handleComposer,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /reviews/{review}/rounds/{round}/cards/{path...}",
+		handle:  (*Server).handleCardBody,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /events",
+		handle:  (*Server).handleEvents,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/htmx.js",
+		handle:  (*Server).handleHtmx,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/app.js",
+		handle:  (*Server).handleScript,
+	},
 }
 
 // AgentHandler is the handler for the unix socket.

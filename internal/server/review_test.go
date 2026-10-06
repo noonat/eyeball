@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -53,7 +54,9 @@ func TestServer_Surface_review(t *testing.T) {
 	g.Expect(paragraphs).To(Equal([]string{"Upload worker and its retry ladder", "The second paragraph says what to look at."}))
 	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file +1 −0"))
 	g.Expect(find(doc, "segmented")).To(BeNil(), "a first round has only its base")
-	g.Expect(find(doc, "decide")).To(BeNil(), "no decision bar until the write path can act on it")
+	bar := find(doc, "decide")
+	g.Expect(bar).NotTo(BeNil(), "an open round has the decision bar")
+	g.Expect(text(find(bar, "buttons"))).To(Equal("Request changesApprove"))
 
 	files := findAll(doc, hasClass("file"))
 	g.Expect(files).To(HaveLen(1))
@@ -150,16 +153,19 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	}
 	g.Expect(onFile).To(Equal([]string{"a.txt:1–2 one two Both lines.", "a.txt:2 two Why two?"}))
 
-	// The review's own comments follow the files, and the late one says so.
-	section := find(doc, "section")
-	g.Expect(text(find(section, "count"))).To(Equal("2"))
+	// The review's own comments sit under the box a late comment is written
+	// in, and the late one says so. Nothing released can change.
 	var onReview []string
-	for _, c := range findAll(section, hasClass("comment")) {
+	for _, c := range findAll(byID(doc, "comments-review"), hasClass("comment")) {
 		onReview = append(onReview, text(c))
 	}
 	g.Expect(onReview).To(Equal([]string{"This review Overall fine.", "This reviewafter the verdict One more thing."}))
-	g.Expect(findAll(doc, func(n *html.Node) bool { return n.Data == "form" || n.Data == "textarea" })).To(BeEmpty(), "comments are read-only")
-	g.Expect(find(doc, "section")).NotTo(BeNil())
+	forms := findAll(doc, isElement("form"))
+	g.Expect(forms).To(HaveLen(1), "a decided round keeps one box, for a late comment")
+	g.Expect(text(find(forms[0], "foot"))).To(Equal("Sends immediately Send"))
+	for _, c := range findAll(doc, hasClass("comment")) {
+		g.Expect(find(c, "acts")).To(BeNil(), "released comments cannot change")
+	}
 	g.Expect(text(doc)).NotTo(ContainSubstring("What was done"), "nothing has been answered yet")
 
 	// An approved round is the last, so a reply the agent writes to it can
@@ -201,10 +207,10 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"kept: Kept two.",
 		"added: Added at the end.",
 	}))
-	g.Expect(findAll(cards["docs/product.md"], func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
-	links := find(cards["docs/product.md"], "filelinks")
-	g.Expect(text(links)).To(Equal("Raw diff"))
-	g.Expect(attr(find(links, "btn"), "href")).To(Equal(base + "/files/docs/product.md?view=source"))
+	g.Expect(findAll(find(cards["docs/product.md"], "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
+	link := find(cards["docs/product.md"], "fileopen")
+	g.Expect(attr(link, "aria-label")).To(Equal("Raw diff"))
+	g.Expect(attr(link, "href")).To(Equal(base + "/files/docs/product.md?view=source"))
 
 	// The whole review compares with the base, which held the heading alone,
 	// and every link keeps that comparison.
@@ -218,7 +224,7 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"added: Kept two.",
 		"added: Added at the end.",
 	}))
-	g.Expect(attr(find(find(cards["docs/product.md"], "filelinks"), "btn"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
+	g.Expect(attr(find(cards["docs/product.md"], "fileopen"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
 
 	// The attack corpus leaves no script, no style, no image and no event
 	// attribute anywhere on the page, and every link it kept stays inside the
@@ -230,7 +236,7 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		attack := documentCards(doc)["docs/attack.md"]
 		g.Expect(attack).NotTo(BeNil(), page)
 		elements := findAll(doc, func(n *html.Node) bool {
-			return n.Type == html.ElementNode && (n.Data == "script" || n.Data == "style" || n.Data == "img" || n.Data == "svg" || n.Data == "iframe")
+			return n.Type == html.ElementNode && (n.Data == "script" && !layoutScript(n) || n.Data == "style" || n.Data == "img" || n.Data == "svg" || n.Data == "iframe")
 		})
 		g.Expect(elements).To(BeEmpty(), page)
 		g.Expect(eventAttributes(doc)).To(BeEmpty(), page)
@@ -428,7 +434,7 @@ func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
 	got := map[string]string{}
 	for _, file := range findAll(doc, hasClass("file")) {
-		got[text(find(file, "path"))] = text(find(file, "toobig")) + " " + text(find(file, "filelinks"))
+		got[text(find(file, "path"))] = text(find(file, "toobig")) + " " + attr(find(file, "fileopen"), "aria-label")
 		g.Expect(find(file, "code")).To(BeNil())
 		g.Expect(find(file, "prose")).To(BeNil())
 	}
@@ -551,6 +557,29 @@ func TestServer_Surface_reviewFreshConditions(t *testing.T) {
 	}
 }
 
+// A repository moved or deleted after the round leaves nothing to compare
+// against, and the round's capture still holds every file the agent changed.
+// The page shows those as captured, and the review can still be decided.
+func TestServer_Surface_reviewLostRepository(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	g.Expect(os.RemoveAll(filepath.Join(repo, ".git"))).To(Succeed())
+
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	g.Expect(text(find(doc, "warn"))).To(Equal("The project's repository is gone, so the change cannot be measured. Each file is shown as this round captured it."))
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file"))
+	file := find(doc, "file")
+	g.Expect(find(file, "counts")).To(BeNil(), "nothing was compared, so nothing is counted")
+	var lines []string
+	for _, src := range findAll(file, hasClass("src")) {
+		lines = append(lines, text(src))
+	}
+	g.Expect(lines).To(Equal([]string{"one", "two"}))
+	g.Expect(find(doc, "decide")).NotTo(BeNil(), "the review can still be decided")
+}
+
 func TestServer_Surface_reviewMarksAChangedWord(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -611,7 +640,22 @@ func TestServer_Surface_reviewOpensUpToItsLimits(t *testing.T) {
 			g.Expect(files).To(HaveLen(c.files))
 			for _, file := range files {
 				g.Expect(hasAttr(file, "open")).To(Equal(c.open), text(find(file, "path")))
+				// A card past the thresholds sends no body with the page,
+				// and loads it from its own address on the first open.
+				g.Expect(find(file, "code") == nil).To(Equal(!c.open))
+				g.Expect(hasAttr(file, "hx-get")).To(Equal(!c.open))
 			}
+			if c.open {
+				return
+			}
+			body := attr(files[0], "hx-get")
+			g.Expect(attr(files[0], "hx-trigger")).To(Equal("toggle once"))
+			res := serveSurface(f.s.Surface(), http.MethodGet, body)
+			g.Expect(res.Code).To(Equal(http.StatusOK))
+			rows := findAll(parse(g, res.Body.String()), hasClass("src"))
+			g.Expect(rows).To(HaveLen(c.lines))
+			res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt")
+			g.Expect(res.Code).To(Equal(http.StatusNotFound))
 		})
 	}
 }
@@ -890,4 +934,11 @@ func hasAttr(n *html.Node, name string) bool {
 		}
 	}
 	return false
+}
+
+// layoutScript reports whether n is one of the two scripts the layout loads in
+// the head, which are the only scripts a page may hold.
+func layoutScript(n *html.Node) bool {
+	src := attr(n, "src")
+	return n.Parent != nil && n.Parent.Data == "head" && (src == "/static/htmx.js" || src == "/static/app.js")
 }
