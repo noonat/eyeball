@@ -956,6 +956,30 @@ fifteen, two, two and thirty days.
 - No mutation run, under the owner's 2026-10-06 change. The token rows include
   the right token passing, which a check that refused every write would fail.
 
+**Departures, iteration 4.**
+
+- A stored comment's answer is the anchor's list and, while the round can still
+  be decided, the tally swapped by its id. It does not carry a closed composer.
+  The review's composer stays on the page and only empties, and an anchored one
+  closes, so the client does both on a 200 in iteration 5. The design's table
+  listed "composer closed" as part of the answer.
+- A delete answers the tally alone, with an empty main answer, which removes the
+  card its `outerHTML` swap targets.
+- The edit form's Cancel fetches the card again rather than restoring it on the
+  client, so the card shown is always what the store holds.
+- The composer's chips are buttons carrying `data-level`. Switching among them
+  is iteration 5's. A removed row's form sends `oldline` and the page's
+  `against`, and the server reads the line from the previous round's capture, or
+  from the base for the whole review.
+- `store.Comment` reads one comment with its round's number, so an edit can
+  answer with the card. The store had no read of a single comment.
+- A comment of a review that does not exist, a malformed id and a round the
+  review lacks are each a 404 with a sentence. A form the page could not have
+  sent is a 400 with "This page could not have sent that. Reload it and try
+  again." A path the round holds no readable copy of, and a line past a file's
+  end, are 400s that name the file.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1121,33 +1145,33 @@ required_acks:
 
 ## Iteration 4: The write routes
 
-- [ ] `POST /reviews/{review}/comments` storing a comment at each level on the
+- [x] `POST /reviews/{review}/comments` storing a comment at each level on the
       round the form names, quoted from the round's frozen content
-- [ ] A line outside the file, a path the round cannot read, and a level with
+- [x] A line outside the file, a path the round cannot read, and a level with
       the wrong fields each answered 400 with nothing stored
-- [ ] Migration `0006`: `comments.submission`, unique where not empty, and a
+- [x] Migration `0006`: `comments.submission`, unique where not empty, and a
       file-level comment allowed a quote with no range, with a test reading a
       comment written before it back after it
-- [ ] A repeated submission key storing nothing new and answering the stored
+- [x] A repeated submission key storing nothing new and answering the stored
       comment, and a removed row quoted from the side it was removed from
-- [ ] A comment posted to a round decided, abandoned or superseded since the
+- [x] A comment posted to a round decided, abandoned or superseded since the
       page loaded stored as late and answered 200 with its card marked late,
       with no `HX-Refresh`
-- [ ] `PUT` and `DELETE` on a comment, refusing another review's comment with
+- [x] `PUT` and `DELETE` on a comment, refusing another review's comment with
       404 and a released one with 409 and a plain sentence, with no `HX-Refresh`
-- [ ] `POST /reviews/{review}/decision` deciding the named round with
+- [x] `POST /reviews/{review}/decision` deciding the named round with
       `HX-Refresh`, 422 and the bar's notice for an empty change request, and
       409 with a plain sentence and no `HX-Refresh` for a stale round
-- [ ] `GET /reviews/{review}/composer` and
+- [x] `GET /reviews/{review}/composer` and
       `GET /reviews/{review}/comments/{comment}` answering the composer, the
       card and the edit form from template blocks
-- [ ] Each comment write's fragments, the anchor's list, the tally by its id and
+- [x] Each comment write's fragments, the anchor's list, the tally by its id and
       the composer closed, tested as parsed HTML, with no bar in them
-- [ ] A failing surface write with `HX-Request` answered 500 with the plain
+- [x] A failing surface write with `HX-Request` answered 500 with the plain
       sentence and logged
-- [ ] Each write sent to `AgentHandler` as a real request answered 404, with the
+- [x] Each write sent to `AgentHandler` as a real request answered 404, with the
       round undecided and no comment stored
-- [ ] A daemon test of the whole loop: a request over the socket, a comment and
+- [x] A daemon test of the whole loop: a request over the socket, a comment and
       a verdict carrying the printed token as the header, and `wait` returning
       both
 

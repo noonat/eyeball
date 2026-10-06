@@ -132,6 +132,46 @@ func Test_migrateFromTwoProcessesAtOnce(t *testing.T) {
 	g.Expect(count).To(Equal(1))
 }
 
+// 0006 rebuilds the comments table. A comment written before it reads back
+// after it, with its id, its reply and its delivery.
+func Test_migrateKeepsCommentsThroughTheRebuild(t *testing.T) {
+	g := NewWithT(t)
+	db := openDB(g, t)
+	all, err := readMigrations(migrationFS())
+	g.Expect(err).NotTo(HaveOccurred())
+	before := fstest.MapFS{}
+	for _, m := range all {
+		if m.Name < "0006" {
+			before[m.Name] = &fstest.MapFile{Data: []byte(m.SQL)}
+		}
+	}
+	g.Expect(migrate(t.Context(), db, before, fixedClock())).To(Succeed())
+	at := "2026-08-26T04:05:06.000Z"
+	rows := []string{
+		"INSERT INTO projects (id, root, name, created) VALUES (1, '/tmp/p', 'p', '" + at + "')",
+		"INSERT INTO reviews (id, project_id, agent, title, state, created, updated) VALUES (1, 1, 'a', 't', 'open', '" + at + "', '" + at + "')",
+		"INSERT INTO rounds (id, review_id, number, note, base_commit, created) VALUES (1, 1, 1, 'n', '', '" + at + "')",
+		"INSERT INTO comments (id, round_id, level, path, start_line, end_line, quoted, body, created, updated, reply, delivered) VALUES (7, 1, 'line', 'a.go', 3, 4, 'x', 'a point', '" + at + "', '" + at + "', 'done', '" + at + "')",
+	}
+	for _, q := range rows {
+		_, err = db.ExecContext(t.Context(), q)
+		g.Expect(err).NotTo(HaveOccurred(), q)
+	}
+	g.Expect(migrate(t.Context(), db, migrationFS(), fixedClock())).To(Succeed())
+	var (
+		id               int64
+		body, reply, sub string
+		start, end       int
+	)
+	row := db.QueryRowContext(t.Context(), "SELECT id, body, reply, submission, start_line, end_line FROM comments")
+	g.Expect(row.Scan(&id, &body, &reply, &sub, &start, &end)).To(Succeed())
+	g.Expect(id).To(Equal(int64(7)))
+	g.Expect(body).To(Equal("a point"))
+	g.Expect(reply).To(Equal("done"))
+	g.Expect(sub).To(BeEmpty())
+	g.Expect([]int{start, end}).To(Equal([]int{3, 4}))
+}
+
 func Test_migrateLeavesAnExistingProjectUnflagged(t *testing.T) {
 	g := NewWithT(t)
 	db := openDB(g, t)

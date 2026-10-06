@@ -110,10 +110,15 @@ type NewComment struct {
 	// StartLine and EndLine bound the comment, and are left zero at LevelFile
 	// and LevelReview.
 	StartLine, EndLine int
-	// Quoted is the text the range covers, and travels with a range.
+	// Quoted is the text the range covers, and travels with a range. A
+	// file-level comment may carry it with no range: a line the round removed,
+	// which has no number in the round's frozen file.
 	Quoted string
 	// Body is what the reviewer wrote.
 	Body string
+	// Submission is the key the page drew when it first sent the comment, and
+	// sends again on a retry. A key already stored stores nothing new.
+	Submission string
 }
 
 // AddComment stores one comment.
@@ -128,14 +133,26 @@ func (s *Store) AddComment(ctx context.Context, nc NewComment) (Comment, error) 
 		return Comment{}, err
 	}
 	var at time.Time
+	var held *Comment
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		if _, _, err := roundState(ctx, tx, nc.RoundID); err != nil {
 			return err
 		}
+		if nc.Submission != "" {
+			query := `SELECT ` + commentColumns + ` FROM comments c WHERE c.submission = ?`
+			c, err := scanComment(tx.QueryRowContext(ctx, query, nc.Submission))
+			switch {
+			case err == nil:
+				held = &c
+				return nil
+			case !errors.Is(err, sql.ErrNoRows):
+				return err
+			}
+		}
 		at = s.now()
 		insert := `INSERT INTO comments
-			(round_id, level, path, start_line, end_line, quoted, body, created, updated)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			(round_id, level, path, start_line, end_line, quoted, body, created, updated, submission)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		args := []any{
 			comment.RoundID,
 			comment.Level,
@@ -146,6 +163,7 @@ func (s *Store) AddComment(ctx context.Context, nc NewComment) (Comment, error) 
 			comment.Body,
 			FormatTime(at),
 			FormatTime(at),
+			nc.Submission,
 		}
 		res, err := tx.ExecContext(ctx, insert, args...)
 		if err != nil {
@@ -158,6 +176,9 @@ func (s *Store) AddComment(ctx context.Context, nc NewComment) (Comment, error) 
 	})
 	if err != nil {
 		return Comment{}, err
+	}
+	if held != nil {
+		return *held, nil
 	}
 	comment.Created = at.Truncate(time.Millisecond)
 	return comment, nil
@@ -290,10 +311,12 @@ func checkComment(nc NewComment) (Comment, error) {
 		if nc.StartLine != 0 || nc.EndLine != 0 {
 			return Comment{}, errors.Newf("a %s comment carries no line range", nc.Level)
 		}
-		if strings.TrimSpace(nc.Quoted) != "" {
+		if strings.TrimSpace(nc.Quoted) != "" && nc.Level != LevelFile {
 			return Comment{}, errors.Newf("a %s comment carries no quoted text", nc.Level)
 		}
-		out.Quoted = ""
+		if strings.TrimSpace(nc.Quoted) == "" {
+			out.Quoted = ""
+		}
 		return out, nil
 	}
 	if nc.StartLine < 1 {

@@ -42,6 +42,7 @@ func Test_schemaAcceptsAWholeReview(t *testing.T) {
 		{level: "line", path: "docs/product.md", start: 12, end: 12, quoted: "one line"},
 		{level: "passage", path: "docs/product.md", start: 20, end: 24, quoted: "a passage"},
 		{level: "file", path: "docs/product.md", start: nil, end: nil, quoted: nil},
+		{level: "file", path: "docs/product.md", start: nil, end: nil, quoted: "a removed line"},
 		{level: "review", path: nil, start: nil, end: nil, quoted: nil},
 	}
 	insertComment := "INSERT INTO comments (round_id, level, path, start_line, end_line, quoted, body, created, updated) VALUES (?, ?, ?, ?, ?, ?, 'a point', :at, :at)"
@@ -55,7 +56,7 @@ func Test_schemaAcceptsAWholeReview(t *testing.T) {
 	row := s.db.QueryRowContext(t.Context(), "SELECT (SELECT count(*) FROM round_files), (SELECT count(*) FROM comments)")
 	g.Expect(row.Scan(&fileCount, &commentCount)).To(Succeed())
 	g.Expect(fileCount).To(Equal(3))
-	g.Expect(commentCount).To(Equal(4))
+	g.Expect(commentCount).To(Equal(5))
 }
 
 func Test_schemaCascadesFromTheProject(t *testing.T) {
@@ -274,9 +275,14 @@ func Test_schemaRejectsBadRows(t *testing.T) {
 			want: "CHECK",
 		},
 		{
-			name: "quoted text with no range",
-			sql:  "INSERT INTO comments (round_id, level, path, quoted, body, created, updated) VALUES (:round, 'file', 'a.md', 'x', 'a point', :at, :at)",
+			name: "quoted text with no range on a line",
+			sql:  "INSERT INTO comments (round_id, level, path, quoted, body, created, updated) VALUES (:round, 'review', NULL, 'x', 'a point', :at, :at)",
 			want: "CHECK",
+		},
+		{
+			name: "a second comment with one submission key",
+			sql:  "INSERT INTO comments (round_id, level, body, created, updated, submission) VALUES (:round, 'review', 'once', :at, :at, 'k'), (:round, 'review', 'again', :at, :at, 'k')",
+			want: "UNIQUE",
 		},
 		{
 			name: "verdict that is neither approve nor changes",
