@@ -1611,6 +1611,15 @@ required_commands:
       one retried once it returns and stored once, one deleted, and a verdict
       withheld while a card remains
 
+> **Completed** 2026-10-06 17:17 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.7s
+> - `go test -race ./...` — 26.4s
+> - `go test -tags browser ./internal/server/...` — 17.6s
+> - `go vet -tags browser ./internal/server/...` — 77ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 178ms
+
 ## Iteration 12: Loading and remembering
 
 ```backlog
