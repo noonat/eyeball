@@ -102,7 +102,7 @@ func Whole(before, after []byte) Result {
 // plain and the same file shown as a change are refused at the same size.
 func Plain(b []byte) Result {
 	l := defaultLimits()
-	if isBinary(b) {
+	if IsBinary(b) {
 		return Result{Binary: true}
 	}
 	lines, ends := splitLines(b)
@@ -161,7 +161,7 @@ func defaultLimits() limits {
 
 // text is Text with its bounds supplied.
 func text(before, after []byte, l limits) Result {
-	if isBinary(before) || isBinary(after) {
+	if IsBinary(before) || IsBinary(after) {
 		return Result{Binary: true}
 	}
 	oldLines, oldEnds := splitLines(before)
@@ -208,11 +208,11 @@ func splitLines(b []byte) ([]string, bool) {
 	return strings.Split(s, "\n"), ends
 }
 
-// isBinary reports a text no line diff means anything for.
+// IsBinary reports a text no line diff means anything for.
 //
 // A NUL byte in the first eight kilobytes, which is the test git uses. Deciding
 // how a file opens is a different question, and it belongs to internal/kind.
-func isBinary(b []byte) bool {
+func IsBinary(b []byte) bool {
 	head := b
 	if len(head) > 8000 {
 		head = head[:8000]

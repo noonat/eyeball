@@ -14,6 +14,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/diff"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/render"
 	"github.com/noonat/eyeball/internal/store"
 )
@@ -274,7 +275,7 @@ type fileAt struct {
 
 // markdown says the path is shown as a document by default.
 func (a fileAt) markdown() bool {
-	return render.IsMarkdown(a.path)
+	return kind.ByName(a.path).Kind == kind.Markdown
 }
 
 // document says the path is shown as a document: a markdown file, in any

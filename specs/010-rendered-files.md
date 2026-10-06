@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-06T00:00:00Z
-updated: 2026-10-06T19:50:00.845449174Z
+updated: 2026-10-06T19:50:10.90650348Z
 required_acks:
   - reviewed
 required_commands:
@@ -225,13 +225,13 @@ browser's PDF viewer keeps a document's script away from the page is assumed.
 
 ## Iteration 1: What a file is
 
-- [ ] `internal/kind`: the kinds, the extension table with content types and
+- [x] `internal/kind`: the kinds, the extension table with content types and
       names, the binary fallback through `diff.IsBinary`, and each kind's views
       and default
-- [ ] `render.IsMarkdown` and `fileAt`'s markdown tests replaced by kind
-- [ ] architecture.md corrected: the page kind, SVG's rendered view as an image
+- [x] `render.IsMarkdown` and `fileAt`'s markdown tests replaced by kind
+- [x] architecture.md corrected: the page kind, SVG's rendered view as an image
       element, and the send limit
-- [ ] Tests over the table: every extension, a file with none, a text and a
+- [x] Tests over the table: every extension, a file with none, a text and a
       binary fallback, and each kind's views
 
 ## Iteration 2: The bytes

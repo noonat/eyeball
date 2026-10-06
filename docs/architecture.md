@@ -344,16 +344,24 @@ pins the current answer, so a version bump that changes it is noticed.
 
 ## What a file is
 
-`internal/kind` maps a path and its first bytes to one of: text, markdown,
-image, audio, video, PDF, or none of those. That decides which view opens first,
-per the table in [product.md](product.md). Extension first, content sniffing
-second, because an extension is what the agent named it and is right nearly
-always.
+`internal/kind` maps a path and its first bytes to one of: text, markdown, page,
+image, audio, video, PDF, or other. That decides which view opens first, per the
+table in [product.md](product.md). The extension decides first, from a fixed
+table, because an extension is what the agent named it and is right nearly
+always. A file whose extension is not in the table is text if diff's binary test
+passes it and other if not, so the two packages agree on what is text. The same
+table gives the content type a file's bytes are served with.
+`mime.TypeByExtension` reads the host's `/etc/mime.types`, so the same binary
+would answer differently on two machines.
 
-**SVG is classified as a page, not an image.** It carries script. Shown through
-an `<img>` element it cannot execute, and that is how a thumbnail renders it,
-but opening it as a document goes through the preview origin like any other
-page.
+**Page is HTML and SVG**, the two formats with a rendering that can carry
+script. HTML renders in the sandboxed frame. SVG renders through an `<img>`
+element, where it cannot execute, so it shows before and after like any other
+image. An SVG that animates by script stands still there, and one opened
+directly is served under the same sandbox as a page.
+
+**A file past 20 MB is not sent to a phone.** At ten megabits a second it takes
+sixteen seconds. The number is a guess written down so it can be corrected.
 
 Syntax highlighting is `alecthomas/chroma/v2`, server side, into the five roles
 the stylesheet defines. Client-side highlighting would ship a second parser to a

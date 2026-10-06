@@ -18,16 +18,6 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// IsMarkdown reports whether a path names a markdown file, by its extension.
-// The case is ignored, so README.MD is markdown as README.md is.
-func IsMarkdown(p string) bool {
-	switch strings.ToLower(path.Ext(p)) {
-	case ".md", ".markdown":
-		return true
-	}
-	return false
-}
-
 // Href writes the address of a project path's page. The path has been through
 // capture.CleanPath already, or is empty for the project's root, which
 // CleanPath refuses since it names no file.
