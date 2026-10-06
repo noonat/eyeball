@@ -1175,6 +1175,12 @@ required_acks:
       a verdict carrying the printed token as the header, and `wait` returning
       both
 
+> **Completed** 2026-10-06 12:31 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.8s
+> - `go test -race ./...` — 25.4s
+
 ## Iteration 5: Commenting and deciding on the page
 
 ```backlog
