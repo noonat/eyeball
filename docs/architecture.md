@@ -44,7 +44,7 @@ migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: app.css, shell.css and the templates
+assets.go             the files the binary embeds: app.css, shell.css, the templates, the TypeScript and htmx
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -382,9 +382,10 @@ needs rather than depending on a package-wide one.
 ## The client code
 
 **TypeScript, compiled by esbuild linked into the binary.** The sources are
-embedded with `//go:embed` and transformed at startup into a bundle held in
-memory. No Node at build time, no Node at run time, no committed bundle to drift
-from its source, and `go install` produces something that works.
+embedded with `//go:embed` and transformed, the first time a page asks for the
+script, into a bundle held in memory. No Node at build time, no Node at run
+time, no committed bundle to drift from its source, and `go install` produces
+something that works.
 
 With htmx taking the interactions, what is left to write is small: registering
 the service worker, asking for notification permission, subscribing to push and
@@ -563,8 +564,6 @@ Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
   said about it. The tailnet name does not answer when the daemon is down.
 - **Whether previews ever need storage**, which is the one thing that would buy
   a second tsnet hostname.
-- **Whether the surface needs a JS build step at all** beyond esbuild's default
-  bundling, which is in [specs/TODO.md](../specs/TODO.md).
 - **The exact CLI surface.** `eyeball doc` is the contract and it is written
   with the CLI, not ahead of it.
 - **Pruning.** How long a decided review is kept, and whether its blobs go with

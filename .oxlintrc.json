@@ -1,0 +1,8 @@
+{
+  "categories": { "correctness": "error", "suspicious": "error" },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error"
+  },
+  "ignorePatterns": ["web/vendor/**"]
+}

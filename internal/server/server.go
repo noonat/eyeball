@@ -231,6 +231,16 @@ var routes = []route{
 		pattern: "GET /static/shell.css",
 		handle:  (*Server).handleShell,
 	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/htmx.js",
+		handle:  (*Server).handleHtmx,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/app.js",
+		handle:  (*Server).handleScript,
+	},
 }
 
 // AgentHandler is the handler for the unix socket.

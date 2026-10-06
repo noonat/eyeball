@@ -230,7 +230,7 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		attack := documentCards(doc)["docs/attack.md"]
 		g.Expect(attack).NotTo(BeNil(), page)
 		elements := findAll(doc, func(n *html.Node) bool {
-			return n.Type == html.ElementNode && (n.Data == "script" || n.Data == "style" || n.Data == "img" || n.Data == "svg" || n.Data == "iframe")
+			return n.Type == html.ElementNode && (n.Data == "script" && !layoutScript(n) || n.Data == "style" || n.Data == "img" || n.Data == "svg" || n.Data == "iframe")
 		})
 		g.Expect(elements).To(BeEmpty(), page)
 		g.Expect(eventAttributes(doc)).To(BeEmpty(), page)
@@ -890,4 +890,11 @@ func hasAttr(n *html.Node, name string) bool {
 		}
 	}
 	return false
+}
+
+// layoutScript reports whether n is one of the two scripts the layout loads in
+// the head, which are the only scripts a page may hold.
+func layoutScript(n *html.Node) bool {
+	src := attr(n, "src")
+	return n.Parent != nil && n.Parent.Data == "head" && (src == "/static/htmx.js" || src == "/static/app.js")
 }

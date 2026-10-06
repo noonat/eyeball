@@ -136,15 +136,10 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.
-- [ ] product: whether the surface should follow a dark device before the write
-      path brings a script. `app.css` switches only on `data-theme`, so it is
-      light until then.
 - [ ] docs: a deployment document, once there is something to deploy and a
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can
       serve `docs/design/` in a dev mode.
-- [ ] tooling: whether the surface needs a JS build step beyond esbuild's
-      default bundling.
 - [ ] tooling: whether the spec-reference rule can be checked. A three-digit
       spec number outside parentheses is mechanical to find. Whether a name sits
       beside it is not.

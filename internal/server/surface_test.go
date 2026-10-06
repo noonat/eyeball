@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -54,6 +55,18 @@ func TestServer_Surface(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/css"))
 	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Shell))
+
+	res = serveSurface(surface, http.MethodGet, "/static/htmx.js")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/javascript"))
+	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Htmx))
+
+	bundle, err := eyeball.Bundle()
+	g.Expect(err).NotTo(HaveOccurred())
+	res = serveSurface(surface, http.MethodGet, "/static/app.js")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/javascript"))
+	g.Expect(res.Body.Bytes()).To(Equal(bundle))
 }
 
 func TestServer_Surface_concurrentPages(t *testing.T) {
@@ -132,6 +145,47 @@ func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {
 	g.Expect(f.store.Close()).To(Succeed())
 	res := serveSurface(f.s.Surface(), http.MethodGet, "/healthz")
 	g.Expect(res.Code).To(Equal(http.StatusInternalServerError))
+}
+
+// The htmx configuration decides what the page can report, so each key is held
+// here. The 422 must swap without counting as an error, or the refusal would
+// be reported twice; every other 4xx and 5xx must count as one, or a failure
+// would pass in silence.
+func TestServer_Surface_htmxConfig(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	doc := f.page(g, "/", http.StatusOK)
+	meta := findAll(doc, func(n *html.Node) bool {
+		return n.Type == html.ElementNode && n.Data == "meta" && attr(n, "name") == "htmx-config"
+	})
+	g.Expect(meta).To(HaveLen(1))
+	var config struct {
+		IncludeIndicatorStyles *bool `json:"includeIndicatorStyles"`
+		AllowEval              *bool `json:"allowEval"`
+		HistoryEnabled         *bool `json:"historyEnabled"`
+		Timeout                int   `json:"timeout"`
+		ResponseHandling       []struct {
+			Code  string `json:"code"`
+			Swap  bool   `json:"swap"`
+			Error *bool  `json:"error"`
+		} `json:"responseHandling"`
+	}
+	g.Expect(json.Unmarshal([]byte(attr(meta[0], "content")), &config)).To(Succeed())
+	g.Expect(config.IncludeIndicatorStyles).To(HaveValue(BeFalse()))
+	g.Expect(config.AllowEval).To(HaveValue(BeFalse()))
+	g.Expect(config.HistoryEnabled).To(HaveValue(BeFalse()))
+	g.Expect(config.Timeout).To(Equal(10000))
+	g.Expect(config.ResponseHandling).To(HaveLen(4))
+	codes := []string{"204", "[23]..", "422", "[45].."}
+	swaps := []bool{false, true, true, false}
+	for i, h := range config.ResponseHandling {
+		g.Expect(h.Code).To(Equal(codes[i]))
+		g.Expect(h.Swap).To(Equal(swaps[i]), h.Code)
+	}
+	g.Expect(config.ResponseHandling[0].Error).To(BeNil())
+	g.Expect(config.ResponseHandling[1].Error).To(BeNil())
+	g.Expect(config.ResponseHandling[2].Error).To(HaveValue(BeFalse()))
+	g.Expect(config.ResponseHandling[3].Error).To(HaveValue(BeTrue()))
 }
 
 func TestServer_Surface_keepsAHandlersOwn404(t *testing.T) {

@@ -25,3 +25,14 @@ var Templates embed.FS
 //
 //go:embed web/static/shell.css
 var Shell []byte
+
+// Scripts is web/ts, the client's TypeScript, which Bundle compiles.
+//
+//go:embed web/ts
+var Scripts embed.FS
+
+// Htmx is the vendored htmx, served as it was released. web/vendor/VERSION
+// names the release and its sha256, which a test holds the file to.
+//
+//go:embed web/vendor/htmx.min.js
+var Htmx []byte

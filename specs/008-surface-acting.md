@@ -904,6 +904,37 @@ fifteen, two, two and thirty days.
   covers `phone-approved`, which asserts a look at the frames on the phone, was
   asked of the owner at this iteration's close.
 
+**Departures, iteration 2.**
+
+- The bundle is built the first time a page asks for `/static/app.js`, not at
+  startup, behind the same `sync.Once`. A daemon started for an agent command
+  never serves a page, and building there would spend the time for nothing.
+  architecture.md now says so.
+- esbuild was already in go.mod as an indirect dependency at v0.19.11, pulled in
+  by a tool. It is now a direct one at v0.28.2. The `go` directive stays at
+  1.26.6.
+- The vendored release's name and hash sit in `web/vendor/VERSION`, and
+  `Test_htmxIsTheVendoredRelease` holds the file to the hash.
+- oxlint runs with the `correctness` and `suspicious` categories as errors and
+  `--deny-warnings`, plus the two promise rules. With no problems it prints
+  nothing and exits 0, which was checked by running it directly.
+- Each new gate failed once on purpose, in a scratch `web/ts/fail.ts` removed
+  afterward. tsc:
+  `fail.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.`,
+  exit 1. oxlint:
+  `fail.ts:4:3: error typescript(no-floating-promises): Promises must be awaited`,
+  exit 1.
+- Headless Chromium follows the desktop's color preference, which on the machine
+  that ran this is dark, so the light screenshot needed
+  `--blink-settings=preferredColorScheme=1`. Under each preference the queue
+  rendered in the matching theme, and no policy violation was logged.
+- The attack test in `TestServer_Surface_reviewDocument` asserted no `script`
+  element anywhere on the page. It now allows the layout's two, in the head with
+  their exact sources, and still fails on any other.
+- No reviewer subagent read this iteration, under the owner's 2026-10-06 change.
+  Mutation testing was not run either, to stay within the usage limit; the
+  gates' deliberate failures above are the evidence they can fail.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1008,28 +1039,28 @@ required_acks:
 
 ## Iteration 2: The client
 
-- [ ] htmx 2.0.11's `htmx.min.js` and `htmx.esm.d.ts` in `web/vendor/` with
+- [x] htmx 2.0.11's `htmx.min.js` and `htmx.esm.d.ts` in `web/vendor/` with
       their version and sha256, and a test holding the script to that hash
-- [ ] `GET /static/htmx.js` serving it, and the layout loading it after an
+- [x] `GET /static/htmx.js` serving it, and the layout loading it after an
       `htmx-config` meta
-- [ ] A test parsing that meta: indicator styles, eval and history off, a 10000
+- [x] A test parsing that meta: indicator styles, eval and history off, a 10000
       ms timeout, and the four `responseHandling` entries in order with their
       `swap` and `error` flags
-- [ ] esbuild v0.28.2 bundling `web/ts` from the binary once into
+- [x] esbuild v0.28.2 bundling `web/ts` from the binary once into
       `GET /static/app.js`, with a test that it builds with no errors or
       warnings
-- [ ] `web/tsconfig.json` with conventions.md's settings, and `tsc` and
+- [x] `web/tsconfig.json` with conventions.md's settings, and `tsc` and
       type-aware oxlint in `make lint` through `npm_config_prefer_offline`
-- [ ] oxfmt covering `*.ts` and skipping `web/vendor/`, with the same setting on
+- [x] oxfmt covering `*.ts` and skipping `web/vendor/`, with the same setting on
       its `npx`
-- [ ] Each new gate failing once on purpose, a type error for tsc and a floating
+- [x] Each new gate failing once on purpose, a type error for tsc and a floating
       promise for oxlint, recorded in this spec
-- [ ] The theme set from `prefers-color-scheme` by the head's script and
+- [x] The theme set from `prefers-color-scheme` by the head's script and
       following a change, with a screenshot under each preference
-- [ ] `web/ts/classes.ts` held to app.css by a Go test
-- [ ] `go install ./cmd/eyeball` serving the bundle, the `go` directive at
+- [x] `web/ts/classes.ts` held to app.css by a Go test
+- [x] `go install ./cmd/eyeball` serving the bundle, the `go` directive at
       1.26.6, and architecture.md's `assets.go` line and esbuild row checked
-- [ ] specs/TODO.md's entries on a dark device and on a build step beyond
+- [x] specs/TODO.md's entries on a dark device and on a build step beyond
       esbuild, and architecture.md's matching open question, removed as answered
 
 ## Iteration 3: Who may act

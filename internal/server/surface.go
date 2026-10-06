@@ -162,3 +162,22 @@ func (s *Server) handleShell(w http.ResponseWriter, _ *http.Request) error {
 	_, _ = w.Write(eyeball.Shell)
 	return nil
 }
+
+// handleHtmx serves the vendored htmx from the binary.
+func (s *Server) handleHtmx(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	_, _ = w.Write(eyeball.Htmx)
+	return nil
+}
+
+// handleScript serves the client's bundle. A bundle that failed to build is a
+// 500 and a log line, so a page still renders without its script.
+func (s *Server) handleScript(w http.ResponseWriter, _ *http.Request) error {
+	js, err := eyeball.Bundle()
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	_, _ = w.Write(js)
+	return nil
+}
