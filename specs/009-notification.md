@@ -249,6 +249,12 @@ required_acks:
 - `POST /subscriptions` takes at most 4096 bytes. Its endpoint must be `https`,
   or `http` on 127.0.0.1, which only a test's stand-in push service uses.
 
+> **Completed** 2026-10-06 18:42 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.4s
+> - `go test -race ./...` — 29.4s
+
 ## Iteration 4: Sending
 
 - [ ] A request sending one push to every active subscription, from a goroutine
