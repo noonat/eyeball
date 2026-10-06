@@ -47,20 +47,26 @@
 </div>
 {{end}}{{end}}
 {{define "file"}}<details class="file" data-path="{{.Path}}"{{if .Open}} open{{end}}>
-<summary><span class="path"><bdi>{{.Path}}</bdi></span>{{if not .Unmeasured}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>{{end}}</summary>
+<summary><span class="path"><bdi>{{.Path}}</bdi></span>{{if not .Unmeasured}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>{{end}}{{if .IsDocument}}<a class="fileopen" href="{{.RawDiff}}" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a>{{else}}<a class="fileopen" href="{{.Whole}}" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a>{{end}}</summary>
 {{if .Deleted}}<div class="toobig">Deleted as of this round.</div>
 {{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
 {{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
-{{else}}{{template "code" .Diff.Rows}}{{end}}{{with .List}}{{template "commentlist" .}}{{else}}{{range .Comments}}{{template "comment" .}}{{end}}{{end}}{{with .Slot}}<div id="{{.}}"></div>
-{{end}}<div class="filelinks">{{if .IsDocument}}<a class="btn small" href="{{.RawDiff}}">Raw diff</a>{{else}}<a class="btn small" href="{{.Whole}}">Whole file</a>{{end}}</div>
-</details>
+{{else if .List}}{{template "reviewcode" .}}{{else}}{{template "code" .Diff.Rows}}{{end}}{{with .List}}{{template "commentlist" .}}{{else}}{{range .Comments}}{{template "comment" .}}{{end}}{{end}}{{with .Slot}}<div id="{{.}}"></div>
+{{end}}</details>
 {{end}}
 {{define "code"}}<div class="code narrow">
 <table>
 {{range .}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
 {{else}}<tr{{with .Class}} class="{{.}}"{{end}}{{if eq .Class "del"}} data-old="{{.Number}}"{{else}} data-line="{{.Number}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
 {{end}}{{end}}</table>
+</div>
+{{end}}
+{{define "reviewcode"}}{{$threads := .Threads}}<div class="code narrow">
+<table>
+{{range .Diff.Rows}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
+{{else}}<tr{{with .Class}} class="{{.}}"{{end}}{{if eq .Class "del"}} data-old="{{.Number}}"{{else}} data-line="{{.Number}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
+{{if ne .Class "del"}}{{with index $threads .Number}}{{template "thread" .}}{{end}}{{end}}{{end}}{{end}}</table>
 </div>
 {{end}}
 {{define "segment"}}{{if .Mark}}<span class="w">{{if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}</span>{{else if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}

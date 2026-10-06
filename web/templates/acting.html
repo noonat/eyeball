@@ -27,7 +27,11 @@
 </div>
 </form>
 {{end}}
-{{define "composer"}}{{if .Slot}}<div class="filecomposer" id="{{.Slot}}">{{end}}<form class="composer" hx-post="{{.Action}}" hx-target="{{.Target}}" hx-swap="outerHTML">
+{{define "composer"}}{{if .ThreadID}}<tr class="thread" id="{{.ThreadID}}"><td colspan="3"><div class="thread-body">
+{{range .Cards}}{{template "card" .}}{{end}}{{template "composerform" .}}</div></td></tr>
+{{else if .Slot}}<div class="filecomposer" id="{{.Slot}}">{{template "composerform" .}}</div>
+{{else}}{{template "composerform" .}}{{end}}{{end}}
+{{define "composerform"}}<form class="composer" hx-post="{{.Action}}" hx-target="{{.Target}}" hx-swap="outerHTML">
 <input type="hidden" name="round" value="{{.Round}}">
 <input type="hidden" name="level" value="{{.Level}}">
 {{with .Path}}<input type="hidden" name="path" value="{{.}}">
@@ -41,7 +45,10 @@
 <div class="foot">
 {{if .Chips}}<span class="levels">{{range .Chips}}<button type="button" class="chip" data-level="{{.Level}}" data-target="{{.Target}}" aria-pressed="{{.Pressed}}">{{.Label}}</button>{{end}}</span>
 {{else}}<span class="hint">{{.Hint}}</span>
-{{end}}<button type="submit" class="btn small accent">{{.Button}}</button>
+{{end}}<span class="acts">{{if or .ThreadID .Slot}}<button type="button" class="btn small ghost" data-cancel><span class="i i-x" aria-hidden="true"></span>Cancel</button>{{end}}<button type="submit" class="btn small accent">{{.Button}}</button></span>
 </div>
 </form>
-{{if .Slot}}</div>{{end}}{{end}}
+{{end}}
+{{define "thread"}}<tr class="thread" id="{{.ID}}"><td colspan="3"><div class="thread-body">
+{{range .Cards}}{{template "card" .}}{{end}}</div></td></tr>
+{{end}}

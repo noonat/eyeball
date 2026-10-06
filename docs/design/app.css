@@ -1512,19 +1512,6 @@ details.blk.changed[open] > summary > .cue-hide {
   border-top: 1px solid var(--line);
 }
 
-/* The way out of a card to the file's own page: "Whole file" for code, "Raw
- * diff" for a rendered document. It sits at the foot, where reading the card
- * ends, so the summary keeps its whole width for the path, which already
- * truncates on a phone. */
-.filelinks {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--line);
-  background: var(--panel-2);
-}
-
 /* -------------------------------------------------------------- buttons */
 
 .btn {

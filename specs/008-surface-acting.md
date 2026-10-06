@@ -1075,6 +1075,32 @@ with the `review:` entry's list as its start.
   fragment is rendered from a clone of the template set, as pages are, so no
   execution touches the shared one.
 
+**Departures, iteration 8.**
+
+- A tap's composer for a line arrives as the line's whole row: the comments
+  already on that line and the form beneath them. It replaces the row when the
+  line has one and is inserted after the line when it does not. A stored line
+  comment answers with the row, holding every comment on the line, which
+  replaces it. Cancel, a send moved to another level, and a deleted last comment
+  each leave no empty row behind.
+- A removed row's composer opens in a row under it too, though its comment is
+  file-level and goes to the file's list. A binary or too-large file's line has
+  no row to open under, so it still fills the file's slot.
+- A line comment whose line the diff does not show stays in the file's list.
+- htmx fires `afterRequest` on the element that sent the request, and a line
+  comment's answer replaces the row that held its form, so the event fires on a
+  detached form and never reaches the document. The client clears the line's
+  outline after any swap that leaves no composer open, which the browser test
+  caught.
+- An edit form in a row is a `form.composer` too, so the selector for an
+  anchored composer names `hx-post`, and tapping another line never closes an
+  edit in progress.
+- `.filelinks` is gone from app.css, since no tearout or template uses it after
+  iteration 7.
+- Fragment tests parse an answer that starts with a row inside a table, since an
+  HTML parser drops a `tr` outside one.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1411,15 +1437,15 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] A line's comments rendered in a `tr.thread` row under their line on the
+- [x] A line's comments rendered in a `tr.thread` row under their line on the
       review page, and the composer a tap opens inserted as such a row
-- [ ] Cancel closing the anchored composer and dropping the line's outline,
+- [x] Cancel closing the anchored composer and dropping the line's outline,
       keeping nothing it held
-- [ ] A comment's answer replacing that line's row, so it appears under its
+- [x] A comment's answer replacing that line's row, so it appears under its
       line, with file-level comments where they were
-- [ ] The file card's header carrying the icon link, and the footer gone from
+- [x] The file card's header carrying the icon link, and the footer gone from
       the template
-- [ ] Browser tests: a comment added under its line and found there after a
+- [x] Browser tests: a comment added under its line and found there after a
       reload, Cancel closing the composer, and the header link opening the file
       page
 

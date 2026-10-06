@@ -98,9 +98,13 @@ type composerView struct {
 	Placeholder string
 	// Hint is the line beside the button, and Button what the button reads.
 	Hint, Button string
-	// Slot is the element id of the slot a tapped line's composer fills, and
-	// empty for the review's own box.
+	// Slot is the element id of the slot a composer fills for an anchor with
+	// no row, such as a binary file's line, and empty otherwise.
 	Slot string
+	// ThreadID is the id of the row under a line the composer opens in, and
+	// Cards the comments already on that line, which the row keeps showing.
+	ThreadID string
+	Cards    []cardView
 }
 
 // chipView is one level a composer's text can be sent to.
@@ -142,6 +146,9 @@ func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) error 
 	stored, err := s.db.AddComment(ctx, nc)
 	if err != nil {
 		return err
+	}
+	if stored.Level == store.LevelLine {
+		return s.answerThread(ctx, w, review, round, stored.Path, stored.StartLine)
 	}
 	return s.answerList(ctx, w, review, round, listID(stored.Level, stored.Path))
 }
@@ -377,6 +384,15 @@ func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
 		plain(w, http.StatusBadRequest, notThisForm)
 		return nil
 	}
+	if c.Level == string(store.LevelLine) {
+		round, err := s.db.s.Round(r.Context(), review.ID, number)
+		if err != nil {
+			return err
+		}
+		if c.Cards, err = s.lineCards(r.Context(), review, round, c.Path, start); err != nil {
+			return err
+		}
+	}
 	return s.fragments(w, http.StatusOK, fragment{name: "composer", data: c})
 }
 
@@ -395,7 +411,12 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 		Hint:    "Saved as you type",
 		Button:  "Add",
 	}
-	if level != store.LevelReview {
+	switch {
+	case level == store.LevelLine:
+		c.ThreadID = threadID(path, start)
+	case level == store.LevelFile && old != 0:
+		c.ThreadID = fmt.Sprintf("thread-%s-o%d", pathKey(path), old)
+	case level != store.LevelReview:
 		c.Slot = slotID(path)
 	}
 	fileList := "#" + listID(store.LevelFile, path)
@@ -425,7 +446,7 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 		}
 		c.End = start
 		c.Anchor, c.Placeholder = fmt.Sprintf("%s:%d", path, start), fmt.Sprintf("Comment on line %d…", start)
-		c.Chips = []chipView{{Level: string(store.LevelLine), Label: fmt.Sprintf("Line %d", start), Target: fileList, Pressed: true}, file, review}
+		c.Chips = []chipView{{Level: string(store.LevelLine), Label: fmt.Sprintf("Line %d", start), Target: "#" + c.ThreadID, Pressed: true}, file, review}
 	case store.LevelPassage:
 		if path == "" || start == 0 || end < start || old != 0 {
 			return c, false
@@ -436,6 +457,9 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 		return c, false
 	}
 	c.Target = "#" + listID(level, path)
+	if level == store.LevelLine {
+		c.Target = "#" + c.ThreadID
+	}
 	return c, true
 }
 
@@ -550,6 +574,47 @@ func (s *Server) answerList(ctx context.Context, w http.ResponseWriter, review s
 	return s.fragments(w, http.StatusOK, parts...)
 }
 
+// answerThread answers a stored line comment with the row under its line,
+// holding every comment on that line, and the tally beside it.
+func (s *Server) answerThread(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, path string, line int) error {
+	cards, err := s.lineCards(ctx, review, round, path, line)
+	if err != nil {
+		return err
+	}
+	parts := []fragment{{name: "thread", data: threadView{ID: threadID(path, line), Cards: cards}}}
+	open, _, err := s.roundOpen(ctx, review, round)
+	if err != nil {
+		return err
+	}
+	if open {
+		comments, err := s.db.s.Comments(ctx, round.ID)
+		if err != nil {
+			return err
+		}
+		parts = append(parts, fragment{name: "tally", data: tallyView{Count: len(comments), OOB: true}})
+	}
+	return s.fragments(w, http.StatusOK, parts...)
+}
+
+// lineCards reads the comments on one line of a file as of a round.
+func (s *Server) lineCards(ctx context.Context, review store.Review, round store.Round, path string, line int) ([]cardView, error) {
+	comments, err := s.db.s.Comments(ctx, round.ID)
+	if err != nil {
+		return nil, err
+	}
+	open, decided, err := s.roundOpen(ctx, review, round)
+	if err != nil {
+		return nil, err
+	}
+	var out []cardView
+	for _, c := range comments {
+		if c.Level == store.LevelLine && c.Path == path && c.StartLine == line {
+			out = append(out, cardOf(review.ID, c, open, decided))
+		}
+	}
+	return out, nil
+}
+
 // card reads one comment as its card.
 func (s *Server) card(ctx context.Context, review store.Review, id int64) (cardView, error) {
 	c, number, err := s.db.s.Comment(ctx, id)
@@ -616,13 +681,24 @@ func listID(level store.Level, path string) string {
 	if level == store.LevelReview || path == "" {
 		return "comments-review"
 	}
+	return "comments-" + pathKey(path)
+}
+
+// pathKey is a short hash of a path for element ids, which a path may hold
+// characters an id selector cannot carry without escaping.
+func pathKey(path string) string {
 	sum := sha256.Sum256([]byte(path))
-	return "comments-" + hex.EncodeToString(sum[:6])
+	return hex.EncodeToString(sum[:6])
+}
+
+// threadID is the element id of the row under a line, hashed as listID is.
+func threadID(path string, line int) string {
+	return fmt.Sprintf("thread-%s-%d", pathKey(path), line)
 }
 
 // slotID is the element id of a file's composer slot, hashed as listID is.
 func slotID(path string) string {
-	return "slot-" + strings.TrimPrefix(listID(store.LevelFile, path), "comments-")
+	return "slot-" + pathKey(path)
 }
 
 // commentsHref is where a comment posts, and decisionHref where a verdict

@@ -65,7 +65,7 @@ func TestServer_Surface_addComment(t *testing.T) {
 		where  string
 		quoted string
 	}{
-		{name: "a line", form: url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"2"}}, list: listID(store.LevelLine, "a.txt"), where: "a.txt:2", quoted: "two"},
+		{name: "a line", form: url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"2"}}, list: threadID("a.txt", 2), where: "a.txt:2", quoted: "two"},
 		{name: "a passage", form: url.Values{"level": {"passage"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}}, list: listID(store.LevelPassage, "a.txt"), where: "a.txt:1–2", quoted: "one two"},
 		{name: "a file", form: url.Values{"level": {"file"}, "path": {"a.txt"}}, list: listID(store.LevelFile, "a.txt"), where: "a.txt"},
 		{name: "a removed line, read from the base", form: url.Values{"level": {"file"}, "path": {"a.txt"}, "oldline": {"1"}}, list: listID(store.LevelFile, "a.txt"), where: "a.txt", quoted: "one"},
@@ -80,7 +80,7 @@ func TestServer_Surface_addComment(t *testing.T) {
 			c.form.Set("body", "A point.")
 			res := sendForm(f.s.Surface(), http.MethodPost, "/reviews/"+itoa(id)+"/comments", c.form, true)
 			g.Expect(res.Code).To(Equal(http.StatusOK), res.Body.String())
-			doc := parse(g, res.Body.String())
+			doc := parseFragment(g, res.Body.String())
 			list := byID(doc, c.list)
 			g.Expect(list).NotTo(BeNil())
 			cards := findAll(list, hasClass("comment"))
@@ -105,7 +105,7 @@ func TestServer_Surface_addCommentLate(t *testing.T) {
 	res := sendForm(f.s.Surface(), http.MethodPost, "/reviews/"+itoa(id)+"/comments", url.Values{"round": {"1"}, "level": {"review"}, "body": {"One more thing."}}, true)
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	g.Expect(res.Header().Get("HX-Refresh")).To(BeEmpty(), "text may be on the page, so nothing reloads it")
-	doc := parse(g, res.Body.String())
+	doc := parseFragment(g, res.Body.String())
 	card := find(byID(doc, "comments-review"), "comment")
 	g.Expect(text(find(card, "anchor"))).To(Equal("This reviewafter the verdict"))
 	g.Expect(find(card, "acts")).To(BeNil(), "a released comment cannot change")
@@ -160,7 +160,7 @@ func TestServer_Surface_addCommentRepeated(t *testing.T) {
 	for range 2 {
 		res := sendForm(f.s.Surface(), http.MethodPost, "/reviews/"+itoa(id)+"/comments", form, true)
 		g.Expect(res.Code).To(Equal(http.StatusOK))
-		g.Expect(findAll(byID(parse(g, res.Body.String()), "comments-review"), hasClass("comment"))).To(HaveLen(1))
+		g.Expect(findAll(byID(parseFragment(g, res.Body.String()), "comments-review"), hasClass("comment"))).To(HaveLen(1))
 	}
 }
 
@@ -173,11 +173,11 @@ func TestServer_Surface_comment(t *testing.T) {
 
 	res := serveSurface(f.s.Surface(), http.MethodGet, path)
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	g.Expect(attr(find(parse(g, res.Body.String()), "comment"), "id")).To(Equal("comment-" + itoa(c.ID)))
+	g.Expect(attr(find(parseFragment(g, res.Body.String()), "comment"), "id")).To(Equal("comment-" + itoa(c.ID)))
 
 	res = serveSurface(f.s.Surface(), http.MethodGet, path+"?edit=1")
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	form := find(parse(g, res.Body.String()), "composer")
+	form := find(parseFragment(g, res.Body.String()), "composer")
 	g.Expect(attr(form, "hx-put")).To(Equal(path))
 	g.Expect(text(findAll(form, isElement("textarea"))[0])).To(Equal("First."))
 
@@ -192,9 +192,11 @@ func TestServer_Surface_composer(t *testing.T) {
 	id := actingReview(g, t, f)
 	res := serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/composer?round=1&level=line&path=a.txt&start=2")
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	form := find(parse(g, res.Body.String()), "composer")
+	form := find(parseFragment(g, res.Body.String()), "composer")
 	g.Expect(attr(form, "hx-post")).To(Equal("/reviews/" + itoa(id) + "/comments"))
-	g.Expect(attr(form, "hx-target")).To(Equal("#" + listID(store.LevelLine, "a.txt")))
+	g.Expect(attr(form, "hx-target")).To(Equal("#" + threadID("a.txt", 2)))
+	g.Expect(form.Parent.Data).To(Equal("div"), "a line's composer opens in the row under the line")
+	g.Expect(attr(find(parseFragment(g, res.Body.String()), "thread"), "id")).To(Equal(threadID("a.txt", 2)))
 	g.Expect(text(find(form, "anchor"))).To(Equal("a.txt:2"))
 	var chips []string
 	for _, c := range findAll(form, hasClass("chip")) {
@@ -217,7 +219,7 @@ func TestServer_Surface_decide(t *testing.T) {
 	// A change request with nothing in it is the bar again, the note as sent.
 	res := sendForm(f.s.Surface(), http.MethodPost, path, url.Values{"round": {"1"}, "verdict": {"changes"}, "note": {"  "}}, true)
 	g.Expect(res.Code).To(Equal(http.StatusUnprocessableEntity))
-	bar := find(parse(g, res.Body.String()), "decide")
+	bar := find(parseFragment(g, res.Body.String()), "decide")
 	g.Expect(text(find(bar, "notice"))).To(HavePrefix("Requesting changes needs something to act on."))
 	g.Expect(findAll(bar, isElement("textarea"))).To(HaveLen(1))
 	g.Expect(res.Body.String()).To(ContainSubstring(`placeholder="A note with the verdict…">  </textarea>`), "the note comes back as it was sent")
@@ -253,7 +255,7 @@ func TestServer_Surface_editAndDeleteComment(t *testing.T) {
 
 	res := sendForm(f.s.Surface(), http.MethodPut, path, url.Values{"body": {"Edited."}}, true)
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	g.Expect(text(findAll(find(parse(g, res.Body.String()), "comment"), isElement("p"))[0])).To(Equal("Edited."))
+	g.Expect(text(findAll(find(parseFragment(g, res.Body.String()), "comment"), isElement("p"))[0])).To(Equal("Edited."))
 
 	other := actingReview(g, t, f)
 	res = sendForm(f.s.Surface(), http.MethodPut, "/reviews/"+itoa(other)+"/comments/"+itoa(c.ID), url.Values{"body": {"Hijacked."}}, true)
@@ -263,7 +265,7 @@ func TestServer_Surface_editAndDeleteComment(t *testing.T) {
 
 	res = sendForm(f.s.Surface(), http.MethodDelete, path, nil, true)
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	g.Expect(text(byID(parse(g, res.Body.String()), "tally"))).To(Equal("1 commentReady to send"))
+	g.Expect(text(byID(parseFragment(g, res.Body.String()), "tally"))).To(Equal("1 commentReady to send"))
 	res = sendForm(f.s.Surface(), http.MethodDelete, path, nil, true)
 	g.Expect(res.Code).To(Equal(http.StatusOK), "a comment already gone is gone")
 
@@ -304,4 +306,16 @@ func byID(n *html.Node, id string) *html.Node {
 		return nil
 	}
 	return found[0]
+}
+
+// parseFragment parses an answer as the page receives it. A row under a line
+// is a tr, which an HTML parser drops outside a table, so an answer that starts
+// with one is parsed inside a table. Anything after the row, such as the tally,
+// is moved before the table by the parser and is still found.
+func parseFragment(g *WithT, body string) *html.Node {
+	g.THelper()
+	if !strings.HasPrefix(body, "<tr") {
+		return parse(g, body)
+	}
+	return parse(g, "<table><tbody>"+body+"</tbody></table>")
 }

@@ -163,7 +163,9 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	forms := findAll(doc, isElement("form"))
 	g.Expect(forms).To(HaveLen(1), "a decided round keeps one box, for a late comment")
 	g.Expect(text(find(forms[0], "foot"))).To(Equal("Sends immediately Send"))
-	g.Expect(find(doc, "acts")).To(BeNil(), "released comments cannot change")
+	for _, c := range findAll(doc, hasClass("comment")) {
+		g.Expect(find(c, "acts")).To(BeNil(), "released comments cannot change")
+	}
 	g.Expect(text(doc)).NotTo(ContainSubstring("What was done"), "nothing has been answered yet")
 
 	// An approved round is the last, so a reply the agent writes to it can
@@ -206,9 +208,9 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"added: Added at the end.",
 	}))
 	g.Expect(findAll(find(cards["docs/product.md"], "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
-	links := find(cards["docs/product.md"], "filelinks")
-	g.Expect(text(links)).To(Equal("Raw diff"))
-	g.Expect(attr(find(links, "btn"), "href")).To(Equal(base + "/files/docs/product.md?view=source"))
+	link := find(cards["docs/product.md"], "fileopen")
+	g.Expect(attr(link, "aria-label")).To(Equal("Raw diff"))
+	g.Expect(attr(link, "href")).To(Equal(base + "/files/docs/product.md?view=source"))
 
 	// The whole review compares with the base, which held the heading alone,
 	// and every link keeps that comparison.
@@ -222,7 +224,7 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"added: Kept two.",
 		"added: Added at the end.",
 	}))
-	g.Expect(attr(find(find(cards["docs/product.md"], "filelinks"), "btn"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
+	g.Expect(attr(find(cards["docs/product.md"], "fileopen"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
 
 	// The attack corpus leaves no script, no style, no image and no event
 	// attribute anywhere on the page, and every link it kept stays inside the
@@ -432,7 +434,7 @@ func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
 	got := map[string]string{}
 	for _, file := range findAll(doc, hasClass("file")) {
-		got[text(find(file, "path"))] = text(find(file, "toobig")) + " " + text(find(file, "filelinks"))
+		got[text(find(file, "path"))] = text(find(file, "toobig")) + " " + attr(find(file, "fileopen"), "aria-label")
 		g.Expect(find(file, "code")).To(BeNil())
 		g.Expect(find(file, "prose")).To(BeNil())
 	}

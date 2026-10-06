@@ -46,45 +46,70 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(b.eval(g, `localStorage.getItem("eyeball:token")`)).To(Equal(browserToken))
 	g.Expect(seen.lines()).NotTo(ContainElement(ContainSubstring(browserToken)), "the token reached a request line or a Referer")
 
-	// A tap on a line opens the composer for it, and Add stores the comment.
-	list := listID(store.LevelFile, "a.txt")
-	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
-	b.waitFor(g, `!!document.querySelector(".filecomposer textarea")`)
+	// A tap on a line opens the composer in a row under it, and Add stores
+	// the comment there.
+	line2 := `document.querySelector("details.file tr[data-line='2']")`
+	thread := line2 + `.nextElementSibling`
+	b.eval(g, line2+`.click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	g.Expect(b.eval(g, thread+`.matches("tr.thread")`)).To(BeTrue(), "the composer opens under its line")
 	g.Expect(b.eval(g, `document.querySelector("tr.sel").dataset.line`)).To(Equal("2"))
-	b.typeInto(g, ".filecomposer textarea", "Why two?")
-	b.eval(g, `document.querySelector(".filecomposer button[type=submit]").click()`)
-	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment").length === 1`, list))
-	b.waitFor(g, `!document.querySelector(".filecomposer")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, thread+`?.querySelectorAll(".comment").length === 1`)
+	b.waitFor(g, `!document.querySelector("tr.thread form.composer")`)
+	g.Expect(b.eval(g, `document.querySelectorAll("tr.sel").length`)).To(BeEquivalentTo(0))
 	g.Expect(b.eval(g, `document.getElementById("tally").textContent`)).To(Equal("1 commentReady to send"))
 	comments := f.comments(g, t, round)
 	g.Expect(comments).To(HaveLen(1))
 	g.Expect(comments[0].Quoted).To(Equal("two"))
 
-	// Edit swaps the card for its form, and Save stores the new body.
-	b.eval(g, fmt.Sprintf(`document.querySelector("#%s .acts a").click()`, list))
-	b.waitFor(g, fmt.Sprintf(`!!document.querySelector("#%s form.composer textarea")`, list))
-	b.typeInto(g, fmt.Sprintf("#%s form.composer textarea", list), "Why two lines?")
-	b.eval(g, fmt.Sprintf(`document.querySelector("#%s form.composer button[type=submit]").click()`, list))
-	b.waitFor(g, fmt.Sprintf(`document.querySelector("#%s .comment p")?.textContent === "Why two lines?"`, list))
+	// The comment is still under its line after a reload.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	g.Expect(b.eval(g, thread+`.querySelector(".comment p").textContent`)).To(Equal("Why two?"))
+
+	// Edit swaps the card for its form in the row, and Save stores the new
+	// body.
+	b.eval(g, thread+`.querySelector(".acts a").click()`)
+	b.waitFor(g, thread+`.querySelector("form.composer textarea") !== null`)
+	b.eval(g, `(() => { const f = `+thread+`.querySelector("form.composer textarea"); f.value = "Why two lines?"; f.dispatchEvent(new Event("input", { bubbles: true })); })()`)
+	b.eval(g, thread+`.querySelector("form.composer button[type=submit]").click()`)
+	b.waitFor(g, thread+`.querySelector(".comment p")?.textContent === "Why two lines?"`)
 	g.Expect(f.comments(g, t, round)[0].Body).To(Equal("Why two lines?"))
 
-	// Delete removes it, and the tally follows.
-	b.eval(g, fmt.Sprintf(`document.querySelectorAll("#%s .acts a")[1].click()`, list))
-	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment").length === 0`, list))
+	// Delete removes it, the row goes with its last comment, and the tally
+	// follows.
+	b.eval(g, thread+`.querySelectorAll(".acts a")[1].click()`)
+	b.waitFor(g, `!`+thread+`?.matches("tr.thread")`)
 	b.waitFor(g, `document.getElementById("tally").textContent === "No comments yet"`)
 	g.Expect(f.comments(g, t, round)).To(BeEmpty())
 
+	// Cancel closes the composer and keeps nothing it held.
+	b.eval(g, line2+`.click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Never mind")
+	b.eval(g, `document.querySelector("tr.thread form.composer [data-cancel]").click()`)
+	g.Expect(b.eval(g, `document.querySelectorAll("tr.thread").length`)).To(BeEquivalentTo(0))
+	g.Expect(b.eval(g, `document.querySelectorAll("tr.sel").length`)).To(BeEquivalentTo(0))
+	g.Expect(b.eval(g, `document.getElementById("unsaved").hidden`)).To(BeTrue())
+
 	// The chips move the same text to the file without a request, and the
 	// form then sends only what a file-level comment takes.
+	list := listID(store.LevelFile, "a.txt")
 	b.eval(g, `document.querySelector("details.file tr[data-line='1']").click()`)
-	b.waitFor(g, `!!document.querySelector(".filecomposer textarea")`)
-	b.typeInto(g, ".filecomposer textarea", "About the whole file.")
-	b.eval(g, `document.querySelector(".filecomposer .chip[data-level=file]").click()`)
-	g.Expect(b.eval(g, `document.querySelector(".filecomposer input[name=start]").disabled`)).To(BeTrue())
-	g.Expect(b.eval(g, `document.querySelector(".filecomposer textarea").value`)).To(Equal("About the whole file."))
-	b.eval(g, `document.querySelector(".filecomposer button[type=submit]").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "About the whole file.")
+	b.eval(g, `document.querySelector("tr.thread form.composer .chip[data-level=file]").click()`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer input[name=start]").disabled`)).To(BeTrue())
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
 	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment").length === 1`, list))
+	b.waitFor(g, `document.querySelectorAll("tr.thread").length === 0`)
 	g.Expect(f.comments(g, t, round)[0].Level).To(Equal(store.LevelFile))
+
+	// The header's link opens the file's own page without toggling the card.
+	b.eval(g, `document.querySelector("details.file .fileopen").click()`)
+	b.waitFor(g, `location.pathname === "/reviews/`+itoa(id)+`/files/a.txt" && document.readyState === "complete"`)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
 
 	// The review's own box is always on an open round.
 	b.typeInto(g, ".page > form.composer textarea", "Overall fine.")

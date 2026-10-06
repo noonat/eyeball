@@ -549,7 +549,7 @@ func TestServer_Surface_fileEscapedNames(t *testing.T) {
 	// page naming the whole file, not a prefix cut short at a # or a ?.
 	links := map[string]string{}
 	for _, file := range findAll(f.page(g, "/reviews/"+itoa(id), http.StatusOK), hasClass("file")) {
-		links[text(find(file, "path"))] = attr(find(find(file, "filelinks"), "btn"), "href")
+		links[text(find(file, "path"))] = attr(find(file, "fileopen"), "href")
 	}
 	g.Expect(links).To(Equal(map[string]string{
 		"a#b.txt":          "/reviews/" + itoa(id) + "/files/a%23b.txt",
@@ -797,10 +797,10 @@ func TestServer_Surface_reviewWholeFileLink(t *testing.T) {
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {
 			g := NewWithT(t)
-			link := find(find(f.page(g, c.page, http.StatusOK), "file"), "filelinks")
-			g.Expect(text(link)).To(Equal("Whole file"))
-			g.Expect(attr(find(link, "btn"), "href")).To(Equal(c.want))
-			g.Expect(hasClass("small")(find(link, "btn"))).To(BeTrue())
+			link := find(find(f.page(g, c.page, http.StatusOK), "file"), "fileopen")
+			g.Expect(attr(link, "aria-label")).To(Equal("Whole file"))
+			g.Expect(attr(link, "href")).To(Equal(c.want))
+			g.Expect(link.Parent.Data).To(Equal("summary"), "the link sits in the card's header")
 		})
 	}
 }

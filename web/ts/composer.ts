@@ -27,6 +27,12 @@ export function openComposers(): void {
       switchLevel(chip);
       return;
     }
+    if (target?.closest(".composer [data-cancel]")) {
+      closeAnchored();
+      clearSelection();
+      updateGuard();
+      return;
+    }
     const at = acting();
     const file = target?.closest<HTMLElement>("details.file[data-path]");
     if (at === null || file === null || file === undefined) {
@@ -63,25 +69,33 @@ async function anchor(
   query: Record<string, string>,
 ): Promise<void> {
   const typed = closeAnchored();
-  for (const sel of document.querySelectorAll(`tr.${classes.sel}`)) {
-    sel.classList.remove(classes.sel);
-  }
+  clearSelection();
   row?.classList.add(classes.sel);
-  const slot = file.querySelector<HTMLElement>("[id^='slot-']");
-  if (slot === null) {
-    return;
-  }
   const params = new URLSearchParams({ round: at.round, ...query });
-  await htmx.ajax(
-    "get",
-    `/reviews/${at.review}/composer?${params.toString()}`,
-    {
-      target: slot,
-      swap: "outerHTML",
-    },
+  const url = `/reviews/${at.review}/composer?${params.toString()}`;
+  // A line's composer opens in the row under the line, replacing the row its
+  // comments already sit in, or inserted after the line when it has none.
+  // Anything else fills the file's slot.
+  let opened: Element | null = null;
+  if (row) {
+    const thread = row.nextElementSibling;
+    if (thread?.matches("tr.thread") === true) {
+      await htmx.ajax("get", url, { target: thread, swap: "outerHTML" });
+    } else {
+      await htmx.ajax("get", url, { target: row, swap: "afterend" });
+    }
+    opened = row.nextElementSibling;
+  } else {
+    const slot = file.querySelector<HTMLElement>("[id^='slot-']");
+    if (slot === null) {
+      return;
+    }
+    await htmx.ajax("get", url, { target: slot, swap: "outerHTML" });
+    opened = document.getElementById(slot.id);
+  }
+  const field = opened?.querySelector<HTMLTextAreaElement>(
+    "form.composer textarea",
   );
-  const opened = document.getElementById(slot.id);
-  const field = opened?.querySelector<HTMLTextAreaElement>("textarea");
   if (field && typed !== "") {
     field.value = typed;
   }
@@ -90,20 +104,44 @@ async function anchor(
   updateGuard();
 }
 
+function clearSelection(): void {
+  for (const sel of document.querySelectorAll(`tr.${classes.sel}`)) {
+    sel.classList.remove(classes.sel);
+  }
+}
+
+// anchoredForm finds a composer opened at a line or a file, rather than the
+// review's own box or a comment's edit form.
+const anchoredForm =
+  "tr.thread form.composer[hx-post], .filecomposer[id^='slot-'] form.composer";
+
 // closeAnchored puts an anchored composer's slot back empty and returns what
 // it held.
 function closeAnchored(): string {
-  const open = document.querySelector<HTMLElement>(
-    ".filecomposer[id^='slot-']",
-  );
-  if (open === null) {
+  const form = document.querySelector<HTMLFormElement>(anchoredForm);
+  if (form === null) {
     return "";
   }
-  const typed = open.querySelector("textarea")?.value ?? "";
-  const slot = document.createElement("div");
-  slot.id = open.id;
-  open.replaceWith(slot);
+  const typed = form.querySelector("textarea")?.value ?? "";
+  const slot = form.closest<HTMLElement>(".filecomposer[id^='slot-']");
+  if (slot) {
+    const empty = document.createElement("div");
+    empty.id = slot.id;
+    slot.replaceWith(empty);
+    return typed;
+  }
+  const thread = form.closest("tr.thread");
+  form.remove();
+  dropEmptyThread(thread);
   return typed;
+}
+
+// dropEmptyThread removes a line's row once nothing is left in it, so a line
+// with no comments carries no empty row.
+function dropEmptyThread(thread: Element | null): void {
+  if (thread?.querySelector(".thread-body")?.childElementCount === 0) {
+    thread.remove();
+  }
 }
 
 // switchLevel moves the composer's text to another level without a request:
@@ -169,11 +207,14 @@ export function settleComposers(): void {
       updateGuard();
       return;
     }
-    if (form.closest(".filecomposer[id^='slot-']")) {
+    // A line comment's answer replaces the row the form was in, so a form no
+    // longer on the page was an anchored one too.
+    if (
+      !form.isConnected ||
+      form.closest(".filecomposer[id^='slot-'], tr.thread")
+    ) {
       closeAnchored();
-      for (const sel of document.querySelectorAll(`tr.${classes.sel}`)) {
-        sel.classList.remove(classes.sel);
-      }
+      clearSelection();
     } else {
       const field = form.querySelector("textarea");
       const key = form.querySelector<HTMLInputElement>(
@@ -225,7 +266,19 @@ function updateGuard(): void {
 // verdict sent while it holds. aria-disabled does not stop a button.
 export function guardVerdicts(): void {
   document.addEventListener("input", updateGuard);
-  document.addEventListener("htmx:afterSwap", updateGuard);
+  // A line comment's answer replaces the row its form was in, so htmx's
+  // afterRequest for it fires on a detached form and never reaches the
+  // document. The outline matters only while a composer is open, so every
+  // swap clears it once none is.
+  document.addEventListener("htmx:afterSwap", () => {
+    for (const thread of document.querySelectorAll("tr.thread")) {
+      dropEmptyThread(thread);
+    }
+    if (document.querySelector(anchoredForm) === null) {
+      clearSelection();
+    }
+    updateGuard();
+  });
   document.addEventListener("htmx:beforeRequest", (event) => {
     if (eltOf(event)?.id === "bar" && unsaved()) {
       updateGuard();

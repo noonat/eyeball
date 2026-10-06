@@ -160,6 +160,18 @@ type fileView struct {
 	// Unmeasured says the file has no counts, because nothing could be
 	// compared, and Deleted that the round captured it as deleted.
 	Unmeasured, Deleted bool
+	// Threads are the line comments on the current round, keyed by the new
+	// side's line number, each shown in a row under its line.
+	Threads map[int]*threadView
+}
+
+// threadView is the row under a line holding its comments, and the composer
+// while one is open there.
+type threadView struct {
+	// ID is the row's element id, which a line comment's answer replaces.
+	ID string
+	// Cards are the line's comments.
+	Cards []cardView
 }
 
 // commentView is one comment card.
@@ -373,6 +385,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		for i := range view.Shown {
 			p := view.Shown[i].Path
 			view.Shown[i].List = &listView{ID: listID(store.LevelFile, p)}
+			view.Shown[i].Threads = map[int]*threadView{}
 			if open {
 				view.Shown[i].Slot = slotID(p)
 			}
@@ -392,10 +405,23 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		// The fresh layout has no card to hold a file's comments, so they
 		// join the review's own.
 		if i, ok := byPath[c.Path]; ok && current && view.Fresh == nil {
-			view.Shown[i].Comments = append(view.Shown[i].Comments, card)
-			if l := view.Shown[i].List; l != nil {
-				l.Cards = append(l.Cards, cardOf(review.ID, c, open, decisionAt))
+			file := &view.Shown[i]
+			file.Comments = append(file.Comments, card)
+			if file.List == nil {
+				continue
 			}
+			// A line comment sits under its line when the diff shows that
+			// line, and with the file's own comments otherwise.
+			if c.Level == store.LevelLine && shows(file.Diff, c.StartLine) {
+				t := file.Threads[c.StartLine]
+				if t == nil {
+					t = &threadView{ID: threadID(c.Path, c.StartLine)}
+					file.Threads[c.StartLine] = t
+				}
+				t.Cards = append(t.Cards, cardOf(review.ID, c, open, decisionAt))
+				continue
+			}
+			file.List.Cards = append(file.List.Cards, cardOf(review.ID, c, open, decisionAt))
 			continue
 		}
 		if view.Acting != nil && c.Level == store.LevelReview {
@@ -588,4 +614,14 @@ func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.Stat
 	}
 	view.Files = count(shown, "file", "files")
 	return nil
+}
+
+// shows says whether a file's diff has a row for a line of the new side.
+func shows(f render.File, line int) bool {
+	for _, r := range f.Rows {
+		if r.Header == "" && r.Class != "del" && r.Number == line {
+			return true
+		}
+	}
+	return false
 }

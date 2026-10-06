@@ -306,8 +306,8 @@ func (c *crawler) check(base *url.URL, ids map[string]struct{}, a *html.Node) (s
 // a working copy, or the path heading the file card a link sits in. It is
 // empty for a link whose text names no file, such as a back link.
 func linkedName(base *url.URL, a *html.Node) string {
-	if card := within(a, "filelinks"); card != nil {
-		if details := within(card, "file"); details != nil {
+	if hasClass(a, "fileopen") {
+		if details := within(a, "file"); details != nil {
 			return text(find(details, "path"))
 		}
 	}
