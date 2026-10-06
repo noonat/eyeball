@@ -187,6 +187,12 @@ required_acks:
       the badge icon
 - [x] README's queue.html row naming the two new frames
 
+> **Completed** 2026-10-06 18:32 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 4.8s
+> - `go test -race ./...` — 26.8s
+
 ## Iteration 2: Installable
 
 - [ ] `GET /manifest.webmanifest` with the name, start URL, standalone display,
