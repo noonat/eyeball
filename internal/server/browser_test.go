@@ -342,6 +342,58 @@ func TestServer_Surface_browserPassages(t *testing.T) {
 
 // A change request with nothing in it is refused on the bar, and sent again
 // with a note it goes out.
+// A page in a review is a program the agent wrote. Framed as the surface
+// frames it, its script runs, cannot read the loopback token, and its write is
+// refused by the cross-origin check on the tailnet listener, which has no
+// token to stop it.
+func TestServer_Surface_browserPreviewSandbox(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	write(g, repo, "evil.html", fmt.Sprintf(`<script>
+const out = {ran: true};
+try { out.token = localStorage.getItem("eyeball:token"); } catch (e) { out.token = e.name; }
+const body = new URLSearchParams({round: "2", verdict: "approve", note: ""});
+fetch("/reviews/%d/decision", {method: "POST", body, mode: "no-cors"})
+  .then(() => { out.post = "sent"; }, (e) => { out.post = String(e); })
+  .finally(() => parent.postMessage(JSON.stringify(out), "*"));
+</script>`, id))
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Review: id, Note: "second"})
+	round := f.latestRound(g, t, id)
+	frame := fmt.Sprintf(`(() => {
+  window.__got = null;
+  addEventListener("message", (e) => { window.__got = JSON.parse(e.data); });
+  const f = document.createElement("iframe");
+  f.sandbox = "allow-scripts";
+  f.src = "/reviews/%d/raw/2/evil.html";
+  document.body.append(f);
+})()`, id)
+
+	statuses := &statusLog{}
+	tailnet := httptest.NewServer(statuses.wrap(f.s.Surface()))
+	t.Cleanup(tailnet.Close)
+	loopback := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(loopback.Close)
+	b := openBrowser(g, t)
+
+	b.navigate(g, loopback.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	g.Expect(b.eval(g, `localStorage.getItem("eyeball:token")`)).To(Equal(browserToken))
+	b.eval(g, frame)
+	b.waitFor(g, `window.__got !== null`)
+	g.Expect(b.eval(g, `window.__got.ran`)).To(BeTrue())
+	g.Expect(b.eval(g, `window.__got.token`)).To(Equal("SecurityError"))
+
+	b.navigate(g, tailnet.URL+"/reviews/"+itoa(id))
+	b.eval(g, frame)
+	b.waitFor(g, `window.__got !== null`)
+	g.Expect(b.eval(g, `window.__got.post`)).To(Equal("sent"))
+	g.Eventually(statuses.lines).Should(ContainElement(fmt.Sprintf("POST /reviews/%d/decision 403", id)))
+	_, err := f.store.Decision(t.Context(), round)
+	g.Expect(err).To(MatchError(store.ErrNotFound))
+}
+
 func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -549,6 +601,40 @@ func (l *requestLog) lines() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return append([]string(nil), l.seen...)
+}
+
+// statusLog records each request's method, path and status.
+type statusLog struct {
+	mu   sync.Mutex
+	seen []string
+}
+
+func (l *statusLog) wrap(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		h.ServeHTTP(rec, r)
+		l.mu.Lock()
+		l.seen = append(l.seen, fmt.Sprintf("%s %s %d", r.Method, r.URL.Path, rec.status))
+		l.mu.Unlock()
+	})
+}
+
+func (l *statusLog) lines() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]string(nil), l.seen...)
+}
+
+// statusWriter keeps the status a handler writes.
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+// WriteHeader keeps the status and passes it on.
+func (w *statusWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
 }
 
 // browser is one headless Chromium page, driven over the DevTools protocol.

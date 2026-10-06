@@ -236,6 +236,27 @@ throws. Most things a reviewer looks at, a mockup, a chart, a rendered document,
 do not. A page that needs storage to render is the signal to buy the second
 hostname.
 
+**A file's bytes come from `GET /reviews/{review}/raw/{round}/{path...}`**,
+where round 0 is the base commit, so every side a comparison shows has an
+address. The path mirrors the project's, so a page's relative links resolve
+through the same route: a mockup's stylesheet beside it loads from the same
+round. A round reads its capture and then the base, never the working copy,
+because a preview that mixed live bytes into a frozen round would carry no
+banner saying so. Every response carries
+`Content-Security-Policy: sandbox allow-scripts; frame-ancestors 'self'`, except
+a PDF's, since Chrome runs no PDF viewer under the sandbox. That rests on a
+browser's PDF viewer keeping a document's script away from the page around it,
+which is assumed and not measured. A file kind says is other is never sent.
+
+**The route sends no CORS headers.** The frame's origin is `null`, so a load in
+CORS mode is cross-origin and fails: measured in Chromium 152, a module script,
+a web font and a `mask-image` from a file do not load, while a stylesheet and a
+classic script do. Answering with `Access-Control-Allow-Origin: null` would let
+any page the phone opens read a project's files, since any site can frame itself
+sandboxed and review ids count up from 1. If a preview ever needs CORS, the
+answer is an unguessable path segment per round, answered with CORS only under
+it.
+
 ## Storage
 
 Under `$XDG_STATE_HOME/eyeball`, defaulting to `~/.local/state/eyeball`. Nothing
@@ -396,6 +417,7 @@ Routes, with the spec that builds each:
 | `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
 | `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round   | 007  |
 | `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round          | 007  |
+| `GET /reviews/{review}/raw/{round}/{path...}`          | a file's bytes as of a round, 0 the base      | 010  |
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
 | `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |

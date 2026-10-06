@@ -217,6 +217,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /reviews/{review}/raw/{round}/{path...}",
+		handle:  (*Server).handleRaw,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /projects/{project}",
 		handle:  (*Server).handleProjectPage,
 	},

@@ -242,17 +242,23 @@ browser's PDF viewer keeps a document's script away from the page is assumed.
 
 ## Iteration 2: The bytes
 
-- [ ] `GET /reviews/{id}/raw/{round}/{path...}` resolving round 0 as the base
+- [x] `GET /reviews/{id}/raw/{round}/{path...}` resolving round 0 as the base
       and a round as the file page does, without the working copy
-- [ ] The sandbox policy and content type on every response, 404 for other and
+- [x] The sandbox policy and content type on every response, 404 for other and
       for a path the round does not hold
-- [ ] The send limit, with `Reader.Size` from the capture and from
+- [x] The send limit, with `Reader.Size` from the capture and from
       `git cat-file -s`
-- [ ] Range requests through `http.ServeContent`
-- [ ] A browser test: a framed preview's script cannot read the loopback token
+- [x] Range requests through `http.ServeContent`
+- [x] A browser test: a framed preview's script cannot read the loopback token
       in `localStorage`, and its POST is refused
-- [ ] architecture.md's route table and sandbox section naming the route and the
+- [x] architecture.md's route table and sandbox section naming the route and the
       CORS cost
+
+> **Completed** 2026-10-06 19:59 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.0s
+> - `go test -race ./...` — 30.8s
 
 ## Iteration 3: The agent's view
 
