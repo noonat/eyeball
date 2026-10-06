@@ -1502,6 +1502,15 @@ required_commands:
 - [x] A passage comment stored with its range and listed with its quote, on a
       card and in the fresh layout, with a browser test
 
+> **Completed** 2026-10-06 17:05 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.5s
+> - `go test -race ./...` — 25.5s
+> - `go test -tags browser ./internal/server/...` — 10.2s
+> - `go vet -tags browser ./internal/server/...` — 72ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 171ms
+
 ## Iteration 10: The live stream
 
 ```backlog
