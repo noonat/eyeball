@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-05T00:00:00Z
-updated: 2026-10-06T11:49:44.475152256Z
+updated: 2026-10-06T17:30:00.31323368Z
 required_acks:
   - reviewed
 required_commands:
@@ -1707,3 +1707,9 @@ required_commands:
 - [x] architecture.md's routes table, its htmx size and its live connection
       section matching what was built
 - [x] specs/TODO.md entries for this spec's departures
+
+> **Completed** 2026-10-06 17:30 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.7s
+> - `go test -race ./...` — 26.6s
