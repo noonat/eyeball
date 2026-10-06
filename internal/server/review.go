@@ -313,6 +313,28 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		}
 	}
 
+	open := current && !decided && review.State == store.StateOpen
+	var decisionAt *store.Decision
+	if decided {
+		decisionAt = &decision
+	}
+	acting := current && review.State != store.StateAbandoned
+	// A passage's comments are written under its block, where the page shows
+	// them, and are not listed again elsewhere.
+	placed := map[int64]bool{}
+	passages := map[string]map[[2]int][]store.Comment{}
+	if acting {
+		for _, c := range comments {
+			if c.Level == store.LevelPassage {
+				if passages[c.Path] == nil {
+					passages[c.Path] = map[[2]int][]store.Comment{}
+				}
+				key := [2]int{c.StartLine, c.EndLine}
+				passages[c.Path][key] = append(passages[c.Path][key], c)
+			}
+		}
+	}
+	var renderErr error
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
 	// lastOld is the old side of the last document shown, which decides the
@@ -355,6 +377,24 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		// writes none, and a fragment link goes to the document's own page.
 		doc := at.page()
 		doc.HeadingIDs = false
+		if byRange := passages[m.Path]; byRange != nil {
+			path := m.Path
+			doc.After = func(first, last int) template.HTML {
+				var cards []cardView
+				for _, c := range byRange[[2]int{first, last}] {
+					cards = append(cards, cardOf(review.ID, c, open, decisionAt))
+					placed[c.ID] = true
+				}
+				if len(cards) == 0 {
+					return ""
+				}
+				out, err := s.fragment("passagethread", threadView{ID: passageID(path, first, last), Cards: cards})
+				if err != nil && renderErr == nil {
+					renderErr = err
+				}
+				return out
+			}
+		}
 		file.IsDocument = true
 		file.Document = render.Document(old, content, doc)
 		file.RawDiff = at.viewHref("source")
@@ -375,12 +415,10 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		view.Fresh = &view.Shown[0]
 	}
 
-	open := current && !decided && review.State == store.StateOpen
-	var decisionAt *store.Decision
-	if decided {
-		decisionAt = &decision
+	if renderErr != nil {
+		return reviewPage{}, renderErr
 	}
-	if current && review.State != store.StateAbandoned {
+	if acting {
 		view.Acting = s.acting(review, round, open, against.Get("against"))
 		for i := range view.Shown {
 			p := view.Shown[i].Path
@@ -394,6 +432,13 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 
 	batched := 0
 	for _, c := range comments {
+		if placed[c.ID] {
+			if decided && c.Created.After(decision.Decided) {
+				continue
+			}
+			batched++
+			continue
+		}
 		late := decided && c.Created.After(decision.Decided)
 		if !late {
 			batched++

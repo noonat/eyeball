@@ -66,7 +66,7 @@ func TestServer_Surface_addComment(t *testing.T) {
 		quoted string
 	}{
 		{name: "a line", form: url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"2"}}, list: threadID("a.txt", 2), where: "a.txt:2", quoted: "two"},
-		{name: "a passage", form: url.Values{"level": {"passage"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}}, list: listID(store.LevelPassage, "a.txt"), where: "a.txt:1–2", quoted: "one two"},
+		{name: "a passage", form: url.Values{"level": {"passage"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}}, list: passageID("a.txt", 1, 2), where: "a.txt:1–2", quoted: "one two"},
 		{name: "a file", form: url.Values{"level": {"file"}, "path": {"a.txt"}}, list: listID(store.LevelFile, "a.txt"), where: "a.txt"},
 		{name: "a removed line, read from the base", form: url.Values{"level": {"file"}, "path": {"a.txt"}, "oldline": {"1"}}, list: listID(store.LevelFile, "a.txt"), where: "a.txt", quoted: "one"},
 		{name: "the review", form: url.Values{"level": {"review"}}, list: "comments-review", where: "This review"},

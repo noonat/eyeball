@@ -1466,7 +1466,7 @@ details.blk.changed[open] > summary > .cue-hide {
  * cost a phone about 50 pixels of width, which the owner found too much on
  * 2026-10-06. The field is the box, and fills the row. */
 .thread-body .composer,
-.prose > .composer {
+.prose .composer {
   border: 0;
   box-shadow: none;
   background: transparent;
@@ -1477,7 +1477,7 @@ details.blk.changed[open] > summary > .cue-hide {
 /* Under a passage there is no row to hold the composer, so a rule in the
  * accent color ties it to the passage above, in the gutter the passage's own
  * rule uses. */
-.prose > .composer {
+.prose .composer {
   margin: 6px 0 12px;
   padding-left: 14px;
   border-left: 3px solid var(--accent-vivid);

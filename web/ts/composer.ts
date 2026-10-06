@@ -34,6 +34,11 @@ export function openComposers(): void {
       return;
     }
     const at = acting();
+    const block = target?.closest<HTMLElement>(".prose .blk[data-lines]");
+    if (at !== null && block) {
+      openPassage(event, at, block);
+      return;
+    }
     const file = target?.closest<HTMLElement>("details.file[data-path]");
     if (at === null || file === null || file === undefined) {
       return;
@@ -59,6 +64,29 @@ export function openComposers(): void {
   });
 }
 
+// openPassage opens the composer under a tapped passage. A link inside it still
+// follows, and the hint is the one control that shows what a changed passage
+// replaced, as the owner decided, so a tap anywhere else on a changed passage
+// cancels its summary's toggle.
+function openPassage(event: Event, at: Acting, block: HTMLElement): void {
+  const target = targetOf(event);
+  if (target?.closest("a") || target?.closest(".hint")) {
+    return;
+  }
+  const [start, end] = (block.dataset["lines"] ?? "").split("-");
+  const path = block.closest<HTMLElement>("[data-path]")?.dataset["path"];
+  if (start === undefined || end === undefined || path === undefined) {
+    return;
+  }
+  if (block.tagName === "DETAILS") {
+    event.preventDefault();
+  }
+  const file = block.closest<HTMLElement>("[data-path]");
+  if (file) {
+    void anchor(at, file, block, { level: "passage", path, start, end });
+  }
+}
+
 // anchor moves the one composer to a new place, keeping what was typed. A
 // second composer for each tap would scatter half-written comments through a
 // long review.
@@ -79,7 +107,7 @@ async function anchor(
   let opened: Element | null = null;
   if (row) {
     const thread = row.nextElementSibling;
-    if (thread?.matches("tr.thread") === true) {
+    if (thread?.matches(threadGroup) === true) {
       await htmx.ajax("get", url, { target: thread, swap: "outerHTML" });
     } else {
       await htmx.ajax("get", url, { target: row, swap: "afterend" });
@@ -105,7 +133,7 @@ async function anchor(
 }
 
 function clearSelection(): void {
-  for (const sel of document.querySelectorAll(`tr.${classes.sel}`)) {
+  for (const sel of document.querySelectorAll(`.${classes.sel}`)) {
     sel.classList.remove(classes.sel);
   }
 }
@@ -113,7 +141,11 @@ function clearSelection(): void {
 // anchoredForm finds a composer opened at a line or a file, rather than the
 // review's own box or a comment's edit form.
 const anchoredForm =
-  "tr.thread form.composer[hx-post], .filecomposer[id^='slot-'] form.composer";
+  "tr.thread form.composer[hx-post], div[id^='thread-'] form.composer[hx-post], .filecomposer[id^='slot-'] form.composer";
+
+// threadGroup finds the group under a line or a passage that holds its
+// comments.
+const threadGroup = "tr.thread, div[id^='thread-']";
 
 // closeAnchored puts an anchored composer's slot back empty and returns what
 // it held.
@@ -130,7 +162,7 @@ function closeAnchored(): string {
     slot.replaceWith(empty);
     return typed;
   }
-  const thread = form.closest("tr.thread");
+  const thread = form.closest(threadGroup);
   form.remove();
   dropEmptyThread(thread);
   return typed;
@@ -139,7 +171,11 @@ function closeAnchored(): string {
 // dropEmptyThread removes a line's row once nothing is left in it, so a line
 // with no comments carries no empty row.
 function dropEmptyThread(thread: Element | null): void {
-  if (thread?.querySelector(".thread-body")?.childElementCount === 0) {
+  const holder =
+    thread?.matches("tr") === true
+      ? thread.querySelector(".thread-body")
+      : thread;
+  if (thread && holder?.childElementCount === 0) {
     thread.remove();
   }
 }
@@ -211,7 +247,7 @@ export function settleComposers(): void {
     // longer on the page was an anchored one too.
     if (
       !form.isConnected ||
-      form.closest(".filecomposer[id^='slot-'], tr.thread")
+      form.closest(`.filecomposer[id^='slot-'], ${threadGroup}`)
     ) {
       closeAnchored();
       clearSelection();
@@ -271,7 +307,7 @@ export function guardVerdicts(): void {
   // document. The outline matters only while a composer is open, so every
   // swap clears it once none is.
   document.addEventListener("htmx:afterSwap", () => {
-    for (const thread of document.querySelectorAll("tr.thread")) {
+    for (const thread of document.querySelectorAll(threadGroup)) {
       dropEmptyThread(thread);
     }
     if (document.querySelector(anchoredForm) === null) {

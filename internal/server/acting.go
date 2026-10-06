@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -105,6 +106,9 @@ type composerView struct {
 	// Cards the comments already on that line, which the row keeps showing.
 	ThreadID string
 	Cards    []cardView
+	// PassageID is the id of the group under a passage the composer opens
+	// in, which holds that passage's comments as ThreadID's row does.
+	PassageID string
 }
 
 // chipView is one level a composer's text can be sent to.
@@ -149,6 +153,9 @@ func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) error 
 	}
 	if stored.Level == store.LevelLine {
 		return s.answerThread(ctx, w, review, round, stored.Path, stored.StartLine)
+	}
+	if stored.Level == store.LevelPassage {
+		return s.answerPassage(ctx, w, review, round, stored.Path, stored.StartLine, stored.EndLine)
 	}
 	return s.answerList(ctx, w, review, round, listID(stored.Level, stored.Path))
 }
@@ -384,12 +391,12 @@ func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
 		plain(w, http.StatusBadRequest, notThisForm)
 		return nil
 	}
-	if c.Level == string(store.LevelLine) {
+	if c.Level == string(store.LevelLine) || c.Level == string(store.LevelPassage) {
 		round, err := s.db.s.Round(r.Context(), review.ID, number)
 		if err != nil {
 			return err
 		}
-		if c.Cards, err = s.lineCards(r.Context(), review, round, c.Path, start); err != nil {
+		if c.Cards, err = s.rangeCards(r.Context(), review, round, store.Level(c.Level), c.Path, c.Start, c.End); err != nil {
 			return err
 		}
 	}
@@ -414,6 +421,8 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 	switch {
 	case level == store.LevelLine:
 		c.ThreadID = threadID(path, start)
+	case level == store.LevelPassage:
+		c.PassageID = passageID(path, start, end)
 	case level == store.LevelFile && old != 0:
 		c.ThreadID = fmt.Sprintf("thread-%s-o%d", pathKey(path), old)
 	case level != store.LevelReview:
@@ -452,13 +461,16 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 			return c, false
 		}
 		c.Anchor, c.Placeholder = fmt.Sprintf("%s:%d–%d", path, start, end), "Comment on this passage…"
-		c.Chips = []chipView{{Level: string(store.LevelPassage), Label: "Passage", Target: fileList, Pressed: true}, file, review}
+		c.Chips = []chipView{{Level: string(store.LevelPassage), Label: "Passage", Target: "#" + c.PassageID, Pressed: true}, file, review}
 	default:
 		return c, false
 	}
 	c.Target = "#" + listID(level, path)
 	if level == store.LevelLine {
 		c.Target = "#" + c.ThreadID
+	}
+	if level == store.LevelPassage {
+		c.Target = "#" + c.PassageID
 	}
 	return c, true
 }
@@ -577,11 +589,27 @@ func (s *Server) answerList(ctx context.Context, w http.ResponseWriter, review s
 // answerThread answers a stored line comment with the row under its line,
 // holding every comment on that line, and the tally beside it.
 func (s *Server) answerThread(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, path string, line int) error {
-	cards, err := s.lineCards(ctx, review, round, path, line)
+	cards, err := s.rangeCards(ctx, review, round, store.LevelLine, path, line, line)
 	if err != nil {
 		return err
 	}
-	parts := []fragment{{name: "thread", data: threadView{ID: threadID(path, line), Cards: cards}}}
+	return s.answerGroup(ctx, w, review, round, fragment{name: "thread", data: threadView{ID: threadID(path, line), Cards: cards}})
+}
+
+// answerPassage answers a stored passage comment with the group under its
+// passage, holding every comment on that passage, and the tally beside it.
+func (s *Server) answerPassage(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, path string, first, last int) error {
+	cards, err := s.rangeCards(ctx, review, round, store.LevelPassage, path, first, last)
+	if err != nil {
+		return err
+	}
+	return s.answerGroup(ctx, w, review, round, fragment{name: "passagethread", data: threadView{ID: passageID(path, first, last), Cards: cards}})
+}
+
+// answerGroup writes a line's or a passage's group, and the tally while the
+// round has a bar.
+func (s *Server) answerGroup(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, group fragment) error {
+	parts := []fragment{group}
 	open, _, err := s.roundOpen(ctx, review, round)
 	if err != nil {
 		return err
@@ -596,8 +624,9 @@ func (s *Server) answerThread(ctx context.Context, w http.ResponseWriter, review
 	return s.fragments(w, http.StatusOK, parts...)
 }
 
-// lineCards reads the comments on one line of a file as of a round.
-func (s *Server) lineCards(ctx context.Context, review store.Review, round store.Round, path string, line int) ([]cardView, error) {
+// rangeCards reads the comments at one level on one range of a file as of a
+// round: a line, or a passage.
+func (s *Server) rangeCards(ctx context.Context, review store.Review, round store.Round, level store.Level, path string, first, last int) ([]cardView, error) {
 	comments, err := s.db.s.Comments(ctx, round.ID)
 	if err != nil {
 		return nil, err
@@ -608,7 +637,7 @@ func (s *Server) lineCards(ctx context.Context, review store.Review, round store
 	}
 	var out []cardView
 	for _, c := range comments {
-		if c.Level == store.LevelLine && c.Path == path && c.StartLine == line {
+		if c.Level == level && c.Path == path && c.StartLine == first && c.EndLine == last {
 			out = append(out, cardOf(review.ID, c, open, decided))
 		}
 	}
@@ -694,6 +723,25 @@ func pathKey(path string) string {
 // threadID is the element id of the row under a line, hashed as listID is.
 func threadID(path string, line int) string {
 	return fmt.Sprintf("thread-%s-%d", pathKey(path), line)
+}
+
+// passageID is the element id of the group under a passage.
+func passageID(path string, first, last int) string {
+	return fmt.Sprintf("thread-%s-p%d-%d", pathKey(path), first, last)
+}
+
+// fragment renders one template block to HTML, for a page that writes it
+// inside content another package renders.
+func (s *Server) fragment(name string, data any) (template.HTML, error) {
+	t, err := s.pages.Clone()
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
+		return "", errors.Wrapf(err, "render %s", name)
+	}
+	return template.HTML(buf.String()), nil
 }
 
 // slotID is the element id of a file's composer slot, hashed as listID is.

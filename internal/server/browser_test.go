@@ -19,6 +19,7 @@ import (
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/websocket"
 
+	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/store"
 )
 
@@ -137,6 +138,64 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	d, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
+}
+
+// A passage takes a comment under it, in a document card and in the layout a
+// single new document gets. A tap selects a passage, and only its hint shows
+// what a changed one replaced.
+func TestServer_Surface_browserPassages(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := filepath.Join(t.TempDir(), "notes")
+	g.Expect(os.MkdirAll(repo, 0o700)).To(Succeed())
+	git(g, repo, "init", "--quiet", "--template=", "-b", "main")
+	write(g, repo, "doc.md", "Old paragraph.\n\nKept.\n")
+	git(g, repo, "add", "-A")
+	git(g, repo, "update-ref", "refs/heads/main", git(g, repo, "commit-tree", git(g, repo, "write-tree"), "-m", "base"))
+	write(g, repo, "doc.md", "New paragraph.\n\nKept.\n")
+	write(g, repo, "new.md", "# Fresh\n\nA new document.\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"doc.md"}, Note: "docs"}).Review.ID
+	fresh := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"new.md"}, Note: "new"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	// A tap on a changed passage selects it rather than opening it.
+	changed := `document.querySelector("details.blk.changed")`
+	b.eval(g, changed+`.querySelector("p").click()`)
+	b.waitFor(g, changed+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
+	g.Expect(b.eval(g, changed+`.open`)).To(BeFalse(), "a tap off the hint opened the replaced text")
+	g.Expect(b.eval(g, changed+`.classList.contains("sel")`)).To(BeTrue())
+	b.eval(g, changed+`.nextElementSibling.querySelector("[data-cancel]").click()`)
+	b.eval(g, changed+`.querySelector(".hint.cue-show").click()`)
+	g.Expect(b.eval(g, changed+`.open`)).To(BeTrue(), "the hint opens the replaced text")
+
+	// A comment on a kept passage lands under it, and stays there.
+	kept := `document.querySelector("div.blk[data-lines='3-3']")`
+	b.eval(g, kept+`.click()`)
+	b.waitFor(g, kept+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
+	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Why keep this?")
+	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
+	b.waitFor(g, kept+`.nextElementSibling?.querySelectorAll(".comment").length === 1`)
+	b.waitFor(g, `!document.querySelector("div[id^='thread-'] form.composer")`)
+	comments := f.comments(g, t, f.latestRound(g, t, id))
+	g.Expect(comments).To(HaveLen(1))
+	g.Expect(comments[0].Level).To(Equal(store.LevelPassage))
+	g.Expect([]int{comments[0].StartLine, comments[0].EndLine}).To(Equal([]int{3, 3}))
+	g.Expect(comments[0].Quoted).To(Equal("Kept."))
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	g.Expect(b.eval(g, kept+`.nextElementSibling.querySelector(".comment p").textContent`)).To(Equal("Why keep this?"))
+
+	// The single new document takes one the same way.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(fresh))
+	block := `document.querySelector(".page > .prose .blk[data-lines='3-3']")`
+	b.eval(g, block+`.click()`)
+	b.waitFor(g, block+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
+	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Say more.")
+	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
+	b.waitFor(g, block+`.nextElementSibling?.querySelectorAll(".comment").length === 1`)
+	g.Expect(f.comments(g, t, f.latestRound(g, t, fresh))[0].Quoted).To(Equal("A new document."))
 }
 
 // A change request with nothing in it is refused on the bar, and sent again

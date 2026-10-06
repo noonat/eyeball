@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"html/template"
 	"slices"
 	"strings"
@@ -51,6 +52,20 @@ func TestDocument(t *testing.T) {
 	for _, box := range boxes {
 		g.Expect(hasAttr("disabled")(box)).To(BeTrue())
 	}
+}
+
+// After writes what a page shows under a passage, given its range.
+func TestDocument_after(t *testing.T) {
+	g := NewWithT(t)
+	p := testPage()
+	var asked []string
+	p.After = func(first, last int) template.HTML {
+		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
+		return template.HTML(fmt.Sprintf(`<aside data-after="%d"></aside>`, first))
+	}
+	out := string(Document(nil, []byte("One.\n\n---\n\nTwo.\n"), p))
+	g.Expect(asked).To(Equal([]string{"1-1", "5-5"}))
+	g.Expect(out).To(MatchRegexp(`(?s)One\..*data-after="1".*<hr>.*Two\..*data-after="5"`))
 }
 
 func TestDocument_appendedBlock(t *testing.T) {
@@ -414,6 +429,48 @@ func TestDocument_pastTheLineLimit(t *testing.T) {
 	g.Expect(slices.Compact(got)).To(Equal([]string{""}))
 }
 
+// A passage's range is the first and last line of its content in the source,
+// read from the parse the page shows.
+func TestDocument_ranges(t *testing.T) {
+	cases := []struct {
+		name string
+		md   string
+		want string
+	}{
+		{name: "a wrapped paragraph", md: "One line\nwrapped onto two\nand three.\n", want: "1-3"},
+		{name: "a nested list", md: "- one\n  - two\n  - three\n- four\n", want: "1-4"},
+		{name: "a fenced block without its fences", md: "```go\nx := 1\ny := 2\n```\n", want: "2-3"},
+		{name: "a setext heading without its underline", md: "Title\n=====\n", want: "1-1"},
+		{name: "a table", md: "| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n", want: "1-4"},
+		{name: "an HTML block", md: "<div>\nsome\n</div>\n", want: "1-3"},
+		{name: "after a blank line", md: "First.\n\nSecond\nparagraph.\n", want: "1-1,3-4"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			body := parseBody(g, Document(nil, []byte(c.md), testPage()))
+			var got []string
+			for _, n := range findAll(body, hasAttrNamed("data-lines")) {
+				got = append(got, attrOf(n, "data-lines"))
+			}
+			g.Expect(strings.Join(got, ",")).To(Equal(c.want))
+		})
+	}
+}
+
+// A block with no content line takes no comment, and neither does a removed
+// one, which is not in the round's file.
+func TestDocument_rangesNone(t *testing.T) {
+	g := NewWithT(t)
+	empty := []string{"---\n", "```\n```\n"}
+	for _, md := range empty {
+		body := parseBody(g, Document(nil, []byte(md), testPage()))
+		g.Expect(findAll(body, hasAttrNamed("data-lines"))).To(BeEmpty(), md)
+	}
+	body := parseBody(g, Document([]byte("Kept.\n\nGone.\n"), []byte("Kept.\n"), testPage()))
+	g.Expect(findAll(body, hasAttrNamed("data-lines"))).To(HaveLen(1), "the removed block has no range")
+}
+
 func TestDocument_rawHTMLOmitted(t *testing.T) {
 	g := NewWithT(t)
 	attack := "<script>alert(1)</script>\n\nA paragraph <img src=x onerror=alert(1)> and <a href=\"javascript:x\" onclick=\"alert(1)\">a link</a>.\n\n<style>body { display: none }</style>\n\n- <script>alert(2)</script>\n"
@@ -596,13 +653,6 @@ func TestIsMarkdown(t *testing.T) {
 	}
 }
 
-// The marks a block can carry, as shapesOf reads them.
-const (
-	markChanged  = "changed"
-	markReplaced = "replaced"
-	markRemoved  = "removed"
-)
-
 // shape is one block of a rendered document as a reader sees it.
 type shape struct {
 	// Mark is empty for a kept block, or one of the marks.
@@ -770,3 +820,35 @@ var inlineElements = []string{"a", "code", "del", "em", "span", "strong"}
 func collapsed(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
+
+// hasAttrNamed matches an element carrying an attribute.
+func hasAttrNamed(name string) func(*html.Node) bool {
+	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
+		for _, a := range n.Attr {
+			if a.Key == name {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// attrOf reads an attribute.
+func attrOf(n *html.Node, name string) string {
+	for _, a := range n.Attr {
+		if a.Key == name {
+			return a.Val
+		}
+	}
+	return ""
+}
+
+// The marks a block can carry, as shapesOf reads them.
+const (
+	markChanged  = "changed"
+	markReplaced = "replaced"
+	markRemoved  = "removed"
+)

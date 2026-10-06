@@ -1101,6 +1101,26 @@ with the `review:` entry's list as its start.
   HTML parser drops a `tr` outside one.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Departures, iteration 9.**
+
+- A passage's comments are written under its block, as the owner decided for
+  lines, in a group the composer a tap opens fills, and a stored passage comment
+  answers with that group. `render.Page` gained `After`, which `Document` calls
+  with each block's range so the server writes the group, keeping comments out
+  of `internal/render`.
+- A block's range is the first and last line of any content segment or text
+  beneath it. The cases the design listed held as written, and a table's range
+  runs from its header to its last row.
+- The tap's code path is the line tap's, with the block in the row's place and
+  the group under it in the row's. The selected passage takes `sel`, as the
+  approved frame draws it.
+- The selector `.prose > .composer` became `.prose .composer`, since the
+  composer sits inside its passage's group rather than directly in the document.
+  It draws the same.
+- The single-document layout's `.prose` carries the document's path, since it
+  has no file card to read it from.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1469,17 +1489,17 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] Each top-level block's range from the shown parse `Document` walks,
+- [x] Each top-level block's range from the shown parse `Document` walks,
       carried as `data-lines` on kept and changed blocks
-- [ ] Range tests: a wrapped paragraph, a nested list, a fenced block without
+- [x] Range tests: a wrapped paragraph, a nested list, a fenced block without
       its fences, a setext heading without its underline, a table and an HTML
       block
-- [ ] A thematic break, an empty fenced block and a removed block carrying no
+- [x] A thematic break, an empty fenced block and a removed block carrying no
       range, each with a test
-- [ ] A tap anywhere on a block with a range opening the composer at the passage
+- [x] A tap anywhere on a block with a range opening the composer at the passage
       level, the summary's toggle canceled unless the tap is on the hint, and a
       link followed
-- [ ] A passage comment stored with its range and listed with its quote, on a
+- [x] A passage comment stored with its range and listed with its quote, on a
       card and in the fresh layout, with a browser test
 
 ## Iteration 10: The live stream
