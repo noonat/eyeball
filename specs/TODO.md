@@ -40,12 +40,13 @@ requirement in either document that none of them names is a gap in this list.
 
 ## Unscheduled
 
-- [ ] review: a whole-branch review of everything merged since d8b5b6d (the 006
-      merge), the last point reviewed as a whole, run before the owner's first
-      hands-on testing. Each spec's iterations were reviewed one at a time; this
-      review looks for what spans them. In 006 the whole-branch review found a
-      template race and a nil dereference in tsnet's `Close` that no iteration
-      review saw. Per spec:
+- [ ] review: a whole-branch review of everything since d8b5b6d (the 006 merge),
+      the last point reviewed as a whole. It runs as 008's iteration 6, once
+      iteration 5 closes and before the owner tries the loop on the loopback
+      listener. Each spec's iterations were reviewed one at a time; this review
+      looks for what spans them. In 006 the whole-branch review found a template
+      race and a nil dereference in tsnet's `Close` that no iteration review
+      saw. Per spec:
   - 007: every route builds its reader through `capture.State.Reader`, except
     the review page, which still uses `NewReader`; the inside-checkout flag read
     and written the same way on the file, tree and project routes; every href
@@ -101,6 +102,14 @@ requirement in either document that none of them names is a gap in this list.
       dereferences nil in v1.102.3. Whether `Close` is safe after a late one,
       where it would close again what `Start`'s cleanup closed, is not checked,
       and it would not reach an engine whose backend was never built.
+- [ ] tooling: content-hashed addresses under `/static/` with a long cache
+      lifetime. Every surface response is `no-store`, so htmx's 52 KB and the
+      bundle are fetched on every page load. Assumed small on a tailnet, not
+      measured. It changes how 006 serves `app.css` and `shell.css` too.
+- [ ] tooling: HTTP/2 on the tailnet listener. tsnet's `ListenTLS` offers no
+      `NextProtos`, so the phone speaks HTTP/1.1 and each open tab's live stream
+      holds one of the browser's few connections to the host. Advertising `h2`
+      means eyeball wrapping the listener in a TLS configuration of its own.
 - [ ] tooling: batch the project view's reads of HEAD into one
       `git cat-file --batch`. Each working-copy row runs its own `cat-file blob`
       and its own `check-ignore`. 196 sequential `cat-file blob` calls took 259
@@ -204,6 +213,21 @@ requirement in either document that none of them names is a gap in this list.
       under that root would be a 500. Reasoned in 007, not tested. A HEAD naming
       a commit that does not exist is handled on the project view, which says
       the working copy cannot be listed.
+- [ ] product: who may write on the tailnet listener, decided in notification
+      (009). 008 requires a token on the loopback listener only. When this
+      machine runs Tailscale on the same tailnet, its own processes reach the
+      node's `:443`, and `curl` passes the cross-origin check, so an agent here
+      could decide a review through it. The owner chose on 2026-10-06 to settle
+      it in 009 with tsnet's `WhoIs` in hand, for example by refusing writes
+      from this machine's own node.
+- [ ] design: commenting from a file page: the whole file, the tree's file and
+      the project's live file. 008 puts the composer on the review page only,
+      where the bar and the tally are.
+- [ ] design: a manual theme override. docs/design/README.md says one wins over
+      the device in both directions, and no tearout draws a control for it.
+- [ ] design: a comment added on a second device shows on the first only after a
+      reload. 008's stamps leave comment counts out, so a reviewer's own comment
+      does not reload the page that wrote it.
 
 ## Open questions
 
