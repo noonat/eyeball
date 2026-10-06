@@ -72,6 +72,10 @@ type reviewPage struct {
 	// Acting is what the reviewer can do on the page, and nil on a round
 	// nothing more can be said on.
 	Acting *actingView
+	// Unmeasurable says why nothing could be compared, where git can no
+	// longer read the round's base, and is empty otherwise. The files are then
+	// shown as the round captured them.
+	Unmeasurable string
 }
 
 // actingView is what the reviewer can do on the current round: comment and
@@ -153,6 +157,9 @@ type fileView struct {
 	// Slot is the element id a tapped line's composer is swapped into, and
 	// empty where no composer opens.
 	Slot string
+	// Unmeasured says the file has no counts, because nothing could be
+	// compared, and Deleted that the round captured it as deleted.
+	Unmeasured, Deleted bool
 }
 
 // commentView is one comment card.
@@ -257,8 +264,21 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return reviewPage{}, err
 	}
-	moved, before, after, err := s.compare(ctx, project.Root, review, round, wholeReview)
+	// A base git can no longer read, a lost repository or a missing root,
+	// leaves nothing to compare against. The round's capture still holds every
+	// file the agent changed, so the page shows those as captured and the
+	// review can still be read and decided.
+	st, err := capture.Inspect(ctx, project.Root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
+		return reviewPage{}, err
+	}
+	var moved []capture.Moved
+	var before, after *capture.Reader
+	if st.Measurable() {
+		if moved, before, after, err = s.compare(ctx, project.Root, review, round, wholeReview); err != nil {
+			return reviewPage{}, err
+		}
+	} else if err := s.captured(ctx, &view, st, review, round); err != nil {
 		return reviewPage{}, err
 	}
 	comments, err := s.db.s.Comments(ctx, round.ID)
@@ -333,8 +353,10 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	for i := range view.Shown {
 		view.Shown[i].Open = expand
 	}
-	view.Files = count(files, "file", "files")
-	view.Added, view.Removed = thousands(added), thousands(removed)
+	if view.Unmeasurable == "" {
+		view.Files = count(files, "file", "files")
+		view.Added, view.Removed = thousands(added), thousands(removed)
+	}
 	// One new document on its own reads as a document, with nothing marked
 	// and no card around it: marking every passage marks none.
 	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
@@ -529,4 +551,41 @@ func (s *Server) acting(review store.Review, round store.Round, open bool, again
 		a.Composer.Hint, a.Composer.Button = "Sends immediately", "Send"
 	}
 	return a
+}
+
+// captured fills a page whose round cannot be compared with the files the
+// review changes, each as the round captured it, with no counts.
+func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.State, review store.Review, round store.Round) error {
+	stored, err := s.db.s.RoundFiles(ctx, round.ID)
+	if err != nil {
+		return err
+	}
+	files := make([]store.File, len(stored))
+	for i, f := range stored {
+		files[i] = f.File
+	}
+	reader := st.Reader(s.blobs, files)
+	view.Unmeasurable = unmeasurable(st)
+	shown := 0
+	for _, f := range stored {
+		if !f.InScope {
+			continue
+		}
+		shown++
+		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path}
+		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true, Open: true}
+		if f.Digest == "" {
+			file.Deleted = true
+		} else {
+			content, tooLarge, err := reader.Side(ctx, f.Path)
+			if err != nil {
+				return err
+			}
+			file.Diff = render.Plain(f.Path, content)
+			file.Diff.TooLarge = file.Diff.TooLarge || tooLarge
+		}
+		view.Shown = append(view.Shown, file)
+	}
+	view.Files = count(shown, "file", "files")
+	return nil
 }

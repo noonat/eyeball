@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -552,6 +553,29 @@ func TestServer_Surface_reviewFreshConditions(t *testing.T) {
 			g.Expect(findAll(doc, hasClass("file"))).To(HaveLen(len(c.paths)))
 		})
 	}
+}
+
+// A repository moved or deleted after the round leaves nothing to compare
+// against, and the round's capture still holds every file the agent changed.
+// The page shows those as captured, and the review can still be decided.
+func TestServer_Surface_reviewLostRepository(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	g.Expect(os.RemoveAll(filepath.Join(repo, ".git"))).To(Succeed())
+
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	g.Expect(text(find(doc, "warn"))).To(Equal("The project's repository is gone, so the change cannot be measured. Each file is shown as this round captured it."))
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file"))
+	file := find(doc, "file")
+	g.Expect(find(file, "counts")).To(BeNil(), "nothing was compared, so nothing is counted")
+	var lines []string
+	for _, src := range findAll(file, hasClass("src")) {
+		lines = append(lines, text(src))
+	}
+	g.Expect(lines).To(Equal([]string{"one", "two"}))
+	g.Expect(find(doc, "decide")).NotTo(BeNil(), "the review can still be decided")
 }
 
 func TestServer_Surface_reviewMarksAChangedWord(t *testing.T) {

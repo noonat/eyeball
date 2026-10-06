@@ -12,11 +12,13 @@
 {{end}}{{if .Closed}}<div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>{{.Closed}}</span></div>
 {{else}}{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
 {{else}}<div class="notice"><span class="glyph i i-message-square" aria-hidden="true"></span><span><strong>Changes requested.</strong> {{.Sentence}}</span></div>
-{{end}}{{end}}{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}{{with .Acting}}{{template "composer" .Composer}}{{template "commentlist" .List}}{{end}}<div class="toolbar">
+{{end}}{{end}}{{end}}{{with .Unmeasurable}}<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span>{{.}} Each file is shown as this round captured it.</span></div>
+{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}{{with .Acting}}{{template "composer" .Composer}}{{template "commentlist" .List}}{{end}}<div class="toolbar">
 {{with .Fresh}}<span class="counts"><b class="files">1 file, new</b></span>
 <a class="btn small" href="{{.RawDiff}}">Raw diff</a>
+{{else}}{{if .Unmeasurable}}<span class="counts"><b class="files">{{.Files}}</b></span>
 {{else}}<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
-{{end}}{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
+{{end}}{{end}}{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
 {{end}}</div>
 {{with .Fresh}}<div class="prose">{{.Document}}</div>
 {{else}}{{range .Shown}}{{template "file" .}}{{end}}{{end}}<div class="tree">
@@ -45,8 +47,9 @@
 </div>
 {{end}}{{end}}
 {{define "file"}}<details class="file" data-path="{{.Path}}"{{if .Open}} open{{end}}>
-<summary><span class="path"><bdi>{{.Path}}</bdi></span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></summary>
-{{if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
+<summary><span class="path"><bdi>{{.Path}}</bdi></span>{{if not .Unmeasured}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>{{end}}</summary>
+{{if .Deleted}}<div class="toobig">Deleted as of this round.</div>
+{{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
 {{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
 {{else}}{{template "code" .Diff.Rows}}{{end}}{{with .List}}{{template "commentlist" .}}{{else}}{{range .Comments}}{{template "comment" .}}{{end}}{{end}}{{with .Slot}}<div id="{{.}}"></div>
