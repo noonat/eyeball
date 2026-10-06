@@ -451,6 +451,13 @@ scrolls sideways beneath it. File-level and review-level comments stay where
 they are. Iterations 7 and 8 draw and build it, and the paragraph above stands
 as the decision it replaced.
 
+**A composer opened in place is not a card of its own.** Under a line or a
+passage it drops the border, shadow and padding a free-standing composer has,
+and its field fills the row. The owner found, on the phone on 2026-10-06, that a
+margin, the card's padding and then the field's own border cost too much of a
+phone's width. Under a passage, a rule in the accent color takes the card's
+place in tying the box to what it is about.
+
 **The anchored composer has Cancel**, which closes it and drops the line's
 outline, as the owner asked on 2026-10-06. The approved comments frame already
 drew Cancel beside Add.

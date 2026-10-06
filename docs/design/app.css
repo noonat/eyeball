@@ -774,7 +774,7 @@ a.bit .project,
   left: 0;
   box-sizing: border-box;
   width: 100cqw;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1461,9 +1461,26 @@ details.blk.changed[open] > summary > .cue-hide {
   gap: var(--gap);
 }
 
-/* A passage's composer opens under the passage, inside the document. */
+/* A composer opened in place, under a line or a passage, is not a card of its
+ * own. A border, a shadow and padding around a field that has its own border
+ * cost a phone about 50 pixels of width, which the owner found too much on
+ * 2026-10-06. The field is the box, and fills the row. */
+.thread-body .composer,
 .prose > .composer {
-  margin: 8px 0 12px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+  gap: 6px;
+}
+
+/* Under a passage there is no row to hold the composer, so a rule in the
+ * accent color ties it to the passage above, in the gutter the passage's own
+ * rule uses. */
+.prose > .composer {
+  margin: 6px 0 12px;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent-vivid);
 }
 
 .composer .foot .acts {
