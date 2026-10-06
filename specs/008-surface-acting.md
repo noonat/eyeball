@@ -1000,6 +1000,12 @@ required_acks:
       app.css, listed in this spec
 - [x] README's review.html row naming the passage and deciding sections
 
+> **Completed** 2026-10-06 12:06 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 4.1s
+> - `go test -race ./...` — 21.7s
+
 ## Iteration 2: The client
 
 - [ ] htmx 2.0.11's `htmx.min.js` and `htmx.esm.d.ts` in `web/vendor/` with
