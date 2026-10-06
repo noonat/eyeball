@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"time"
@@ -22,8 +23,10 @@ import (
 // refuses. There is no default-src, so a page may load what it likes.
 const sandboxPolicy = "sandbox allow-scripts; frame-ancestors 'self'"
 
-// tooLargeToSend is what the surface says of a file past kind.MaxSend.
-const tooLargeToSend = "Too large to send over a phone connection."
+// pastSendLimit is what the surface says of a file past kind.MaxSend. It
+// names the limit rather than a connection, since the surface cannot tell
+// wifi from cellular.
+const pastSendLimit = "Past the 20 MB the surface sends on its own."
 
 // handleRaw answers GET /reviews/{review}/raw/{round}/{path...}: one file's
 // bytes as of a round, where round 0 is the base commit.
@@ -66,8 +69,8 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if size > kind.MaxSend {
-		s.renderPage(w, http.StatusRequestEntityTooLarge, "error", page{Title: "Too large", Back: "/", BackLabel: "Queue", Body: message{Heading: "Too large", Text: tooLargeToSend}})
+	if size > kind.MaxSend && r.URL.Query().Get("load") != "1" {
+		s.renderPage(w, http.StatusRequestEntityTooLarge, "error", page{Title: "Too large", Back: "/", BackLabel: "Queue", Body: message{Heading: "Too large", Text: pastSendLimit}})
 		return nil
 	}
 	rc, _, err := reader.Frozen(r.Context(), p)
@@ -78,15 +81,21 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	// Read whole, since http.ServeContent answers the Range requests iOS
-	// Safari needs before it plays a video, and a base-side file comes out of
-	// git cat-file as a stream that cannot seek. One code path for both costs
-	// up to kind.MaxSend held per request in flight.
-	content, err := readAll(rc)
+	defer func() { _ = rc.Close() }()
+	content, cleanup, err := seekable(rc, size)
 	if err != nil {
 		return err
 	}
-	f := kind.Of(p, content)
+	defer cleanup()
+	head := make([]byte, 8000)
+	n, err := io.ReadFull(content, head)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		return errors.Wrapf(err, "read %s", p)
+	}
+	if _, err := content.Seek(0, io.SeekStart); err != nil {
+		return errors.Wrapf(err, "rewind %s", p)
+	}
+	f := kind.Of(p, head[:n])
 	if f.Kind == kind.Other {
 		s.errorPage(w, http.StatusNotFound)
 		return nil
@@ -95,8 +104,40 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Del("Content-Security-Policy")
 	}
 	w.Header().Set("Content-Type", f.Type)
-	http.ServeContent(w, r, path.Base(p), time.Time{}, bytes.NewReader(content))
+	http.ServeContent(w, r, path.Base(p), time.Time{}, content)
 	return nil
+}
+
+// seekable makes a file's bytes seekable, since http.ServeContent answers the
+// Range requests iOS Safari needs before it plays a video. A blob is a file on
+// disk and seeks already. A base-side file comes out of git cat-file as a
+// stream: within the send limit it is read into memory, which holds up to
+// kind.MaxSend per request in flight, and past it, where only a reviewer's
+// Load anyway reaches, it is copied to a temporary file first.
+func seekable(rc io.ReadCloser, size int64) (io.ReadSeeker, func(), error) {
+	if rs, ok := rc.(io.ReadSeeker); ok {
+		return rs, func() {}, nil
+	}
+	if size <= kind.MaxSend {
+		content, err := io.ReadAll(io.LimitReader(rc, kind.MaxSend+1))
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "read a file to send")
+		}
+		return bytes.NewReader(content), func() {}, nil
+	}
+	tmp, err := os.CreateTemp("", "eyeball-raw-*")
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "make a file to send from")
+	}
+	cleanup := func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+	}
+	if _, err := io.Copy(tmp, rc); err != nil {
+		cleanup()
+		return nil, nil, errors.Wrap(err, "copy a file to send")
+	}
+	return tmp, cleanup, nil
 }
 
 // rawReader reads a review's files as of a round, and round 0 as the base
@@ -127,14 +168,4 @@ func (s *Server) rawReader(ctx context.Context, review store.Review, number int)
 		return nil, err
 	}
 	return st.Reader(s.blobs, files), nil
-}
-
-// readAll reads rc to its end and closes it.
-func readAll(rc io.ReadCloser) ([]byte, error) {
-	defer func() { _ = rc.Close() }()
-	content, err := io.ReadAll(io.LimitReader(rc, kind.MaxSend+1))
-	if err != nil {
-		return nil, errors.Wrap(err, "read a file to send")
-	}
-	return content, nil
 }

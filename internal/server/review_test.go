@@ -705,7 +705,7 @@ func TestServer_Surface_reviewRendered(t *testing.T) {
 		"site/index.html": "counts +1 −1 | iframe " + raw + "1/site/index.html allow-scripts",
 		"clip.mp4":        "video " + raw + "1/clip.mp4 ",
 		"paper.pdf":       "iframe " + raw + "1/paper.pdf ",
-		"big.png":         "facts PNG image21.0 MB" + tooLargeToSend,
+		"big.png":         "facts PNG image20.0 MB" + pastSendLimit + "Load anyway",
 		"data.zip":        "facts ZIP archive4 B",
 	}
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)

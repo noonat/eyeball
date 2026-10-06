@@ -96,15 +96,39 @@ func TestServer_Surface_rawTooLarge(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
-	write(g, repo, "big.png", strings.Repeat("x", kind.MaxSend+1))
+	big := strings.Repeat("x", kind.MaxSend+1)
+	commitFile(g, repo, "base.png", big)
+	write(g, repo, "big.png", big)
 	write(g, repo, "fits.png", strings.Repeat("x", kind.MaxSend))
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"big.png", "fits.png"}, Note: "first"}).Review.ID
+	raw := "/reviews/" + itoa(id) + "/raw/"
 
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/raw/1/big.png")
+	res := serveSurface(f.s.Surface(), http.MethodGet, raw+"1/big.png")
 	g.Expect(res.Code).To(Equal(http.StatusRequestEntityTooLarge))
-	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring(tooLargeToSend))
+	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring(pastSendLimit))
 
-	res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/raw/1/fits.png")
+	res = serveSurface(f.s.Surface(), http.MethodGet, raw+"1/fits.png")
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	g.Expect(res.Body.Len()).To(Equal(kind.MaxSend))
+
+	// Asked for, a file past the limit is sent: a captured one from its blob,
+	// and one in the base from git through a temporary file, each seekable
+	// so a range is answered.
+	paths := []string{"1/big.png", "0/base.png"}
+	for _, p := range paths {
+		t.Run(p, func(t *testing.T) {
+			g := NewWithT(t)
+			res := serveSurface(f.s.Surface(), http.MethodGet, raw+p+"?load=1")
+			g.Expect(res.Code).To(Equal(http.StatusOK))
+			g.Expect(res.Body.Len()).To(Equal(kind.MaxSend + 1))
+			g.Expect(res.Header().Get("Content-Type")).To(Equal("image/png"))
+
+			req := httptest.NewRequest(http.MethodGet, "http://eyeball"+raw+p+"?load=1", nil)
+			req.Header.Set("Range", "bytes=10-19")
+			ranged := httptest.NewRecorder()
+			f.s.Surface().ServeHTTP(ranged, req)
+			g.Expect(ranged.Code).To(Equal(http.StatusPartialContent))
+			g.Expect(ranged.Body.String()).To(Equal("xxxxxxxxxx"))
+		})
+	}
 }

@@ -58,6 +58,9 @@ type facts struct {
 	// Hint says why it is not shown, and is empty for a file that has no
 	// rendering at all.
 	Hint string
+	// Load is the file's page with it sent anyway, for a file past the send
+	// limit, and empty otherwise.
+	Load string
 }
 
 // sideReader is one side of a comparison: what reads it and the round number
@@ -91,15 +94,15 @@ func (s *Server) renderShown(ctx context.Context, at fileAt, before, after sideR
 			return nil, err
 		}
 	}
-	if afterSize > kind.MaxSend || beforeSize > kind.MaxSend {
-		return &rendering{Facts: &facts{Kind: f.Name, Size: bytesText(max(afterSize, beforeSize)), Hint: tooLargeToSend}}, nil
+	if (afterSize > kind.MaxSend || beforeSize > kind.MaxSend) && !at.load {
+		return &rendering{Facts: &facts{Kind: f.Name, Size: bytesText(max(afterSize, beforeSize)), Hint: pastSendLimit, Load: at.loadHref()}}, nil
 	}
 
 	if f.Kind == kind.PDF {
 		if afterSize < 0 {
 			return nil, nil
 		}
-		return &rendering{Frame: rawHref(at.review.ID, after.number, at.path), Title: at.path, Kind: f.Name, Size: bytesText(afterSize)}, nil
+		return &rendering{Frame: at.raw(after.number), Title: at.path, Kind: f.Name, Size: bytesText(afterSize)}, nil
 	}
 
 	type planned struct {
@@ -141,10 +144,10 @@ func (s *Server) framePage(ctx context.Context, at fileAt, now *capture.Reader) 
 	if err != nil || size < 0 {
 		return nil, err
 	}
-	if size > kind.MaxSend {
-		return &rendering{Facts: &facts{Kind: at.file.Name, Size: bytesText(size), Hint: tooLargeToSend}}, nil
+	if size > kind.MaxSend && !at.load {
+		return &rendering{Facts: &facts{Kind: at.file.Name, Size: bytesText(size), Hint: pastSendLimit, Load: at.loadHref()}}, nil
 	}
-	return &rendering{Frame: rawHref(at.review.ID, at.round.Number, at.path), Sandboxed: true, Title: at.path}, nil
+	return &rendering{Frame: at.raw(at.round.Number), Sandboxed: true, Title: at.path}, nil
 }
 
 // sandboxNotice is the banner above a page in its Page view.
@@ -177,7 +180,7 @@ func binaryName(f kind.File) string {
 // side describes one side: its address, and a caption of its dimensions and
 // size for an image, or its kind and size for a recording.
 func (s *Server) side(ctx context.Context, at fileAt, from sideReader, size int64, label, tint string) (renderedSide, error) {
-	out := renderedSide{Label: label, Tint: tint, Src: rawHref(at.review.ID, from.number, at.path), Element: "img"}
+	out := renderedSide{Label: label, Tint: tint, Src: at.raw(from.number), Element: "img"}
 	switch at.file.Kind {
 	case kind.Audio:
 		out.Element = "audio"

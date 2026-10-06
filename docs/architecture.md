@@ -381,8 +381,12 @@ element, where it cannot execute, so it shows before and after like any other
 image. An SVG that animates by script stands still there, and one opened
 directly is served under the same sandbox as a page.
 
-**A file past 20 MB is not sent to a phone.** At ten megabits a second it takes
-sixteen seconds. The number is a guess written down so it can be corrected.
+**A file past 20 MB is not sent to a phone until asked.** At ten megabits a
+second it takes sixteen seconds. The number is a guess written down so it can be
+corrected. Load anyway opens the file's page with `?load=1`, and the raw route
+answers past the limit only with that query. A blob seeks on disk, and a base
+file past the limit is copied from `git cat-file` to a temporary file first, so
+a range is answered either way and nothing that size is held in memory.
 
 Syntax highlighting is `alecthomas/chroma/v2`, server side, into the five roles
 the stylesheet defines. Client-side highlighting would ship a second parser to a

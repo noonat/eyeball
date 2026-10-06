@@ -329,10 +329,12 @@ which is a document format that can carry script and is routinely mistaken for
 an image format. An SVG shown as an image is safe, because an image cannot
 execute. The same file opened as a page is not.
 
-**A file too large to send to a phone is not sent.** The surface names it and
-stops. The limit is a real one: a review is read over whatever connection the
-reviewer has, and a video that would take a minute to arrive has already cost
-more than the review was worth.
+**A file too large to send to a phone is not sent until asked.** The surface
+names it, says it is past the limit, and offers to load it anyway. The limit is
+a real one: a review is read over whatever connection the reviewer has, and a
+video that would take a minute to arrive has already cost more than the review
+was worth. The surface cannot tell wifi from cellular, so it names the limit
+rather than the connection, and the reviewer who knows decides.
 
 ### Widening
 

@@ -54,8 +54,9 @@ const (
 // MaxSend is the largest file the surface sends to a phone.
 //
 // Twenty megabytes takes sixteen seconds at ten megabits a second. It is a
-// guess written down so it can be corrected.
-const MaxSend = 20 << 20
+// guess written down so it can be corrected. It counts in thousands, as the
+// sizes the surface prints do, so a file past it never prints as 20.0 MB.
+const MaxSend = 20 * 1000 * 1000
 
 // File is what a file is and how its bytes are described.
 type File struct {

@@ -392,7 +392,7 @@ required_acks:
 This iteration is the owner's. The driving agent serves the seeded review on the
 tailnet and lists what to check. `phone-checked` is given only by the owner.
 
-- [ ] Each kind checked on the phone, in the file page and the card
+- [/] Each kind checked on the phone, in the file page and the card
 - [ ] The PDF view decided: frame, link, or both, and the spec and code
       following
 - [ ] The page frame's height judged, and what was found recorded in this spec

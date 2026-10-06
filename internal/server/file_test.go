@@ -838,8 +838,13 @@ func TestServer_Surface_fileRendered(t *testing.T) {
 	t.Run("past the send limit", func(t *testing.T) {
 		g := NewWithT(t)
 		doc := f.page(g, base+"big.png", http.StatusOK)
-		g.Expect(text(find(doc, "filefacts"))).To(Equal("PNG image21.0 MB" + tooLargeToSend))
+		g.Expect(text(find(doc, "filefacts"))).To(Equal("PNG image20.0 MB" + pastSendLimit + "Load anyway"))
 		g.Expect(findAll(doc, func(n *html.Node) bool { return n.Data == "img" })).To(BeEmpty())
+		g.Expect(attr(find(doc, "load"), "href")).To(Equal(base + "big.png?load=1"))
+
+		// Load anyway shows it, asking the raw route for it past the limit.
+		doc = f.page(g, base+"big.png?load=1", http.StatusOK)
+		g.Expect(sides(doc)).To(Equal([]string{"preview now | New20.0 MB | img " + raw + "1/big.png?load=1"}))
 	})
 	t.Run("a file with no rendering", func(t *testing.T) {
 		g := NewWithT(t)

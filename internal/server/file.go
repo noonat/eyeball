@@ -188,6 +188,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		path:        clean,
 		file:        kind.ByName(clean),
 		stored:      views[clean],
+		load:        r.URL.Query().Get("load") == "1",
 	}
 	if clean == "" {
 		return s.treeView(ctx, w, at, project, st, files, scope)
@@ -334,6 +335,30 @@ type fileAt struct {
 	// stored is the view the agent chose for the path at this round, and
 	// empty for the file's default.
 	stored string
+	// load says the reviewer asked for a file past the send limit anyway.
+	load bool
+}
+
+// raw is the path's bytes as of a round, asking for them past the send limit
+// where the reviewer did.
+func (a fileAt) raw(number int) string {
+	href := rawHref(a.review.ID, number, a.path)
+	if a.load {
+		href += "?load=1"
+	}
+	return href
+}
+
+// loadHref is this file's page in the view shown, with a file past the send
+// limit sent anyway. A card has no view of its own, so its link opens the
+// file's default.
+func (a fileAt) loadHref() string {
+	q := a.against()
+	if a.view != "" {
+		q.Set("view", a.view)
+	}
+	q.Set("load", "1")
+	return withQuery(fileHref(a.review.ID, a.round.Number, a.current, a.path), q)
 }
 
 // chosen is the view the page opens in: the one asked for, then the one the
