@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"net/http"
 
 	"github.com/noonat/eyeball"
@@ -23,17 +24,61 @@ const contentSecurityPolicy = "default-src 'self'; img-src 'self' data:; frame-a
 // is the request served through a writer that catches the fallback's status.
 // The pattern alone cannot tell a 404 from a 405, and the writer alone would
 // replace a handler's own 404 page.
+//
+// Every request passes Go's cross-origin check first. The tailnet listener has
+// no token, so without it any page the phone opened could post a verdict as a
+// plain form.
 func (s *Server) Surface() http.Handler {
+	return http.NewCrossOriginProtection().Handler(s.surfaceMux())
+}
+
+// LoopbackSurface is Surface for the loopback listener: a request that writes
+// must also carry the run's token in tokenHeader. Reads need none.
+//
+// The token blocks another account on this machine, and a casual curl, from
+// deciding. It does not stop a process running as the owner, which can write
+// eyeball.db directly.
+func (s *Server) LoopbackSurface(token string) http.Handler {
+	inner := s.surfaceMux()
+	want := []byte(token)
+	return http.NewCrossOriginProtection().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead &&
+			subtle.ConstantTimeCompare([]byte(r.Header.Get(tokenHeader)), want) != 1 {
+			s.refuseWithoutToken(w, r)
+			return
+		}
+		inner.ServeHTTP(w, r)
+	}))
+}
+
+// tokenHeader carries the loopback listener's token. web/ts names it too.
+const tokenHeader = "X-Eyeball-Token"
+
+// noToken is what a write on the loopback listener without the run's token is
+// told.
+const noToken = "This page cannot write to this eyeball. Open the address eyeball serve printed."
+
+// refuseWithoutToken answers a write that lacks the token: plain text to htmx,
+// which shows it beside the control, and a page to anything else.
+func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
+	setSurfaceHeaders(w.Header())
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(noToken))
+		return
+	}
+	p := page{Title: "Not allowed", Back: "/", BackLabel: "Queue", Body: message{Heading: "Not allowed", Text: noToken}}
+	s.renderPage(w, http.StatusForbidden, "error", p)
+}
+
+// surfaceMux is the mux with the headers every response carries and a page in
+// place of the mux's own 404 and 405.
+func (s *Server) surfaceMux() http.Handler {
 	mux := s.SurfaceHandler()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", contentSecurityPolicy)
-		h.Set("Cache-Control", "no-store")
-		h.Set("X-Content-Type-Options", "nosniff")
-		// A document can link anywhere, and a browser following a link sends
-		// the page's origin, the tailnet's machine name, under its default
-		// policy. One header covers every link on every page.
-		h.Set("Referrer-Policy", "no-referrer")
+		setSurfaceHeaders(h)
 		if _, pattern := mux.Handler(r); pattern != "" {
 			mux.ServeHTTP(w, r)
 			return
@@ -180,4 +225,15 @@ func (s *Server) handleScript(w http.ResponseWriter, _ *http.Request) error {
 	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	_, _ = w.Write(js)
 	return nil
+}
+
+// setSurfaceHeaders sets the headers every surface response carries.
+func setSurfaceHeaders(h http.Header) {
+	h.Set("Content-Security-Policy", contentSecurityPolicy)
+	h.Set("Cache-Control", "no-store")
+	h.Set("X-Content-Type-Options", "nosniff")
+	// A document can link anywhere, and a browser following a link sends the
+	// page's origin, the tailnet's machine name, under its default policy. One
+	// header covers every link on every page.
+	h.Set("Referrer-Policy", "no-referrer")
 }

@@ -23,8 +23,11 @@ One process, on the machine the projects are on.
 
 **The agent side never touches the tailnet.** An agent talks to the daemon over
 a unix socket in the state directory, beside the database. Nothing reachable
-over the network can open a review, read one as an agent, or release a batch of
-comments. The tailnet carries the reviewer's surface and nothing else.
+over the network can open a review or read one as an agent. The tailnet carries
+the reviewer's surface and nothing else, and since the verdict is the surface's,
+any device on the tailnet that reaches it can release a batch of comments by
+deciding. Who may write on the tailnet listener is decided with notification,
+with tsnet's `WhoIs` in hand.
 
 The socket is not in the user's runtime directory, although that directory is
 cleared at logout and would suit it. `XDG_RUNTIME_DIR` is set by a login session
@@ -179,6 +182,23 @@ expose every review to the other accounts on the machine, since a loopback port
 is reachable by every local user where the state directory is `0700`. That is
 why it is a flag a person passes, and never a default.
 
+**Writing through the loopback listener takes the run's token.** `serve` draws
+one per run and prints the address with it in the fragment, which a browser
+sends to no server and puts in no `Referer`. The page's script stores it in
+`localStorage` and sends it as `X-Eyeball-Token` on every write, and the
+listener refuses a write without it. `localStorage` is isolated per port and a
+cookie is not, so another account's loopback page opened in the same browser
+never sees the token. A page on another origin cannot set the header without a
+CORS preflight the surface never grants. A process running as this user can
+still write `eyeball.db` directly; the token stops other accounts and a casual
+`curl`, not that.
+
+**Every surface request passes Go's cross-origin check**, on both listeners.
+`http.CrossOriginProtection` refuses a write whose `Sec-Fetch-Site` is neither
+`same-origin` nor `none`, or, without that header, whose `Origin` differs from
+its `Host`. The tailnet listener has no token, so without the check any page the
+phone opened could post a verdict there as a plain form.
+
 **A preview renders in an iframe with `sandbox="allow-scripts"` and nothing
 else.** Omitting `allow-same-origin` gives the frame an opaque origin, so
 scripts run and the page renders, and it can reach no cookie, no storage and
@@ -191,6 +211,15 @@ page on `:8443` shares the cookie jar of the surface on `:443`, so the isolation
 would be real for three mechanisms and absent for the fourth, which is the shape
 of a hole nobody finds until something is stored in a cookie. There is no cookie
 today, which is what makes the mistake survivable and invisible.
+
+There is a stored credential, though: the loopback listener's token, in that
+origin's `localStorage`. A frame sandboxed with `allow-scripts` alone cannot
+read it, and its writes carry `Origin: null`, which the cross-origin check
+refuses. `allow-same-origin` would hand the frame the token, which is one more
+reason that flag needs a separate origin. The same holds for a preview opened as
+a page rather than in a frame: agent HTML or SVG served at the surface's origin
+would run with its storage. So a preview served as a page carries
+`Content-Security-Policy: sandbox allow-scripts`, or comes from another origin.
 
 A distinct hostname does isolate cookies, and it costs a second tsnet node. That
 is the answer if previews ever need storage of their own, because the reason

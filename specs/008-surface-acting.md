@@ -935,6 +935,27 @@ fifteen, two, two and thirty days.
   Mutation testing was not run either, to stay within the usage limit; the
   gates' deliberate failures above are the evidence they can fail.
 
+**Departures, iteration 3.**
+
+- The bundle's half of the token, reading the fragment and sending the header,
+  moved to iteration 5 under round 1's review, as the iteration lists show. This
+  iteration built the server's half and the printed address.
+- `LoopbackSurface(token)` wraps the same inner handler as `Surface()`, and each
+  puts `http.CrossOriginProtection` outermost. A write refused for its token
+  still carries the surface's headers.
+- The tests that the token never reaches `/agent/daemon` or a log line are in
+  `TestRun_surfaceOnLoopback`: the token appears once in everything the daemon
+  writes to stderr, the printed line, and not in `/agent/daemon`'s answer.
+  `eyeball status` prints that answer, so it is covered by the same check rather
+  than by a test of its own.
+- Its cross-origin rows run against both handlers, and an origin matching the
+  host is let through without `Sec-Fetch-Site`, as the fallback is written.
+- architecture.md's preview paragraph now also requires a preview served as a
+  page to carry `Content-Security-Policy: sandbox allow-scripts` or come from
+  another origin, round 1's finding 11, for 010.
+- No mutation run, under the owner's 2026-10-06 change. The token rows include
+  the right token passing, which a check that refused every write would fail.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1071,25 +1092,25 @@ required_acks:
 
 ## Iteration 3: Who may act
 
-- [ ] `http.CrossOriginProtection` around the surface handler on both listeners,
+- [x] `http.CrossOriginProtection` around the surface handler on both listeners,
       with a test row for each case in the probe's table
-- [ ] `serve --surface-addr` drawing a token once per run and printing the bound
+- [x] `serve --surface-addr` drawing a token once per run and printing the bound
       address with `#token=` once the listener is bound
-- [ ] Tests that `/agent/daemon`, `eyeball status` and the daemon's log lines
+- [x] Tests that `/agent/daemon`, `eyeball status` and the daemon's log lines
       never hold the token
-- [ ] Every request but GET and HEAD on the loopback listener refused with 403
+- [x] Every request but GET and HEAD on the loopback listener refused with 403
       and the token sentence unless `X-Eyeball-Token` matches, compared in
       constant time
-- [ ] Rows for a missing header, a wrong token and a token from an earlier run,
+- [x] Rows for a missing header, a wrong token and a token from an earlier run,
       and the sentence answered as a page to a write without `HX-Request`
-- [ ] The tailnet listener ignoring the header, with a row writing there with
+- [x] The tailnet listener ignoring the header, with a row writing there with
       none
-- [ ] architecture.md's listeners and preview paragraphs: the token stored and
+- [x] architecture.md's listeners and preview paragraphs: the token stored and
       sent as a header, the cross-origin check, the batch a verdict releases,
       and the rule for 010 that a preview opened as a page carries
       `Content-Security-Policy: sandbox allow-scripts` or comes from another
       origin, since agent HTML on the surface's origin could read the token
-- [ ] The manual's `serve` entry saying it prints an address to open, naming no
+- [x] The manual's `serve` entry saying it prints an address to open, naming no
       token
 
 ## Iteration 4: The write routes

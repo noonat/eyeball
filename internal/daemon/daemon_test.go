@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -351,8 +352,9 @@ func TestRun_surfaceOnLoopback(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
+	var stderr syncBuffer
 	go func() {
-		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: addr})
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: &stderr, NewNode: noNode, SurfaceAddr: addr})
 	}()
 	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
 
@@ -361,6 +363,40 @@ func TestRun_surfaceOnLoopback(t *testing.T) {
 	_ = res.Body.Close()
 	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
 	g.Expect(res.Header.Get("Cache-Control")).To(Equal("no-store"))
+
+	// The address is printed once with the run's token in its fragment, and
+	// the token appears on no other line, the log's included.
+	printed := regexp.MustCompile(`(?m)^eyeball: the surface is at http://` + regexp.QuoteMeta(addr) + `/#token=([A-Z2-7]{26})$`)
+	g.Eventually(stderr.String).Should(MatchRegexp(printed.String()))
+	token := printed.FindStringSubmatch(stderr.String())[1]
+	g.Expect(strings.Count(stderr.String(), token)).To(Equal(1))
+	var info api.Daemon
+	get(g, t, p, "/agent/daemon", &info)
+	raw, err := json.Marshal(info)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring(token))
+
+	// A write needs the token. POST to /healthz is a 405 once past the check,
+	// which tells it apart from the check's 403.
+	writes := []struct {
+		header string
+		status int
+	}{
+		{header: "", status: http.StatusForbidden},
+		{header: "WRONG", status: http.StatusForbidden},
+		{header: token, status: http.StatusMethodNotAllowed},
+	}
+	for _, c := range writes {
+		req, err := http.NewRequest(http.MethodPost, "http://"+addr+"/healthz", nil)
+		g.Expect(err).NotTo(HaveOccurred())
+		if c.header != "" {
+			req.Header.Set("X-Eyeball-Token", c.header)
+		}
+		res, err := http.DefaultClient.Do(req)
+		g.Expect(err).NotTo(HaveOccurred())
+		_ = res.Body.Close()
+		g.Expect(res.StatusCode).To(Equal(c.status), c.header)
+	}
 
 	cancel()
 	var runErr error

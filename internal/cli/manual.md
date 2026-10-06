@@ -132,7 +132,9 @@ foreground, and is the person's, for debugging: an agent does not run it.
 
 `eyeball serve` with `--surface-addr` also serves the reviewer's surface on a
 loopback address, such as `127.0.0.1:8111`. It is the person's flag, for
-debugging. A loopback port can be reached by every account on the machine.
+debugging. A loopback port can be reached by every account on the machine. It
+prints an address to open, and only a page opened from that address can comment
+or decide there.
 
 **The surface** is the page the person reviews on. The daemon serves it on the
 tailnet once the owner has set it up, which only the owner does. `status`
