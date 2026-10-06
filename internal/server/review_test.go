@@ -640,7 +640,22 @@ func TestServer_Surface_reviewOpensUpToItsLimits(t *testing.T) {
 			g.Expect(files).To(HaveLen(c.files))
 			for _, file := range files {
 				g.Expect(hasAttr(file, "open")).To(Equal(c.open), text(find(file, "path")))
+				// A card past the thresholds sends no body with the page,
+				// and loads it from its own address on the first open.
+				g.Expect(find(file, "code") == nil).To(Equal(!c.open))
+				g.Expect(hasAttr(file, "hx-get")).To(Equal(!c.open))
 			}
+			if c.open {
+				return
+			}
+			body := attr(files[0], "hx-get")
+			g.Expect(attr(files[0], "hx-trigger")).To(Equal("toggle once"))
+			res := serveSurface(f.s.Surface(), http.MethodGet, body)
+			g.Expect(res.Code).To(Equal(http.StatusOK))
+			rows := findAll(parse(g, res.Body.String()), hasClass("src"))
+			g.Expect(rows).To(HaveLen(c.lines))
+			res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt")
+			g.Expect(res.Code).To(Equal(http.StatusNotFound))
 		})
 	}
 }

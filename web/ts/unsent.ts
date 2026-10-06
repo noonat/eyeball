@@ -3,7 +3,7 @@ import { eltOf, targetOf, xhrOf } from "./events";
 
 // What an unsent card holds: the form it came from, so Retry sends the same
 // comment, with the same submission key, to the same place.
-interface Pending {
+export interface Pending {
   readonly action: string;
   readonly target: string;
   readonly values: Readonly<Record<string, string>>;
@@ -164,4 +164,55 @@ function keepCards(): void {
       updateGuard();
     }, 0);
   });
+}
+
+// SavedCard is an unsent card as a draft keeps it.
+export interface SavedCard extends Pending {
+  readonly where: string;
+}
+
+// unsentCards reads every card on the page, for a draft.
+export function unsentCards(): SavedCard[] {
+  const out: SavedCard[] = [];
+  for (const card of document.querySelectorAll(".comment.unsent")) {
+    const p = pending.get(card);
+    if (p) {
+      out.push({
+        ...p,
+        where: card.querySelector(".where")?.textContent ?? "",
+      });
+    }
+  }
+  return out;
+}
+
+// restoreCard puts a card a draft kept back in its list, when that list is on
+// the page.
+export function restoreCard(saved: SavedCard): void {
+  const template = document.getElementById("unsent-card");
+  const shape =
+    template instanceof HTMLTemplateElement
+      ? template.content.firstElementChild
+      : null;
+  const copy = shape?.cloneNode(true);
+  const into = document.querySelector(saved.target);
+  const holder =
+    into?.matches("tr") === true ? into.querySelector(".thread-body") : into;
+  if (!(copy instanceof Element) || holder === null || holder === undefined) {
+    return;
+  }
+  const whereText = copy.querySelector(".where");
+  const text = copy.querySelector("p");
+  if (whereText) {
+    whereText.textContent = saved.where;
+  }
+  if (text) {
+    text.textContent = saved.values["body"] ?? "";
+  }
+  pending.set(copy, {
+    action: saved.action,
+    target: saved.target,
+    values: saved.values,
+  });
+  holder.appendChild(copy);
 }

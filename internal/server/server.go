@@ -263,6 +263,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /reviews/{review}/rounds/{round}/cards/{path...}",
+		handle:  (*Server).handleCardBody,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /events",
 		handle:  (*Server).handleEvents,
 	},

@@ -1,4 +1,4 @@
-{{define "review"}}<div class="scroll"><div class="page" data-stream="{{.Stream}}" data-stamp="{{.Stamp}}"{{with .Acting}} data-review="{{.Review}}" data-round="{{.Round}}" data-acting="{{.State}}"{{with .Against}} data-against="{{.}}"{{end}}{{end}}>
+{{define "review"}}<div class="scroll"><div class="page" data-stream="{{.Stream}}" data-stamp="{{.Stamp}}" data-place="{{.Place}}"{{with .Acting}} data-review="{{.Review}}" data-round="{{.Round}}" data-acting="{{.State}}"{{with .Against}} data-against="{{.}}"{{end}}{{end}}>
 <div class="brief">
 <div class="where">{{if .Abandoned}}<span class="pill plain">Abandoned</span>{{else}}{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><a class="bit" href="{{.ProjectHref}}"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
 <h2 class="title">{{.Title}}</h2>
@@ -47,15 +47,17 @@
 {{range .Replies}}{{template "comment" .}}{{end}}</div>
 </div>
 {{end}}{{end}}
-{{define "file"}}<details class="file" data-path="{{.Path}}"{{if .Open}} open{{end}}>
+{{define "file"}}<details class="file" data-path="{{.Path}}"{{if .Open}} open{{end}}{{if .Deferred}} hx-get="{{.BodyHref}}" hx-trigger="toggle once" hx-target="find [data-body]" hx-swap="outerHTML"{{end}}>
 <summary><span class="path"><bdi>{{.Path}}</bdi></span>{{if not .Unmeasured}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>{{end}}{{if .IsDocument}}<a class="fileopen" href="{{.RawDiff}}" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a>{{else}}<a class="fileopen" href="{{.Whole}}" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a>{{end}}</summary>
-{{if .Deleted}}<div class="toobig">Deleted as of this round.</div>
+{{if .Deferred}}<div data-body></div>
+{{else}}{{template "filebody" .}}{{end}}</details>
+{{end}}
+{{define "filebody"}}{{if .Deleted}}<div class="toobig">Deleted as of this round.</div>
 {{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
 {{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
 {{else if .List}}{{template "reviewcode" .}}{{else}}{{template "code" .Diff.Rows}}{{end}}{{with .List}}{{template "commentlist" .}}{{else}}{{range .Comments}}{{template "comment" .}}{{end}}{{end}}{{with .Slot}}<div id="{{.}}"></div>
-{{end}}</details>
-{{end}}
+{{end}}{{end}}
 {{define "code"}}<div class="code narrow">
 <table>
 {{range .}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>

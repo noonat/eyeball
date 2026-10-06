@@ -1158,6 +1158,28 @@ with the `review:` entry's list as its start.
   handler iteration 5 built, and have no browser test of their own here.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Departures, iteration 12.**
+
+- The cards route builds the round's page and takes the one card from it, so a
+  body is the page's own markup and cannot drift from it. That compares every
+  file of the round for each body asked for, which only a review past the
+  thresholds does. A per-file comparison is the cheaper mechanism, and is a
+  `tooling:` entry in specs/TODO.md.
+- A collapsed card's placeholder is a `div` marked `data-body`, which htmx's
+  `find [data-body]` targets, with no class.
+- A card body that fails to load shows the drawn `.failed` line with its
+  `.retry` link inside the card, under its summary, rather than after the card
+  where the failure handler puts a line for any other control.
+- Drafts restore once the document is parsed. A line's or a passage's composer
+  kept in a draft reopens once its card's body is on the page, waiting up to
+  three seconds for a collapsed card reopened on load to fetch it, which the
+  browser test found it had to.
+- An anchored composer carries the query it was opened with in `data-query`, so
+  a draft can reopen it where it was.
+- Prune skips `eyeball:token`, which is a bare string rather than an entry with
+  a time.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1631,18 +1653,18 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] A collapsed card rendered without its body, loading it from the cards
+- [x] A collapsed card rendered without its body, loading it from the cards
       route on its first open, keeping `against`
-- [ ] A card body that fails to load showing the drawn failure line with its
+- [x] A card body that fails to load showing the drawn failure line with its
       `retry` link in the card, with no new class
-- [ ] The text of the composer, an edit form, the verdict's note and every
+- [x] The text of the composer, an edit form, the verdict's note and every
       unsent card kept in `localStorage` per review and round as it is typed,
       restored on load, and each cleared once stored, sent or discarded
-- [ ] A review page saving its scroll and open files under the review, round and
+- [x] A review page saving its scroll and open files under the review, round and
       comparison on scroll and `pagehide`, restored at either address
-- [ ] Every storage call wrapped so a page works when storage throws, and
+- [x] Every storage call wrapped so a page works when storage throws, and
       entries older than thirty days dropped except `eyeball:token`
-- [ ] Browser tests: a large review scrolled with a card open, reloaded, and
+- [x] Browser tests: a large review scrolled with a card open, reloaded, and
       found in place with that body loaded; a draft surviving a reload
 
 ## Iteration 13: Seeing it

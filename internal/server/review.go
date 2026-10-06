@@ -75,6 +75,10 @@ type reviewPage struct {
 	// Stream and Stamp are the live stream this page opens and the stamp it
 	// was rendered at, which the client compares with what the stream sends.
 	Stream, Stamp string
+	// Place keys where a reader was on this page: the review, the round and
+	// the comparison. The address is no key, since the current round answers
+	// at two.
+	Place string
 	// Unmeasurable says why nothing could be compared, where git can no
 	// longer read the round's base, and is empty otherwise. The files are then
 	// shown as the round captured them.
@@ -166,6 +170,11 @@ type fileView struct {
 	// Threads are the line comments on the current round, keyed by the new
 	// side's line number, each shown in a row under its line.
 	Threads map[int]*threadView
+	// Deferred says the card renders closed with an empty body, which
+	// BodyHref answers on its first open. A large review would otherwise send
+	// every body with the page.
+	Deferred bool
+	BodyHref string
 }
 
 // threadView is the row under a line holding its comments, and the composer
@@ -407,6 +416,11 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	expand := files <= maxOpenFiles && added+removed <= maxOpenLines
 	for i := range view.Shown {
 		view.Shown[i].Open = expand
+		if !expand {
+			view.Shown[i].Deferred = true
+			href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
+			view.Shown[i].BodyHref = withQuery(href, against)
+		}
 	}
 	if view.Unmeasurable == "" {
 		view.Files = count(files, "file", "files")
@@ -483,6 +497,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		view.Acting.Bar.Tally = tallyView{Count: len(comments)}
 	}
 	view.Stream = fmt.Sprintf("/events?review=%d", review.ID)
+	view.Place = fmt.Sprintf("%d:%d:%s", review.ID, round.Number, against.Get("against"))
 	if view.Stamp, err = s.reviewStamp(ctx, review.ID); err != nil {
 		return reviewPage{}, err
 	}
@@ -676,4 +691,48 @@ func shows(f render.File, line int) bool {
 		}
 	}
 	return false
+}
+
+// handleCardBody answers GET /reviews/{review}/rounds/{round}/cards/{path...}:
+// a collapsed file card's body, on its first open.
+//
+// It builds the round's page and takes the one card from it, so the body is
+// the page's own markup and cannot drift from it. That costs comparing every
+// file of the round for each body asked for, which only a review past the
+// thresholds does.
+func (s *Server) handleCardBody(w http.ResponseWriter, r *http.Request) error {
+	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
+	if err != nil {
+		plain(w, http.StatusNotFound, "There is no such review.")
+		return nil
+	}
+	number, err := strconv.Atoi(r.PathValue("round"))
+	if err != nil {
+		plain(w, http.StatusNotFound, noRound)
+		return nil
+	}
+	review, err := s.db.s.Review(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		plain(w, http.StatusNotFound, "There is no such review.")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base")
+	if errors.Is(err, store.ErrNotFound) {
+		plain(w, http.StatusNotFound, noRound)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, f := range view.Shown {
+		if f.Path == r.PathValue("path") {
+			f.Deferred = false
+			return s.fragments(w, http.StatusOK, fragment{name: "filebody", data: f})
+		}
+	}
+	plain(w, http.StatusNotFound, "This round shows no such file.")
+	return nil
 }

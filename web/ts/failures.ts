@@ -44,6 +44,10 @@ function home(elt: Element): Element {
 }
 
 export function showFailure(elt: Element, text: string): void {
+  if (elt.matches("details.file[hx-get]")) {
+    showCardFailure(elt, text);
+    return;
+  }
   const at = home(elt);
   clearFailure(elt);
   const line = document.createElement("span");
@@ -66,4 +70,33 @@ function clearFailure(elt: Element): void {
         ? at.nextElementSibling
         : null;
   old?.remove();
+}
+
+// showCardFailure says in a collapsed card that its body did not load, with
+// the drawn retry link, which asks again.
+function showCardFailure(card: Element, text: string): void {
+  card.querySelector(`:scope > .${classes.failed}`)?.remove();
+  const line = document.createElement("span");
+  line.className = classes.failed;
+  line.setAttribute("role", "alert");
+  line.append(`${text} `);
+  const retry = document.createElement("a");
+  retry.className = classes.retry;
+  retry.setAttribute("role", "button");
+  retry.tabIndex = 0;
+  retry.textContent = "Retry";
+  retry.addEventListener("click", () => {
+    line.remove();
+    const body = card.querySelector("[data-body]");
+    const href = card.getAttribute("hx-get");
+    if (body && href !== null) {
+      void htmx.ajax("get", href, {
+        target: body,
+        swap: "outerHTML",
+        source: card,
+      });
+    }
+  });
+  line.append(retry);
+  card.querySelector("summary")?.after(line);
 }

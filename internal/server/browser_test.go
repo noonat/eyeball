@@ -303,6 +303,52 @@ func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g.Expect(d.Note).To(Equal("Name the control."))
 }
 
+// A large review keeps its bodies until a card opens, and reopens where it was
+// left: the same card open with its body loaded, at the same scroll. What was
+// typed survives a reload too.
+func TestServer_Surface_browserRemembers(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 11 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	card := `document.querySelector("details.file[data-path='d/05.txt']")`
+	g.Expect(b.eval(g, card+`.querySelector(".code") === null`)).To(BeTrue(), "a collapsed card's body came with the page")
+	b.eval(g, card+`.querySelector("summary").click()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+	b.eval(g, `document.querySelector(".scroll").scrollTop = 600`)
+	b.eval(g, `document.querySelector(".scroll").dispatchEvent(new Event("scroll"))`)
+	time.Sleep(400 * time.Millisecond)
+
+	b.typeInto(g, ".page > form.composer textarea", "Half a review comment")
+	b.typeInto(g, "#bar textarea", "A note in progress")
+	b.eval(g, card+`.querySelector("tr[data-line='3']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "About line three")
+
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, card+`.open && `+card+`.querySelectorAll(".src").length === 40`)
+	b.waitFor(g, `Math.abs(document.querySelector(".scroll").scrollTop - 600) < 2`)
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal("Half a review comment"))
+	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("A note in progress"))
+	b.waitFor(g, `document.querySelector("tr.thread form.composer textarea")?.value === "About line three"`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread").previousElementSibling.dataset.line`)).To(Equal("3"))
+
+	// A draft clears once its text is stored.
+	b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
+	b.waitFor(g, `document.querySelectorAll("#comments-review .comment").length === 1`)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal(""))
+}
+
 // The live stream: a verdict recorded elsewhere reloads an open review page,
 // but not while something typed is unsaved; a page with no stamp stays put;
 // and a dropped connection shows the notice, holds the verdicts back, and

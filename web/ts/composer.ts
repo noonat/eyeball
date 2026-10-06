@@ -4,13 +4,13 @@ import { isOffline, unsavedText } from "./state";
 
 // The page's acting data, set by the server on .page: which review and round
 // every write names, and whether the round is open to taps.
-interface Acting {
+export interface Acting {
   readonly review: string;
   readonly round: string;
   readonly against: string;
 }
 
-function acting(): Acting | null {
+export function acting(): Acting | null {
   const page = document.querySelector<HTMLElement>(".page[data-acting='open']");
   const { review, round } = page?.dataset ?? {};
   if (page === null || review === undefined || round === undefined) {
@@ -91,13 +91,14 @@ function openPassage(event: Event, at: Acting, block: HTMLElement): void {
 // anchor moves the one composer to a new place, keeping what was typed. A
 // second composer for each tap would scatter half-written comments through a
 // long review.
-async function anchor(
+export async function anchor(
   at: Acting,
   file: HTMLElement,
   row: HTMLElement | null,
   query: Record<string, string>,
+  text = "",
 ): Promise<void> {
-  const typed = closeAnchored();
+  const typed = closeAnchored() || text;
   clearSelection();
   row?.classList.add(classes.sel);
   const params = new URLSearchParams({ round: at.round, ...query });
@@ -122,9 +123,12 @@ async function anchor(
     await htmx.ajax("get", url, { target: slot, swap: "outerHTML" });
     opened = document.getElementById(slot.id);
   }
-  const field = opened?.querySelector<HTMLTextAreaElement>(
-    "form.composer textarea",
-  );
+  const form = opened?.querySelector<HTMLFormElement>("form.composer");
+  const field = form?.querySelector<HTMLTextAreaElement>("textarea");
+  if (form) {
+    // Kept so a draft can reopen the composer where it was.
+    form.dataset["query"] = JSON.stringify(query);
+  }
   if (field && typed !== "") {
     field.value = typed;
   }

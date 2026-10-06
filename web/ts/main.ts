@@ -4,7 +4,10 @@ import {
   openComposers,
   settleComposers,
 } from "./composer";
+import { keepDrafts } from "./drafts";
 import { reportFailures } from "./failures";
+import { keepPlace } from "./place";
+import { prune } from "./storage";
 import { followStream } from "./stream";
 import { catchFailedSaves } from "./unsent";
 import { followTheme } from "./theme";
@@ -25,4 +28,9 @@ guardVerdicts();
 catchFailedSaves();
 // The stream reads the page's stamp, which is in the body, and the bundle runs
 // in the head before the body is parsed.
-document.addEventListener("DOMContentLoaded", followStream);
+document.addEventListener("DOMContentLoaded", () => {
+  followStream();
+  prune();
+  keepPlace();
+  keepDrafts();
+});
