@@ -13,6 +13,7 @@
 <body>
 <div class="app">
 <div class="topbar">{{if .Back}}<a class="back" href="{{.Back}}"><span class="i i-chevron-left" aria-hidden="true"></span>{{.BackLabel}}</a><h1>{{.Title}}</h1>{{else}}<span class="wordmark">eyeball</span>{{with .Pill}}<span class="pill waiting">{{.}}</span>{{end}}{{end}}</div>
+<div id="offline" hidden><div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" role="button" tabindex="0">Retry</a></div></div>
 {{template "page" .Body}}
 </div>
 </body>

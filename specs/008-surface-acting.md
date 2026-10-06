@@ -1121,6 +1121,24 @@ with the `review:` entry's list as its start.
   has no file card to read it from.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Departures, iteration 10.**
+
+- A review's stamp hashes each reply's text where the design named the latest
+  time one was written. The store's `Comment` carries the reply and not when it
+  was written, and a replaced reply changes its text, which is the change the
+  design was after. A reply rewritten to the same words does not move it.
+- The connection notice and the "why not" line are rendered by the server,
+  hidden inside holders with no class, and the client shows and hides the
+  holders. The notice's icon classes, and the `display` `.why-not` sets, would
+  otherwise have to be written at run time or would outrank `hidden`.
+- Retry is an anchor with `role="button"` and `tabindex="0"` and no `href`. With
+  `href="#"` it was a link to no id, which the seeded link test refuses, and as
+  a `<button>` it would lose the drawn anchor's look.
+- The stream starts once the document is parsed. Started from the head, where
+  the bundle runs before the body exists, it found no stamp and opened plain
+  `/events`, so no review page ever reloaded; the browser test caught it.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1522,22 +1540,22 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] `GET /events` subscribing before reading, sending `retry: 2000`, the stamp
+- [x] `GET /events` subscribing before reading, sending `retry: 2000`, the stamp
       and a keepalive every fifteen seconds, flushed each time
-- [ ] The stream ending on `BeginShutdown`, with a daemon test that a stop with
+- [x] The stream ending on `BeginShutdown`, with a daemon test that a stop with
       a stream open finishes within a second
-- [ ] The review's and the queue's stamps printed on the page and sent by the
+- [x] The review's and the queue's stamps printed on the page and sent by the
       stream, with tests that a reply or a verdict moves one and a comment does
       not
-- [ ] Plain `/events` sending no stamp after a publish, and a browser test that
+- [x] Plain `/events` sending no stamp after a publish, and a browser test that
       a file page stays put when something publishes
-- [ ] A page with a stamp reloading when the stream's differs, waiting while any
+- [x] A page with a stamp reloading when the stream's differs, waiting while any
       composer, edit form or the verdict's note holds text
-- [ ] The notice inserted after two seconds without an open stream or at once on
+- [x] The notice inserted after two seconds without an open stream or at once on
       `offline`, removed on reconnect, with Retry reopening the stream
-- [ ] The verdicts marked unavailable with the why-not line while the notice
+- [x] The verdicts marked unavailable with the why-not line while the notice
       shows, and a request from them canceled
-- [ ] Browser tests: a verdict recorded elsewhere reloading an open page, and
+- [x] Browser tests: a verdict recorded elsewhere reloading an open page, and
       the notice after the server stops and gone once it returns
 
 ## Iteration 11: A failed save

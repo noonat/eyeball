@@ -263,6 +263,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /events",
+		handle:  (*Server).handleEvents,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /static/htmx.js",
 		handle:  (*Server).handleHtmx,
 	},

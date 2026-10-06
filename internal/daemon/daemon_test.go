@@ -343,6 +343,32 @@ func TestRun_staleSocket(t *testing.T) {
 	g.Expect(get(g, t, p, "/agent/daemon", &api.Daemon{})).To(Equal(http.StatusOK))
 }
 
+// A page's live stream ends when the daemon stops, so a stop with a page open
+// does not wait out the shutdown grace.
+func TestRun_stopWithAStreamOpen(t *testing.T) {
+	g := NewWithT(t)
+	p := testPaths(g, t)
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := probe.Addr().String()
+	g.Expect(probe.Close()).To(Succeed())
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Run(ctx, Config{Paths: p, Build: "b", Stderr: io.Discard, NewNode: noNode, SurfaceAddr: addr})
+	}()
+	g.Eventually(func() error { return dialSocket(p) }, 5*time.Second, 20*time.Millisecond).Should(Succeed())
+	res, err := http.Get("http://" + addr + "/events")
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = res.Body.Close() }()
+	g.Expect(res.StatusCode).To(Equal(http.StatusOK))
+
+	began := time.Now()
+	cancel()
+	g.Eventually(done, 5*time.Second).Should(Receive(BeNil()))
+	g.Expect(time.Since(began)).To(BeNumerically("<", time.Second))
+}
+
 func TestRun_surfaceAddrInUse(t *testing.T) {
 	g := NewWithT(t)
 	p := testPaths(g, t)

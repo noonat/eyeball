@@ -1,5 +1,6 @@
 import { classes } from "./classes";
 import { eltOf, succeeded, targetOf, verbOf } from "./events";
+import { isOffline, unsavedText } from "./state";
 
 // The page's acting data, set by the server on .page: which review and round
 // every write names, and whether the round is open to taps.
@@ -267,30 +268,22 @@ export function settleComposers(): void {
   });
 }
 
-// unsaved says whether any composer or edit form holds text not yet stored.
-// The verdict's note is not a comment, so it does not count.
-function unsaved(): boolean {
-  for (const field of document.querySelectorAll<HTMLTextAreaElement>(
-    "form.composer textarea",
-  )) {
-    if (field.value.trim() !== "") {
-      return true;
-    }
-  }
-  return false;
-}
-
 // updateGuard shows the bar's notice and marks both verdicts unavailable while
 // text is unsaved. A verdict sent then would release the round without that
 // comment.
 function updateGuard(): void {
   const notice = document.getElementById("unsaved");
-  const held = unsaved();
+  const whyNot = document.getElementById("whynot");
+  const held = unsavedText(false);
+  const down = isOffline();
   if (notice) {
     notice.hidden = !held;
   }
+  if (whyNot) {
+    whyNot.hidden = !down;
+  }
   for (const button of document.querySelectorAll("#bar .buttons button")) {
-    if (held) {
+    if (held || down) {
       button.setAttribute("aria-disabled", "true");
     } else {
       button.removeAttribute("aria-disabled");
@@ -302,6 +295,7 @@ function updateGuard(): void {
 // verdict sent while it holds. aria-disabled does not stop a button.
 export function guardVerdicts(): void {
   document.addEventListener("input", updateGuard);
+  document.addEventListener("eyeball:connection", updateGuard);
   // A line comment's answer replaces the row its form was in, so htmx's
   // afterRequest for it fires on a detached form and never reaches the
   // document. The outline matters only while a composer is open, so every
@@ -316,7 +310,7 @@ export function guardVerdicts(): void {
     updateGuard();
   });
   document.addEventListener("htmx:beforeRequest", (event) => {
-    if (eltOf(event)?.id === "bar" && unsaved()) {
+    if (eltOf(event)?.id === "bar" && (unsavedText(false) || isOffline())) {
       updateGuard();
       event.preventDefault();
     }

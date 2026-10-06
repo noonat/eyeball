@@ -72,6 +72,9 @@ type reviewPage struct {
 	// Acting is what the reviewer can do on the page, and nil on a round
 	// nothing more can be said on.
 	Acting *actingView
+	// Stream and Stamp are the live stream this page opens and the stamp it
+	// was rendered at, which the client compares with what the stream sends.
+	Stream, Stamp string
 	// Unmeasurable says why nothing could be compared, where git can no
 	// longer read the round's base, and is empty otherwise. The files are then
 	// shown as the round captured them.
@@ -478,6 +481,10 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 
 	if view.Acting != nil && view.Acting.Bar != nil {
 		view.Acting.Bar.Tally = tallyView{Count: len(comments)}
+	}
+	view.Stream = fmt.Sprintf("/events?review=%d", review.ID)
+	if view.Stamp, err = s.reviewStamp(ctx, review.ID); err != nil {
+		return reviewPage{}, err
 	}
 	if decided {
 		went := "The verdict went out " + render.Ago(now, decision.Decided) + "."

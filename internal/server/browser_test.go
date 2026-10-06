@@ -5,6 +5,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -223,6 +224,68 @@ func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictChanges))
 	g.Expect(d.Note).To(Equal("Name the control."))
+}
+
+// The live stream: a verdict recorded elsewhere reloads an open review page,
+// but not while something typed is unsaved; a page with no stamp stays put;
+// and a dropped connection shows the notice, holds the verdicts back, and
+// clears once the server is back.
+func TestServer_Surface_browserStream(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	other := actingReview(g, t, f)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := ln.Addr().String()
+	serve := func(l net.Listener) *http.Server {
+		hs := &http.Server{Handler: f.s.LoopbackSurface(browserToken), ReadHeaderTimeout: 5 * time.Second}
+		go func() { _ = hs.Serve(l) }()
+		return hs
+	}
+	hs := serve(ln)
+	t.Cleanup(func() { _ = hs.Close() })
+	base := "http://" + addr
+	b := openBrowser(g, t)
+
+	// Text being written holds the reload back until it is gone.
+	b.navigate(g, base+"/reviews/"+itoa(other)+"#token="+browserToken)
+	b.typeInto(g, ".page > form.composer textarea", "Half written")
+	b.eval(g, `window.__before = true`)
+	f.decide(g, t, other, store.VerdictApprove, "")
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded over unsaved text")
+	b.typeInto(g, ".page > form.composer textarea", "")
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
+
+	// A file page has no stamp, so nothing published reloads it.
+	b.navigate(g, base+"/reviews/"+itoa(id)+"/files/a.txt")
+	b.eval(g, `window.__before = true`)
+	f.comment(g, t, id, "A point.")
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page with no stamp reloaded")
+
+	// A verdict given elsewhere reloads the open review page.
+	b.navigate(g, base+"/reviews/"+itoa(id))
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	b.eval(g, `window.__before = true`)
+	f.decide(g, t, id, store.VerdictChanges, "From another device.")
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
+
+	// The server going away shows the notice, and its return clears it.
+	third := actingReview(g, t, f)
+	b.navigate(g, base+"/reviews/"+itoa(third))
+	g.Expect(hs.Close()).To(Succeed())
+	b.waitFor(g, `document.getElementById("offline").hidden === false`)
+	g.Expect(b.eval(g, `document.getElementById("whynot").hidden`)).To(BeFalse())
+	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(Equal("true"))
+	ln, err = net.Listen("tcp", addr)
+	g.Expect(err).NotTo(HaveOccurred())
+	hs = serve(ln)
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(BeNil())
 }
 
 // comments reads a round's comments.
