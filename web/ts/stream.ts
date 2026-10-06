@@ -1,4 +1,5 @@
 import { setOffline, unsavedText } from "./state";
+import { followBuild } from "./update";
 
 // noticeDelay is how long a stream may be down before the notice shows, so a
 // phone waking from sleep does not flash it. Two seconds is a guess.
@@ -23,6 +24,7 @@ export function followStream(): void {
   const open = (): void => {
     source?.close();
     source = new EventSource(url);
+    followBuild(source);
     source.addEventListener("open", () => {
       window.clearTimeout(timer);
       timer = undefined;

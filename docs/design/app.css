@@ -863,6 +863,18 @@ tr.del .w {
   display: none;
 }
 
+/* What a tap opens a composer on. iOS Safari sends a tap's click only from an
+ * element it takes to be clickable, and a page listening on the document for
+ * the click heard nothing from a line or a passage until the pointer said so.
+ * Found on the owner's phone on 2026-10-06; a desktop browser has no such
+ * rule, so the browser tests could not catch it. */
+.page[data-acting="open"] .code tr[data-line],
+.page[data-acting="open"] .code tr[data-old],
+.page[data-acting="open"] .toobig,
+.page[data-acting="open"] .prose .blk[data-lines] {
+  cursor: pointer;
+}
+
 tr.sel {
   outline: 2px solid var(--accent-vivid);
   outline-offset: -2px;
@@ -1680,6 +1692,33 @@ button.chip {
   white-space: nowrap;
 }
 
+/* A newer build than the page's is running. Shown under the top bar like the
+ * connection notice, in the accent rather than the warning, since nothing is
+ * wrong: the page is only older than the daemon. Refresh reloads it, which the
+ * owner asked for on 2026-10-06 after sweetpea's sticky, to know on the phone
+ * that the code running is the latest. */
+.update {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px var(--pad);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.update .refresh {
+  margin-left: auto;
+  color: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 /* A control that cannot work right now says why on itself, rather than being
  * dimmed and leaving the reason to be guessed. */
 .why-not {
@@ -1780,6 +1819,12 @@ button.chip {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* The notice above the steps keeps the steps' own spacing, so the three read
+ * as one stack. The owner found them touching on the phone on 2026-10-06. */
+.notice + .steps {
+  margin-top: 8px;
 }
 
 .step {

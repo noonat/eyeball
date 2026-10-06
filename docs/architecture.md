@@ -26,8 +26,10 @@ a unix socket in the state directory, beside the database. Nothing reachable
 over the network can open a review or read one as an agent. The tailnet carries
 the reviewer's surface and nothing else, and since the verdict is the surface's,
 any device on the tailnet that reaches it can release a batch of comments by
-deciding. Who may write on the tailnet listener is decided with notification,
-with tsnet's `WhoIs` in hand.
+deciding. The owner decided that any device reaching the tailnet listener may
+write, with no check of device or login. An agent on this machine with tailnet
+access through the machine's own Tailscale could therefore approve with a plain
+request, as it could already write `eyeball.db` directly.
 
 The socket is not in the user's runtime directory, although that directory is
 cleared at logout and would suit it. `XDG_RUNTIME_DIR` is set by a login session
@@ -61,6 +63,7 @@ internal/render/      a diff as rows, syntax highlighting, ages, and markdown
 internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
+tool/appicon/         renders the installed page's icons, committed under web/static/icons
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves docs/design over the tailnet
@@ -396,6 +399,9 @@ Routes, with the spec that builds each:
 | `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a collapsed file card's body, on first open   | 008  |
 | `GET /events`                                          | the live stream, and therefore the connection | 008  |
 | `GET /static/htmx.js`                                  | the vendored htmx, from the binary            | 008  |
+| `GET /manifest.webmanifest`                            | what makes the page installable               | 009  |
+| `GET /sw.js`                                           | the service worker, scoped to the surface     | 009  |
+| `GET /static/icons/{name}`                             | the installed page's icons, from the binary   | 009  |
 | `GET /static/app.js`                                   | the TypeScript, bundled once from the binary  | 008  |
 | `POST /subscriptions`                                  | a device's push subscription                  | 009  |
 | `GET /static/app.css`                                  | the stylesheet, from the binary               | 006  |

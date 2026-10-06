@@ -15,5 +15,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["ts"]
+  "include": ["ts"],
+  "exclude": ["ts/sw.ts"]
 }

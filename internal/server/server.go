@@ -58,6 +58,15 @@ type Server struct {
 	stopping     chan struct{}
 	stoppingOnce sync.Once
 
+	// pushes counts the notifications being sent, which shutdown waits for
+	// within its grace.
+	pushes sync.WaitGroup
+
+	// vapidMu guards vapidKey, the public key read from the store on first
+	// use and kept, since it never changes once made.
+	vapidMu  sync.Mutex
+	vapidKey string
+
 	// afterRead runs in a wait between reading the review and blocking on
 	// the hub. Tests set it to land a verdict in exactly the gap a waiter
 	// that subscribed late would miss. It is atomic because a test sets it
@@ -270,6 +279,26 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /events",
 		handle:  (*Server).handleEvents,
+	},
+	{
+		side:    sideSurface,
+		pattern: "POST /subscriptions",
+		handle:  (*Server).handleSubscribe,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /manifest.webmanifest",
+		handle:  (*Server).handleManifest,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /sw.js",
+		handle:  (*Server).handleWorker,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/icons/{name}",
+		handle:  (*Server).handleIcon,
 	},
 	{
 		side:    sideSurface,

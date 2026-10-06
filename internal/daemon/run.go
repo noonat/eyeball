@@ -228,6 +228,11 @@ func serve(ctx context.Context, c Config, started time.Time, held *lock) error {
 	shutdownCtx, done := context.WithTimeout(context.Background(), ShutdownGrace)
 	defer done()
 	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		srv.WaitPushes(shutdownCtx)
+	}()
 	if s := surface.Load(); s != nil {
 		wg.Add(1)
 		go func() {

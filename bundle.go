@@ -14,22 +14,33 @@ var (
 	bundleOnce sync.Once
 	bundled    []byte
 	bundleErr  error
+
+	workerOnce sync.Once
+	worker     []byte
+	workerErr  error
 )
 
 // Bundle is web/ts compiled into one script, built the first time it is asked
 // for and kept. Building in the binary keeps the daemon a single file with no
 // build step outside go build; it costs esbuild's size in the binary.
 func Bundle() ([]byte, error) {
-	bundleOnce.Do(func() { bundled, bundleErr = build() })
+	bundleOnce.Do(func() { bundled, bundleErr = build("web/ts/main.ts") })
 	return bundled, bundleErr
+}
+
+// Worker is web/ts/sw.ts, the service worker, compiled the same way. It is a
+// separate script because a worker's scope is not a page's.
+func Worker() ([]byte, error) {
+	workerOnce.Do(func() { worker, workerErr = build("web/ts/sw.ts") })
+	return worker, workerErr
 }
 
 // build runs esbuild over the embedded sources. A warning fails the build as an
 // error does, so a source esbuild only half understands is caught by the test
 // rather than shipped.
-func build() ([]byte, error) {
+func build(entry string) ([]byte, error) {
 	res := api.Build(api.BuildOptions{
-		EntryPoints: []string{"web/ts/main.ts"},
+		EntryPoints: []string{entry},
 		Bundle:      true,
 		Write:       false,
 		Format:      api.FormatIIFE,
@@ -42,10 +53,10 @@ func build() ([]byte, error) {
 		problems = append(problems, m.Text)
 	}
 	if len(problems) > 0 {
-		return nil, errors.Newf("bundling web/ts: %s", strings.Join(problems, "; "))
+		return nil, errors.Newf("bundling %s: %s", entry, strings.Join(problems, "; "))
 	}
 	if len(res.OutputFiles) != 1 {
-		return nil, errors.Newf("bundling web/ts: %d outputs, want 1", len(res.OutputFiles))
+		return nil, errors.Newf("bundling %s: %d outputs, want 1", entry, len(res.OutputFiles))
 	}
 	return res.OutputFiles[0].Contents, nil
 }

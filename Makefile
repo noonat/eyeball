@@ -48,8 +48,10 @@ lint: ## Lint everything; fails on any drift, fixes nothing
 	  files="$(FMTFILES)"; \
 	  if [ -z "$$files" ]; then echo "no formattable files found"; exit 1; fi; \
 	  $(OXFMT) --check $$files
-	@echo "==> tsc"; $(TSC) -p web/tsconfig.json
-	@echo "==> oxlint"; $(OXLINT) --type-aware --tsconfig web/tsconfig.json --deny-warnings web/ts
+	@echo "==> tsc"; $(TSC) -p web/tsconfig.json && $(TSC) -p web/tsconfig.sw.json
+	@echo "==> oxlint"; \
+	  $(OXLINT) --type-aware --tsconfig web/tsconfig.json --deny-warnings --ignore-pattern sw.ts web/ts && \
+	  $(OXLINT) --type-aware --tsconfig web/tsconfig.sw.json --deny-warnings web/ts/sw.ts
 	@echo "==> go vet"; go vet ./...
 	@echo "==> staticcheck"; go tool staticcheck ./...
 

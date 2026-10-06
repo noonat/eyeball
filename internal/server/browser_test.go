@@ -218,6 +218,70 @@ func TestServer_Surface_browserFailedSave(t *testing.T) {
 	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
 }
 
+// First run on the queue, with the browser's push manager stubbed so nothing
+// reaches a real push service and its permission granted through the
+// protocol: the steps show until Allow subscribes, a
+// request then reaches the device, and a lapsed subscription says so and
+// subscribes again.
+func TestServer_Surface_browserFirstRun(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	svc := newPushService(t, map[string]int{"/device/1": http.StatusCreated, "/device/2": http.StatusCreated})
+	f.s.surface = func() api.Surface { return api.Surface{URL: "https://eyeball.example.ts.net"} }
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+
+	var keys struct {
+		Keys map[string]string `json:"keys"`
+	}
+	g.Expect(json.Unmarshal([]byte(svc.subscription(g, "/x")), &keys)).To(Succeed())
+	stub := fmt.Sprintf(`(() => {
+		let sub = null, n = 0;
+		const make = () => {
+			const endpoint = %q + "/device/" + (++n);
+			const json = { endpoint, keys: { p256dh: %q, auth: %q } };
+			return { endpoint, toJSON: () => json, unsubscribe: async () => { sub = null; return true; } };
+		};
+		PushManager.prototype.getSubscription = async () => sub;
+		PushManager.prototype.subscribe = async () => (sub = make());
+	})()`, svc.url, keys.Keys["p256dh"], keys.Keys["auth"])
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": stub})
+
+	// The steps show until the device subscribes. Chromium offers push in a
+	// tab, so the install step reads done.
+	b.navigate(g, srv.URL+"/#token="+browserToken)
+	b.waitFor(g, `document.getElementById("firstrun").hidden === false`)
+	g.Expect(b.eval(g, `document.getElementById("install-done").hidden`)).To(BeFalse())
+	// The prompt is the browser's, so the permission is granted through the
+	// protocol before the tap, and requestPermission answers granted.
+	b.call(g, "Browser.grantPermissions", map[string]any{"permissions": []string{"notifications"}, "origin": srv.URL})
+	b.eval(g, `document.getElementById("allow").click()`)
+	b.waitFor(g, `document.getElementById("firstrun").hidden === true`)
+	subs, err := f.store.ActiveSubscriptions(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(subs).To(HaveLen(1))
+	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/1"))
+
+	// A request now reaches the device.
+	actingReview(g, t, f)
+	f.s.WaitPushes(t.Context())
+	g.Expect(svc.paths()).To(Equal([]string{"/device/1"}))
+
+	// A subscription the push service called gone says so on the next load,
+	// and Re-subscribe makes a new one.
+	g.Expect(f.store.MarkLapsed(t.Context(), svc.url+"/device/1")).To(Succeed())
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `document.getElementById("lapsed").hidden === false`)
+	b.eval(g, `document.getElementById("resubscribe").click()`)
+	b.waitFor(g, `document.getElementById("lapsed").hidden === true`)
+	subs, err = f.store.ActiveSubscriptions(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(subs).To(HaveLen(1))
+	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
+}
+
 // A passage takes a comment under it, in a document card and in the layout a
 // single new document gets. A tap selects a passage, and only its hint shows
 // what a changed one replaced.
@@ -411,6 +475,53 @@ func TestServer_Surface_browserStream(t *testing.T) {
 	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(BeNil())
 }
 
+// A page served by an older build says so once the stream hears a newer one,
+// and Refresh loads the page from the build running now.
+func TestServer_Surface_browserUpdate(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := ln.Addr().String()
+	serve := func(l net.Listener) *http.Server {
+		hs := &http.Server{Handler: f.s.LoopbackSurface(browserToken), ReadHeaderTimeout: 5 * time.Second}
+		go func() { _ = hs.Serve(l) }()
+		return hs
+	}
+	hs := serve(ln)
+	b := openBrowser(g, t)
+	b.navigate(g, "http://"+addr+"/")
+	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the running build")
+
+	// A daemon restarted on a newer build: the stream reconnects and hears it.
+	g.Expect(hs.Close()).To(Succeed())
+	f.s.daemon.Build = "newer"
+	ln, err = net.Listen("tcp", addr)
+	g.Expect(err).NotTo(HaveOccurred())
+	hs = serve(ln)
+	t.Cleanup(func() { _ = hs.Close() })
+	b.waitFor(g, `document.getElementById("update").hidden === false`)
+
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `document.querySelector("#update .refresh").click()`)
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `document.querySelector("meta[name='eyeball-build']").content`)).To(Equal("newer"))
+	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue())
+}
+
+// The page registers its service worker, scoped to the whole surface, which
+// push needs.
+func TestServer_Surface_browserWorker(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `navigator.serviceWorker.getRegistration().then(r => !!r && !!r.active)`)
+	g.Expect(b.eval(g, `navigator.serviceWorker.getRegistration().then(r => r.scope)`)).To(Equal(srv.URL + "/"))
+}
+
 // comments reads a round's comments.
 func (f *fixture) comments(g *WithT, t *testing.T, roundID int64) []store.Comment {
 	g.THelper()
@@ -467,6 +578,13 @@ func openBrowser(g *WithT, t *testing.T) *browser {
 		"--remote-debugging-port=0",
 		"--user-data-dir="+dir,
 		"--remote-allow-origins=http://127.0.0.1",
+		// Everything but this machine goes to a proxy that is not there, so a
+		// test can reach no service on the internet; Chromium bypasses a proxy
+		// for loopback by itself. Without it, Chromium registered a real
+		// subscription with Google's push service when a stub failed to
+		// apply. A host resolver rule blocked it too, and slowed a page's
+		// own loads past what the place test allows.
+		"--proxy-server=http://127.0.0.1:9",
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--disable-gpu",

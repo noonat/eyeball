@@ -196,6 +196,9 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: commenting from a file page: the whole file, the tree's file and
       the project's live file. 008 puts the composer on the review page only,
       where the bar and the tally are.
+- [ ] design: a decided round gives no sign that its lines take no tap. The
+      owner spent a while tapping lines on approved reviews before finding that
+      only open rounds open a composer.
 - [ ] design: a manual theme override. docs/design/README.md says one wins over
       the device in both directions, and no tearout draws a control for it.
 - [ ] design: a comment added on a second device shows on the first only after a
