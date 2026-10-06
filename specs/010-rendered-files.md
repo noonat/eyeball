@@ -262,12 +262,12 @@ browser's PDF viewer keeps a document's script away from the page is assumed.
 
 ## Iteration 3: The agent's view
 
-- [ ] `views` on `RequestBody` and `--view` on `eyeball request`
-- [ ] Migration 0008 adding `view` to `round_files`, stored per round
-- [ ] `bad_view` for a path not in the capture or a view the kind lacks, checked
+- [x] `views` on `RequestBody` and `--view` on `eyeball request`
+- [x] Migration 0008 adding `view` to `round_files`, stored per round
+- [x] `bad_view` for a path not in the capture or a view the kind lacks, checked
       before the round is written
-- [ ] product.md's command list naming `--view`
-- [ ] Tests: each refusal, a stored view, and a next round not inheriting it
+- [x] product.md's command list naming `--view`
+- [x] Tests: each refusal, a stored view, and a next round not inheriting it
 
 ## Iteration 4: The tearouts for rendered files
 

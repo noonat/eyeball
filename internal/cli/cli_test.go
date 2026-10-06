@@ -431,6 +431,29 @@ func TestRun_usage(t *testing.T) {
 	g.Expect(res.stdout).To(ContainSubstring("COMMANDS:"))
 }
 
+func TestRun_view(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+
+	res := f.run(t, "--json", "request", "a.txt", "-m", "first", "--view", "a.txt")
+	g.Expect(res.code).To(Equal(1))
+	var refusal api.ErrorBody
+	g.Expect(json.Unmarshal([]byte(res.stdout), &refusal)).To(Succeed(), res.stdout)
+	g.Expect(refusal.Error.Code).To(Equal(api.CodeUsage))
+
+	res = f.run(t, "--json", "request", "a.txt", "-m", "first", "--view", "a.txt=rendered")
+	g.Expect(res.code).NotTo(BeZero())
+	g.Expect(json.Unmarshal([]byte(res.stdout), &refusal)).To(Succeed(), res.stdout)
+	g.Expect(refusal.Error.Code).To(Equal(api.CodeBadView))
+
+	res = f.run(t, "request", "a.txt", "-m", "first", "--view", "a.txt=source")
+	g.Expect(res.code).To(BeZero(), res.stderr)
+	files, err := f.store.RoundFiles(t.Context(), 1)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(files).To(HaveLen(1))
+	g.Expect(files[0].View).To(Equal("marked"))
+}
+
 func TestRun_wait(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

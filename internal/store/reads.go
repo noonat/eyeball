@@ -98,6 +98,9 @@ type RoundFile struct {
 	// InScope says whether the review's paths cover this one. It was decided
 	// when the round was written and does not move afterward.
 	InScope bool
+	// View is the view the agent chose for this file at this round, and empty
+	// for the file's default.
+	View string
 }
 
 // Queue reads the three groups the surface opens on, keeping at most
@@ -242,7 +245,7 @@ func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, e
 
 // RoundFiles reads everything a round captured, in path order.
 func (s *Store) RoundFiles(ctx context.Context, roundID int64) ([]RoundFile, error) {
-	query := `SELECT path, digest, size, in_scope
+	query := `SELECT path, digest, size, in_scope, view
 		FROM round_files WHERE round_id = ? ORDER BY path`
 	rows, err := s.db.QueryContext(ctx, query, roundID)
 	if err != nil {
@@ -253,7 +256,7 @@ func (s *Store) RoundFiles(ctx context.Context, roundID int64) ([]RoundFile, err
 	var out []RoundFile
 	for rows.Next() {
 		var file RoundFile
-		if err := rows.Scan(&file.Path, &file.Digest, &file.Size, &file.InScope); err != nil {
+		if err := rows.Scan(&file.Path, &file.Digest, &file.Size, &file.InScope, &file.View); err != nil {
 			return nil, errors.Wrap(err, "scan round file")
 		}
 		out = append(out, file)

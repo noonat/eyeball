@@ -59,6 +59,13 @@ because a review's scope and base are fixed when it opens.
 | `--title`         | The title the queue shows. Defaults to the note's first line |
 | `--base`          | The commit a first round is measured from. Defaults to HEAD  |
 | `--review`        | The review to ask the next round of                          |
+| `--view`          | `<path>=rendered` or `<path>=source`. Repeatable             |
+
+A file opens in its own default view: a markdown document rendered, an HTML or
+SVG file as source, code with the change marked. `--view` picks the first view
+for one file in this round, because only the agent knows which question it is
+asking. A change to a page's styling wants `rendered`, and a change to its
+markup wants `source`. The choice is not carried into the next round.
 
 The note is the person's brief. On a first round, say what to look at. On a
 later round, say what changed and what was done about each comment.
@@ -204,6 +211,7 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `awaiting_verdict`     | a next round was asked for while the last one waits            |
 | `bad_base`             | `--base` does not name a commit                                |
 | `bad_request`          | the daemon could not read the request                          |
+| `bad_view`             | `--view` names a file the round lacks, or a view it has not    |
 | `base_gained`          | the repository gained its first commit after the review opened |
 | `base_moved`           | a round was measured from a base other than the review's       |
 | `connection_lost`      | the daemon closed the connection before answering              |

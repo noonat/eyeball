@@ -15,6 +15,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/capture"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/store"
 )
 
@@ -315,6 +316,9 @@ func (s *Server) firstRound(ctx context.Context, c caller, body api.RequestBody)
 	if err := refuseUnmatched(c.root.Resolved, paths, req.Files); err != nil {
 		return api.RequestResult{}, err
 	}
+	if req.Views, err = views(c, body.Views, req.Files); err != nil {
+		return api.RequestResult{}, err
+	}
 	req.Note = strings.TrimSpace(body.Note)
 	title := strings.TrimSpace(body.Title)
 	if title == "" {
@@ -376,6 +380,9 @@ func (s *Server) nextRound(ctx context.Context, c caller, body api.RequestBody) 
 	if err != nil {
 		return api.RequestResult{}, err
 	}
+	if req.Views, err = views(c, body.Views, req.Files); err != nil {
+		return api.RequestResult{}, err
+	}
 	req.Note = strings.TrimSpace(body.Note)
 	round, err := s.db.OpenRound(ctx, review.ID, req)
 	if err != nil {
@@ -384,6 +391,42 @@ func (s *Server) nextRound(ctx context.Context, c caller, body api.RequestBody) 
 	review.LatestRound = round.Number
 	s.notify(review, round)
 	return s.requestResult(ctx, review, round)
+}
+
+// views turns the agent's choices into the view each file opens in, refusing
+// one the round cannot honor. It runs after the capture, since only the
+// capture knows the round's files, and before anything is stored, so a typo
+// surfaces at once instead of doing nothing.
+func views(c caller, chosen map[string]string, files []store.File) (map[string]string, error) {
+	if len(chosen) == 0 {
+		return nil, nil
+	}
+	held := make(map[string]bool, len(files))
+	for _, f := range files {
+		held[f.Path] = f.Digest != ""
+	}
+	out := make(map[string]string, len(chosen))
+	for p, choice := range chosen {
+		rel, err := capture.ReviewPath(c.root, c.dir, p)
+		if err != nil {
+			return nil, err
+		}
+		normalized, err := store.NormalizePath(rel)
+		if err != nil {
+			return nil, err
+		}
+		if !held[normalized] {
+			message := fmt.Sprintf("%s is not a file this round holds, so it has no view to pick", normalized)
+			return nil, refuse(http.StatusBadRequest, api.CodeBadView, message, "name a file the round changes, or leave out --view for it")
+		}
+		view, ok := kind.ByName(normalized).Choose(choice)
+		if !ok {
+			message := fmt.Sprintf("%s has no %s view to open in", normalized, strconv.Quote(choice))
+			return nil, refuse(http.StatusBadRequest, api.CodeBadView, message, "pick rendered for a markdown or HTML file, source for one to read as text, or leave out --view")
+		}
+		out[normalized] = view
+	}
+	return out, nil
 }
 
 // requestResult is what a request answers with, including the one instruction

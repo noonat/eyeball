@@ -523,6 +523,9 @@ eyeball reply <comment-id> -m "what was done"     optional, per comment
 eyeball abandon <id>                              withdraw the question
 ```
 
+`request` also takes `--view <path>=rendered` or `--view <path>=source`, the
+per-file override described under Reading the change, for the round it opens.
+
 **Waiting is a blocking command, not a poll.** An agent that polls burns context
 on nothing happening. `wait` returns once, with every comment and the verdict
 together, which is also exactly what a monitor in a harness needs.
