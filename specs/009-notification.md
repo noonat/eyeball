@@ -381,3 +381,16 @@ only by the owner.
   between the steps, and for "Eyeball" as the installed app's name and in the
   page title, with the wordmark staying lowercase. Fixed in a79c36c. iOS keeps
   the name an icon was added with until it is added again.
+- The owner could not open a composer on the phone. iOS Safari sends a tap's
+  click only from an element it takes to be clickable, and the page listens on
+  the document, so a tap on a line or a passage produced no click. The browser
+  tests call `click()`, which iOS's rule does not touch, so they could not see
+  it. Fixed in b32b04d by marking tappable lines, removed rows, a binary file's
+  line and passages `cursor: pointer` on an open round.
+- The owner asked for sweetpea's sticky's update prompt, so the phone shows when
+  the page is older than the code running. Eyeball caches no code, so a page is
+  stale only when a newer daemon has started since it loaded: every page carries
+  the daemon's build in an `eyeball-build` meta, the stream sends the running
+  build on each connect, and a different one shows an "Update ready." bar under
+  the top bar with Refresh, which reloads. The bar is drawn in no tearout; the
+  owner judges it on the phone.

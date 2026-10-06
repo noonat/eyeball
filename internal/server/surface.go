@@ -134,6 +134,9 @@ type page struct {
 	// VAPID is the public key a device subscribes to push with, and empty
 	// where it could not be read.
 	VAPID string
+	// Build is the daemon's build, which the stream compares with the build
+	// running when it connects, so a page served by an older daemon says so.
+	Build string
 }
 
 // message is a page that says one thing.
@@ -174,6 +177,7 @@ func (s *Server) errorPage(w http.ResponseWriter, status int) {
 // renderPage executes a page template inside the layout and writes it.
 func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
 	data.VAPID = s.vapidPublic()
+	data.Build = s.daemon.Build
 	// The clone's own copy of the page's tree, never s.pages's: executing a
 	// template escapes its tree in place, so adding the shared tree let every
 	// request write to it while others cloned it, which the race detector

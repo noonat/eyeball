@@ -50,6 +50,10 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.WriteHeader(http.StatusOK)
 	_, _ = fmt.Fprint(w, "retry: 2000\n\n")
+	// The running build, on every connect. A stream reconnects by itself after
+	// a daemon restart, so a page from the old daemon hears the new build and
+	// offers to reload.
+	_, _ = fmt.Fprintf(w, "event: build\ndata: %s\n\n", s.daemon.Build)
 	if last != "" {
 		_, _ = fmt.Fprintf(w, "data: %s\n\n", last)
 	}

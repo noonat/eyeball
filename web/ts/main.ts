@@ -10,6 +10,7 @@ import { keepPlace } from "./place";
 import { prune } from "./storage";
 import { followPush } from "./push";
 import { followStream } from "./stream";
+import { refreshOnTap } from "./update";
 import { registerWorker } from "./worker";
 import { catchFailedSaves } from "./unsent";
 import { followTheme } from "./theme";
@@ -32,6 +33,7 @@ catchFailedSaves();
 // in the head before the body is parsed.
 document.addEventListener("DOMContentLoaded", () => {
   registerWorker();
+  refreshOnTap();
   followStream();
   followPush();
   prune();

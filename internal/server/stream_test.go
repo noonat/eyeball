@@ -27,6 +27,9 @@ func TestServer_handleEvents(t *testing.T) {
 	g.Expect(printed).NotTo(BeEmpty())
 	events := openStream(g, t, srv.URL+"/events?review="+itoa(id))
 	g.Eventually(events).Should(Receive(Equal("retry: 2000")))
+	// The running build comes first, for a page to compare with its own.
+	g.Eventually(events).Should(Receive(Equal("event: build")))
+	g.Eventually(events).Should(Receive(Equal("data: test")))
 	g.Eventually(events).Should(Receive(Equal("data: " + printed)))
 
 	c := f.comment(g, t, id, "A point.")
@@ -55,6 +58,8 @@ func TestServer_handleEventsPlain(t *testing.T) {
 	t.Cleanup(srv.Close)
 	events := openStream(g, t, srv.URL+"/events")
 	g.Eventually(events).Should(Receive(Equal("retry: 2000")))
+	g.Eventually(events).Should(Receive(Equal("event: build")))
+	g.Eventually(events).Should(Receive(Equal("data: test")))
 	f.comment(g, t, id, "A point.")
 	f.decide(g, t, id, store.VerdictApprove, "")
 	g.Consistently(events, 300*time.Millisecond).ShouldNot(Receive(HavePrefix("data:")))

@@ -475,6 +475,40 @@ func TestServer_Surface_browserStream(t *testing.T) {
 	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(BeNil())
 }
 
+// A page served by an older build says so once the stream hears a newer one,
+// and Refresh loads the page from the build running now.
+func TestServer_Surface_browserUpdate(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := ln.Addr().String()
+	serve := func(l net.Listener) *http.Server {
+		hs := &http.Server{Handler: f.s.LoopbackSurface(browserToken), ReadHeaderTimeout: 5 * time.Second}
+		go func() { _ = hs.Serve(l) }()
+		return hs
+	}
+	hs := serve(ln)
+	b := openBrowser(g, t)
+	b.navigate(g, "http://"+addr+"/")
+	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the running build")
+
+	// A daemon restarted on a newer build: the stream reconnects and hears it.
+	g.Expect(hs.Close()).To(Succeed())
+	f.s.daemon.Build = "newer"
+	ln, err = net.Listen("tcp", addr)
+	g.Expect(err).NotTo(HaveOccurred())
+	hs = serve(ln)
+	t.Cleanup(func() { _ = hs.Close() })
+	b.waitFor(g, `document.getElementById("update").hidden === false`)
+
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `document.querySelector("#update .refresh").click()`)
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `document.querySelector("meta[name='eyeball-build']").content`)).To(Equal("newer"))
+	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue())
+}
+
 // The page registers its service worker, scoped to the whole surface, which
 // push needs.
 func TestServer_Surface_browserWorker(t *testing.T) {
