@@ -14,7 +14,6 @@ import (
 
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/kind"
-	"github.com/noonat/eyeball/internal/store"
 )
 
 // rendering is a file the browser shows itself, as the rendered template
@@ -73,98 +72,106 @@ func rawHref(reviewID int64, number int, p string) string {
 	return fmt.Sprintf("/reviews/%d/raw/%d/%s", reviewID, number, escapePath(p))
 }
 
-// renderShown fills in a file shown as itself, or SVG in its Image view: the
-// sides that differ, each from its own round's raw address, or the frame for
-// a PDF. A file past the send limit on either side is the line naming it.
+// renderShown is a file shown as itself, or SVG in its Image view: the sides
+// that differ, each from its own round's raw address, or the frame for a
+// PDF. A file past the send limit on either side is the line naming it. It
+// is nil where neither side holds the file.
 //
-// Whether the file moved is decided from the two captures' digests, as
-// compareView decides it, so the page and the review agree about a file.
-func (s *Server) renderShown(ctx context.Context, view *filePage, at fileAt, st capture.State, now *capture.Reader, previous, current []store.File) error {
+// changed says the file moved between the two sides. The caller decides it as
+// the rest of its page does, so a card and its file page agree about a file.
+func (s *Server) renderShown(ctx context.Context, at fileAt, before, after sideReader, changed bool) (*rendering, error) {
 	f := at.file
-	after := sideReader{reader: now, number: at.round.Number}
-	before := sideReader{reader: st.Reader(s.blobs, previous), number: at.previousNumber()}
-	afterSize, err := sizeOf(ctx, now, at.path)
+	afterSize, err := sizeOf(ctx, after.reader, at.path)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	changed := st.Measurable() && capture.Differs(previous, current, at.path)
 	beforeSize := int64(-1)
 	if changed {
 		if beforeSize, err = sizeOf(ctx, before.reader, at.path); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if afterSize > kind.MaxSend || beforeSize > kind.MaxSend {
-		view.Rendered = &rendering{Facts: &facts{Kind: f.Name, Size: bytesText(max(afterSize, beforeSize)), Hint: tooLargeToSend}}
-		return nil
+		return &rendering{Facts: &facts{Kind: f.Name, Size: bytesText(max(afterSize, beforeSize)), Hint: tooLargeToSend}}, nil
 	}
 
 	if f.Kind == kind.PDF {
 		if afterSize < 0 {
-			return nil
+			return nil, nil
 		}
-		view.Rendered = &rendering{Frame: rawHref(at.review.ID, after.number, at.path), Title: at.path, Kind: f.Name, Size: bytesText(afterSize)}
-		return nil
+		return &rendering{Frame: rawHref(at.review.ID, after.number, at.path), Title: at.path, Kind: f.Name, Size: bytesText(afterSize)}, nil
 	}
 
+	type planned struct {
+		from        sideReader
+		size        int64
+		label, tint string
+	}
+	var plan []planned
+	switch {
+	case !changed && afterSize >= 0:
+		plan = []planned{{from: after, size: afterSize, label: f.Name, tint: ""}}
+	case !changed:
+	case beforeSize >= 0 && afterSize >= 0:
+		plan = []planned{{from: before, size: beforeSize, label: "Before", tint: "was"}, {from: after, size: afterSize, label: "After", tint: "now"}}
+	case afterSize >= 0:
+		plan = []planned{{from: after, size: afterSize, label: "New", tint: "now"}}
+	case beforeSize >= 0:
+		plan = []planned{{from: before, size: beforeSize, label: "Deleted", tint: "was"}}
+	}
+	if len(plan) == 0 {
+		return nil, nil
+	}
 	r := &rendering{}
-	if !changed {
-		if afterSize < 0 {
-			return nil
-		}
-		side, err := s.side(ctx, at, after, afterSize, f.Name, "")
+	for _, p := range plan {
+		side, err := s.side(ctx, at, p.from, p.size, p.label, p.tint)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		r.Sides = append(r.Sides, side)
-		view.Rendered = r
-		return nil
 	}
-	switch {
-	case beforeSize >= 0 && afterSize >= 0:
-		was, err := s.side(ctx, at, before, beforeSize, "Before", "was")
-		if err != nil {
-			return err
-		}
-		is, err := s.side(ctx, at, after, afterSize, "After", "now")
-		if err != nil {
-			return err
-		}
-		r.Sides = append(r.Sides, was, is)
-	case afterSize >= 0:
-		is, err := s.side(ctx, at, after, afterSize, "New", "now")
-		if err != nil {
-			return err
-		}
-		r.Sides = append(r.Sides, is)
-	case beforeSize >= 0:
-		was, err := s.side(ctx, at, before, beforeSize, "Deleted", "was")
-		if err != nil {
-			return err
-		}
-		r.Sides = append(r.Sides, was)
-	default:
-		return nil
-	}
-	view.Rendered = r
-	view.Deleted = ""
-	return nil
+	return r, nil
 }
 
-// framePage fills in a page in its Page view: the round's own side in a
-// sandboxed frame. The Source view is where the change is marked.
-func (s *Server) framePage(ctx context.Context, view *filePage, at fileAt, now *capture.Reader) error {
+// framePage is a page in its Page view: the round's own side in a sandboxed
+// frame, and nil where the round does not hold it. The Source view is where
+// the change is marked.
+func (s *Server) framePage(ctx context.Context, at fileAt, now *capture.Reader) (*rendering, error) {
 	size, err := sizeOf(ctx, now, at.path)
 	if err != nil || size < 0 {
-		return err
+		return nil, err
 	}
 	if size > kind.MaxSend {
-		view.Rendered = &rendering{Facts: &facts{Kind: at.file.Name, Size: bytesText(size), Hint: tooLargeToSend}}
-		return nil
+		return &rendering{Facts: &facts{Kind: at.file.Name, Size: bytesText(size), Hint: tooLargeToSend}}, nil
 	}
-	view.Rendered = &rendering{Frame: rawHref(at.review.ID, at.round.Number, at.path), Sandboxed: true, Title: at.path}
-	view.Notices = append(view.Notices, notice{Text: "Runs with no access to this surface. A page an agent wrote is a program, not a document."})
-	return nil
+	return &rendering{Frame: rawHref(at.review.ID, at.round.Number, at.path), Sandboxed: true, Title: at.path}, nil
+}
+
+// sandboxNotice is the banner above a page in its Page view.
+var sandboxNotice = notice{Text: "Runs with no access to this surface. A page an agent wrote is a program, not a document."}
+
+// nameBinary is the line naming a file with no rendering, and its size where
+// the round holds it.
+func nameBinary(ctx context.Context, at fileAt, now *capture.Reader) (*rendering, error) {
+	size, err := sizeOf(ctx, now, at.path)
+	if err != nil {
+		return nil, err
+	}
+	f := &facts{Kind: binaryName(at.file)}
+	if size >= 0 {
+		f.Size = bytesText(size)
+	}
+	return &rendering{Facts: f}, nil
+}
+
+// binaryName is what the line calls a binary file. Only a file whose name
+// says it is binary is named by its kind. A markdown or source file holding
+// binary bytes is not what its name says.
+func binaryName(f kind.File) string {
+	if f.Kind == kind.Other {
+		return f.Name
+	}
+	return "Binary file"
 }
 
 // side describes one side: its address, and a caption of its dimensions and

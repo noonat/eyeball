@@ -490,6 +490,35 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 // The live stream: a verdict recorded elsewhere reloads an open review page,
 // but not while something typed is unsaved; a page with no stamp stays put;
 // and a dropped connection shows the notice, holds the verdicts back, and
+// A tap on an image in a card, or on the line naming a file with no
+// rendering, opens a comment on the file. A tap on the Open link follows it.
+func TestServer_Surface_browserRenderedCard(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "icon.png", pngOf(g, 2, 2))
+	write(g, repo, "data.zip", "PK\x03\x04")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"icon.png", "data.zip"}, Note: "first"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	round := f.latestRound(g, t, id)
+
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.eval(g, `document.querySelector("details.file[data-path='icon.png'] .rendered img").click()`)
+	b.waitFor(g, `!!document.querySelector("details.file[data-path='icon.png'] form.composer textarea")`)
+	b.typeInto(g, "details.file[data-path='icon.png'] form.composer textarea", "Too dark.")
+	b.eval(g, `document.querySelector("details.file[data-path='icon.png'] form.composer button[type=submit]").click()`)
+	g.Eventually(func() []store.Comment { return f.comments(g, t, round) }, 5*time.Second).Should(HaveLen(1))
+	c := f.comments(g, t, round)[0]
+	g.Expect(c.Level).To(Equal(store.LevelFile))
+	g.Expect(c.Path).To(Equal("icon.png"))
+
+	b.waitFor(g, `!document.querySelector("details.file[data-path='icon.png'] form.composer")`)
+	b.eval(g, `document.querySelector("details.file[data-path='data.zip'] .filefacts").click()`)
+	b.waitFor(g, `!!document.querySelector("details.file[data-path='data.zip'] form.composer textarea")`)
+}
+
 // clears once the server is back.
 func TestServer_Surface_browserStream(t *testing.T) {
 	g := NewWithT(t)

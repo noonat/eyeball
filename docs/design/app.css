@@ -871,6 +871,9 @@ tr.del .w {
 .page[data-acting="open"] .code tr[data-line],
 .page[data-acting="open"] .code tr[data-old],
 .page[data-acting="open"] .toobig,
+.page[data-acting="open"] .file > .filefacts,
+.page[data-acting="open"] .file > .rendered .shot,
+.page[data-acting="open"] .file > .rendered .cap,
 .page[data-acting="open"] .prose .blk[data-lines] {
   cursor: pointer;
 }

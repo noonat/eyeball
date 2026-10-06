@@ -234,7 +234,9 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 			return err
 		}
 		if at.file.Shown() || at.rendering() == kind.ViewImage {
-			if err := s.renderShown(ctx, &view, at, st, now, previous, files); err != nil {
+			before := sideReader{reader: st.Reader(s.blobs, previous), number: at.previousNumber()}
+			changed := st.Measurable() && capture.Differs(previous, files, at.path)
+			if view.Rendered, err = s.renderShown(ctx, at, before, sideReader{reader: now, number: round.Number}, changed); err != nil {
 				return err
 			}
 			if view.Rendered == nil && pathType == capture.PathDeleted {
@@ -252,22 +254,24 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 			view.Rendered, view.Deleted = rendered, ""
 		}
 		if at.rendering() == kind.ViewPage && pathType != capture.PathDeleted {
-			if err := s.framePage(ctx, &view, at, now); err != nil {
+			if view.Rendered, err = s.framePage(ctx, at, now); err != nil {
 				return err
 			}
+			view.Notices = append(view.Notices, sandboxNotice)
 		}
 	case capture.SourceBase:
 		view.Notices = append(view.Notices, baseNotice(store.Covers(review.Paths, clean)))
 		if at.file.Shown() || at.rendering() == kind.ViewImage {
-			if err := s.renderShown(ctx, &view, at, st, now, nil, files); err != nil {
+			if view.Rendered, err = s.renderShown(ctx, at, sideReader{}, sideReader{reader: now, number: round.Number}, false); err != nil {
 				return err
 			}
 			break
 		}
 		if at.rendering() == kind.ViewPage {
-			if err := s.framePage(ctx, &view, at, now); err != nil {
+			if view.Rendered, err = s.framePage(ctx, at, now); err != nil {
 				return err
 			}
+			view.Notices = append(view.Notices, sandboxNotice)
 			break
 		}
 		content, tooLarge, err := now.Side(ctx, clean)
@@ -301,7 +305,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	}
 	view.viewControl(at)
 	if view.Rendered == nil && view.Deleted == "" && (view.Diff.Binary || at.file.Kind == kind.Other) {
-		if err := view.nameBinary(ctx, at, now); err != nil {
+		if view.Rendered, err = nameBinary(ctx, at, now); err != nil {
 			return err
 		}
 	}
@@ -549,30 +553,6 @@ func (v *filePage) viewControl(at fileAt) {
 	labels := map[string]string{kind.ViewDocument: "Document", kind.ViewPage: "Page", kind.ViewImage: "Image"}
 	showSource := !at.document() && at.rendering() == ""
 	v.Toolbar.Rendered, v.Toolbar.RenderedLabel, v.Toolbar.Source, v.Toolbar.ShowSource = at.viewHref(rendered), labels[rendered], at.viewHref(kind.ViewSource), showSource
-}
-
-// nameBinary replaces the binary line with what the file is and its size.
-func (v *filePage) nameBinary(ctx context.Context, at fileAt, now *capture.Reader) error {
-	size, err := sizeOf(ctx, now, at.path)
-	if err != nil {
-		return err
-	}
-	f := &facts{Kind: binaryName(at.file)}
-	if size >= 0 {
-		f.Size = bytesText(size)
-	}
-	v.Rendered = &rendering{Facts: f}
-	return nil
-}
-
-// binaryName is what the line calls a binary file. Only a file whose name
-// says it is binary is named by its kind. A markdown or source file holding
-// binary bytes is not what its name says.
-func binaryName(f kind.File) string {
-	if f.Kind == kind.Other {
-		return f.Name
-	}
-	return "Binary file"
 }
 
 // readBounded reads at most one byte past the diff's limit and closes rc. A

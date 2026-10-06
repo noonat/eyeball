@@ -335,10 +335,28 @@ real one in iteration 8.
 
 ## Iteration 6: Rendered in the review's cards
 
-- [ ] The same views in the review page's cards and deferred card bodies,
+- [x] The same views in the review page's cards and deferred card bodies,
       following the round's stored view
-- [ ] A rendered card taking a comment on the file
-- [ ] Tests over the cards, deferred and inline
+- [x] A rendered card taking a comment on the file
+- [x] Tests over the cards, deferred and inline
+
+**Departures, iteration 6.**
+
+- A card for a file shown as itself, or named by the facts line, has no line
+  counts, since it moved by no lines. A page in its frame keeps the counts of
+  its source.
+- A tap on an image or a caption in a card, or on the facts line, opens a
+  comment on the file. A player keeps its own taps, and the Open link follows.
+- A round whose repository is gone shows its captured files without a
+  comparison, through a separate path, and that path still shows a binary file
+  as the binary line. Rendering there needs the raw route, which reads the base
+  from that same repository.
+
+> **Completed** 2026-10-06 23:10 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.2s
+> - `go test -race ./...` — 33.7s
 
 ## Iteration 7: Seeded
 
