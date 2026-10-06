@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/noonat/eyeball/internal/store"
 )
 
 // PathType says what a path names as of a round.
@@ -26,33 +27,34 @@ const (
 // from. A path that names nothing is ErrNotFound.
 //
 // The question is settled before anything reads, and without listing
-// anything recursively, in a fixed order. A deletion the round records comes
-// first, then a path the capture holds, then a path the capture holds files
-// under, which is a directory. Then the base, asked for the one entry at the
-// path. Last, where the state allows a live read, the disk. The order matters
-// because the sources disagree: a file the agent deleted may be back on disk,
-// and reading the base's directory as a file list costs a line per file under
-// it.
+// anything recursively, in a fixed order. The round's capture comes first, by
+// the rule List applies to it, so an address and the tree always agree. Then
+// the base, asked for the one entry at the path. Last, where the state allows
+// a live read, the disk. The order matters because the sources disagree: a
+// file the agent deleted may be back on disk, and reading the base's directory
+// as a file list costs a line per file under it.
 //
 // A file the disk holds is reported as found without asking git whether it is
 // ignored. The live read that follows asks, and refuses one that is, so the
 // question costs one git call rather than two. A directory is asked here,
-// since nothing reads it afterward.
+// since nothing reads it afterward, and so is a path the disk lacks, since a
+// failure to read the rules is a reason the page names.
 func (r *Reader) Locate(ctx context.Context, p string) (PathType, Source, error) {
 	clean, err := CleanPath(p)
 	if err != nil {
 		return "", "", err
 	}
-	if f, held := r.files[clean]; held {
-		if f.Digest == "" {
-			return PathDeleted, SourceRound, nil
-		}
-		return PathFile, SourceRound, nil
+	best := claimNone
+	for _, f := range r.files {
+		best = max(best, claimOn(clean, f))
 	}
-	for held := range r.files {
-		if strings.HasPrefix(held, clean+"/") {
-			return PathDir, "", nil
-		}
+	switch best {
+	case claimFile:
+		return PathFile, SourceRound, nil
+	case claimDeleted:
+		return PathDeleted, SourceRound, nil
+	case claimDirBelow, claimDeletedBelow:
+		return PathDir, "", nil
 	}
 	if r.base != "" {
 		found, err := r.baseEntry(ctx, clean)
@@ -122,6 +124,15 @@ func (r *Reader) locateWorking(ctx context.Context, clean string) (PathType, Sou
 		return "", "", err
 	}
 	info, err := root.Lstat(filepath.FromSlash(clean))
+	if missing(err) && r.live == LiveIgnoreRules {
+		// The answer order asks git before it looks at the disk. Asking once
+		// the disk has no such path keeps that answer: a missing path whose
+		// rules git cannot read is refused for that reason, which the page
+		// names, rather than as merely missing.
+		if err := refuseIgnored(ctx, r.root, clean); err != nil {
+			return "", "", err
+		}
+	}
 	if err != nil {
 		return "", "", notFoundOr(err, "stat "+clean)
 	}
@@ -142,4 +153,44 @@ func (r *Reader) locateWorking(ctx context.Context, clean string) (PathType, Sou
 		return PathFile, SourceWorking, nil
 	}
 	return "", "", errors.Wrapf(ErrNotFound, "%s is not a regular file", clean)
+}
+
+// claim is what one captured path says about a name at or above it. The
+// values are ranked, and the highest claim on a name decides what it is.
+//
+// What exists as of the round outranks what the round deleted. The agent can
+// delete a file a and create a/x, or delete a/x and create a file a, and the
+// capture then records both. The name is a directory in the first case and a
+// file in the second, as of the round, and a deleted file that was there
+// before is shown on the review page.
+type claim int
+
+const (
+	// claimNone is a captured path that says nothing about the name.
+	claimNone claim = iota
+	// claimDeletedBelow is a deletion under the name, which makes it a
+	// directory holding only deletions.
+	claimDeletedBelow
+	// claimDeleted is a deletion of the name itself.
+	claimDeleted
+	// claimDirBelow is a file under the name, which makes it a directory.
+	claimDirBelow
+	// claimFile is a file at the name.
+	claimFile
+)
+
+// claimOn is what the captured file f says about the name p.
+func claimOn(p string, f store.File) claim {
+	live := f.Digest != ""
+	switch {
+	case f.Path == p && live:
+		return claimFile
+	case f.Path == p:
+		return claimDeleted
+	case !strings.HasPrefix(f.Path, p+"/"):
+		return claimNone
+	case live:
+		return claimDirBelow
+	}
+	return claimDeletedBelow
 }

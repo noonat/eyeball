@@ -40,6 +40,10 @@ func TestReader_Locate(t *testing.T) {
 	r.write(g, "later.txt", "written after the round\n")
 	r.write(g, "vendor/y/.git/HEAD", "ref: refs/heads/main\n")
 	g.Expect(os.Symlink("loop", filepath.Join(r.root, "loop"))).To(Succeed())
+	r.write(g, "locked/x.txt", "behind a directory that cannot be searched\n")
+	locked := filepath.Join(r.root, "locked")
+	g.Expect(os.Chmod(locked, 0)).To(Succeed())
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
 
 	st, err := Inspect(t.Context(), r.root, base, false)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -87,6 +91,10 @@ func TestReader_Locate(t *testing.T) {
 		"loop/x",
 		"linkdir/upload",
 		"linkdir/doc.go",
+		// The listing leaves out a directory it cannot search, so a path
+		// below one is not found rather than a failure.
+		"locked/x.txt",
+		"locked/sub/y.txt",
 	}
 	for _, p := range missing {
 		t.Run("not found: "+p, func(t *testing.T) {
@@ -189,9 +197,16 @@ func TestReader_Locate_rulesUnreadable(t *testing.T) {
 	st, err := Inspect(t.Context(), r.root, base, false)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	// A directory is asked about here, so the failure surfaces here, with
-	// its reason.
-	_, _, err = st.Reader(blobs, nil).Locate(t.Context(), "later")
-	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
-	g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeTrue())
+	// A directory is asked about here, and so is a path the disk lacks, so
+	// the failure surfaces here, with its reason. A file found on disk is
+	// left to the live read, which asks.
+	asked := []string{"later", "nothing.txt"}
+	for _, p := range asked {
+		_, _, err = st.Reader(blobs, nil).Locate(t.Context(), p)
+		g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue(), p)
+		g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeTrue(), p)
+	}
+	_, source, err := st.Reader(blobs, nil).Locate(t.Context(), "later/x.txt")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(source).To(Equal(SourceWorking))
 }

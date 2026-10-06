@@ -12,5 +12,5 @@
 {{else}}{{template "code" .Diff.Rows}}{{end}}</div>
 {{end}}</div></div>
 {{end}}
-{{define "notice"}}<div class="notice{{if .Warn}} warn{{end}}">{{if .Warn}}<span class="glyph i i-triangle-alert" aria-hidden="true"></span>{{else}}<span class="glyph i i-info" aria-hidden="true"></span>{{end}}<span><strong>{{.Heading}}</strong> {{.Text}}</span></div>
+{{define "notice"}}<div class="notice{{if .Warn}} warn{{end}}">{{if .Warn}}<span class="glyph i i-triangle-alert" aria-hidden="true"></span>{{else}}<span class="glyph i i-info" aria-hidden="true"></span>{{end}}<span>{{with .Heading}}<strong>{{.}}</strong> {{end}}{{.Text}}</span></div>
 {{end}}

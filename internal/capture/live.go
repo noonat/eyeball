@@ -136,8 +136,8 @@ func checkParents(root *os.Root, clean string) error {
 }
 
 // checkDir refuses dir, or any directory above it, that is a symlink, is not a
-// directory, or holds a .git entry. clean is the path asked about, which the
-// refusal names.
+// directory, holds a .git entry, or cannot be searched. clean is the path asked
+// about, which the refusal names.
 func checkDir(root *os.Root, clean, dir string) error {
 	parts := strings.Split(dir, "/")
 	for i := 1; i <= len(parts); i++ {
@@ -155,6 +155,12 @@ func checkDir(root *os.Root, clean, dir string) error {
 		_, err = root.Lstat(filepath.FromSlash(d + "/" + gitDir))
 		if err == nil {
 			return errors.Wrapf(ErrNotFound, "%s is inside %s, which holds a repository of its own", clean, d)
+		}
+		if errors.Is(err, os.ErrPermission) {
+			// A directory that cannot be searched. Nothing below it can be
+			// read, and a listing leaves it out, so an address below it is
+			// a page that does not exist rather than a failure.
+			return errors.Wrapf(errors.Mark(err, ErrNotFound), "%s is inside %s, which cannot be searched", clean, d)
 		}
 		if !missing(err) {
 			return errors.Wrapf(err, "look for %s in %s", gitDir, d)

@@ -216,10 +216,25 @@ func TestServer_Surface_fileBanners(t *testing.T) {
 				g.Expect(tableRows(doc)).To(Equal(c.rows))
 			})
 		}
-		// A context file goes back to its round until the tree exists.
-		doc := f.page(g, base+"/rounds/1/files/lib.txt", http.StatusOK)
-		g.Expect(text(find(doc, "back"))).To(Equal("Round 1"))
-		g.Expect(attr(find(doc, "back"), "href")).To(Equal(base + "/rounds/1"))
+		// A file the review changes goes back to its round, and any other
+		// file to its directory in the tree, keeping the round and the
+		// comparison.
+		backs := []struct {
+			path  string
+			label string
+			href  string
+		}{
+			{path: "/files/a.txt", label: "Review", href: base},
+			{path: "/rounds/1/files/a.txt?against=base", label: "Round 1", href: base + "/rounds/1?against=base"},
+			{path: "/rounds/1/files/lib.txt", label: "Files", href: base + "/rounds/1/files/"},
+			{path: "/files/other.txt?against=base", label: "Files", href: base + "/files/?against=base"},
+			{path: "/files/later.txt", label: "Files", href: base + "/files/"},
+		}
+		for _, c := range backs {
+			doc := f.page(g, base+c.path, http.StatusOK)
+			g.Expect(text(find(doc, "back"))).To(Equal(c.label), c.path)
+			g.Expect(attr(find(doc, "back"), "href")).To(Equal(c.href), c.path)
+		}
 	})
 
 	t.Run("a gone base", func(t *testing.T) {
@@ -273,14 +288,10 @@ func TestServer_Surface_fileBanners(t *testing.T) {
 			g.Expect(notices(doc)).To(Equal([]string{lost}), p)
 			g.Expect(text(find(doc, "empty"))).To(ContainSubstring("There is no page at this address."), p)
 		}
-		// The tree's root and a directory are the plain 404 page until the
-		// tree answers them. No live read was asked for, so nothing was
-		// refused.
-		directories := []string{"", "fresh"}
-		for _, p := range directories {
-			doc = f.page(g, "/reviews/"+itoa(id)+"/files/"+p, http.StatusNotFound)
-			g.Expect(notices(doc)).To(BeEmpty(), p)
-		}
+		// A path CleanPath refuses is the plain 404 page. No live read was
+		// asked for, so nothing was refused.
+		doc = f.page(g, "/reviews/"+itoa(id)+"/files/.git/config", http.StatusNotFound)
+		g.Expect(notices(doc)).To(BeEmpty())
 	})
 
 	t.Run("a missing root", func(t *testing.T) {
@@ -436,13 +447,15 @@ func TestServer_Surface_fileNotFound(t *testing.T) {
 	f := newFixture(g, t)
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	commitFile(g, repo, "d/x.txt", "in a directory\n")
-	write(g, repo, "fresh/new.txt", "a directory the capture holds\n")
-	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt", "fresh"}, Note: "first"}).Review.ID
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
 	g.Expect(os.Symlink("loop", filepath.Join(repo, "loop"))).To(Succeed())
+	write(g, repo, "locked/x.txt", "behind a directory that cannot be searched\n")
+	locked := filepath.Join(repo, "locked")
+	g.Expect(os.Chmod(locked, 0)).To(Succeed())
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
 	base := "/reviews/" + itoa(id)
 
 	paths := []string{
-		base + "/files/",
 		base + "/files/.git/config",
 		base + "/files/d/.git/config",
 		base + "/files/%2e%2e/%2e%2e/etc/passwd",
@@ -453,9 +466,10 @@ func TestServer_Surface_fileNotFound(t *testing.T) {
 		base + "/files/a.txt/x",
 		base + "/files/" + strings.Repeat("x", 300),
 		base + "/files/loop/x",
-		// A directory, until the tree answers one.
-		base + "/files/d",
-		base + "/files/fresh",
+		// The tree leaves out a directory it cannot search, so an address
+		// below one names nothing, as a directory nothing holds does.
+		base + "/files/locked/x.txt",
+		base + "/files/nowhere/",
 		base + "/rounds/2/files/a.txt",
 		base + "/rounds/x/files/a.txt",
 		"/reviews/999/files/a.txt",
@@ -482,9 +496,14 @@ func TestServer_Surface_fileRefusedLive(t *testing.T) {
 		// A truncated index makes check-ignore exit 128.
 		write(g, repo, ".git/index", "garbage\n")
 
-		doc := f.page(g, "/reviews/"+itoa(id)+"/files/later.txt", http.StatusNotFound)
-		g.Expect(notices(doc)).To(Equal([]string{"warn: Nothing on disk can be shown. Git could not say which files it ignores."}))
-		doc = f.page(g, "/reviews/"+itoa(id)+"/files/a.txt", http.StatusOK)
+		// A path the disk lacks gets the same banner, since git is asked
+		// before the disk is believed.
+		paths := []string{"later.txt", "nothing.txt", strings.Repeat("x", 300)}
+		for _, p := range paths {
+			doc := f.page(g, "/reviews/"+itoa(id)+"/files/"+p, http.StatusNotFound)
+			g.Expect(notices(doc)).To(Equal([]string{"warn: Nothing on disk can be shown. Git could not say which files it ignores."}), p)
+		}
+		doc := f.page(g, "/reviews/"+itoa(id)+"/files/a.txt", http.StatusOK)
 		g.Expect(tableRows(doc)).To(Equal([]string{"1one", "add 2+two"}))
 	})
 

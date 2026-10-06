@@ -179,7 +179,7 @@ func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
 
 	// The current round lists the earlier one.
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	rows := findAll(doc, hasClass("treerow"))
+	rows := earlierRows(doc)
 	g.Expect(rows).To(HaveLen(1))
 	g.Expect(attr(rows[0], "href")).To(Equal("/reviews/" + itoa(id) + "/rounds/1"))
 	g.Expect(text(find(rows[0], "nm"))).To(Equal("Round 1 \u00b7 changes requested"))
@@ -191,7 +191,7 @@ func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
 	g.Expect(attr(find(doc, "back"), "href")).To(Equal("/reviews/" + itoa(id)))
 	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requestedRound 1"))
 	g.Expect(text(find(doc, "notice"))).To(Equal("Closed just now. Round 2 is the current one."))
-	g.Expect(find(doc, "treerow")).To(BeNil(), "an earlier round lists no earlier rounds")
+	g.Expect(earlierRows(doc)).To(BeEmpty(), "an earlier round lists no earlier rounds")
 	// The tearout's sections come first, then the notes and the files.
 	g.Expect(classOrder(doc, "section", "note", "toolbar")).To(Equal([]string{"section", "section", "note", "note", "toolbar"}))
 	var sections []string
@@ -210,7 +210,7 @@ func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
 	// The latest round under the rounds address is the review's own page.
 	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/2", http.StatusOK)
 	g.Expect(text(find(doc, "topbar"))).To(Equal("Queuefirst"))
-	g.Expect(find(doc, "treerow")).NotTo(BeNil())
+	g.Expect(earlierRows(doc)).NotTo(BeEmpty())
 
 	missing := []string{"/reviews/" + itoa(id) + "/rounds/3", "/reviews/" + itoa(id) + "/rounds/0", "/reviews/" + itoa(id) + "/rounds/x", "/reviews/999/rounds/1"}
 	for _, path := range missing {
@@ -241,7 +241,7 @@ func TestServer_Surface_reviewEarlierRoundsNewestFirst(t *testing.T) {
 	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Approved 2h agoRound 3"))
 	g.Expect(text(find(doc, "notice"))).To(Equal("Approved. The verdict went out 2 hours ago."))
 	var rows []string
-	for _, row := range findAll(doc, hasClass("treerow")) {
+	for _, row := range earlierRows(doc) {
 		rows = append(rows, text(find(row, "nm"))+" "+text(find(row, "hint")))
 	}
 	g.Expect(rows).To(Equal([]string{"Round 2 \u00b7 changes requested 2h ago", "Round 1 \u00b7 changes requested 2h ago"}))
@@ -406,6 +406,20 @@ func TestServer_Surface_reviewTotalsMatchTheStoredSize(t *testing.T) {
 			f.expectStoredTotals(g, t, id)
 		})
 	}
+}
+
+// earlierRows is each row of a review page's list of earlier rounds, which
+// is its first section when there is one.
+func earlierRows(doc *html.Node) []*html.Node {
+	sec := find(doc, "section")
+	if sec == nil {
+		return nil
+	}
+	heading := findAll(sec, func(n *html.Node) bool { return n.Data == "h2" })
+	if len(heading) == 0 || !strings.HasPrefix(text(heading[0]), "Earlier rounds") {
+		return nil
+	}
+	return findAll(sec, hasClass("treerow"))
 }
 
 // page fetches a surface page and parses it, failing on any other status.

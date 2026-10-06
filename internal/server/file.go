@@ -135,11 +135,20 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		}
 	}
 
-	p := r.PathValue("path")
-	if p == "" {
-		// The tree's root, which the tree answers once it exists.
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+	// The root is answered before anything reads a path, since CleanPath
+	// refuses the empty one. Any other path is cleaned before it is located,
+	// so a refusal there is the plain 404 page: no live read was asked for,
+	// and a banner saying one was refused would be wrong.
+	clean := ""
+	if p := r.PathValue("path"); strings.Trim(p, "/") != "" {
+		clean, err = capture.CleanPath(p)
+		if errors.Is(err, capture.ErrNotFound) {
+			s.errorPage(w, http.StatusNotFound)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 	}
 	stored, err := s.db.s.RoundFiles(ctx, round.ID)
 	if err != nil {
@@ -151,25 +160,6 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		files[i] = f.File
 		scope[f.Path] = f.InScope
 	}
-	now := st.Reader(s.blobs, files)
-	pathType, source, err := now.Locate(ctx, p)
-	if errors.Is(err, capture.ErrNotFound) {
-		s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if pathType == capture.PathDir {
-		// A directory, which the tree answers once it exists.
-		s.errorPage(w, http.StatusNotFound)
-		return nil
-	}
-	clean, err := capture.CleanPath(p)
-	if err != nil {
-		return err
-	}
-
 	at := fileAt{
 		review:      review,
 		round:       round,
@@ -178,6 +168,22 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		plain:       r.URL.Query().Get("view") == "plain",
 		path:        clean,
 	}
+	if clean == "" {
+		return s.treeView(ctx, w, at, project, st, files, scope)
+	}
+	now := st.Reader(s.blobs, files)
+	pathType, source, err := now.Locate(ctx, clean)
+	if errors.Is(err, capture.ErrNotFound) {
+		s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if pathType == capture.PathDir {
+		return s.treeView(ctx, w, at, project, st, files, scope)
+	}
+
 	view := filePage{Name: path.Base(clean)}
 	if dir := path.Dir(clean); dir != "." {
 		view.Dir = dir + "/"
@@ -186,9 +192,19 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		view.Notices = append(view.Notices, *n)
 	}
 
+	// A file the review changes goes back to its round, and any other file to
+	// its directory in the tree. The address alone decides, since a page has
+	// to render the same however it was reached.
+	back, label := at.dirBack()
 	switch source {
 	case capture.SourceRound:
 		inScope := scope[clean]
+		if inScope {
+			back, label = at.roundHref(), "Review"
+			if !at.current {
+				label = fmt.Sprintf("Round %d", round.Number)
+			}
+		}
 		if !inScope {
 			view.Notices = append(view.Notices, captureNotice(pathType == capture.PathDeleted, round.Number))
 		}
@@ -223,10 +239,6 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		view.Diff = render.Plain(clean, content)
 	}
 
-	back, label := at.roundHref(), "Review"
-	if !at.current {
-		label = fmt.Sprintf("Round %d", round.Number)
-	}
 	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: back, BackLabel: label, Body: view})
 	return nil
 }
@@ -433,7 +445,7 @@ func refusalNotice(st capture.State, err error, root string) *notice {
 	heading := "Only what this round captured can be shown."
 	var text string
 	switch {
-	case errors.Is(err, capture.ErrRulesUnreadable):
+	case errors.Is(err, capture.ErrRulesUnreadable), st.Live == capture.LiveRulesUnreadable:
 		heading, text = "Nothing on disk can be shown.", "Git could not say which files it ignores."
 	case st.Live == capture.LiveRootMissing:
 		text = "The project's root, " + root + ", no longer exists."

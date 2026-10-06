@@ -320,6 +320,71 @@ func TestReader_List_disk(t *testing.T) {
 	}
 }
 
+func TestReader_List_fileAndDirectory(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	// The agent turned a name from one kind into the other, so the capture
+	// records a deletion and a file at or under the same name. What exists as
+	// of the round wins, and an address says what the listing says.
+	swaps := []struct {
+		name     string
+		before   func(r *repo, g *WithT)
+		after    func(r *repo, g *WithT)
+		listed   string
+		pathType PathType
+	}{
+		{
+			name: "a file replaced by a directory",
+			before: func(r *repo, g *WithT) {
+				r.write(g, "a", "a file\n")
+			},
+			after: func(r *repo, g *WithT) {
+				g.Expect(os.Remove(filepath.Join(r.root, "a"))).To(Succeed())
+				r.write(g, "a/x", "a file in a directory\n")
+			},
+			listed:   "a/",
+			pathType: PathDir,
+		},
+		{
+			name: "a directory replaced by a file",
+			before: func(r *repo, g *WithT) {
+				r.write(g, "a/x", "a file in a directory\n")
+			},
+			after: func(r *repo, g *WithT) {
+				g.Expect(os.RemoveAll(filepath.Join(r.root, "a"))).To(Succeed())
+				r.write(g, "a", "a file\n")
+			},
+			listed:   "a",
+			pathType: PathFile,
+		},
+	}
+	for _, c := range swaps {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			r, blobs := readerRepo(g, t)
+			c.before(r, g)
+			base := r.commit(g, "base")
+			c.after(r, g)
+			req, err := Freeze(t.Context(), Options{Round: 1, Root: r.root, Base: base, Blobs: blobs})
+			g.Expect(err).NotTo(HaveOccurred())
+			var captured []string
+			for _, f := range req.Files {
+				captured = append(captured, f.Path)
+			}
+			g.Expect(captured).To(ConsistOf("a", "a/x"), "the capture records both")
+			st, err := Inspect(t.Context(), r.root, base, false)
+			g.Expect(err).NotTo(HaveOccurred())
+			reader := st.Reader(blobs, req.Files)
+
+			got, err := reader.List(t.Context(), "")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(listed(got)).To(ContainElement(c.listed))
+			pathType, _, err := reader.Locate(t.Context(), "a")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(pathType).To(Equal(c.pathType))
+		})
+	}
+}
+
 func TestReader_List_ignoreRules(t *testing.T) {
 	g := NewWithT(t)
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
@@ -453,6 +518,83 @@ func TestReader_List_swapped(t *testing.T) {
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(listed(got)).To(Equal([]string{Marker, "sub/"}))
+}
+
+func TestReader_ListSubdirs(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	r, blobs := readerRepo(g, t)
+	r.write(g, "internal/doc.go", "package internal\n")
+	r.write(g, "internal/storage/store.go", "package storage\n")
+	r.write(g, "internal/upload/queue.go", "package upload\n")
+	r.write(g, "internal/upload/worker.go", "package upload\n")
+	r.write(g, "internal/upload/deep/d.go", "package deep\n")
+	r.write(g, "internal/:cdir/base.txt", "unchanged, with a leading colon above it\n")
+	base := r.commit(g, "base")
+	r.write(g, "internal/upload/backoff.go", "package upload\n")
+	r.write(g, "internal/:cdir/changed.txt", "added by the agent\n")
+	req, err := Freeze(t.Context(), Options{Round: 1, Root: r.root, Base: base, Blobs: blobs})
+	g.Expect(err).NotTo(HaveOccurred())
+	st, err := Inspect(t.Context(), r.root, base, false)
+	g.Expect(err).NotTo(HaveOccurred())
+	reader := st.Reader(blobs, req.Files)
+
+	// Siblings share one ls-tree call, and each lists one level. The flag
+	// that keeps a leading colon literal covers this call too.
+	got, err := reader.ListSubdirs(t.Context(), "internal", []string{":cdir", "storage", "upload"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(reader.lookups).To(Equal(1))
+	g.Expect(listed(got[":cdir"])).To(Equal([]string{"internal/:cdir/base.txt", "internal/:cdir/changed.txt"}))
+	g.Expect(listed(got["storage"])).To(Equal([]string{"internal/storage/store.go"}))
+	g.Expect(listed(got["upload"])).To(Equal([]string{"internal/upload/backoff.go", "internal/upload/deep/", "internal/upload/queue.go", "internal/upload/worker.go"}))
+
+	// The root's subdirectories, and a name the base lacks, which lists
+	// nothing.
+	got, err = reader.ListSubdirs(t.Context(), "", []string{"internal", "nowhere"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(listed(got["internal"])).To(Equal([]string{"internal/:cdir/", "internal/doc.go", "internal/storage/", "internal/upload/"}))
+	g.Expect(got["nowhere"]).To(BeEmpty())
+
+	// A name is one segment below the directory, so no pathspec in the call
+	// is the parent of another.
+	bad := []string{"upload/deep", ".", "..", ".git"}
+	for _, name := range bad {
+		_, err := reader.ListSubdirs(t.Context(), "internal", []string{name})
+		g.Expect(err).To(HaveOccurred(), name)
+	}
+}
+
+func TestReader_ListSubdirs_disk(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	outer, notes := markerInCheckout(g, t.TempDir())
+	outer.write(g, "notes/.gitignore", "*.log\n")
+	outer.write(g, "notes/a/kept.md", "a document\n")
+	outer.write(g, "notes/a/out.log", "ignored\n")
+	outer.write(g, "notes/b/:other.md", "a document with a leading colon\n")
+	outer.write(g, "notes/b/run.log", "ignored\n")
+	outer.write(g, "notes/b/vendor/.git/HEAD", "ref: refs/heads/main\n")
+	blobs, _ := newBlobs(g, t)
+	st, err := Inspect(t.Context(), notes, "", false)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(st.Live).To(Equal(LiveIgnoreRules))
+	files := []store.File{{Path: "c/n.md", Digest: "captured"}}
+	reader := st.Reader(blobs, files)
+
+	// What the checkout ignores is dropped from every subdirectory, another
+	// repository is skipped, and a subdirectory only the capture holds lists
+	// what it holds.
+	got, err := reader.ListSubdirs(t.Context(), "", []string{"a", "b", "c"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(listed(got["a"])).To(Equal([]string{"a/kept.md"}))
+	g.Expect(listed(got["b"])).To(Equal([]string{"b/:other.md"}))
+	g.Expect(listed(got["c"])).To(Equal([]string{"c/n.md"}))
+
+	// A failed batch is an error, never a reason to list the entries
+	// unchecked.
+	t.Setenv("GIT_CEILING_DIRECTORIES", outer.root)
+	_, err = reader.ListSubdirs(t.Context(), "", []string{"a", "b"})
+	g.Expect(errors.Is(err, ErrRulesUnreadable)).To(BeTrue())
 }
 
 // listed renders entries for an assertion: a directory with a trailing slash,

@@ -59,6 +59,9 @@ type reviewPage struct {
 	// Closed says an earlier round is closed and which round is current, and
 	// is empty on the current round.
 	Closed string
+	// AllFiles is the tree's root at this round, keeping the page's
+	// comparison.
+	AllFiles string
 }
 
 // earlierRound is one row of the list of earlier rounds.
@@ -228,6 +231,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if wholeReview {
 		against.Set("against", "base")
 	}
+	view.AllFiles = withQuery(roundHref(review.ID, round.Number, current)+"/files/", against)
 	if current {
 		if view.Earlier, err = s.earlierRounds(ctx, review, now); err != nil {
 			return reviewPage{}, err

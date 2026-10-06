@@ -1556,6 +1556,114 @@ leaves one alive has a test that cannot fail:
   the plain page for both, which kills them. The spec's row for the empty path,
   the tree's root answering 200, is iteration 6's.
 
+**Departures, iteration 6.**
+
+- The route asks `Locate` whether a path is a directory before anything lists
+  it, so a directory nothing holds is the 404 page whatever the source. `List`
+  alone answers an empty listing for it from the base and the capture, and
+  `ErrNotFound` from disk, so asking `List` would have made the answer depend on
+  the state. `List` failing with `ErrNotFound` after `Locate` found a directory
+  is the disk changing between the two calls, and answers the 404 page, with the
+  refusal banner where the state has one. A directory only the disk holds, in a
+  project whose listing is frozen, opens on the `.empty` box. A capture takes
+  every file git does not ignore, so that directory was made after the round,
+  and nothing was there as of it. Its files still open live by address.
+- A name the capture records both as a deleted file and as a directory holding a
+  file is a directory, in the listing and to an address. A name it records both
+  as a file and as a directory holding only deletions is a file. The agent made
+  each by turning a file into a directory or the reverse, and what exists as of
+  the round wins over what the round deleted. `Locate` and `List` rank each
+  captured path's claim on a name through one function, so they cannot disagree.
+  Iteration 4 settled the first case by path order and left the second listing a
+  directory where `Locate` answered a file. `TestReader_List_fileAndDirectory`
+  captures both through `Freeze` and asks each. The cost is the review page's
+  "Whole file" link on the deleted `a`, which opens the tree of the directory
+  `a`. The removed lines are on the card itself.
+- An address below a directory that cannot be searched is the 404 page, as the
+  listing leaves that directory out. `checkDir` reads a permission error from
+  its `.git` lookup as not found, and any other failure there stays an error, so
+  a disk that fails some other way is still a 500. This corrects iteration 4's
+  bullet, which said such an address is still a 500. Iteration 3's equivalent
+  mutant, a `.git` lookup failing with anything but not found, stays equivalent:
+  the permission branch answers first, so the branch it mutates sees no error a
+  test can make. Dropping the permission branch is a new mutant, and the
+  `locked/x.txt` rows kill it.
+- Correction: iteration 5's first bullet says that asking check-ignore only for
+  a directory, after the `Lstat`, gives the same answers as the answer order's
+  check-ignore first. It did not. In a git project whose per-path check-ignore
+  fails, as with a truncated index, a path that does not exist failed at
+  `root.Lstat` and answered the plain 404 page, where the answer order shows the
+  404 page with "Nothing on disk can be shown." `Locate` now asks check-ignore
+  for a path the disk lacks as well, under `LiveIgnoreRules`, so only a file
+  found on disk skips the question, and `ReadLive` asks it there. A 404 costs
+  one more git call. Rows at both levels ask for `nothing.txt` under a truncated
+  index, and the surface's row a 300-byte name as well.
+- The route cleans a path before `Locate`, and a path `CleanPath` refuses is the
+  plain 404 page. Under a state that refuses live reads, such as a lost
+  repository, `.git/config` got the "Only what this round captured can be
+  shown." banner, though no live read was tried. The lost-repository row asserts
+  the plain page for it.
+- The review page's row reads "All files", as the approved tearout and the link
+  table read, though the todo and the tree's design section say "All files at
+  round N". Its `href` keeps `against`. A round number in the label would tell
+  an earlier round's tree from the current one, but the page holding the row
+  already names its round, and the owner approved the shorter label on the
+  phone.
+- A subdirectory is expanded when it holds a file the review changes at any
+  depth, a deletion in the review's paths included. The design's "holding" did
+  not say how deep, and the frame's `upload` holds its files directly, which
+  either reading draws. A subdirectory holding only changes outside the review's
+  paths is not expanded.
+- The thousand applies to the page's rows, expanded entries included, after the
+  directories are put first, and the notice reads "The first 1,000 of N entries
+  are listed." The whole listing is still read from git and from disk, since
+  `ls-tree` cannot stop early, so the cap bounds the page and not the read.
+- The notices are worded here, each ending "Files this review changes are in
+  bold." as the frame's does. A frozen listing has the frame's text. A listing
+  from disk is a `notice warn`: "Live, not from this round. Files nothing
+  captured are listed as they are on disk now, and may have moved." A gone base
+  is a `notice warn`: "Only the files this round captured are listed. The commit
+  round 1 was taken from is gone, so any other file opens only by its address,
+  as it is on disk now." A state that refuses live reads takes the file page's
+  refusal banner, and under a lost repository or a missing root that banner is
+  the page's only one. An unborn branch lists the capture alone and takes the
+  frozen text, since its capture holds every file. The notice template prints a
+  heading only where there is one, since the frame's frozen notice has none.
+- A check-ignore batch that fails lists the capture alone with "Nothing on disk
+  can be shown. Git could not say which files it ignores.", by setting the
+  state's `Live` to `LiveRulesUnreadable` and building the reader through
+  `State.Reader`. The only way a request reaches it is a marker project whose
+  checkout holds a submodule with no checkout and a file written into it. The
+  project's own check passes, its directory lists, and git exits 128 on the
+  batch because the file is in a submodule. The banner's reason is inaccurate
+  there. It fails closed, and `TestServer_Surface_tree` asserts it.
+- `Reader.ListSubdirs` lists the expanded subdirectories, taking names one
+  segment below one directory, so no pathspec in its call is the parent of
+  another. The base listing for one directory and for its siblings is one
+  function, so the `--literal-pathspecs` row covers both, and it counts its
+  calls in `lookups`. A listing from disk asks check-ignore once for every
+  subdirectory together.
+- The counts cost two `ls-tree` calls, not one, because `ComparePaths` loads
+  object ids on each reader's base. A page still costs at most four: a page with
+  bold rows has a capture under its directory, which answers `Locate`, so it
+  never needs the type lookup.
+- The crumb at the root is the project's name alone. Below it, the lead is the
+  project's name and the parent's path, `harbor / internal/`, and the name is
+  the directory's. The topbar's heading is "Files" on every tree page, as the
+  frame's is.
+- A directory that can be searched and not read, such as mode 0300, is listed in
+  its parent, and its own page is a 500, since reading it fails with a
+  permission error that is not mapped. Not tested.
+- No mutant survives. The pass ran 65, the spec's six rows for the tree among
+  them. Three of the first run's were malformed, two that did not build and one
+  that changed nothing, and each was rewritten and run again. One survived its
+  first run: `Locate` asking check-ignore for any missing path rather than only
+  `ErrNotExist`. The page differed only where git could not read the rules, for
+  a name such as a 300-byte segment, and the answer order asks git first for
+  every path. So the code took the mutant's rule, and a row under a truncated
+  index asks for a 300-byte name and expects the banner, which kills the
+  narrower rule instead.
+
 ## Out of scope
 
 - **Comments on a line or a passage, and mapping a passage to source lines.**
@@ -1923,61 +2031,67 @@ required_acks:
 ## Iteration 5: A file at a round
 
 - [x] Both file routes in the route table on the surface side, and the listener
-  test substituting `{path...}`
+      test substituting `{path...}`
 - [x] The answer order: `Inspect` first, the empty path to the tree, and file or
-  directory decided before `Frozen`
+      directory decided before `Frozen`
 - [x] The type lookup as `git --literal-pathspecs ls-tree` with no `-r`, with a
-  colon-named base file read from the base
+      colon-named base file read from the base
 - [x] Project paths escaped by segment in every address, and
-  `Referrer-Policy: no-referrer` on every surface response, each with a test
+      `Referrer-Policy: no-referrer` on every surface response, each with a test
 - [x] `render.Whole` rows from `diff.Whole` with no hunk header, and
-  `render.Plain` rows from content, both highlighted, with tests of each
+      `render.Plain` rows from content, both highlighted, with tests of each
 - [x] The `filepage` template: crumb, banner, toolbar counts saying what they
-  count, Marked and Plain as `?view=` links keeping `against`, and the whole
-  file, with runtime classes in `render.Classes`
+      count, Marked and Plain as `?view=` links keeping `against`, and the whole
+      file, with runtime classes in `render.Classes`
 - [x] The banner chosen by source and scope, and by `Inspect`'s answer: the two
-  info banners, the live warning's reasons, and the capture-only banner
+      info banners, the live warning's reasons, and the capture-only banner
 - [x] The file route writing `Inspect`'s finding through
-  `db.MarkInsideCheckout`, with a server-level row whose project and review are
-  opened through the store, as `tool/seed` does, so the request path never runs:
-  the flag is 0 before the GET and 1 after it
+      `db.MarkInsideCheckout`, with a server-level row whose project and review
+      are opened through the store, as `tool/seed` does, so the request path
+      never runs: the flag is 0 before the GET and 1 after it
 - [x] A refused path, an encoded climb and a path in no source answered with the
-  404 page, tested through the surface handler with the escaped forms
+      404 page, tested through the surface handler with the escaped forms
 - [x] A live read refused by a failed ignore check, a disowned marker project or
-  a moved outer `.git` answered with the 404 page and its banner, while a
-  captured file opens
+      a moved outer `.git` answered with the 404 page and its banner, while a
+      captured file opens
 - [x] A deleted file shown as its removed lines in Marked and as deleted in
-  Plain, in scope, out of scope and unmoved, under each comparison, and binary
-  and too-large files given 006's lines
+      Plain, in scope, out of scope and unmoved, under each comparison, and
+      binary and too-large files given 006's lines
 - [x] Each code card on the review page linking "Whole file", and every file
-  page's back link going to its round, both keeping `against`, with a test
+      page's back link going to its round, both keeping `against`, with a test
 - [x] `TestServer_Surface_fileBanners` covering each source on a current and an
-  earlier round, a gone base and a lost repository with no counts and no Marked
-  control
+      earlier round, a gone base and a lost repository with no counts and no
+      Marked control
+
+> **Completed** 2026-10-06 00:13 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.8s
+> - `go test -race ./...` — 21.2s
 
 ## Iteration 6: The tree
 
-- [ ] A directory path, the empty path and a trailing slash answered with the
+- [x] A directory path, the empty path and a trailing slash answered with the
       tree, an ignored directory and a path that names nothing with the 404 page
-- [ ] Every tree listing call carrying `--literal-pathspecs`, with a `:cdir/`
+- [x] Every tree listing call carrying `--literal-pathspecs`, with a `:cdir/`
       row
-- [ ] Directories then files by name, expanded subdirectories in one sibling
+- [x] Directories then files by name, expanded subdirectories in one sibling
       `ls-tree` call with `indent`, and the listing capped at a thousand with a
       notice
-- [ ] Bold from the round files' scope flag and counts from `ComparePaths`
+- [x] Bold from the round files' scope flag and counts from `ComparePaths`
       against the base for the shown paths, with tests that an out-of-scope
       capture is not bold and a deleted in-scope file is listed
-- [ ] A directory left with only out-of-scope deletions listed, and opening on
+- [x] A directory left with only out-of-scope deletions listed, and opening on
       the `.empty` box
-- [ ] The crumb, the back link to the parent or the round, and the notice saying
+- [x] The crumb, the back link to the parent or the round, and the notice saying
       whether the listing is frozen, from disk, or the capture alone
-- [ ] The review page's "All files at round N" row, tree rows and the tree's
+- [x] The review page's "All files at round N" row, tree rows and the tree's
       back link keeping `against`, and a context file's back link going to its
       directory
-- [ ] `TestServer_Surface_tree` covering one level, an earlier round's own
+- [x] `TestServer_Surface_tree` covering one level, an earlier round's own
       capture, a project outside git, a gone base listing no counts, and a lost
       repository listing the capture alone
-- [ ] `TestServer_Surface_tree` covering a marker project the outer checkout
+- [x] `TestServer_Surface_tree` covering a marker project the outer checkout
       ignores and one whose repository's `.git` has gone, each listing the
       capture alone with its notice
 

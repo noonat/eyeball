@@ -16,7 +16,10 @@
 <span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
 {{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
 {{end}}</div>
-{{range .Shown}}{{template "file" .}}{{end}}{{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
+{{range .Shown}}{{template "file" .}}{{end}}<div class="tree">
+<a class="treerow" href="{{.AllFiles}}"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+{{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
 {{end}}
 {{define "notes"}}{{with .Decided}}{{if .Note}}<div class="note">
 <span class="from">Verdict note</span>

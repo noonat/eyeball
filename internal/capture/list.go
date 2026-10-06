@@ -69,87 +69,173 @@ func (r *Reader) Listing() Listing {
 //
 // A directory the disk cannot list, because it is gone or a check refuses
 // it, still lists what the capture holds under it, and is ErrNotFound where
-// the capture holds nothing. That keeps the listing in step with what an
-// address serves.
+// the capture holds nothing. The base and the capture list nothing for a
+// directory they lack, so whether dir is a directory at all is Locate's
+// question, asked first.
 func (r *Reader) List(ctx context.Context, dir string) ([]DirEntry, error) {
-	clean := ""
-	if strings.Trim(dir, "/") != "" {
-		var err error
-		if clean, err = CleanPath(dir); err != nil {
-			return nil, err
-		}
+	clean, err := cleanDir(dir)
+	if err != nil {
+		return nil, err
 	}
-	entries := map[string]DirEntry{}
-	var diskErr error
-	switch r.Listing() {
-	case ListingFrozen:
-		listed, err := r.listBase(ctx, clean)
+	byDir, diskErrs, err := r.gather(ctx, []string{clean})
+	if err != nil {
+		return nil, err
+	}
+	if len(byDir[clean]) == 0 && diskErrs[clean] != nil {
+		return nil, diskErrs[clean]
+	}
+	return sorted(byDir[clean]), nil
+}
+
+// ListSubdirs lists several subdirectories of dir, one level each, keyed by
+// name, as List would list each one.
+//
+// The base lists them in one ls-tree call. Sibling pathspecs each list one
+// level, where a parent given beside its own child would lose the parent's
+// entries, which is why the names are taken one segment each under a shared
+// dir. A subdirectory the disk cannot list lists what the capture holds under
+// it, or nothing.
+func (r *Reader) ListSubdirs(ctx context.Context, dir string, names []string) (map[string][]DirEntry, error) {
+	clean, err := cleanDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	dirs := make([]string, 0, len(names))
+	for _, name := range names {
+		sub, err := CleanPath(path.Join(clean, name))
 		if err != nil {
 			return nil, err
 		}
-		add(entries, listed)
-	case ListingDisk:
-		listed, err := r.listDisk(ctx, clean)
-		if err != nil && !errors.Is(err, ErrNotFound) {
-			return nil, err
+		want := clean
+		if want == "" {
+			want = "."
 		}
-		diskErr = err
-		add(entries, listed)
+		if path.Dir(sub) != want {
+			return nil, errors.Newf("%q is not one segment below %q", name, clean)
+		}
+		dirs = append(dirs, sub)
 	}
-	r.listCapture(entries, clean)
-	if len(entries) == 0 && diskErr != nil {
-		return nil, diskErr
+	byDir, _, err := r.gather(ctx, dirs)
+	if err != nil {
+		return nil, err
 	}
+	out := make(map[string][]DirEntry, len(names))
+	for _, sub := range dirs {
+		out[path.Base(sub)] = sorted(byDir[sub])
+	}
+	return out, nil
+}
+
+// cleanDir is dir as a project path, with the root as the empty path.
+func cleanDir(dir string) (string, error) {
+	if strings.Trim(dir, "/") == "" {
+		return "", nil
+	}
+	return CleanPath(dir)
+}
+
+// gather lists each of dirs from the reader's sources, by name within each
+// directory, along with why the disk could not list one. The directories are
+// siblings, or one directory alone.
+func (r *Reader) gather(ctx context.Context, dirs []string) (map[string]map[string]DirEntry, map[string]error, error) {
+	byDir := make(map[string]map[string]DirEntry, len(dirs))
+	for _, d := range dirs {
+		byDir[d] = map[string]DirEntry{}
+	}
+	diskErrs := map[string]error{}
+	var listed []DirEntry
+	switch r.Listing() {
+	case ListingFrozen:
+		var err error
+		if listed, err = r.listBase(ctx, dirs); err != nil {
+			return nil, nil, err
+		}
+	case ListingDisk:
+		for _, d := range dirs {
+			found, err := r.listDisk(d)
+			if err != nil && !errors.Is(err, ErrNotFound) {
+				return nil, nil, err
+			}
+			if err != nil {
+				diskErrs[d] = err
+			}
+			listed = append(listed, found...)
+		}
+		if r.live == LiveIgnoreRules {
+			var err error
+			if listed, err = dropIgnored(ctx, r.root, listed); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	for _, e := range listed {
+		parent := path.Dir(e.Path)
+		if parent == "." {
+			parent = ""
+		}
+		if entries, asked := byDir[parent]; asked {
+			entries[e.Name] = e
+		}
+	}
+	for _, d := range dirs {
+		r.listCapture(byDir[d], d)
+	}
+	return byDir, diskErrs, nil
+}
+
+// sorted is a directory's entries in byte order of name.
+func sorted(entries map[string]DirEntry) []DirEntry {
 	out := make([]DirEntry, 0, len(entries))
 	for _, e := range entries {
 		out = append(out, e)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	return out
 }
 
-// add puts listed entries into a listing by name.
-func add(entries map[string]DirEntry, listed []DirEntry) {
-	for _, e := range listed {
-		entries[e.Name] = e
-	}
-}
-
-// listBase names what the base holds in a directory, one level deep.
+// listBase names what the base holds in each of dirs, one level deep, in one
+// ls-tree call.
 //
 // ls-tree given a directory with a trailing slash lists its entries, and with
-// no path at all lists the root. It runs at the root, so the path it is given
-// and the paths it prints are project paths. A directory the base lacks lists nothing.
-// --literal-pathspecs keeps a leading colon from being read as pathspec magic,
-// as it does in loadOIDs: without it a directory named :cdir lists nothing.
+// no path at all lists the root. It runs at the root, so the paths it is given
+// and the paths it prints are project paths. A directory the base lacks lists
+// nothing. --literal-pathspecs keeps a leading colon from being read as
+// pathspec magic, as it does in loadOIDs: without it a directory named :cdir
+// lists nothing.
 //
 // A blob is a file, a symlink among them, since the reader serves a link's
 // target text. A gitlink is left out, because its contents belong to another
 // repository.
-func (r *Reader) listBase(ctx context.Context, clean string) ([]DirEntry, error) {
-	args := []string{"--literal-pathspecs", "ls-tree", "-z", r.base}
-	if clean != "" {
-		args = append(args, "--", clean+"/")
-	}
-	out, err := run(ctx, r.root, args...)
-	if err != nil {
-		return nil, err
-	}
+func (r *Reader) listBase(ctx context.Context, dirs []string) ([]DirEntry, error) {
 	var listed []DirEntry
-	for _, record := range splitNUL(string(out)) {
-		meta, p, found := strings.Cut(record, "\t")
-		if !found {
-			return nil, errors.Newf("ls-tree entry %q has no path", record)
+	for _, chunk := range chunks(dirs, r.batch) {
+		r.lookups++
+		args := []string{"--literal-pathspecs", "ls-tree", "-z", r.base}
+		if len(chunk) != 1 || chunk[0] != "" {
+			args = append(args, "--")
+			for _, d := range chunk {
+				args = append(args, d+"/")
+			}
 		}
-		fields := strings.Fields(meta)
-		if len(fields) != 3 {
-			return nil, errors.Newf("ls-tree entry %q has %d fields, not 3", meta, len(fields))
+		out, err := run(ctx, r.root, args...)
+		if err != nil {
+			return nil, err
 		}
-		switch fields[1] {
-		case "blob":
-			listed = append(listed, DirEntry{Name: path.Base(p), Path: p})
-		case "tree":
-			listed = append(listed, DirEntry{Name: path.Base(p), Path: p, Dir: true})
+		for _, record := range splitNUL(string(out)) {
+			meta, p, found := strings.Cut(record, "\t")
+			if !found {
+				return nil, errors.Newf("ls-tree entry %q has no path", record)
+			}
+			fields := strings.Fields(meta)
+			if len(fields) != 3 {
+				return nil, errors.Newf("ls-tree entry %q has %d fields, not 3", meta, len(fields))
+			}
+			switch fields[1] {
+			case "blob":
+				listed = append(listed, DirEntry{Name: path.Base(p), Path: p})
+			case "tree":
+				listed = append(listed, DirEntry{Name: path.Base(p), Path: p, Dir: true})
+			}
 		}
 	}
 	return listed, nil
@@ -165,9 +251,9 @@ func (r *Reader) listBase(ctx context.Context, clean string) ([]DirEntry, error)
 //
 // It skips .git, a directory holding a .git entry, and anything that is not a
 // regular file, a directory or a symlink, which are what a live read refuses.
-// A symlink is listed as a file and opens on its target text. Where the
-// project follows ignore rules, what git ignores is dropped.
-func (r *Reader) listDisk(ctx context.Context, clean string) ([]DirEntry, error) {
+// A symlink is listed as a file and opens on its target text. What git
+// ignores is the caller's to drop, in one batch for every directory listed.
+func (r *Reader) listDisk(clean string) ([]DirEntry, error) {
 	root, err := os.OpenRoot(r.root)
 	if err != nil {
 		return nil, notFoundOr(err, "open the project root "+r.root)
@@ -204,41 +290,40 @@ func (r *Reader) listDisk(ctx context.Context, clean string) ([]DirEntry, error)
 			listed = append(listed, DirEntry{Name: d.Name(), Path: p, Dir: true})
 		}
 	}
-	if r.live == LiveIgnoreRules {
-		return dropIgnored(ctx, r.root, listed)
-	}
 	return listed, nil
 }
 
 // listCapture merges what the round's capture holds under a directory into a
 // listing, over whatever the other source listed.
 //
-// Each captured path contributes its next segment below the directory, as a
-// file or as a directory. A deletion counts, so a file the round deleted is
-// listed as deleted and the directory holding one still lists.
+// Each captured path claims its next segment below the directory, as a file,
+// a deletion or a directory, and the highest claim on a name decides it, by
+// the rule Locate applies to an address. A deletion counts, so a file the
+// round deleted is listed as deleted and the directory holding one still
+// lists.
 func (r *Reader) listCapture(entries map[string]DirEntry, clean string) {
 	prefix := ""
 	if clean != "" {
 		prefix = clean + "/"
 	}
-	held := make([]string, 0, len(r.files))
-	for p := range r.files {
-		held = append(held, p)
-	}
-	// In path order, so a file deleted at a name and a directory created at
-	// the same name later always resolve the same way.
-	sort.Strings(held)
-	for _, p := range held {
+	best := map[string]claim{}
+	for p, f := range r.files {
 		rest, under := strings.CutPrefix(p, prefix)
 		if !under {
 			continue
 		}
-		name, _, deeper := strings.Cut(rest, "/")
-		if deeper {
-			entries[name] = DirEntry{Name: name, Path: prefix + name, Dir: true}
-			continue
+		name, _, _ := strings.Cut(rest, "/")
+		best[name] = max(best[name], claimOn(prefix+name, f))
+	}
+	for name, c := range best {
+		e := DirEntry{Name: name, Path: prefix + name}
+		switch c {
+		case claimDeleted:
+			e.Deleted = true
+		case claimDirBelow, claimDeletedBelow:
+			e.Dir = true
 		}
-		entries[name] = DirEntry{Name: name, Path: p, Deleted: r.files[p].Digest == ""}
+		entries[name] = e
 	}
 }
 
