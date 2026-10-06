@@ -283,12 +283,23 @@ required_acks:
   - phone-approved
 ```
 
-- [/] widening.html's "an image, shown as an image" frame showing the image
-- [ ] New frames: a new image, a deleted image, SVG in its Image view, audio,
+- [x] widening.html's "an image, shown as an image" frame showing the image
+- [x] New frames: a new image, a deleted image, SVG in its Image view, audio,
       video, a PDF, and a page's frame with its Open link
-- [ ] review.html's cards for a changed image, a page in its Page view, a media
+- [x] review.html's cards for a changed image, a page in its Page view, a media
       file, too large, and other
-- [ ] README's rows naming the new frames
+- [x] README's rows naming the new frames
+
+The owner looked at the tearouts on the phone, served by `tool/tearout` on the
+tailnet, and approved them on 2026-10-06 through dispatch with no changes. The
+players had no file to play, and a PDF in a frame is still to be judged on a
+real one in iteration 8.
+
+> **Completed** 2026-10-06 22:56 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 5.4s
+> - `go test -race ./...` — 31.0s
 
 ## Iteration 5: Rendered on the file page
 
