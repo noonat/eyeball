@@ -1191,6 +1191,16 @@ details.blk.changed[open] > summary > .cue-hide {
     -7px 0;
 }
 
+/* A real image shows at its own size, up to the frame's width. Stretched to
+ * the width, a 48 pixel icon read as pixelated on the owner's phone on
+ * 2026-10-06, and its size is half of what an icon change asks. The tearouts'
+ * placeholders keep the full width. */
+.shot.natural {
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 /* Before over after, at one width. Two images across a phone are two
  * thumbnails, which is the same reason diffs are unified. */
 .beforeafter {
