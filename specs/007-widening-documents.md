@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-05T00:00:00Z
-updated: 2026-10-05T20:59:48.227706244Z
+updated: 2026-10-06T03:40:05.053764066Z
 required_acks:
   - reviewed
 required_commands:
@@ -2634,3 +2634,9 @@ required_acks:
 - [x] specs/TODO.md gaining this spec's deferrals and departures, the back-link
       and queue-link `design:` entries and the `os.Root` move for `Walk` among
       them, and losing item 1 under Next
+
+> **Completed** 2026-10-06 03:40 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.6s
+> - `go test -race ./...` — 21.3s
