@@ -148,8 +148,10 @@ func (s *seed) write() error {
 	if err != nil {
 		return err
 	}
+	// The spec is not in the base, so its review is one new document, which
+	// the review page shows on the page rather than in a card.
 	notes, err := s.repo("field-notes", map[string]string{
-		"specs/018-tag-import.md": "# Spec 018\n\nNothing yet.\n",
+		"README.md": "# Field notes\n",
 	})
 	if err != nil {
 		return err
@@ -260,8 +262,8 @@ func (s *seed) write() error {
 
 	// The tag import spec: waiting three hours.
 	s.ago(3 * time.Hour)
-	s.edit(notes, "specs/018-tag-import.md", "# Spec 018: bulk import for the tag index\n\nImport tags from a CSV, one row per note.\n\n## Iteration 1\n\n- [ ] Parse the file\n- [ ] Write the tags\n")
-	if _, err := s.open(notes, "spec/018-tag-import", "Spec 018: bulk import for the tag index", []string{"specs"}, "The import, in one iteration."); err != nil {
+	s.edit(notes, "specs/018-tag-import.md", tagImport)
+	if _, err := s.open(notes, "spec/018-tag-import", "Spec 018: bulk import for the tag index", []string{"specs"}, "New spec, nothing to diff against. The open question is iteration 3: whether an import that partially fails should roll back or report per row."); err != nil {
 		return err
 	}
 	return nil
@@ -383,6 +385,7 @@ const (
 	productBefore = "# Product\n\n## Widening\n\nThree steps out.\n"
 	productRound1 = "# Product\n\n## Widening\n\nWidening is one control, not a navigation.\n\nThree steps out, each one control rather than a navigation.\n\n## Open questions\n\nWhat happens when the base is empty?\n"
 	productRound2 = "# Product\n\n## Widening\n\nThree steps out, each one control rather than a navigation.\n\n**From a hunk to the whole file**, with the change still marked in place.\n\n**What the change is measured against is one segmented control with two settings.** The previous round is the default from round two onward.\n\n## A round is frozen\n\nAn empty base compares with nothing, so every line reads as added.\n"
+	tagImport     = "# Bulk import for the tag index\n\nTagging a season's worth of notes one at a time is the reason the index sits half empty. Import takes a manifest and adds what is missing.\n\n## Iteration 1: the manifest format\n\n- Read a manifest from a path or from stdin\n- Skip a tag already present by name or by slug\n- Report added and skipped separately\n"
 	syncBefore    = "package storage\n\nimport \"time\"\n\n// watermark is the newest time synced.\ntype watermark struct{ last time.Time }\n\nfunc (w *watermark) advance(now time.Time) {\n\tw.last = now\n}\n"
 	syncAfter     = "package storage\n\nimport \"time\"\n\n// watermark is the newest time synced.\ntype watermark struct{ last time.Time }\n\nfunc (w *watermark) advance(now time.Time) {\n\tif now.Before(w.last) {\n\t\tnow = w.last\n\t}\n\tw.last = now\n}\n"
 	workerBefore  = "package upload\n\nimport \"context\"\n\n// Worker uploads one file.\ntype Worker struct{ maxTries int }\n\nfunc (w *Worker) run(ctx context.Context) error {\n\treturn w.send(ctx)\n}\n\nfunc (w *Worker) send(ctx context.Context) error { return nil }\n"

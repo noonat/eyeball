@@ -10,7 +10,10 @@
 // goldmark's denylist: http, https and mailto as written, a fragment alone,
 // and a relative or root-relative path resolved against the document's
 // directory, through capture.CleanPath, to the address the caller writes for
-// it. Anything else renders as its text, with no a element.
+// it. A path cleaning to the project's root goes to the root, which CleanPath
+// refuses. A fragment alone is kept only on a page writing heading ids, and
+// goes to the document's own page elsewhere. Anything else renders as its
+// text, with no a element.
 //
 // What changed in a document is marked block by block. Each top-level block
 // is keyed by a parse and a rendering of its own, with heading ids off, raw

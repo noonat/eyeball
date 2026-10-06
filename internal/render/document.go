@@ -65,6 +65,14 @@ func Document(old, new []byte, p Page) template.HTML {
 	return template.HTML(b.String())
 }
 
+// HasBlocks reports whether a document holds any block, by the rule Document
+// uses to decide that an old side marks nothing. A file holding only
+// whitespace or link reference definitions has none, as an empty one does.
+func HasBlocks(source []byte) bool {
+	doc := keyMarkdown().Parser().Parse(text.NewReader(source))
+	return len(topLevel(doc)) > 0
+}
+
 // wasTexts writes one was-text span for each replaced block's text.
 func wasTexts(replaced []string) string {
 	var b strings.Builder

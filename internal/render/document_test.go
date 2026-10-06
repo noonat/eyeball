@@ -275,16 +275,21 @@ func TestDocument_links(t *testing.T) {
 	cases := []struct {
 		name string
 		md   string
+		// ids writes heading ids.
+		ids bool
 		// href is the link's address, or empty where the text renders
 		// with no a element.
 		href string
+		// text is the text shown, where a row checks it.
+		text string
 	}{
 		{name: "http", md: "[a](http://example.com/x)", href: "http://example.com/x"},
 		{name: "https", md: "[a](https://example.com/x?q=1#f)", href: "https://example.com/x?q=1#f"},
 		{name: "an upper case scheme", md: "[a](HTTPS://example.com)", href: "HTTPS://example.com"},
 		{name: "an address escaped as goldmark writes it", md: "[a](<https://example.com/a b>)", href: "https://example.com/a%20b"},
 		{name: "mailto", md: "[a](mailto:x@example.com)", href: "mailto:x@example.com"},
-		{name: "a fragment alone", md: "[a](#part)", href: "#part"},
+		{name: "a fragment alone, on a page with heading ids", md: "[a](#part)", ids: true, href: "#part"},
+		{name: "a fragment alone, on a page without them", md: "[a](#part)", href: "/f/docs/product.md#part"},
 		{name: "javascript", md: "[a](javascript:alert(1))"},
 		{name: "javascript in upper case", md: "[a](JAVASCRIPT:alert(1))"},
 		{name: "a tab written as an entity", md: "[a](java&#x09;script:alert(1))"},
@@ -298,7 +303,7 @@ func TestDocument_links(t *testing.T) {
 		{name: "a reference to a path", md: "[a][r]\n\n[r]: other.md", href: "/f/docs/other.md"},
 		{name: "an autolink", md: "<https://example.com>", href: "https://example.com"},
 		{name: "a refused autolink", md: "<vscode://x>"},
-		{name: "an autolink inside a link", md: "[see <https://example.com>](x.md)", href: "/f/docs/x.md"},
+		{name: "an autolink inside a link", md: "[see <https://example.com>](x.md)", href: "/f/docs/x.md", text: "see https://example.com"},
 		{name: "an autolink inside a refused link", md: "[see <https://example.com>](vscode:x)", href: "https://example.com"},
 		{name: "an email autolink", md: "<x@example.com>", href: "mailto:x@example.com"},
 		{name: "a bare address", md: "www.example.com", href: "http://www.example.com"},
@@ -307,7 +312,12 @@ func TestDocument_links(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			body := parseBody(g, Document(nil, []byte(c.md+"\n"), testPage()))
+			p := testPage()
+			p.HeadingIDs = c.ids
+			body := parseBody(g, Document(nil, []byte(c.md+"\n"), p))
+			if c.text != "" {
+				g.Expect(collapsed(textOf(body))).To(Equal(c.text))
+			}
 			if c.href == "" {
 				g.Expect(hrefs(body)).To(BeEmpty())
 				g.Expect(textOf(body)).NotTo(BeEmpty(), "the text is still shown")
@@ -476,6 +486,12 @@ func TestDocument_relativeLinks(t *testing.T) {
 		{name: "a root-relative climb", doc: "docs/product.md", md: "[a](/../etc/passwd)"},
 		{name: "a repository's own directory", doc: "docs/product.md", md: "[a](sub/.git/config)"},
 		{name: "a NUL", doc: "docs/product.md", md: "[a](a%00b.md)"},
+		{name: "the root, root-relative", doc: "docs/product.md", md: "[a](/)", href: "/f/"},
+		{name: "the root, up a directory", doc: "docs/product.md", md: "[a](../)", href: "/f/"},
+		{name: "the root, from a document there", doc: "README.md", md: "[a](./)", href: "/f/"},
+		{name: "the root with a fragment", doc: "docs/product.md", md: "[a](..#top)", href: "/f/#top"},
+		{name: "a climb past the root", doc: "docs/product.md", md: "[a](../../)"},
+		{name: "a root-relative climb past the root", doc: "docs/product.md", md: "[a](/../)"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -534,6 +550,27 @@ func TestDocument_replacedText(t *testing.T) {
 			got := shapesOf(g, Document([]byte(old), []byte(new), testPage()))
 			g.Expect(got).To(HaveLen(3))
 			g.Expect(got[1].Was).To(Equal([]string{c.was}))
+		})
+	}
+}
+
+func TestHasBlocks(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		want   bool
+	}{
+		{name: "empty", source: "", want: false},
+		{name: "whitespace alone", source: "\n  \n\t\n", want: false},
+		{name: "a link reference definition alone", source: "[r]: other.md\n", want: false},
+		{name: "a paragraph", source: "One.\n", want: true},
+		{name: "a thematic break", source: "---\n", want: true},
+		{name: "an HTML block", source: "<div>\na\n</div>\n", want: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(HasBlocks([]byte(c.source))).To(Equal(c.want))
 		})
 	}
 }

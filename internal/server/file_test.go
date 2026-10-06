@@ -25,6 +25,9 @@ func Test_escapePath(t *testing.T) {
 		{path: "q?.md", want: "q%3F.md"},
 		{path: "50%.md", want: "50%25.md"},
 		{path: "dir with space/x.md", want: "dir%20with%20space/x.md"},
+		{path: "\\evil.com", want: "%5Cevil.com"},
+		{path: "docs/x\"y.md", want: "docs/x%22y.md"},
+		{path: "", want: ""},
 		{path: "internal/upload/worker.go", want: "internal/upload/worker.go"},
 	}
 	for _, c := range cases {
@@ -325,7 +328,7 @@ func TestServer_Surface_fileBanners(t *testing.T) {
 		g.Expect(notices(doc)).To(Equal([]string{"warn: Live, not from this round. The project is outside git, so it is shown as it is on disk now and may have moved."}))
 		doc = f.page(g, "/reviews/"+itoa(id)+"/files/plan.md", http.StatusOK)
 		g.Expect(notices(doc)).To(BeEmpty())
-		g.Expect(text(find(doc, "toolbar"))).To(Equal("+1 −0 in this round MarkedPlain"))
+		g.Expect(text(find(doc, "toolbar"))).To(Equal("+1 −0 in this round DocumentSource"))
 	})
 }
 
@@ -384,6 +387,115 @@ func TestServer_Surface_fileDeleted(t *testing.T) {
 	doc = f.page(g, base+"/files/lib.txt", http.StatusOK)
 	g.Expect(notices(doc)).To(Equal([]string{"info: Not part of this review. Deleted by the agent outside the review's paths, as of round 2."}))
 	g.Expect(text(find(doc, "empty"))).To(Equal("DeletedThe agent deleted this file as of round 2."))
+}
+
+func TestServer_Surface_fileDocument(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	commitFile(g, repo, "docs/product.md", "# Product\n\nFirst.\n")
+	commitFile(g, repo, "docs/keep.md", "# Keep\n")
+	commitFile(g, repo, "docs/gone.md", "# Gone\n\nA passage.\n")
+	commitFile(g, repo, "docs/guide.md", "# Guide\n\n## Part two\n")
+	write(g, repo, "docs/product.md", "# Product\n\nFirst, reworded.\n\n## Part two\n\nSee [part two](#part-two) and [the guide](guide.md).\n\n<div>\nraw\n</div>\n")
+	write(g, repo, "docs/keep.md", "# Keep\n\nChanged in round one.\n")
+	me := api.Caller{Dir: repo}
+	paths := []string{"docs/product.md", "docs/keep.md", "docs/gone.md"}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: paths, Note: "first"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	write(g, repo, "docs/product.md", "# Product\n\nFirst, reworded again.\n\n## Part two\n\nSee [part two](#part-two) and [the guide](guide.md).\n\n<div>\nraw\n</div>\n")
+	g.Expect(os.Remove(filepath.Join(repo, "docs", "gone.md"))).To(Succeed())
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+	base := "/reviews/" + itoa(id)
+	product := base + "/files/docs/product.md"
+
+	// A markdown file opens on its document, with heading ids, its counts,
+	// and Document and Source in place of Marked and Plain.
+	doc := f.page(g, product, http.StatusOK)
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("+1 −1 in this round DocumentSource"))
+	g.Expect(segmentLinks(doc)).To(Equal([]string{
+		"Document " + product + "?view=document current",
+		"Source " + product + "?view=source",
+	}))
+	g.Expect(find(doc, "file")).To(BeNil())
+	prose := find(doc, "prose")
+	g.Expect(hasClass("page")(prose.Parent)).To(BeTrue())
+	g.Expect(proseBlocks(prose.Parent)).To(Equal([]string{
+		"kept: Product",
+		"replaced: First, reworded again. | Show what it replaced | Hide what it replaced | was: First, reworded.",
+		"kept: Part two",
+		"kept: See part two and the guide.",
+		"kept: This block is HTML, which is not rendered. Read it in Source.",
+	}))
+	var ids []string
+	for _, h := range findAll(prose, func(n *html.Node) bool { return attr(n, "id") != "" }) {
+		ids = append(ids, h.Data+"#"+attr(h, "id"))
+	}
+	g.Expect(ids).To(Equal([]string{"h1#product", "h2#part-two"}))
+	g.Expect(documentLinks(prose)).To(Equal([]string{"#part-two", base + "/files/docs/guide.md", product + "?view=source"}))
+
+	// Source is the whole file with the change marked, and Marked and Plain,
+	// a code file's views, open the document.
+	doc = f.page(g, product+"?view=source", http.StatusOK)
+	g.Expect(segmentLinks(doc)[1]).To(HaveSuffix(" current"))
+	g.Expect(find(doc, "prose")).To(BeNil())
+	g.Expect(tableRows(doc)).To(ContainElements("del 3−First, reworded.", "add 3+First, reworded again."))
+	views := []string{"plain", "marked", "document", "nonsense"}
+	for _, view := range views {
+		doc := f.page(g, product+"?view="+view, http.StatusOK)
+		g.Expect(find(doc, "prose")).NotTo(BeNil(), view)
+		g.Expect(segmentLinks(doc)[0]).To(HaveSuffix(" current"), view)
+	}
+
+	// Every link keeps the comparison, and an earlier round's stays on it.
+	doc = f.page(g, product+"?against=base", http.StatusOK)
+	g.Expect(segmentLinks(doc)).To(Equal([]string{
+		"Document " + product + "?against=base&view=document current",
+		"Source " + product + "?against=base&view=source",
+	}))
+	g.Expect(documentLinks(find(doc, "prose"))).To(Equal([]string{"#part-two", base + "/files/docs/guide.md?against=base", product + "?against=base&view=source"}))
+	doc = f.page(g, base+"/rounds/1/files/docs/product.md?against=base", http.StatusOK)
+	earlier := base + "/rounds/1/files/docs/product.md"
+	g.Expect(segmentLinks(doc)).To(Equal([]string{
+		"Document " + earlier + "?against=base&view=document current",
+		"Source " + earlier + "?against=base&view=source",
+	}))
+	g.Expect(documentLinks(find(doc, "prose"))).To(Equal([]string{"#part-two", base + "/rounds/1/files/docs/guide.md?against=base", earlier + "?against=base&view=source"}))
+
+	// A document that did not move says so, keeps both views, and marks
+	// nothing.
+	doc = f.page(g, base+"/files/docs/keep.md", http.StatusOK)
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("Not changed since round 1 DocumentSource"))
+	g.Expect(proseBlocks(find(doc, "prose").Parent)).To(Equal([]string{"kept: Keep", "kept: Changed in round one."}))
+	doc = f.page(g, base+"/files/docs/keep.md?view=source", http.StatusOK)
+	g.Expect(tableRows(doc)).To(Equal([]string{"1# Keep", "2", "3Changed in round one."}))
+
+	// A file opened for context has both views and no counts.
+	doc = f.page(g, base+"/files/docs/guide.md", http.StatusOK)
+	g.Expect(notices(doc)).To(Equal([]string{"info: Not part of this review. Unchanged since the commit round 1 was taken from."}))
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("DocumentSource"))
+	g.Expect(proseBlocks(find(doc, "prose").Parent)).To(Equal([]string{"kept: Guide", "kept: Part two"}))
+	g.Expect(findAll(find(doc, "prose"), func(n *html.Node) bool { return attr(n, "id") == "part-two" })).To(HaveLen(1))
+	doc = f.page(g, base+"/files/docs/guide.md?view=source", http.StatusOK)
+	g.Expect(tableRows(doc)).To(Equal([]string{"1# Guide", "2", "3## Part two"}))
+	write(g, repo, "later.md", "# Later\n")
+	doc = f.page(g, base+"/files/later.md", http.StatusOK)
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("DocumentSource"))
+	g.Expect(proseBlocks(find(doc, "prose").Parent)).To(Equal([]string{"kept: Later"}))
+
+	// A deleted document shows its removed blocks, and Source its removed
+	// lines. Still deleted a round on, it has one view and no control.
+	doc = f.page(g, base+"/files/docs/gone.md", http.StatusOK)
+	g.Expect(text(find(doc, "toolbar"))).To(Equal("+0 −3 in this round DocumentSource"))
+	g.Expect(proseBlocks(find(doc, "prose").Parent)).To(Equal([]string{"removed: was: Gone / A passage."}))
+	doc = f.page(g, base+"/files/docs/gone.md?view=source", http.StatusOK)
+	g.Expect(tableRows(doc)).To(Equal([]string{"del 1−# Gone", "del 2−", "del 3−A passage."}))
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "third"})
+	doc = f.page(g, base+"/files/docs/gone.md", http.StatusOK)
+	g.Expect(find(doc, "toolbar")).To(BeNil())
+	g.Expect(text(find(doc, "empty"))).To(Equal("DeletedThe agent deleted this file as of round 3."))
 }
 
 func TestServer_Surface_fileEscapedNames(t *testing.T) {
@@ -571,10 +683,20 @@ func TestServer_Surface_fileTooLargeOrBinary(t *testing.T) {
 	commitFile(g, repo, "base.bin", "\x00\x02binary in the base")
 	commitFile(g, repo, "huge.txt", huge)
 	commitFile(g, repo, "shrunk.txt", huge)
+	commitFile(g, repo, "base.md", "# Binary\n\x00\x02")
+	commitFile(g, repo, "huge.md", huge)
 	write(g, repo, "big.txt", strings.Repeat("x\n", 20001))
 	write(g, repo, "a.bin", "\x00\x01binary")
 	write(g, repo, "shrunk.txt", "small now\n")
-	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"big.txt", "a.bin", "shrunk.txt"}, Note: "big"}).Review.ID
+	// A document falls back as a code file does, past the line limit too,
+	// where each block is a line of its own.
+	write(g, repo, "long.md", strings.Repeat("# a\n", 20001))
+	write(g, repo, "binary.md", "# Binary\n\x00\x01")
+	write(g, repo, "bytes.md", huge)
+	paths := []string{"big.txt", "a.bin", "shrunk.txt", "long.md", "binary.md", "bytes.md"}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: paths, Note: "big"}).Review.ID
+	write(g, repo, "live.md", huge)
+	write(g, repo, "live-binary.md", "# Live\n\x00\x03")
 
 	pages := []struct {
 		path string
@@ -585,13 +707,25 @@ func TestServer_Surface_fileTooLargeOrBinary(t *testing.T) {
 		{path: "base.bin", want: "Binary file, not shown as a diff."},
 		{path: "huge.txt", want: "Too large to show as a diff."},
 		{path: "shrunk.txt", want: "Too large to show as a diff."},
+		{path: "long.md", want: "Too large to show as a diff."},
+		{path: "binary.md", want: "Binary file, not shown as a diff."},
+		{path: "bytes.md", want: "Too large to show as a diff."},
+		{path: "base.md", want: "Binary file, not shown as a diff."},
+		{path: "huge.md", want: "Too large to show as a diff."},
+		{path: "live.md", want: "Too large to show as a diff."},
+		{path: "live-binary.md", want: "Binary file, not shown as a diff."},
 	}
 	for _, c := range pages {
 		t.Run(c.path, func(t *testing.T) {
 			g := NewWithT(t)
-			doc := f.page(g, "/reviews/"+itoa(id)+"/files/"+c.path, http.StatusOK)
-			g.Expect(text(find(doc, "toobig"))).To(Equal(c.want))
-			g.Expect(find(doc, "code")).To(BeNil())
+			views := []string{"", "?view=source"}
+			for _, view := range views {
+				doc := f.page(g, "/reviews/"+itoa(id)+"/files/"+c.path+view, http.StatusOK)
+				g.Expect(text(find(doc, "toobig"))).To(Equal(c.want), view)
+				g.Expect(find(doc, "code")).To(BeNil(), view)
+				g.Expect(find(doc, "prose")).To(BeNil(), view)
+				g.Expect(find(doc, "segmented")).To(BeNil(), view)
+			}
 		})
 	}
 }
@@ -688,6 +822,15 @@ func tableRows(doc *html.Node) []string {
 	var out []string
 	for _, tr := range findAll(doc, func(n *html.Node) bool { return n.Data == "tr" }) {
 		out = append(out, strings.TrimSpace(attr(tr, "class")+" "+text(tr)))
+	}
+	return out
+}
+
+// documentLinks is the href of every link in a document, in order.
+func documentLinks(prose *html.Node) []string {
+	var out []string
+	for _, a := range findAll(prose, isElement("a")) {
+		out = append(out, attr(a, "href"))
 	}
 	return out
 }

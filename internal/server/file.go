@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -24,12 +25,16 @@ type filePage struct {
 	Dir, Name string
 	// Notices are the banners above the file, in order.
 	Notices []notice
-	// Toolbar is the counts and the Marked and Plain control, and nil for a
-	// file nothing is compared for.
+	// Toolbar is the counts and the control choosing the view, and nil for a
+	// file with neither.
 	Toolbar *fileToolbar
 	// Deleted is the sentence the empty box shows in place of the file, and
 	// empty where the file is shown.
 	Deleted string
+	// ShowDocument says the file is shown as a document rather than as rows.
+	ShowDocument bool
+	// Document is a markdown file rendered, with heading ids.
+	Document template.HTML
 	// Diff is the file's rows, or the flag saying why it has none.
 	Diff render.File
 }
@@ -42,10 +47,16 @@ type fileToolbar struct {
 	// Added and Removed are the lines each way, and Counted says what they
 	// count.
 	Added, Removed, Counted string
-	// Marked and Plain are the two views' addresses.
+	// Marked and Plain are a code file's two views' addresses, and empty
+	// where the control is not shown.
 	Marked, Plain string
 	// ShowPlain says the plain view is the one shown.
 	ShowPlain bool
+	// Document and Source are a markdown file's two views' addresses, and
+	// empty where the control is not shown.
+	Document, Source string
+	// ShowSource says the source view is the one shown.
+	ShowSource bool
 }
 
 // notice is one banner.
@@ -165,7 +176,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		round:       round,
 		current:     round.Number == review.LatestRound,
 		wholeReview: r.URL.Query().Get("against") == "base",
-		plain:       r.URL.Query().Get("view") == "plain",
+		view:        r.URL.Query().Get("view"),
 		path:        clean,
 	}
 	if clean == "" {
@@ -221,7 +232,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		if err != nil {
 			return err
 		}
-		view.Diff = plainRows(clean, content, tooLarge)
+		view.showPlain(at, content, tooLarge)
 	default:
 		rc, err := capture.ReadLive(ctx, st, clean)
 		if errors.Is(err, capture.ErrNotFound) {
@@ -236,8 +247,9 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 			return err
 		}
 		view.Notices = append(view.Notices, liveNotice(st))
-		view.Diff = render.Plain(clean, content)
+		view.showPlain(at, content, false)
 	}
+	view.documentControl(at)
 
 	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: back, BackLabel: label, Body: view})
 	return nil
@@ -254,9 +266,35 @@ type fileAt struct {
 	// wholeReview says the comparison is against the base rather than the
 	// previous round, and every link carries it.
 	wholeReview bool
-	// plain says the plain view was asked for.
-	plain bool
-	path  string
+	// view is the view asked for: marked or plain for a code file, document
+	// or source for a markdown file, and empty for the default.
+	view string
+	path string
+}
+
+// markdown says the path is shown as a document by default.
+func (a fileAt) markdown() bool {
+	return render.IsMarkdown(a.path)
+}
+
+// document says the path is shown as a document: a markdown file, in any
+// view but Source. Marked and Plain are a code file's views, so either names
+// the default.
+func (a fileAt) document() bool {
+	return a.markdown() && a.view != "source"
+}
+
+// href is a project path's page at the address's round, keeping the
+// comparison. It is how a document's links leave it.
+func (a fileAt) href(p string) string {
+	return withQuery(fileHref(a.review.ID, a.round.Number, a.current, p), a.against())
+}
+
+// page is what the address's document needs: its links resolved into the
+// round, and the Source view an HTML block's placeholder links to. Heading ids
+// are on, since a file page holds one document.
+func (a fileAt) page() render.Page {
+	return render.Page{Path: a.path, Href: a.href, SourceHref: a.viewHref("source"), HeadingIDs: true}
 }
 
 // against is the comparison as a query, empty for the default.
@@ -312,7 +350,7 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 		if err != nil {
 			return err
 		}
-		view.Diff = plainRows(at.path, content, tooLarge)
+		view.showPlain(at, content, tooLarge)
 		return nil
 	}
 
@@ -338,10 +376,14 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 			view.Deleted = deletedText
 			return nil
 		}
-		view.Diff = render.Plain(at.path, content)
+		view.showPlain(at, content, false)
 		return nil
 	}
 
+	// The line limit applies here as the byte limit does. A document's blocks
+	// each start a line of their own, so one past the limit in lines is the
+	// only way to reach the limit in blocks, and a document is never shown
+	// whole with nothing marked for being too long to compare.
 	result := diff.Whole(old, content)
 	if result.Binary || result.TooLarge {
 		view.Diff = render.Whole(at.path, result)
@@ -352,15 +394,27 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 		counted = "in this review"
 	}
 	view.Toolbar = &fileToolbar{
-		Added:     thousands(result.Added),
-		Removed:   thousands(result.Removed),
-		Counted:   counted,
-		Marked:    at.viewHref("marked"),
-		Plain:     at.viewHref("plain"),
-		ShowPlain: at.plain,
+		Added:   thousands(result.Added),
+		Removed: thousands(result.Removed),
+		Counted: counted,
 	}
+	if at.markdown() {
+		// A document's change is a rule beside a passage, so there is no
+		// tint to switch off and no Plain view. Source is the whole file
+		// with the change marked, since the exact edit is the question once
+		// a reviewer flips. A deleted document shows its removed blocks.
+		if at.document() {
+			view.ShowDocument = true
+			view.Document = render.Document(old, content, at.page())
+			return nil
+		}
+		view.Diff = render.Whole(at.path, result)
+		return nil
+	}
+	plain := at.view == "plain"
+	view.Toolbar.Marked, view.Toolbar.Plain, view.Toolbar.ShowPlain = at.viewHref("marked"), at.viewHref("plain"), plain
 	switch {
-	case !at.plain:
+	case !plain:
 		view.Diff = render.Whole(at.path, result)
 	case deleted:
 		view.Deleted = deletedText
@@ -370,13 +424,36 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 	return nil
 }
 
-// plainRows is a file's content as plain rows, or the too-large flag where
-// reading stopped at the limit.
-func plainRows(p string, content []byte, tooLarge bool) render.File {
+// showPlain fills in a file nothing marks: its rows, or a markdown file's
+// document with nothing marked. A binary file, and one past the diff's limits
+// or where reading stopped at the byte limit, shows the line saying so either
+// way.
+func (v *filePage) showPlain(at fileAt, content []byte, tooLarge bool) {
 	if tooLarge {
-		return render.File{TooLarge: true}
+		v.Diff = render.File{TooLarge: true}
+		return
 	}
-	return render.Plain(p, content)
+	if r := diff.Plain(content); at.document() && !r.Binary && !r.TooLarge {
+		v.ShowDocument = true
+		v.Document = render.Document(nil, content, at.page())
+		return
+	}
+	v.Diff = render.Plain(at.path, content)
+}
+
+// documentControl gives a markdown file the Document and Source control,
+// beside whatever its toolbar already says. Every markdown file has both
+// views, whether or not anything moved, so the control is not tied to a
+// change as Marked and Plain are. A file shown as the binary or too-large
+// line, or as the deleted box, has one view and no control.
+func (v *filePage) documentControl(at fileAt) {
+	if !at.markdown() || v.Deleted != "" || v.Diff.Binary || v.Diff.TooLarge {
+		return
+	}
+	if v.Toolbar == nil {
+		v.Toolbar = &fileToolbar{}
+	}
+	v.Toolbar.Document, v.Toolbar.Source, v.Toolbar.ShowSource = at.viewHref("document"), at.viewHref("source"), !at.document()
 }
 
 // readBounded reads at most one byte past the diff's limit and closes rc. A

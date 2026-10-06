@@ -1713,8 +1713,8 @@ leaves one alive has a test that cannot fail:
 - An image inside a link written as an `a` element renders its alt text without
   a link of its own, because the HTML parser splits an `a` inside an `a` in two.
   Inside a refused link, which renders as text, the image links to its file page
-  as usual. An autolink inside such a link renders its label as text for the
-  same reason.
+  as usual. An autolink inside a link written as an `a` element renders its
+  label as text for the same reason.
 - An old block with no text, such as a thematic break, gives an empty `was-text`
   span. A removed rule still shows as the amber rule beside an empty box rather
   than vanishing, and a block paired with one opens to the empty box. Both were
@@ -1743,6 +1743,89 @@ leaves one alive has a test that cannot fail:
   style rather than an attribute. The doubled style goldmark writes comes from
   rendering one parsed node twice, the key renders each node once, and both
   sides are keyed by the same configuration.
+
+**Departures, iteration 8.**
+
+- Past diff's 20,000-line limit a document falls back to 006's line, "Too large
+  to show as a diff.", on both pages, rather than showing whole with nothing
+  marked. Each page already compares the source before it renders: the review
+  page reads `diff.Text`'s flags from the comparison its totals come from, and
+  the file page reads `diff.Whole`'s. Both flags cover the line limit as well as
+  the byte limit. Every top-level block starts a line of its own, so a side
+  holding more than 20,000 blocks holds more than 20,000 lines, and the source
+  comparison refuses it before `render.Document` is called. That is reasoned
+  from CommonMark's block structure, not proved for every input. One case was
+  probed: goldmark and `diff` agree on line endings, since 20,001 headings
+  joined by a lone CR parsed as one block and diffed as one line, while the same
+  headings joined by LF or CRLF parsed as 20,001 blocks and were refused. A file
+  nothing is compared for, such as a context file, is checked with
+  `diff.Plain`'s flags first. The rows are a document of 20,001 one-line
+  headings on each page. Saying so on the page was the alternative, and lost
+  because it needs a notice that no tearout words.
+- A link to the project's root, `/` or `../` from `docs/`, goes to the tree's
+  root rather than rendering as text. `resolve` sends a path that cleans to `.`
+  to `Href` as the empty path, which the server writes as the tree's root,
+  `/files/`. A climb past the root cleans to `..` and is still refused, and
+  `Href`'s comment now says it can receive the empty path.
+- A fragment alone is kept as written only where the page writes heading ids,
+  and goes to the document's own page, through `Href`, where it does not. The
+  design tied the second form to the review page. Tying it to the heading ids
+  says why: a page without them has no id for the fragment to land on.
+- A document's links into the project carry `against=base` as every other link
+  does. The design's list of links that keep the comparison names Raw diff,
+  Document and Source, and an HTML block's link to Source, and not a relative
+  link inside a document. Its rule that every link carries the comparison covers
+  it, and a reviewer reading the whole review should not drop back to the latest
+  change by following a link in the document. The query goes before the
+  fragment.
+- Every markdown file page carries the Document and Source control, not only a
+  file that moved: a file opened for context, a file the review changes that did
+  not move against the previous round, and a live file. Marked and Plain appear
+  only for a moved file because the two views are then the same. A document and
+  its source always differ. Without the control, Source would be reachable only
+  from the card's Raw diff or by typing the address. A file shown as 006's line,
+  or as the deleted box, has one view and no control.
+- `?view=` on a markdown file opens Source only for `source`. Any other value,
+  `marked` and `plain` included, opens the document. Source is the whole file
+  with the change marked where it moved, and plain rows where it did not.
+- A deleted document on either page renders as its removed blocks, one amber
+  block holding each block's text, and Source shows its removed lines. A
+  document deleted in an earlier round and still deleted did not move, and shows
+  the deleted box with no control, as a code file does.
+- A markdown file that falls back to 006's line on the review page keeps the
+  card's "Whole file" link rather than "Raw diff". Its card shows no document,
+  and its file page shows the same line.
+- The fresh layout keeps the "Since round N" control on a later round. A
+  document new since round 1, alone in its round, qualifies, and the control is
+  how the reviewer reaches the whole review, which may hold more files. The
+  frame draws round 1, which has no control.
+- In the fresh layout a comment on the one file joins the review's own comments,
+  since there is no card to hold it.
+- "Its old side has no blocks" is `render.HasBlocks`, the same parse and the
+  same rule that makes `render.Document` mark nothing, so an old side of
+  whitespace alone, or of link reference definitions alone, is fresh too. A row
+  commits a file of blank lines and then writes a heading into it.
+- `compare` on the review page returns its two readers, and a document reads
+  both sides through them, so the object ids the comparison loaded in one batch
+  are reused. The readers are still built with `NewReader`, as recorded.
+- `tool/seed`'s field-notes repository no longer commits the tag import spec in
+  its base, and the spec matches the fresh frame's text, so its review is the
+  fresh layout. The design gives that seeding to iteration 10, and the
+  screenshot needed it here.
+- The pass ran 56 mutations over the new and changed code, the spec's row for a
+  relative link resolved against the page's address among them, with rows of its
+  own for each condition of the fresh layout, heading ids on the file page only,
+  each `?view=`, `against` on each link, round-scoped links on an earlier round,
+  fragments, the root link, the binary and too-large fallbacks on both pages,
+  and the escaping in `Href`. Three did not build, since each left a variable
+  unused, and were rewritten. One survived its first run: the file page ignoring
+  a side past the byte limit for a markdown file. No moved document past the
+  byte limit was among the rows, only one past the line limit, so a row writing
+  one was added, and it kills the mutant. No mutant survives. The choice between
+  reading a missing path live and the 404 page is earlier iterations' route code
+  and was not mutated here. `TestServer_Surface_reviewDocumentLinks` follows a
+  document's link to a missing file to the 404 page, then writes the file and
+  gets the live banner.
 
 ## Out of scope
 
@@ -2220,23 +2303,29 @@ required_acks:
 - [x] Heading ids written only when the caller asks, and `render/doc.go`
       recording the allowlist, the key and the pairing rule
 
+> **Completed** 2026-10-06 01:26 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.2s
+> - `go test -race ./...` — 21.1s
+
 ## Iteration 8: Documents on the page
 
-- [ ] The review page rendering a markdown file in its card as `.prose`, each
+- [x] The review page rendering a markdown file in its card as `.prose`, each
       block with replaced text as `render.Document`'s `<details>` with its
       hints, and the card linking "Raw diff"
-- [ ] A round showing one markdown file with no old blocks rendered on the page,
+- [x] A round showing one markdown file with no old blocks rendered on the page,
       with "1 file, new" and "Raw diff" in the toolbar
-- [ ] The file page opening a markdown file on the document with heading ids,
+- [x] The file page opening a markdown file on the document with heading ids,
       with "Document" and "Source" as `?view=` links
-- [ ] "Raw diff", Document and Source, and an HTML block's link to Source each
+- [x] "Raw diff", Document and Source, and an HTML block's link to Source each
       keeping the page's `against`, with a test
-- [ ] Document links resolving into the round's escaped file routes,
+- [x] Document links resolving into the round's escaped file routes,
       round-scoped on an earlier round, a link to a path the round lacks read
       live or answered 404, and review fragments pointing at the file page
-- [ ] A binary or too-large markdown file falling back to 006's lines on both
+- [x] A binary or too-large markdown file falling back to 006's lines on both
       pages
-- [ ] `TestServer_Surface_reviewDocument` parsing the page for kept, changed and
+- [x] `TestServer_Surface_reviewDocument` parsing the page for kept, changed and
       removed blocks, and the attack corpus finding no script and no event
       attribute
 

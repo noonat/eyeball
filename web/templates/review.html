@@ -13,10 +13,13 @@
 {{else}}{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
 {{else}}<div class="notice"><span class="glyph i i-message-square" aria-hidden="true"></span><span><strong>Changes requested.</strong> {{.Sentence}}</span></div>
 {{end}}{{end}}{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}<div class="toolbar">
-<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
-{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
+{{with .Fresh}}<span class="counts"><b class="files">1 file, new</b></span>
+<a class="btn small" href="{{.RawDiff}}">Raw diff</a>
+{{else}}<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
+{{end}}{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
 {{end}}</div>
-{{range .Shown}}{{template "file" .}}{{end}}<div class="tree">
+{{with .Fresh}}<div class="prose">{{.Document}}</div>
+{{else}}{{range .Shown}}{{template "file" .}}{{end}}{{end}}<div class="tree">
 <a class="treerow" href="{{.AllFiles}}"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
 </div>
 {{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
@@ -43,9 +46,10 @@
 {{end}}{{end}}
 {{define "file"}}<details class="file"{{if .Open}} open{{end}}>
 <summary><span class="path"><bdi>{{.Path}}</bdi></span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></summary>
-{{if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
+{{if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
+{{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
-{{else}}{{template "code" .Diff.Rows}}{{end}}{{range .Comments}}{{template "comment" .}}{{end}}<div class="filelinks"><a class="btn small" href="{{.Whole}}">Whole file</a></div>
+{{else}}{{template "code" .Diff.Rows}}{{end}}{{range .Comments}}{{template "comment" .}}{{end}}<div class="filelinks">{{if .IsDocument}}<a class="btn small" href="{{.RawDiff}}">Raw diff</a>{{else}}<a class="btn small" href="{{.Whole}}">Whole file</a>{{end}}</div>
 </details>
 {{end}}
 {{define "code"}}<div class="code narrow">

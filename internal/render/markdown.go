@@ -27,8 +27,9 @@ func IsMarkdown(p string) bool {
 	return false
 }
 
-// Href writes the address of a project path's file page. The path has been
-// through capture.CleanPath already.
+// Href writes the address of a project path's page. The path has been through
+// capture.CleanPath already, or is empty for the project's root, which
+// CleanPath refuses since it names no file.
 type Href func(projectPath string) string
 
 // Page is what a document needs from the page it is shown on.
@@ -44,7 +45,9 @@ type Page struct {
 	SourceHref string
 	// HeadingIDs writes an id on every heading. goldmark numbers a repeated
 	// heading's id within one document, so only a page holding one document
-	// can have them without repeating an id.
+	// can have them without repeating an id. A page without them has nothing
+	// for a fragment to land on, so a fragment alone goes to the document's
+	// own page, through Href.
 	HeadingIDs bool
 }
 
@@ -226,7 +229,8 @@ const (
 	linkRefused linkKind = iota
 	// linkAddress is http, https or mailto, written as given.
 	linkAddress
-	// linkFragment is a fragment alone, written as given.
+	// linkFragment is a fragment alone: written as given where the page
+	// writes heading ids, and on the document's own page otherwise.
 	linkFragment
 	// linkProject is a path resolved into the project.
 	linkProject
@@ -239,7 +243,7 @@ const (
 // refuses to href="", a link to the page that seems to do nothing when tapped.
 // A scheme it does not list, such as vscode:, passes it. So the destination is
 // parsed and accepted only as http, https or mailto, a fragment alone, or a
-// path resolved into the project.
+// path resolved into the project, its root included.
 //
 // What is parsed is the destination as goldmark would write it, entities
 // decoded and then escaped, so java&#x09;script: is judged as the
@@ -257,8 +261,10 @@ func (r shownRenderer) resolve(dest []byte) (string, linkKind) {
 		// A scheme the list lacks, or a scheme-relative //host, which
 		// net/url reads as a host with no scheme.
 		return "", linkRefused
-	case strings.HasPrefix(escaped, "#"):
+	case strings.HasPrefix(escaped, "#") && r.page.HeadingIDs:
 		return escaped, linkFragment
+	case strings.HasPrefix(escaped, "#"):
+		return r.page.Href(r.page.Path) + escaped, linkFragment
 	}
 	// A relative reference resolves against the document's directory, as a
 	// browser would on the document's own file page, and a root-relative one
@@ -273,6 +279,12 @@ func (r shownRenderer) resolve(dest []byte) (string, linkKind) {
 		target = path.Join(path.Dir(r.page.Path), target)
 	}
 	clean, err := capture.CleanPath(target)
+	if err != nil && path.Clean(strings.TrimLeft(target, "/")) == "." {
+		// The project's root names no file, so CleanPath refuses it, but the
+		// tree has a page for it. A climb past the root cleans to "..", and
+		// is still refused.
+		clean, err = "", nil
+	}
 	if err != nil {
 		return "", linkRefused
 	}
