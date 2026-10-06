@@ -333,6 +333,15 @@ required_commands:
 - The badge is set on the queue only, which is the page that knows the count.
 - No mutation run, under the owner's 2026-10-06 change.
 
+> **Completed** 2026-10-06 18:54 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.4s
+> - `go test -race ./...` — 28.2s
+> - `go test -tags browser ./internal/server/...` — 19.9s
+> - `go vet -tags browser ./internal/server/...` — 74ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 174ms
+
 ## Iteration 6: On the phone
 
 ```backlog
