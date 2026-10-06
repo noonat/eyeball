@@ -1340,6 +1340,12 @@ would hold the run on testing the owner chose not to block on.
 - [x] The owner told that the loop is ready to try on the loopback listener,
       with the command to run and the address to open
 
+> **Completed** 2026-10-06 12:46 UTC
+>
+> - acks: reviewed, owner-told
+> - `make check` — 4.9s
+> - `go test -race ./...` — 26.6s
+
 ## Iteration 7: Passages
 
 ```backlog
