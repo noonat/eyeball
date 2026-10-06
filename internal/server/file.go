@@ -523,7 +523,7 @@ func refusalNotice(st capture.State, err error, root string) *notice {
 	var text string
 	switch {
 	case errors.Is(err, capture.ErrRulesUnreadable), st.Live == capture.LiveRulesUnreadable:
-		heading, text = "Nothing on disk can be shown.", "Git could not say which files it ignores."
+		heading, text = "Nothing can be read live from disk.", "Git could not say which files it ignores."
 	case st.Live == capture.LiveRootMissing:
 		text = "The project's root, " + root + ", no longer exists."
 	case st.Live == capture.LiveLost:
@@ -532,6 +532,10 @@ func refusalNotice(st capture.State, err error, root string) *notice {
 		text = "The checkout around the project ignores it."
 	case st.Live == capture.LiveCheckoutGone:
 		text = "The checkout the project sat inside has lost its repository."
+	case st.Live.Refused():
+		// A refusing value added to capture without a case here still gets
+		// a banner, rather than a nil that treeNotice would dereference.
+		text = "Nothing on disk is read for this project."
 	default:
 		return nil
 	}

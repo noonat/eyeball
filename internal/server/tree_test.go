@@ -361,7 +361,7 @@ func TestServer_Surface_tree(t *testing.T) {
 		g.Expect(notices(doc)[0]).To(HavePrefix("warn: Live, not from this round."))
 		g.Expect(treeRows(doc)).To(ContainElement("treerow mod/ " + base + "/files/mod/"))
 		doc = f.page(g, base+"/files/mod/", http.StatusOK)
-		g.Expect(notices(doc)).To(Equal([]string{"warn: Nothing on disk can be shown. Git could not say which files it ignores. Files this review changes are in bold."}))
+		g.Expect(notices(doc)).To(Equal([]string{"warn: Nothing can be read live from disk. Git could not say which files it ignores. Files this review changes are in bold."}))
 		g.Expect(find(doc, "tree")).To(BeNil())
 		g.Expect(text(find(doc, "empty"))).To(Equal("Nothing hereNothing is here as of round 1."))
 	})

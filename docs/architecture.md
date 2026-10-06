@@ -354,8 +354,8 @@ Routes, with the spec that builds each:
 | `GET /{$}`                                             | the queue                                     | 006  |
 | `GET /reviews/{review}`                                | the current round                             | 006  |
 | `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
-| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  | 007  |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         | 007  |
+| `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round   | 007  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round          | 007  |
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
 | `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |

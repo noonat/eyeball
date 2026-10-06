@@ -231,6 +231,8 @@ func TestReader_List_disk(t *testing.T) {
 		name string
 		dir  string
 		want []string
+		// perms says the row leans on vendor/locked's mode being enforced.
+		perms bool
 	}{
 		{
 			name: "the root",
@@ -238,9 +240,10 @@ func TestReader_List_disk(t *testing.T) {
 			want: []string{Marker, "a.txt", "alink", "both/", "gone.txt (deleted)", "link", "new/", "outlink", "real/", "vendor/"},
 		},
 		{
-			name: "a directory holding another repository is skipped",
-			dir:  "vendor",
-			want: []string{"vendor/z/"},
+			name:  "a directory holding another repository is skipped",
+			dir:   "vendor",
+			want:  []string{"vendor/z/"},
+			perms: true,
 		},
 		{
 			name: "a directory the disk lacks and the capture holds",
@@ -251,6 +254,11 @@ func TestReader_List_disk(t *testing.T) {
 	for _, c := range listings {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
+			// Root searches a directory whatever its mode, so chmod 0
+			// denies nothing and vendor/locked/ is listed.
+			if c.perms && os.Geteuid() == 0 {
+				t.Skip("permission bits are not enforced for root")
+			}
 			got, err := reader.List(t.Context(), c.dir)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(listed(got)).To(Equal(c.want))

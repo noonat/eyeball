@@ -27,6 +27,12 @@ type WorkingCopy struct {
 	// path order. Ignored files are left out, and so is a file the live read
 	// refuses, such as one inside a directory holding a repository of its own.
 	Entries []Entry
+	// ListErr is why git could not list a git project's changes, and nil
+	// where it listed them or was never asked. Only ErrBadBase lands here: a
+	// HEAD that names no commit and is not a branch waiting for its first,
+	// which gives git nothing to compare the disk with. Any other failure
+	// fails the call.
+	ListErr error
 
 	// head reads HEAD with no capture, so its Frozen reads the commit.
 	head *Reader
@@ -53,6 +59,10 @@ func ReadWorkingCopy(ctx context.Context, root string, insideCheckout bool) (*Wo
 		return wc, nil
 	}
 	head, err := ResolveBase(ctx, st.Root, "")
+	if errors.Is(err, ErrBadBase) {
+		wc.ListErr = err
+		return wc, nil
+	}
 	if err != nil {
 		return nil, err
 	}

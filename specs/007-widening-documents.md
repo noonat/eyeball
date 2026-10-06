@@ -1950,6 +1950,134 @@ leaves one alive has a test that cannot fail:
   - Untestable: the view's fallback when `Compare` fails on the ignore rules,
     for the reason in the bullet on the disk side.
 
+**Departures, iteration 10.**
+
+- `Test_linksResolve` is in `tool/seed`, since `internal/server` cannot import a
+  `main` package and the seed is written there. It crawls from the queue, once
+  on the seed as written and again after `answerAll`, since the empty queue's
+  project rows are links only when nothing waits. Every page is rendered once
+  per crawl. Every link that is neither absolute nor a fragment alone is
+  resolved against its page and checked, not only one starting with `/`: the
+  review page's comparison control writes `?against=previous`.
+- The test holds two rules the design did not name. A fragment on a link to
+  another page must name an id on the page it lands on. A link that names a file
+  in its own text, a tree's row, a working copy's row or the path heading a file
+  card, must land on a page whose crumb ends with that name. The crumb check as
+  designed reads the expected name from the address, and an address cut short at
+  a `#` names the shorter path, so it cannot fail. A seeded defect showed it: a
+  document link to `docs/#retro.md` written unescaped landed on the `docs` tree,
+  answered 200 with a crumb naming `docs`, and passed that check. The fragment
+  rule fails it, and a tree row written the same way fails both new rules.
+- The test also asserts it saw each kind of link it checks: a tree row and a
+  document link to a file with `#` in its name, a fragment alone, an `https` and
+  a `mailto` link in a document, an HTML block's link to Source, both file route
+  shapes, and every review, earlier round and project the store holds. A seed
+  that stopped writing one of them would otherwise pass on fewer links.
+- `tool/seed` already had harbor's dirty working copy, where `sync.go` belongs
+  to an approved review only, field-notes' new document on an empty base, and
+  files captured outside a review's paths: the product review captures
+  `docs/voice.md`, and the upload review `internal/storage/sync.go`. It adds:
+  - to the product document, a reflowed paragraph and a passage replaced by two,
+    beside the existing removal and replacement, and a section of links: a
+    relative, a root-relative and an escaped `%23retro.md` link, a heading
+    fragment, `https`, `mailto` and `vscode:` links, a project-path image and an
+    HTML block. `docs/architecture.md`, `docs/#retro.md` and `docs/widening.png`
+    join eyeball's base, so every link names a file both rounds hold.
+  - to harbor's base, the files the widening frames show, `store.go`,
+    `queue.go`, `doc.go` and a migration, and `backoff.go` to the upload review.
+  - scratch, a project outside git named by a marker file, with a review whose
+    changes were requested.
+  - field-notes committed after its capture, so its working copy is clean.
+  - `docs/architecture.md` changed and `internal/storage/cache.go` written in
+    harbor after every capture, claimed by no open review.
+
+  The queue now holds three waiting, three working and two settled, and six
+  working after `answerAll`. `Test_seedWritesEveryProjectState` asserts the
+  states: scratch is `LiveOpen` and unlisted, so a `.git` above the seed's
+  directory cannot turn it into a marker project in a checkout.
+
+- architecture.md's routes table has no column saying a route is built. Its Spec
+  column names the spec that builds each, 006's routes carry nothing more, and
+  these already read 007. So "marking these routes built" changes nothing there,
+  and only the two file routes' wording changes.
+- The failed-ignore-check banner now reads "Nothing can be read live from disk.
+  Git could not say which files it ignores." The first sentence was "Nothing on
+  disk can be shown.", which a base file opening in the same state contradicts.
+  The earlier bullets quoting the old wording are left as they were written.
+- When `Refused` accepts a value that `refusalNotice` has no case for, the
+  notice reads "Nothing on disk is read for this project." under the usual
+  heading. `treeNotice` dereferences its answer for every refused value, so a
+  new value would have been a panic and a 500. `Test_everyRefusalHasANotice`
+  runs every value and a made-up one.
+- The working copy drops a path whose `Lstat` fails with `ENOTDIR`, as it drops
+  one that is gone. A parent replaced by a file between git's listing and the
+  `Lstat` fails that way, and it failed the project page.
+  `TestReadWorkingCopy_parentReplaced` makes the swap through `afterListing`,
+  and a frozen round still refuses it.
+- Correction: iteration 9's bullet on the listing says the nested-repository
+  check is one `Lstat` per parent directory of each changed file. It is two per
+  directory, the directory and its `.git`, from the root down, and a directory
+  shared by several changed files is checked again for each one. A file three
+  directories deep costs six. Still not measured.
+- A git project whose HEAD names no commit, and is not a branch waiting for its
+  first, shows the working copy as "Cannot be listed" with "The repository's
+  HEAD names no commit, so git has nothing to compare the disk with." It was
+  a 500. `WorkingCopy.ListErr` carries `ErrBadBase`, and the page reads it with
+  `errors.Is` before the state, since the state is `LiveIgnoreRules` and would
+  otherwise read as a marker project inside a checkout. The wording is this
+  iteration's. The project file route answers 404 for it, as nothing is listed.
+- The `locked/` rows in `locate_test.go`, `list_test.go` and `file_test.go` skip
+  when the effective user id is 0, since root searches a directory whatever its
+  mode. Run under `unshare -r`, they skip and the rest of the suite passes, so
+  no other row leans on permission bits.
+- Line numbers are hidden at 390 pixels in the tearouts too. `.code.narrow .ln`
+  comes back under a viewport query at 720 pixels, so a crop of a tearout
+  captured 1,000 pixels wide shows them and the same frame at a 390-pixel
+  viewport does not. Nothing is recorded for it.
+- The screenshots at 390 pixels match their frames in layout, banners, crumbs,
+  notices and the empty boxes. The differences are the seed's content, the
+  surface lacking the decision bar and the dark theme, both 008's, the three
+  back links the design section names, the order of rows in the tree and the
+  working copy, and the review page's topbar holding the review's whole title
+  where the round2 frame shortens it, which 006 shipped. The back links and the
+  order of rows are `design:` entries in specs/TODO.md, beside the toolbar of a
+  markdown file outside the review's paths, an empty file, the HTML block's
+  placeholder and the fresh layout on a later round. A directory of mode 0300 is
+  a `tooling:` entry.
+- The mutation pass seeded eight defects into the code and templates, one at a
+  time, and the finished test failed on each: an unescaped `#` in a tree row and
+  in a document link, a link answering 404, a link no route matches, any scheme
+  allowed in a document, an absolute link outside one, a fragment naming no id,
+  and a tree row leading to the tree's root. Then twelve mutations of the test
+  itself ran against the defect each check is for. Dropping the crumb checks,
+  the 200 check, the scheme allowlist, the `.prose` rule or the fragment rule
+  each let its defect pass. Dropping the label check or the landing fragment
+  rule alone did not let the unescaped tree row pass, since each catches it, and
+  dropping both did. The spec's row, `escapePath` escaping nothing, fails the
+  test through the fragment rule on every page linking `docs/#retro.md`. Three
+  survive:
+  - Equivalent: dropping the pattern check. The surface answers every address no
+    pattern matches with its 404 page, so the 200 check fails the same links.
+  - Untestable on this seed: dropping the crumb check read from the address. The
+    crumb is built from the same address, and every file page a link reaches is
+    also reached by a row or card the label check holds.
+  - Untestable on this seed: dropping the landing fragment rule against the
+    unescaped document link. The defect also empties the count of document links
+    to a file with `#` in its name, which fails the test. The rule stays, since
+    it also holds a heading fragment written on the review page to an id the
+    file page has.
+
+  The small fixes' seven mutations were all killed: the old banner wording, no
+  generic refusal, `ENOTDIR` not dropped and dropped for a frozen round too, the
+  broken HEAD still failing the page, failing with no reason, and its reason
+  read after the state. The three root skips, each mutated to never skip and to
+  skip for every user but root, were killed under `unshare -r`, where the user
+  id is 0. The second mutant passes when the suite runs as any other user, so
+  only the run as root catches it. Of thirteen mutations removing a seed
+  addition the test relies on, twelve were killed. One survives as untestable
+  here: the reflowed paragraph written unreflowed. No link changes, and
+  `internal/render`'s tests hold the reflow rule.
+
 ## Out of scope
 
 - **Comments on a line or a passage, and mapping a passage to source lines.**
@@ -2483,20 +2611,26 @@ required_acks:
       links, and the route test substituting `{project}`
 - [x] architecture.md's routes table gaining the project file route
 
+> **Completed** 2026-10-06 02:52 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.8s
+> - `go test -race ./...` — 21.0s
+
 ## Iteration 10: Links, seeding, and the look
 
-- [ ] `Test_linksResolve` holding every root-relative `href` on every seeded
+- [x] `Test_linksResolve` holding every root-relative `href` on every seeded
       page to a surface pattern, a 200, and a crumb naming the linked file
-- [ ] The same test holding fragment-only links to an id on their page, and
+- [x] The same test holding fragment-only links to an id on their page, and
       absolute links to `http`, `https` or `mailto` inside `.prose`
-- [ ] `tool/seed` adding the documents, the project outside git, the
+- [x] `tool/seed` adding the documents, the project outside git, the
       out-of-scope capture, the unclaimed change, the clean project and a file
       with `#` in its name
-- [ ] Screenshots at 390 pixels of a whole file, a context file under each
+- [x] Screenshots at 390 pixels of a whole file, a context file under each
       banner, the tree, a document, the fresh layout and the project view,
       beside their tearout frames
-- [ ] architecture.md's routes table marking these routes built, and both file
+- [x] architecture.md's routes table marking these routes built, and both file
       routes answering "a file or a directory" rather than "a file"
-- [ ] specs/TODO.md gaining this spec's deferrals and departures, the back-link
+- [x] specs/TODO.md gaining this spec's deferrals and departures, the back-link
       and queue-link `design:` entries and the `os.Root` move for `Walk` among
       them, and losing item 1 under Next

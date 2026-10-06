@@ -38,6 +38,43 @@ func Test_escapePath(t *testing.T) {
 	}
 }
 
+func Test_everyRefusalHasANotice(t *testing.T) {
+	// "future" stands for a refusing value added to capture after this was
+	// written. treeNotice dereferences what refusalNotice returns for any
+	// value Refused accepts, so a nil there would be a panic and a 500.
+	generic := "Nothing on disk is read for this project."
+	values := []capture.Live{
+		capture.LiveOpen,
+		capture.LiveIgnoreRules,
+		capture.LiveRootMissing,
+		capture.LiveLost,
+		capture.LiveIgnored,
+		capture.LiveCheckoutGone,
+		capture.LiveRulesUnreadable,
+		capture.Live("future"),
+	}
+	for _, live := range values {
+		t.Run(string(live), func(t *testing.T) {
+			g := NewWithT(t)
+			st := capture.State{Live: live}
+			n := refusalNotice(st, nil, "~/src/x")
+			if !live.Refused() {
+				g.Expect(n).To(BeNil())
+				return
+			}
+			g.Expect(n).NotTo(BeNil())
+			g.Expect(n.Warn).To(BeTrue())
+			if live == "future" {
+				g.Expect(n.Text).To(Equal(generic))
+			} else {
+				g.Expect(n.Text).NotTo(Equal(generic), "a known value has a reason of its own")
+			}
+			tree := treeNotice(st, capture.ListingCapture, "~/src/x")
+			g.Expect(tree.Text).To(HavePrefix(n.Text))
+		})
+	}
+}
+
 func TestServer_Surface_file(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -590,6 +627,11 @@ func TestServer_Surface_fileNotFound(t *testing.T) {
 	for _, p := range paths {
 		t.Run(p, func(t *testing.T) {
 			g := NewWithT(t)
+			// Root searches a directory whatever its mode, so chmod 0
+			// denies nothing and locked/x.txt opens live.
+			if strings.Contains(p, "/locked/") && os.Geteuid() == 0 {
+				t.Skip("permission bits are not enforced for root")
+			}
 			doc := f.page(g, p, http.StatusNotFound)
 			g.Expect(text(find(doc, "empty"))).To(ContainSubstring("There is no page at this address."))
 			g.Expect(find(doc, "notice")).To(BeNil(), "a live read was allowed, so nothing was refused")
@@ -613,7 +655,7 @@ func TestServer_Surface_fileRefusedLive(t *testing.T) {
 		paths := []string{"later.txt", "nothing.txt", strings.Repeat("x", 300)}
 		for _, p := range paths {
 			doc := f.page(g, "/reviews/"+itoa(id)+"/files/"+p, http.StatusNotFound)
-			g.Expect(notices(doc)).To(Equal([]string{"warn: Nothing on disk can be shown. Git could not say which files it ignores."}), p)
+			g.Expect(notices(doc)).To(Equal([]string{"warn: Nothing can be read live from disk. Git could not say which files it ignores."}), p)
 		}
 		doc := f.page(g, "/reviews/"+itoa(id)+"/files/a.txt", http.StatusOK)
 		g.Expect(tableRows(doc)).To(Equal([]string{"1one", "add 2+two"}))
@@ -634,7 +676,7 @@ func TestServer_Surface_fileRefusedLive(t *testing.T) {
 		// The ceiling stops git short of the outer checkout, so its rules
 		// cannot be read, and nothing on disk opens.
 		t.Setenv("GIT_CEILING_DIRECTORIES", outer)
-		unreadable := []string{"warn: Nothing on disk can be shown. Git could not say which files it ignores."}
+		unreadable := []string{"warn: Nothing can be read live from disk. Git could not say which files it ignores."}
 		doc = f.page(g, "/reviews/"+itoa(id)+"/files/creds.txt", http.StatusNotFound)
 		g.Expect(notices(doc)).To(Equal(unreadable))
 		doc = f.page(g, "/reviews/"+itoa(id)+"/files/other.md", http.StatusNotFound)

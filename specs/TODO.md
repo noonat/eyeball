@@ -14,15 +14,7 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-1. **007 Widening and documents.** Every file route: a file at a round, widening
-   from a hunk to the whole file with the change marked, any file in the project
-   at that round with its source labeled, the tree, and the project view's live
-   working copy. Markdown rendered as a document with changed passages marked
-   and the replaced text one tap away, nothing marked on an empty base, and the
-   switch between the rendered view and the diff. The reading routes join the
-   surface's handler only. The empty queue's project rows become links to the
-   project view, which 006 left as plain rows.
-2. **008 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
+1. **008 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
    and `oxlint` gates, the comment composer at all four levels, editing and
    deleting before the verdict, the decision bar and its refusal, the comment
    box on a decided round, the live stream, the connection notice, a failure
@@ -35,19 +27,31 @@ requirement in either document that none of them names is a gap in this list.
    loopback listener. 006 records why reading through it gives a local process
    nothing it lacks, and 008 has to say the same, or something else, about
    deciding.
-3. **009 Notification.** Web push with VAPID, the service worker that exists for
+2. **009 Notification.** Web push with VAPID, the service worker that exists for
    it, the manifest and installed page, the first-run steps, the badge count on
    the icon, and the lapsed-subscription state the surface has to report. Its
    last iteration is the owner's: joining the tailnet with
    `eyeball tailnet login`, installing the page, granting permission, and
    checking every screen on the phone, including the page shell 006 added in
    `shell.css` without a phone.
-4. **010 Rendered files.** `internal/kind`, images before and after, audio,
+3. **010 Rendered files.** `internal/kind`, images before and after, audio,
    video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
    view override on `request`, and a file too large to send.
 
 ## Unscheduled
 
+- [ ] review: a whole-branch review of everything merged since d8b5b6d (the 006
+      merge), the last point reviewed as a whole, run before the owner's first
+      hands-on testing. Each spec's iterations were reviewed one at a time; this
+      review looks for what spans them. In 006 the whole-branch review found a
+      template race and a nil dereference in tsnet's `Close` that no iteration
+      review saw. Per spec:
+  - 007: every route builds its reader through `capture.State.Reader`, except
+    the review page, which still uses `NewReader`; the inside-checkout flag read
+    and written the same way on the file, tree and project routes; every href
+    escaped per segment; `against` carried on every link; the banner and notice
+    reasons chosen by `errors.Is` across file, tree and project pages; `Locate`,
+    `List` and `ReadWorkingCopy` agreeing on what a path is.
 - [ ] design: a tearout for the comment composer's line-range selection on a
       touch screen. The open question in product.md is whether ranges are worth
       the interaction cost at all.
@@ -135,6 +139,71 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] tooling: whether the spec-reference rule can be checked. A three-digit
       spec number outside parentheses is mechanical to find. Whether a name sits
       beside it is not.
+- [ ] design: the tree's back link one level below the root. The topbar there
+      reads "‹ Files Files", a back label and a title that say the same word,
+      where the approved browse frame in widening.html reads "‹ Review Files".
+      The code goes back to the parent directory, as 007's todo asked. The
+      options are the frame's "Review", the parent named as "harbor" or "/", or
+      a title naming the directory instead of "Files".
+- [ ] design: the back link on a file the review changes reads "Review", or
+      "Round N" on an earlier round, where the step-two frame in widening.html
+      reads "Change". The address decides the label, so it says where the link
+      goes. The frame's word says what the reader was looking at.
+- [ ] design: the back link on a file opened for context names its directory,
+      where the step-three frame in widening.html names the file it was opened
+      from, `worker.go`. The server cannot know where a reader came from, since
+      an address renders the same however it was reached, so the frame's label
+      needs the referring file in the address or is dropped.
+- [ ] design: the order of rows. A directory in the tree lists its files by
+      name, and the working copy by path, while the browse frame in
+      widening.html puts the bold files first and the populated frame in
+      project.html puts claimed files first. Either the frames or the code
+      moves.
+- [ ] design: a markdown file outside the review's paths shows its Document and
+      Source control alone at the left of the toolbar, with no counts beside it.
+      No frame draws a toolbar without counts. The control could sit at the
+      right, where it sits beside counts, or the toolbar could say why there is
+      nothing to count.
+- [ ] design: an empty file. Its page shows an empty code card with no line
+      saying the file is empty, and a new empty markdown file alone in its round
+      gets the fresh layout with an empty `.prose`. No frame draws either. An
+      "Empty file" line like 006's binary line is one option.
+- [ ] design: the placeholder for a block of HTML in a document, "This block is
+      HTML, which is not rendered. Read it in Source.", in the hint style. No
+      tearout draws it, and its wording has been seen only in headless Chromium
+      at 390 pixels, not on a phone.
+- [ ] design: the fresh layout on a later round, where it keeps the "Since round
+      N" control so the whole review is still reachable. The fresh frame draws
+      round 1, which has no control, and this layout has not been seen on a
+      phone.
+- [ ] design: a link from an identifier in a hunk to its definition, the notice
+      in widening.html's step-one frame. Finding a definition means a rule per
+      language, or an index nothing builds yet.
+- [ ] design: marking the items of a list one at a time in a document. 007 marks
+      a whole list as one block, so one changed item marks every item.
+- [ ] product: a lost base on the review page. `capture.Compare` fails when the
+      commit a review started from is gone, so the review page fails while its
+      file pages fall back to the capture. Fixing it changes how a round is
+      measured.
+- [ ] product: a marker project whose outer checkout's `.git` moved away before
+      eyeball first saw the project reads as a project outside git, and its live
+      reads follow no ignore rules. `projects.inside_checkout` catches the move
+      only after a first sighting, and nothing on disk tells the two apart.
+- [ ] tooling: clearing `projects.inside_checkout`. It is set and never cleared,
+      so a project flagged by a `.git` above it, such as a dotfiles repository
+      in a home directory, loses live browsing for good once that `.git` goes.
+      The recovery today is editing the database.
+- [ ] tooling: move `capture.Walk` and `Freeze` onto `os.Root`, as every live
+      read and listing already is. They read for an agent's own request and
+      write to the blob store, so 007 left them on plain paths.
+- [ ] tooling: a directory that can be searched but not read, such as mode 0300,
+      is listed in its parent, and its own tree page is a 500, because reading
+      it fails with a permission error nothing maps to not found. Not tested.
+- [ ] tooling: a `.git/HEAD` holding garbage passes the lost check, which looks
+      only for the file, and git then refuses the repository, so every route
+      under that root would be a 500. Reasoned in 007, not tested. A HEAD naming
+      a commit that does not exist is handled on the project view, which says
+      the working copy cannot be listed.
 
 ## Open questions
 

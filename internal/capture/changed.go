@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/cockroachdb/errors"
 )
@@ -127,11 +128,15 @@ func changed(ctx context.Context, root, base string, dropVanished bool) ([]Entry
 // keep asks the filesystem about each merged entry and drops the ones nothing
 // can read, returning what is left in a stable order. A path gone since it was
 // listed fails with ErrVanished, or is dropped where dropVanished is set.
+//
+// A parent replaced by a file since the listing makes the Lstat fail with
+// ENOTDIR rather than not found. The path is gone all the same, so it is
+// dropped too, where failing would fail a live page over an edit in progress.
 func keep(root string, found map[string]Entry, dropVanished bool) ([]Entry, error) {
 	entries := make([]Entry, 0, len(found))
 	for _, e := range found {
 		filled, ok, err := describe(root, e)
-		if dropVanished && errors.Is(err, ErrVanished) {
+		if dropVanished && (errors.Is(err, ErrVanished) || errors.Is(err, syscall.ENOTDIR)) {
 			continue
 		}
 		if err != nil {

@@ -131,6 +131,7 @@ func Test_migrateFromTwoProcessesAtOnce(t *testing.T) {
 	g.Expect(row.Scan(&count)).To(Succeed())
 	g.Expect(count).To(Equal(1))
 }
+
 func Test_migrateLeavesAnExistingProjectUnflagged(t *testing.T) {
 	g := NewWithT(t)
 	db := openDB(g, t)

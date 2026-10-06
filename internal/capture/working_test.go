@@ -58,13 +58,42 @@ func TestReadWorkingCopy(t *testing.T) {
 	g.Expect(e.Deleted).To(BeTrue())
 }
 
+func TestReadWorkingCopy_parentReplaced(t *testing.T) {
+	g := NewWithT(t)
+	r := newRepo(g, t.TempDir())
+	r.write(g, "a.txt", "a\n")
+	head := r.commit(g, "base")
+	r.write(g, "a.txt", "changed\n")
+	replace := func() {
+		g.Expect(os.RemoveAll(filepath.Join(r.root, "d"))).To(Succeed())
+		r.write(g, "d", "a file where the directory was\n")
+	}
+	afterListing = replace
+	t.Cleanup(func() { afterListing = nil })
+
+	// git listed d/x.txt, and d became a file before the Lstat, which then
+	// fails with ENOTDIR rather than not found. The path is gone either way,
+	// so a live page drops it.
+	r.write(g, "d/x.txt", "an agent's scratch file\n")
+	wc, err := ReadWorkingCopy(t.Context(), r.root, false)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(wc.Entries).To(Equal([]Entry{{Path: "a.txt"}}))
+
+	// A frozen round still refuses it.
+	g.Expect(os.Remove(filepath.Join(r.root, "d"))).To(Succeed())
+	r.write(g, "d/x.txt", "back\n")
+	_, err = Changed(t.Context(), r.root, head)
+	g.Expect(err).To(HaveOccurred())
+}
+
 func TestReadWorkingCopy_states(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	cases := []struct {
-		name   string
-		setup  func(g *WithT, dir string) string
-		inside bool
-		live   Live
+		name    string
+		setup   func(g *WithT, dir string) string
+		inside  bool
+		live    Live
+		listErr error
 	}{
 		{
 			name: "a missing root",
@@ -128,6 +157,19 @@ func TestReadWorkingCopy_states(t *testing.T) {
 			inside: true,
 			live:   LiveCheckoutGone,
 		},
+		{
+			name: "a HEAD that names no commit",
+			setup: func(g *WithT, dir string) string {
+				r := newRepo(g, filepath.Join(dir, "project"))
+				r.write(g, "a.txt", "a\n")
+				r.commit(g, "base")
+				r.write(g, "a.txt", "changed\n")
+				r.write(g, ".git/HEAD", "0000000000000000000000000000000000000000\n")
+				return r.root
+			},
+			live:    LiveIgnoreRules,
+			listErr: ErrBadBase,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -138,6 +180,11 @@ func TestReadWorkingCopy_states(t *testing.T) {
 			g.Expect(wc.State.Live).To(Equal(c.live))
 			g.Expect(wc.Listed).To(BeFalse())
 			g.Expect(wc.Entries).To(BeEmpty())
+			if c.listErr == nil {
+				g.Expect(wc.ListErr).NotTo(HaveOccurred())
+			} else {
+				g.Expect(errors.Is(wc.ListErr, c.listErr)).To(BeTrue())
+			}
 		})
 	}
 }

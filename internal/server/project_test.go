@@ -451,6 +451,16 @@ func TestServer_Surface_projectStates(t *testing.T) {
 			notices: []string{"warn: Live browsing is unavailable. Git could not say which files it ignores."},
 			empty:   refused,
 		},
+		{
+			name: "a repository whose HEAD names no commit",
+			setup: func(g *WithT, t *testing.T, f *fixture, dir string) int64 {
+				repo := cleanRepo(g, dir)
+				write(g, repo, "a.txt", "changed on disk\n")
+				write(g, repo, ".git/HEAD", "0000000000000000000000000000000000000000\n")
+				return storeProject(g, t, f, repo, "harbor")
+			},
+			empty: "Cannot be listedThe repository's HEAD names no commit, so git has nothing to compare the disk with.",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

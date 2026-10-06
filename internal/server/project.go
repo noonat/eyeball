@@ -115,7 +115,7 @@ func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error
 		st.Live = capture.LiveRulesUnreadable
 		view.Count, view.Capped, view.Rows = "", nil, nil
 	}
-	view.Notices, view.Empty = unlisted(st, s.tilde(project.Root))
+	view.Notices, view.Empty = unlisted(st, wc.ListErr, s.tilde(project.Root))
 	s.renderPage(w, http.StatusOK, "projectpage", page{Title: project.Name, Back: "/", BackLabel: "Queue", Body: view})
 	return nil
 }
@@ -193,9 +193,14 @@ func claimant(open []openReview, p string) *openReview {
 }
 
 // unlisted is the banners and the box for a working copy git did not list,
-// each saying why.
-func unlisted(st capture.State, root string) ([]notice, *emptyBox) {
+// each saying why. listErr is the working copy's reason, read before the
+// state: a git project whose HEAD names no commit is LiveIgnoreRules, which
+// would otherwise read as a marker project inside a checkout.
+func unlisted(st capture.State, listErr error, root string) ([]notice, *emptyBox) {
 	const cannot = "Cannot be listed"
+	if errors.Is(listErr, capture.ErrBadBase) {
+		return nil, &emptyBox{Headline: cannot, Text: "The repository's HEAD names no commit, so git has nothing to compare the disk with."}
+	}
 	gitOnly := &emptyBox{Headline: cannot, Text: "What changed on disk is a question only git answers. Reviews still work; this view does not."}
 	switch st.Live {
 	case capture.LiveRootMissing:

@@ -99,6 +99,11 @@ func TestReader_Locate(t *testing.T) {
 	for _, p := range missing {
 		t.Run("not found: "+p, func(t *testing.T) {
 			g := NewWithT(t)
+			// Root searches a directory whatever its mode, so chmod 0
+			// denies nothing and locked/x.txt is found.
+			if strings.HasPrefix(p, "locked/") && os.Geteuid() == 0 {
+				t.Skip("permission bits are not enforced for root")
+			}
 			_, _, err := reader.Locate(t.Context(), p)
 			g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue(), "%v", err)
 		})
