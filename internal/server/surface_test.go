@@ -316,7 +316,7 @@ func TestServer_Surface_installable(t *testing.T) {
 		} `json:"icons"`
 	}
 	g.Expect(json.Unmarshal(res.Body.Bytes(), &m)).To(Succeed())
-	g.Expect([]string{m.Name, m.Start, m.Display}).To(Equal([]string{"eyeball", "/", "standalone"}))
+	g.Expect([]string{m.Name, m.Start, m.Display}).To(Equal([]string{"Eyeball", "/", "standalone"}))
 	g.Expect(m.Icons).To(HaveLen(2))
 	icons := []string{m.Icons[0].Src, m.Icons[1].Src, links["apple-touch-icon"]}
 	for _, src := range icons {

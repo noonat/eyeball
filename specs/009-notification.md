@@ -355,10 +355,10 @@ list of screens; the owner runs `eyeball tailnet login` at a terminal, installs
 the page, grants permission, and checks each screen. `phone-checked` is given
 only by the owner.
 
-- [ ] The owner joining the tailnet with `eyeball tailnet login`
-- [ ] The page installed to the home screen and permission granted from the
-      queue's steps
-- [ ] A request from an agent arriving as a notification on the locked phone,
-      opening its round, with the badge counting what waits
-- [ ] Every screen checked on the phone, the page shell 006 added in `shell.css`
-      included, and what was found recorded in this spec
+- [/] The owner joining the tailnet with `eyeball tailnet login`
+- [/] The page installed to the home screen and permission granted from the
+  queue's steps
+- [/] A request from an agent arriving as a notification on the locked phone,
+  opening its round, with the badge counting what waits
+- [/] Every screen checked on the phone, the page shell 006 added in `shell.css`
+  included, and what was found recorded in this spec

@@ -277,8 +277,8 @@ func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) error {
 // manifest is what makes the page installable: its name, where it opens, and
 // its icons. The colors are app.css's light background and accent.
 const manifest = `{
-  "name": "eyeball",
-  "short_name": "eyeball",
+  "name": "Eyeball",
+  "short_name": "Eyeball",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

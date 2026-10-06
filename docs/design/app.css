@@ -1782,6 +1782,12 @@ button.chip {
   gap: 8px;
 }
 
+/* The notice above the steps keeps the steps' own spacing, so the three read
+ * as one stack. The owner found them touching on the phone on 2026-10-06. */
+.notice + .steps {
+  margin-top: 8px;
+}
+
 .step {
   display: grid;
   grid-template-columns: auto 1fr auto;
