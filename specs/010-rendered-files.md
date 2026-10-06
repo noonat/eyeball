@@ -234,6 +234,12 @@ browser's PDF viewer keeps a document's script away from the page is assumed.
 - [x] Tests over the table: every extension, a file with none, a text and a
       binary fallback, and each kind's views
 
+> **Completed** 2026-10-06 19:54 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.1s
+> - `go test -race ./...` — 30.2s
+
 ## Iteration 2: The bytes
 
 - [ ] `GET /reviews/{id}/raw/{round}/{path...}` resolving round 0 as the base
