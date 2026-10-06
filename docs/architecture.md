@@ -357,6 +357,7 @@ Routes, with the spec that builds each:
 | `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  | 007  |
 | `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         | 007  |
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
+| `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
 | `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
 | `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |

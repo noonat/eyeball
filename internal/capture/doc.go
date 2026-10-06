@@ -49,4 +49,10 @@
 // and the capture. A listing from disk passes the live read's directory checks,
 // goes through the same os.Root, and drops what git ignores where the project
 // follows ignore rules, so the tree never names a file the live read refuses.
+//
+// The project view's working copy is the capture's listing asked against HEAD
+// with nothing frozen: no Freeze and no blob. Only a git project is listed,
+// since git lists a marker project's changes against another repository's
+// top level, and a path that vanishes mid-listing is dropped rather than
+// failing the page.
 package capture

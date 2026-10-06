@@ -37,6 +37,14 @@ func TestServer_Surface_review(t *testing.T) {
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
 	g.Expect(text(find(doc, "topbar"))).To(Equal("QueueUpload worker and its retry ladder"), "the full title, which app.css truncates")
 	g.Expect(text(find(find(doc, "brief"), "where"))).To(Equal("Waiting nowRound 1harborspec/012-surface"))
+	// The brief's project is a link to its view.
+	project := find(find(doc, "who"), "bit")
+	g.Expect(project.Data).To(Equal("a"))
+	g.Expect(text(project)).To(Equal("harbor"))
+	review, err := f.store.Review(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(attr(project, "href")).To(Equal(projectHref(review.ProjectID)))
+	f.page(g, attr(project, "href"), http.StatusOK)
 	g.Expect(text(find(doc, "title"))).To(Equal("Upload worker and its retry ladder"))
 	var paragraphs []string
 	for _, p := range findAll(find(doc, "note"), func(n *html.Node) bool { return n.Data == "p" }) {

@@ -29,6 +29,8 @@ const (
 type reviewPage struct {
 	// Title, Project and Agent say what the review is and where it came from.
 	Title, Project, Agent string
+	// ProjectHref is the project's view, which the brief's project links to.
+	ProjectHref string
 	// Round is the round's number.
 	Round int
 	// Abandoned says the agent withdrew the review, which no round's verdict
@@ -212,13 +214,14 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	now := s.now()
 	view := reviewPage{
-		Title:     review.Title,
-		Project:   project.Name,
-		Agent:     review.Agent,
-		Round:     round.Number,
-		Abandoned: review.State == store.StateAbandoned,
-		Note:      paragraphs(round.Note),
-		Waiting:   render.Age(now, round.Created),
+		Title:       review.Title,
+		Project:     project.Name,
+		ProjectHref: projectHref(project.ID),
+		Agent:       review.Agent,
+		Round:       round.Number,
+		Abandoned:   review.State == store.StateAbandoned,
+		Note:        paragraphs(round.Note),
+		Waiting:     render.Age(now, round.Created),
 	}
 
 	decision, err := s.db.s.Decision(ctx, round.ID)

@@ -154,28 +154,14 @@ func states(files []store.File) map[string]string {
 // what is being compared and the working copy has moved on.
 func compareFile(ctx context.Context, before, now *Reader, p string) (diff.Result, error) {
 	old, tooBig, err := before.Side(ctx, p)
-	if err != nil {
-		return diff.Result{}, err
-	}
-	if tooBig {
-		return diff.Result{TooLarge: true}, nil
+	if err != nil || tooBig {
+		return measured(nil, nil, tooBig), err
 	}
 	current, tooBig, err := now.Side(ctx, p)
 	if err != nil {
 		return diff.Result{}, err
 	}
-	if tooBig {
-		return diff.Result{TooLarge: true}, nil
-	}
-	result := diff.Text(old, current)
-	if result.TooLarge {
-		// The line limit's own answer is the length of each side. As a round's
-		// size it would read as a one-line edit moving twenty-five thousand
-		// lines, so it is dropped here, and the byte limit above says the same
-		// thing by never reading the file.
-		result.Added, result.Removed = 0, 0
-	}
-	return result, nil
+	return measured(old, current, tooBig), nil
 }
 
 // Side reads p as one side of a comparison, from the reader's frozen sources,
@@ -191,6 +177,12 @@ func (r *Reader) Side(ctx context.Context, p string) ([]byte, bool, error) {
 		}
 		return nil, false, err
 	}
+	return readSide(rc, p)
+}
+
+// readSide reads one side of a comparison and closes rc, reporting a file too
+// large to diff rather than holding it.
+func readSide(rc io.ReadCloser, p string) ([]byte, bool, error) {
 	defer func() { _ = rc.Close() }()
 
 	// One byte past the limit is enough to know the diff will refuse it, and

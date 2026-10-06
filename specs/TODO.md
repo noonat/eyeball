@@ -97,6 +97,11 @@ requirement in either document that none of them names is a gap in this list.
       dereferences nil in v1.102.3. Whether `Close` is safe after a late one,
       where it would close again what `Start`'s cleanup closed, is not checked,
       and it would not reach an engine whose backend was never built.
+- [ ] tooling: batch the project view's reads of HEAD into one
+      `git cat-file --batch`. Each working-copy row runs its own `cat-file blob`
+      and its own `check-ignore`. 196 sequential `cat-file blob` calls took 259
+      ms where one `--batch` over the same objects took 5 ms, and a page of 200
+      rows took about 450 ms in all, both measured.
 - [ ] tooling: whether the daemon and CLI need testing on macOS. Nothing in 005
       is Linux-only by intent and nothing is tested elsewhere.
 - [ ] design: highlighting a line on its own loses state that spans lines, such
@@ -106,6 +111,10 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: a tearout of the queue filter. product.md says the queue can be
       filtered, every queue row is one link so a filter link inside a row would
       split it, and no tearout shows a filter control.
+- [ ] design: a way from a populated queue to a project's view. product.md says
+      the view is reachable from the queue, and only the empty queue's project
+      rows link there. Every populated row is one link to its review, so a
+      project link inside it would nest links, the problem the queue filter has.
 - [ ] design: a mark on the last line of a file with no final newline. The row
       model carries the flag, and no tearout or class in `app.css` draws it.
 - [ ] design: the queue's Waiting order. 003 lists the longest wait first,

@@ -41,6 +41,8 @@ type fixture struct {
 	blobs  *blob.Store
 	client *http.Client
 	cancel context.CancelFunc
+	// state is the state directory, which holds the blob store under blobs.
+	state string
 }
 
 // newFixture starts a server on a socket under a short temporary directory.
@@ -87,7 +89,7 @@ func newFixture(g *WithT, t *testing.T) *fixture {
 			return d.DialContext(ctx, "unix", sock)
 		},
 	}}
-	return &fixture{s: s, store: st, blobs: blobs, client: client, cancel: cancel}
+	return &fixture{s: s, store: st, blobs: blobs, client: client, cancel: cancel, state: state}
 }
 
 // call sends one request and returns the status and body.

@@ -208,6 +208,16 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /projects/{project}",
+		handle:  (*Server).handleProjectPage,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /projects/{project}/files/{path...}",
+		handle:  (*Server).handleProjectFilePage,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /healthz",
 		handle:  (*Server).handleHealthz,
 	},

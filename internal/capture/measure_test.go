@@ -1,10 +1,12 @@
 package capture
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 
+	"github.com/noonat/eyeball/internal/diff"
 	"github.com/noonat/eyeball/internal/store"
 )
 
@@ -112,6 +114,30 @@ func TestComparePaths(t *testing.T) {
 	g.Expect(got[1]).To(Equal(all[0]))
 	g.Expect(got[0].Result.Added).To(Equal(2))
 	g.Expect(got[0].Result.Removed).To(Equal(1))
+}
+
+func TestComparePaths_tooLarge(t *testing.T) {
+	g := NewWithT(t)
+	r := newRepo(g, t.TempDir())
+	r.write(g, "shrunk.txt", strings.Repeat("x", diff.MaxBytes+1))
+	r.write(g, "grown.txt", "small\n")
+	base := r.commit(g, "base")
+	r.write(g, "shrunk.txt", "small now\n")
+	r.write(g, "grown.txt", strings.Repeat("y", diff.MaxBytes+1))
+	blobs, _ := newBlobs(g, t)
+	req, err := Freeze(t.Context(), Options{Round: 1, Root: r.root, Base: base, Blobs: blobs})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// A side past the byte limit on either end is too large, with no counts,
+	// rather than a small file read against nothing.
+	before := NewReader(r.root, base, blobs, nil)
+	now := NewReader(r.root, base, blobs, req.Files)
+	got, err := ComparePaths(t.Context(), before, now, []string{"grown.txt", "shrunk.txt"})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal([]Moved{
+		{Path: "grown.txt", Result: diff.Result{TooLarge: true}},
+		{Path: "shrunk.txt", Result: diff.Result{TooLarge: true}},
+	}))
 }
 
 func TestDiffers(t *testing.T) {

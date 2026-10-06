@@ -318,7 +318,7 @@ func TestChanged_vanishedPath(t *testing.T) {
 
 	// An enumeration reported it and then it went. Recording it as deleted
 	// would put a deletion the agent did not make into a frozen round.
-	_, err := keep(r.root, map[string]Entry{"gone.txt": {Path: "gone.txt"}})
+	_, err := keep(r.root, map[string]Entry{"gone.txt": {Path: "gone.txt"}}, false)
 	g.Expect(errors.Is(err, ErrVanished)).To(BeTrue())
 	g.Expect(err.Error()).To(ContainSubstring("gone.txt"))
 }

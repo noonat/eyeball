@@ -42,7 +42,7 @@ func Walk(ctx context.Context, root string, paths []string) ([]Entry, error) {
 			return nil, err
 		}
 	}
-	return keep(root, found)
+	return keep(root, found, false)
 }
 
 // walkOne adds everything under one of the review's paths.

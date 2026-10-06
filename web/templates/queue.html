@@ -3,20 +3,18 @@
 {{if .Projects}}<div class="section">
 <h2>Projects <span class="count">{{len .Projects}}</span></h2>
 <div class="rows">
-{{range .Projects}}<div class="row"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Name}}</span></span></span><span class="age">{{.Activity}}</span><span class="meta"><span class="agent">{{.Root}}</span></span></div>
+{{range .Projects}}<a class="row" href="{{.Href}}"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Name}}</span></span></span><span class="age">{{.Activity}}</span><span class="meta"><span class="agent">{{.Root}}</span></span></a>
 {{end}}</div>
 </div>
 {{end}}{{end}}{{if .Waiting}}<div class="section">
 <h2>Waiting on you <span class="count">{{len .Waiting}}</span></h2>
 <div class="rows">
-{{range .Waiting}}<a class="row waiting" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Round {{.Round}}</span><span class="dot-sep">{{.Files}}</span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></span></a>
-{{end}}</div>
+{{range .Waiting}}{{template "waitingrow" .}}{{end}}</div>
 </div>
 {{end}}{{if .Working}}<div class="section">
 <h2>Working <span class="count">{{len .Working}}</span></h2>
 <div class="rows">
-{{range .Working}}<a class="row working" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Changes requested, round {{.Round}}</span></span></a>
-{{end}}</div>
+{{range .Working}}{{template "workingrow" .}}{{end}}</div>
 </div>
 {{end}}{{if .Settled}}<div class="section">
 <h2>Settled <span class="count">{{len .Settled}}</span></h2>
@@ -26,4 +24,8 @@
 </div>
 {{end}}</div></div>
 {{end}}
-{{define "where"}}<span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span>{{end}}
+{{define "waitingrow"}}<a class="row waiting" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Round {{.Round}}</span><span class="dot-sep">{{.Files}}</span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></span></a>
+{{end}}
+{{define "workingrow"}}<a class="row working" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Changes requested, round {{.Round}}</span></span></a>
+{{end}}
+{{define "where"}}<span class="where">{{with .Project}}<span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.}}</span></span>{{end}}<span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span>{{end}}

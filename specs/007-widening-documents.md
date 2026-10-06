@@ -1827,6 +1827,129 @@ leaves one alive has a test that cannot fail:
   document's link to a missing file to the 404 page, then writes the file and
   gets the live banner.
 
+**Departures, iteration 9.**
+
+- `capture.ReadWorkingCopy(ctx, root, insideCheckout)` returns a
+  `*capture.WorkingCopy`: `Inspect`'s `State`, `Listed`, HEAD's commit and the
+  entries, with `Holds`, `Compare` over a list of paths and `Sides` for one. It
+  calls `Inspect` itself, so a project route still settles the state once per
+  request, and the handler writes the flag from the `State` it returns. The
+  design left the shape open. `Compare` takes the paths so the view's rows load
+  HEAD's object ids in one `ls-tree`, and `Sides` is what the project file page
+  renders from, while the row's counts and the page's go through the same
+  comparison, which `TestServer_Surface_projectFileCountsMatchTheRow` holds.
+- Only a git project is listed. At a marker root inside a checkout, `git diff`
+  prints paths from the outer repository's top level and `ls-files` from the
+  marker root, so the listing would name files the root does not hold. So the
+  project view answers every one of `Inspect`'s values:
+
+  | State                                                                         | Working copy                                                             |
+  | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+  | a git project, `LiveIgnoreRules`                                              | listed against HEAD                                                      |
+  | a git project on a branch with no commit                                      | listed against the empty tree, every file wholly added                   |
+  | `LiveOpen`, a project outside git                                             | the frame's warning, then "Cannot be listed"                             |
+  | a marker project inside a checkout that does not ignore it, `LiveIgnoreRules` | a warning of its own, then "Cannot be listed"                            |
+  | `LiveRootMissing`                                                             | "Cannot be listed", naming the root                                      |
+  | `LiveLost`                                                                    | "Cannot be listed", saying the `.git` is gone                            |
+  | `LiveIgnored`, `LiveCheckoutGone`, `LiveRulesUnreadable`                      | "Live browsing is unavailable." with the reason, then "Cannot be listed" |
+
+  The marker project inside a checkout reads live under the checkout's rules and
+  its tree lists from disk through check-ignore, but it has no repository at its
+  root and records no base. Its warning reads "No repository of its own. A
+  marker file names this project inside another checkout. A round has nothing to
+  diff against, so a first request will show whole files." The frame's "No git
+  repository here." would be wrong with a repository around it. Listing the
+  outer repository's changes below the marker root, with `--relative` and a `.`
+  pathspec, was the alternative. It would measure against a commit no round of
+  the project measures from, and it is a second listing to keep in step with
+  `Changed`. A git project is told from a marker project by the reader's `.git`
+  lookup, as iteration 4 does, rather than by a new `State` field.
+
+- The listing leaves out a file the live read refuses by its parents. `git diff`
+  still lists a tracked file below a directory that has since gained a `.git` of
+  its own, and the live read refuses it as another repository's file. Listed,
+  its disk side would read as missing and its row would show every line removed,
+  and its link would answer the 404 page. A deletion keeps its row, since
+  nothing reads its disk side, including one whose directory is gone. The check
+  is one `Lstat` per parent directory of each changed file, through the
+  project's `os.Root`. Not measured.
+- `keep` takes the flag that drops a vanished path, as the design says, and
+  `Changed` passes false. A package variable, `afterListing`, runs between git's
+  listing and the `Lstat`s, so `TestReadWorkingCopy_vanished` removes a file
+  there and holds the view dropping it and `Changed` still failing.
+- On the disk side, a present file the live read reports not found is read as
+  deleted since the listing. A failed ignore check is an error, never an
+  absence, which would show every line removed. The view then shows "Cannot be
+  listed" under "Live browsing is unavailable. Git could not say which files it
+  ignores.", and the project file page the 404 page with "Nothing on disk can be
+  shown." No page test reaches either branch. The listing's `ls-files` reads the
+  same index and rules as check-ignore, so only a change between the two calls
+  fails one and not the other. `TestWorkingCopy_Sides` truncates the index after
+  the listing and holds the error at the capture level.
+- The claimed row's review is the first open review in the page's order whose
+  paths cover the file. The store refuses a claim overlapping an open review's,
+  so at most one does.
+- The wordings no frame draws are this iteration's. A missing root reads "The
+  project's root, ~/src/x, no longer exists." and a lost repository "The
+  project's repository is gone: its root no longer holds the .git it had." A
+  refused marker project's box reads "Nothing on disk is read for this project.
+  Reviews still work, and the files their rounds captured still open." The cap
+  notice reads "The first 200 of N files are listed." A clean tree with more
+  than one open review reads "Everything the open reviews cover is committed.",
+  the frame's sentence made plural. The project file page's banner is a
+  `notice warn` reading "Live, not from any round. The file as it is on disk
+  now, compared with HEAD. It moves while an agent works.", its back link is
+  labeled with the project's name, and Plain on a file gone from disk shows the
+  `.empty` box "This file is gone from disk.", as the review page's Plain does
+  for a deleted file. A binary file or one past the limits shows 006's line with
+  no toolbar, and its row carries no counts.
+- The heading counts every file the listing holds, past the cap included, and
+  carries no count where nothing is listed, a clean tree included, as the frame
+  draws. The state's banner sits under the brief, where the outside-git frame
+  puts it, above Open reviews when there are any.
+- The project file route answers a claimed file as well, since the listing holds
+  it. The view links a claimed row to its review instead, so nothing the surface
+  writes points there.
+- Each row costs a `check-ignore` as well as the `cat-file` the design counted.
+  A page of 200 rows over 250 modified tracked files took about 450 ms in a test
+  fixture, measured five times on a 16-thread machine. The design's quarter of a
+  second was the `cat-file` calls alone. The `tooling:` entry in specs/TODO.md
+  carries the number.
+- `tool/seed` is unchanged. Its harbor project already has a dirty working copy:
+  the watermark's `sync.go` is claimed only by an approved review, so it is an
+  unclaimed bold row between the two files open reviews claim.
+- The first pass ran 92 mutations over the new and changed code, the spec's two
+  rows for this iteration among them, with rows of its own for each branch the
+  brief named. One did not build and was rewritten, and seventeen survived. Ten
+  of those got a test or a change to the code. The open reviews' order and ages
+  moved onto the queue fixture's clock, since two verdicts given in one
+  millisecond tied on the store's timestamps and hid a sort that did nothing.
+  Each state's page is viewed twice, which catches the flag written without a
+  `.git` found. A comparison whose base side is past the byte limit, a name with
+  `#` in it and a trailing slash got rows. The handler split the open reviews by
+  verdict a second time, which made the first split untestable, so it now reads
+  the split `openReviews` made. A `continue` skipping a claimed row's counts was
+  removed as dead code, since a claimed row is never compared. The final pass
+  ran 95 against the finished tree, adding a write to the blob store from each
+  route, which `TestServer_Surface_projectBlobsUntouched` kills. A changed link
+  is held by the link rows, which kill the disk side read through `Open`, since
+  that returns HEAD's target. 88 are killed and seven survive.
+  - Equivalent: the HEAD reader built by `NewReader` rather than `State.Reader`.
+    It reads only through `Side`, which never reads live, so the `Live` value
+    the two differ in is never consulted.
+  - Equivalent: the last covering review claiming a row rather than the first.
+    The store refuses overlapping claims among open reviews.
+  - Equivalent: claimed rows compared along with the rest. The template prints
+    the pill in place of counts, so only the extra git calls differ.
+  - Equivalent: the template printing counts beside the pill. Nothing fills
+    counts for a claimed row.
+  - Equivalent: writing the flag when it already reads 1, as in iteration 5.
+  - Untestable: the handler calling `Compare` once per row. The page is the
+    same, and only the number of `ls-tree` calls differs, which the page does
+    not show. `TestWorkingCopy_Compare` holds the batch at the capture level.
+  - Untestable: the view's fallback when `Compare` fails on the ignore rules,
+    for the reason in the bullet on the disk side.
+
 ## Out of scope
 
 - **Comments on a line or a passage, and mapping a passage to source lines.**
@@ -2329,30 +2452,36 @@ required_acks:
       removed blocks, and the attack corpus finding no script and no event
       attribute
 
+> **Completed** 2026-10-06 01:57 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.9s
+> - `go test -race ./...` — 21.2s
+
 ## Iteration 9: The project view
 
-- [ ] `capture.ReadWorkingCopy` built from `Inspect`, `ResolveBase` and
+- [x] `capture.ReadWorkingCopy` built from `Inspect`, `ResolveBase` and
       `Changed` with vanished paths dropped, and a test that the blob store
       stays empty
-- [ ] The project view writing `Inspect`'s finding through
+- [x] The project view writing `Inspect`'s finding through
       `db.MarkInsideCheckout`, with a row whose project is opened through the
       store, the flag 0 before the GET and 1 after it
-- [ ] `WorkingCopy.Compare` reading HEAD through a reader with no capture,
+- [x] `WorkingCopy.Compare` reading HEAD through a reader with no capture,
       object ids loaded in one batch, and the disk through `capture.ReadLive`,
       with a modified tracked file and a changed symlink as rows
-- [ ] `GET /projects/{project}` with the brief and the open reviews in the
+- [x] `GET /projects/{project}` with the brief and the open reviews in the
       queue's row markup without the project, waiting before working
-- [ ] Claimed rows marked "In review" and linking to their review's file page,
+- [x] Claimed rows marked "In review" and linking to their review's file page,
       unclaimed rows bold with counts, and the listing capped at two hundred
-- [ ] The clean, outside-git, lost-repository and missing-root states, and a
+- [x] The clean, outside-git, lost-repository and missing-root states, and a
       marker project whose live browsing is refused saying so and why, each with
       its own test
-- [ ] `GET /projects/{project}/files/{path...}` answering only a listed path,
+- [x] `GET /projects/{project}/files/{path...}` answering only a listed path,
       markdown included as Marked and Plain, with tests that its counts equal
       the row's and an unchanged file gets 404
-- [ ] The brief's project linking to its view, the empty queue's rows becoming
+- [x] The brief's project linking to its view, the empty queue's rows becoming
       links, and the route test substituting `{project}`
-- [ ] architecture.md's routes table gaining the project file route
+- [x] architecture.md's routes table gaining the project file route
 
 ## Iteration 10: Links, seeding, and the look
 

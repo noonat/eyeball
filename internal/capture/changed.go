@@ -74,6 +74,20 @@ func describe(root string, e Entry) (Entry, bool, error) {
 // because the project view's working copy listing is the same question asked
 // against HEAD, with nothing written.
 func Changed(ctx context.Context, root, base string) ([]Entry, error) {
+	return changed(ctx, root, base, false)
+}
+
+// afterListing runs between git's listing and the filesystem's answers, so a
+// test can remove a path where an agent editing the tree would. It is nil
+// outside tests.
+var afterListing func()
+
+// changed is Changed, with the choice of what a vanished path means.
+//
+// A frozen round fails on a vanished path. A live page drops it, since the
+// working copy it shows may be changing that second, and failing the page
+// would fail it exactly when there is something to see.
+func changed(ctx context.Context, root, base string, dropVanished bool) ([]Entry, error) {
 	if base == "" {
 		empty, err := emptyTree(ctx, root)
 		if err != nil {
@@ -104,15 +118,22 @@ func Changed(ctx context.Context, root, base string) ([]Entry, error) {
 	for _, e := range untracked {
 		found[e.Path] = e
 	}
-	return keep(root, found)
+	if afterListing != nil {
+		afterListing()
+	}
+	return keep(root, found, dropVanished)
 }
 
 // keep asks the filesystem about each merged entry and drops the ones nothing
-// can read, returning what is left in a stable order.
-func keep(root string, found map[string]Entry) ([]Entry, error) {
+// can read, returning what is left in a stable order. A path gone since it was
+// listed fails with ErrVanished, or is dropped where dropVanished is set.
+func keep(root string, found map[string]Entry, dropVanished bool) ([]Entry, error) {
 	entries := make([]Entry, 0, len(found))
 	for _, e := range found {
 		filled, ok, err := describe(root, e)
+		if dropVanished && errors.Is(err, ErrVanished) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
