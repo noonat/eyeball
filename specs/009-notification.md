@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-06T00:00:00Z
-updated: 2026-10-06T17:43:01.860019257Z
+updated: 2026-10-06T19:38:09.821699363Z
 required_acks:
   - reviewed
 required_commands:
@@ -401,3 +401,9 @@ only by the owner.
   the phone. A decided round gives no sign that its lines take no tap, which is
   a `design:` entry in specs/TODO.md.
 - The owner checked every screen on the phone and found nothing else.
+
+> **Completed** 2026-10-06 19:38 UTC
+>
+> - acks: reviewed, phone-checked
+> - `make check` — 5.3s
+> - `go test -race ./...` — 28.8s
