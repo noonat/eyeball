@@ -1113,6 +1113,12 @@ required_acks:
 - [x] The manual's `serve` entry saying it prints an address to open, naming no
       token
 
+> **Completed** 2026-10-06 12:19 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.3s
+> - `go test -race ./...` — 21.1s
+
 ## Iteration 4: The write routes
 
 - [ ] `POST /reviews/{review}/comments` storing a comment at each level on the
