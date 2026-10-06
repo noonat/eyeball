@@ -110,6 +110,63 @@ func Test_splitLinesReportsTheTrailingNewline(t *testing.T) {
 	}
 }
 
+func TestPlain(t *testing.T) {
+	g := NewWithT(t)
+	got := Plain([]byte("one\ntwo\nthree"))
+	g.Expect(got.Added).To(BeZero())
+	g.Expect(got.Removed).To(BeZero())
+	g.Expect(got.Hunks).To(Equal([]Hunk{{
+		OldStart: 1,
+		OldLines: 3,
+		NewStart: 1,
+		NewLines: 3,
+		Lines: []Line{
+			{Op: OpContext, Old: 1, New: 1, Text: "one"},
+			{Op: OpContext, Old: 2, New: 2, Text: "two"},
+			{Op: OpContext, Old: 3, New: 3, Text: "three", NoNewline: true},
+		},
+	}}))
+	// A final newline is a property of the text, not a line of its own.
+	ended := Plain([]byte("one\n"))
+	g.Expect(ended.Hunks[0].Lines).To(Equal([]Line{{Op: OpContext, Old: 1, New: 1, Text: "one"}}))
+	g.Expect(Plain(nil)).To(Equal(Result{}))
+}
+
+func TestPlain_limits(t *testing.T) {
+	cases := []struct {
+		name    string
+		content []byte
+		want    Result
+	}{
+		{
+			name:    "a NUL byte",
+			content: []byte("text\x00more\n"),
+			want:    Result{Binary: true},
+		},
+		{
+			name:    "past the byte limit",
+			content: []byte(strings.Repeat("x", MaxBytes) + "\n"),
+			want:    Result{TooLarge: true},
+		},
+		{
+			name:    "past the line limit",
+			content: []byte(strings.Repeat("x\n", defaultLimits().maxLines+1)),
+			want:    Result{TooLarge: true},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(Plain(c.content)).To(Equal(c.want))
+		})
+	}
+	// The line limit is Text's own: one line fewer is shown.
+	g := NewWithT(t)
+	at := Plain([]byte(strings.Repeat("x\n", defaultLimits().maxLines)))
+	g.Expect(at.TooLarge).To(BeFalse())
+	g.Expect(at.Hunks[0].Lines).To(HaveLen(defaultLimits().maxLines))
+}
+
 func TestText(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -285,6 +342,113 @@ func TestText_tooLarge(t *testing.T) {
 			g.Expect(got.Added).To(Equal(len(strings.Split(strings.TrimSuffix(c.after, "\n"), "\n"))))
 		})
 	}
+}
+
+func TestWhole(t *testing.T) {
+	// Twenty lines, changed at lines 5 and 15. The changes are ten lines
+	// apart, with four unchanged lines before the first and five after the
+	// last, so three lines of context splits this into two hunks and leaves
+	// both ends out.
+	var oldLines, newLines []string
+	for i := 1; i <= 20; i++ {
+		line := fmt.Sprintf("line %d of the file", i)
+		oldLines = append(oldLines, line)
+		if i == 5 || i == 15 {
+			line = fmt.Sprintf("line %d, changed", i)
+		}
+		newLines = append(newLines, line)
+	}
+	changedOld := strings.Join(oldLines, "\n") + "\n"
+	changedNew := strings.Join(newLines, "\n") + "\n"
+	pairs := []struct {
+		name    string
+		before  string
+		after   string
+		hunks   int
+		added   int
+		removed int
+	}{
+		{
+			name:    "changes far apart with unchanged ends",
+			before:  changedOld,
+			after:   changedNew,
+			hunks:   1,
+			added:   2,
+			removed: 2,
+		},
+		{
+			name:    "an empty old side",
+			before:  "",
+			after:   "a\nb\n",
+			hunks:   1,
+			added:   2,
+			removed: 0,
+		},
+		{
+			name:    "an empty new side",
+			before:  "a\nb\n",
+			after:   "",
+			hunks:   1,
+			added:   0,
+			removed: 2,
+		},
+		{
+			name:   "identical",
+			before: changedOld,
+			after:  changedOld,
+			hunks:  0,
+		},
+	}
+	for _, c := range pairs {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			got := Whole([]byte(c.before), []byte(c.after))
+			g.Expect(got.Hunks).To(HaveLen(c.hunks))
+			g.Expect(got.Added).To(Equal(c.added))
+			g.Expect(got.Removed).To(Equal(c.removed))
+			if c.hunks == 0 {
+				return
+			}
+			// Replaying the one hunk gives back both sides whole, which is
+			// what says no line was left outside it.
+			var rebuiltOld, rebuiltNew []string
+			for _, line := range got.Hunks[0].Lines {
+				if line.Op != OpAdd {
+					rebuiltOld = append(rebuiltOld, line.Text+"\n")
+				}
+				if line.Op != OpRemove {
+					rebuiltNew = append(rebuiltNew, line.Text+"\n")
+				}
+			}
+			g.Expect(strings.Join(rebuiltOld, "")).To(Equal(c.before))
+			g.Expect(strings.Join(rebuiltNew, "")).To(Equal(c.after))
+		})
+	}
+}
+
+func TestWhole_marksMatchText(t *testing.T) {
+	g := NewWithT(t)
+	before := "keep\nfoo(a, b)\nkeep\nkeep\nkeep\nkeep\nkeep\nkeep\nkeep\nbar(x)\n"
+	after := "keep\nfoo(a, c)\nkeep\nkeep\nkeep\nkeep\nkeep\nkeep\nkeep\nbar(y)\n"
+
+	// The whole file marks what the hunks a reader widened from marked, line
+	// for line, because it is the same comparison.
+	marks := func(r Result) map[string][]Span {
+		out := map[string][]Span{}
+		for _, h := range r.Hunks {
+			for _, line := range h.Lines {
+				if line.Op != OpContext {
+					out[string(line.Op)+" "+line.Text] = line.Marks
+				}
+			}
+		}
+		return out
+	}
+	hunked := Text([]byte(before), []byte(after))
+	g.Expect(hunked.Hunks).To(HaveLen(2))
+	g.Expect(marks(Whole([]byte(before), []byte(after)))).To(Equal(marks(hunked)))
+	g.Expect(marks(hunked)).To(HaveKeyWithValue("add foo(a, c)", Not(BeEmpty())))
 }
 
 // update rewrites the golden files instead of comparing against them.

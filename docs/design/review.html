@@ -45,7 +45,7 @@
         <div class="scroll"><div class="page">
 
           <div class="brief">
-            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
             <h2 class="title">Product doc, second pass</h2>
           </div>
 
@@ -73,18 +73,22 @@
                 rather than a navigation.</p></div>
                 <div class="blk changed"><p><strong>From a hunk to the whole
                 file</strong>, with the change still marked in place.</p></div>
-                <div class="blk changed was"><p><strong>What the change is
-                measured against is one control with two settings.</strong> The
-                previous round is the default from round two onward and answers
-                what moved since the last reading.</p>
-                <span class="was-text">A control offers whatever bases exist.</span></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
                 <div class="blk"><h2>Making a comment</h2></div>
                 <div class="blk"><p>A comment attaches at one of four levels. To
                 a line or a range of lines. To a passage, which is what a
                 rendered document offers instead of lines.</p></div>
               </div>
             </div>
+            <div class="filelinks"><a class="btn small" href="widening.html#whole">Raw diff</a></div>
           </details>
+
+          <div class="tree">
+            <a class="treerow" href="widening.html#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+          </div>
 
         </div>
         <div class="decide">
@@ -105,7 +109,7 @@
         <div class="scroll"><div class="page">
 
           <div class="brief">
-            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
             <h2 class="title">Product doc, second pass</h2>
           </div>
 
@@ -133,18 +137,22 @@
                 rather than a navigation.</p></div>
                 <div class="blk changed"><p><strong>From a hunk to the whole
                 file</strong>, with the change still marked in place.</p></div>
-                <div class="blk changed was"><p><strong>What the change is
-                measured against is one control with two settings.</strong> The
-                previous round is the default from round two onward and answers
-                what moved since the last reading.</p>
-                <span class="was-text">A control offers whatever bases exist.</span></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
                 <div class="blk"><h2>Making a comment</h2></div>
                 <div class="blk"><p>A comment attaches at one of four levels. To
                 a line or a range of lines. To a passage, which is what a
                 rendered document offers instead of lines.</p></div>
               </div>
             </div>
+            <div class="filelinks"><a class="btn small" href="widening.html#whole">Raw diff</a></div>
           </details>
+
+          <div class="tree">
+            <a class="treerow" href="widening.html#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+          </div>
 
         </div>
         <div class="decide">
@@ -164,6 +172,16 @@
     how many points they made.</li>
     <li><b>Both verdicts sit on the bar at equal size, and only one is filled.</b>
     Approve is filled and on the right, under the thumb.</li>
+    <li><b>Each file card ends in a link to the file&rsquo;s own page.</b> A
+    document&rsquo;s card offers <b>Raw diff</b>, the whole file with the change
+    marked, because the exact edit is the question once a rendered passage looks
+    wrong. A code file&rsquo;s card offers <b>Whole file</b>, which the expanded
+    view shows.</li>
+    <li><b>All files opens the tree at this round</b>, which is how a reviewer
+    reaches a file the change refers to and does not contain.</li>
+    <li><b>The project in the brief links to its project view.</b> A queue row
+    is already one link to its review, so the brief is where a review leads to
+    the rest of its project.</li>
   </ul>
 </section>
 
@@ -493,7 +511,7 @@
     <div class="topbar"><a class="back" href="#full-review"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1></div>
     <div class="scroll"><div class="page">
       <div class="brief">
-        <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+        <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
         <h2 class="title">Product doc, second pass</h2>
       </div>
       <div class="note">
@@ -521,7 +539,11 @@
             <tr class="add"><td class="ln">95</td><td class="sign">+</td><td class="src">	}</td></tr>
           </table>
         </div>
+        <div class="filelinks"><a class="btn small" href="widening.html#whole">Whole file</a></div>
       </details>
+      <div class="tree">
+        <a class="treerow" href="widening.html#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+      </div>
     </div>
     <div class="decide">
       <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>

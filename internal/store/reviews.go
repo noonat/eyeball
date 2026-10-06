@@ -90,6 +90,10 @@ type Project struct {
 	Root string
 	// Name is what the surface displays, and repeats freely across projects.
 	Name string
+	// InsideCheckout records that a .git entry was once seen at or above a
+	// root holding a marker file. It is set and never cleared, because the
+	// moment it matters is the one where that .git is no longer there to see.
+	InsideCheckout bool
 }
 
 // Review is one question an agent asked about one set of paths.
@@ -217,14 +221,28 @@ func (s *Store) EnsureProject(ctx context.Context, root, name string) (Project, 
 		if _, err := tx.ExecContext(ctx, insert, root, name, FormatTime(s.now())); err != nil {
 			return errors.Wrap(err, "insert project")
 		}
-		query := "SELECT id, root, name FROM projects WHERE root = ?"
+		query := "SELECT id, root, name, inside_checkout FROM projects WHERE root = ?"
 		row := tx.QueryRowContext(ctx, query, root)
-		if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+		if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
 			return errors.Wrap(err, "read project")
 		}
 		return nil
 	})
 	return out, err
+}
+
+// MarkInsideCheckout records that a .git entry was seen at or above a project's
+// root, which holds a marker file.
+//
+// It only ever sets the flag. Clearing it whenever no .git is found would undo
+// it on exactly the request it exists for: the one after the outer
+// repository's .git was moved away. The update is idempotent, so a caller that
+// writes on every sighting changes nothing after the first.
+func (s *Store) MarkInsideCheckout(ctx context.Context, projectID int64) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, "UPDATE projects SET inside_checkout = 1 WHERE id = ? AND inside_checkout = 0", projectID)
+		return errors.Wrap(err, "mark the project inside a checkout")
+	})
 }
 
 // OpenReview creates a review, its claimed paths, and its first round with

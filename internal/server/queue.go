@@ -25,7 +25,8 @@ type queuePage struct {
 type queueRow struct {
 	// ID is the review's id, which its link is built from.
 	ID int64
-	// Project and Agent say where the review came from.
+	// Project and Agent say where the review came from. Project is empty on
+	// the project's own page, and the row leaves it out.
 	Project, Agent string
 	// Title is what the row is called.
 	Title string
@@ -50,6 +51,8 @@ type emptyQueue struct {
 
 // projectRow is one project in the empty state.
 type projectRow struct {
+	// Href is the project's view.
+	Href string
 	// Name is the project's name, and Root its root written with ~.
 	Name, Root string
 	// Activity is the count of agents at work, or Idle.
@@ -114,7 +117,7 @@ func (s *Server) emptyQueue(projects []store.ProjectRow) *emptyQueue {
 			agents += p.Agents
 			busy = append(busy, p.Name)
 		}
-		out.Projects = append(out.Projects, projectRow{Name: p.Name, Root: s.tilde(p.Root), Activity: activity})
+		out.Projects = append(out.Projects, projectRow{Href: projectHref(p.ID), Name: p.Name, Root: s.tilde(p.Root), Activity: activity})
 	}
 	switch agents {
 	case 0:

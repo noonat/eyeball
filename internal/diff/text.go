@@ -82,6 +82,49 @@ func Text(before, after []byte) Result {
 	return text(before, after, defaultLimits())
 }
 
+// Whole compares two texts as Text does and returns every line of both sides
+// in one hunk, or no hunk where nothing moved.
+//
+// It is the whole file with its changes in place. The comparison and the word
+// marks are Text's own, so the whole file marks exactly what the hunk a reader
+// widened from marked.
+func Whole(before, after []byte) Result {
+	l := defaultLimits()
+	l.whole = true
+	return text(before, after, l)
+}
+
+// Plain returns a text as one hunk of unchanged lines, compared with nothing,
+// or no hunk for an empty text.
+//
+// It is how a file nothing is compared against is shown, such as one opened
+// for context. It applies Text's binary test and size limits, so a file shown
+// plain and the same file shown as a change are refused at the same size.
+func Plain(b []byte) Result {
+	l := defaultLimits()
+	if isBinary(b) {
+		return Result{Binary: true}
+	}
+	lines, ends := splitLines(b)
+	if len(b) > l.maxBytes || len(lines) > l.maxLines {
+		return Result{TooLarge: true}
+	}
+	if len(lines) == 0 {
+		return Result{}
+	}
+	h := Hunk{OldStart: 1, OldLines: len(lines), NewStart: 1, NewLines: len(lines), Lines: make([]Line, 0, len(lines))}
+	for i, text := range lines {
+		h.Lines = append(h.Lines, Line{
+			Op:        OpContext,
+			Old:       i + 1,
+			New:       i + 1,
+			Text:      text,
+			NoNewline: !ends && i == len(lines)-1,
+		})
+	}
+	return Result{Hunks: []Hunk{h}}
+}
+
 // limits are the bounds every bail-out is measured against.
 //
 // They are a parameter rather than a set of constants so a test can reach each
@@ -95,6 +138,11 @@ type limits struct {
 	maxTokens int
 	// context is how many unchanged lines surround a change.
 	context int
+	// whole sets the context to the two sides' line counts added together.
+	// No change is farther than that from either end or from another change,
+	// so every line lands in one hunk. The largest int would overflow where
+	// hunks adds one past the context.
+	whole bool
 }
 
 // defaultLimits are the bounds in use outside the tests.
@@ -122,6 +170,9 @@ func text(before, after []byte, l limits) Result {
 		return Result{TooLarge: true, Added: len(newLines), Removed: len(oldLines)}
 	}
 
+	if l.whole {
+		l.context = len(oldLines) + len(newLines)
+	}
 	script := compare(oldLines, newLines, oldEnds, newEnds)
 	var result Result
 	for _, s := range script {

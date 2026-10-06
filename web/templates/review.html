@@ -1,6 +1,6 @@
 {{define "review"}}<div class="scroll"><div class="page">
 <div class="brief">
-<div class="where">{{if .Abandoned}}<span class="pill plain">Abandoned</span>{{else}}{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
+<div class="where">{{if .Abandoned}}<span class="pill plain">Abandoned</span>{{else}}{{with .Decided}}{{if .Approved}}<span class="pill approved">{{.Pill}}</span>{{else}}<span class="pill changes">{{.Pill}}</span>{{end}}{{else}}<span class="pill waiting">Waiting {{.Waiting}}</span>{{end}}{{end}}<span class="pill plain">Round {{.Round}}</span><span class="who"><a class="bit" href="{{.ProjectHref}}"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.Project}}</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span></div>
 <h2 class="title">{{.Title}}</h2>
 </div>
 {{if .Earlier}}<div class="section">
@@ -13,10 +13,16 @@
 {{else}}{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
 {{else}}<div class="notice"><span class="glyph i i-message-square" aria-hidden="true"></span><span><strong>Changes requested.</strong> {{.Sentence}}</span></div>
 {{end}}{{end}}{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}<div class="toolbar">
-<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
-{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
+{{with .Fresh}}<span class="counts"><b class="files">1 file, new</b></span>
+<a class="btn small" href="{{.RawDiff}}">Raw diff</a>
+{{else}}<span class="counts"><b class="files">{{.Files}}</b> &nbsp;<span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>
+{{end}}{{with .Against}}<span class="segmented"><a href="?against=previous"{{if not .Base}} aria-current="true"{{end}}>{{.Previous}}</a><a href="?against=base"{{if .Base}} aria-current="true"{{end}}>Whole review</a></span>
 {{end}}</div>
-{{range .Shown}}{{template "file" .}}{{end}}{{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
+{{with .Fresh}}<div class="prose">{{.Document}}</div>
+{{else}}{{range .Shown}}{{template "file" .}}{{end}}{{end}}<div class="tree">
+<a class="treerow" href="{{.AllFiles}}"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+{{if not .Closed}}{{template "discussion" .}}{{end}}</div></div>
 {{end}}
 {{define "notes"}}{{with .Decided}}{{if .Note}}<div class="note">
 <span class="from">Verdict note</span>
@@ -40,15 +46,18 @@
 {{end}}{{end}}
 {{define "file"}}<details class="file"{{if .Open}} open{{end}}>
 <summary><span class="path"><bdi>{{.Path}}</bdi></span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></summary>
-{{if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
+{{if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
+{{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
-{{else}}<div class="code narrow">
+{{else}}{{template "code" .Diff.Rows}}{{end}}{{range .Comments}}{{template "comment" .}}{{end}}<div class="filelinks">{{if .IsDocument}}<a class="btn small" href="{{.RawDiff}}">Raw diff</a>{{else}}<a class="btn small" href="{{.Whole}}">Whole file</a>{{end}}</div>
+</details>
+{{end}}
+{{define "code"}}<div class="code narrow">
 <table>
-{{range .Diff.Rows}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
+{{range .}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
 {{else}}<tr{{with .Class}} class="{{.}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
 {{end}}{{end}}</table>
 </div>
-{{end}}{{range .Comments}}{{template "comment" .}}{{end}}</details>
 {{end}}
 {{define "segment"}}{{if .Mark}}<span class="w">{{if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}</span>{{else if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
 {{define "comment"}}<div class="comment">

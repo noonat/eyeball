@@ -30,6 +30,10 @@ func (s *Server) Surface() http.Handler {
 		h.Set("Content-Security-Policy", contentSecurityPolicy)
 		h.Set("Cache-Control", "no-store")
 		h.Set("X-Content-Type-Options", "nosniff")
+		// A document can link anywhere, and a browser following a link sends
+		// the page's origin, the tailnet's machine name, under its default
+		// policy. One header covers every link on every page.
+		h.Set("Referrer-Policy", "no-referrer")
 		if _, pattern := mux.Handler(r); pattern != "" {
 			mux.ServeHTTP(w, r)
 			return
@@ -86,6 +90,8 @@ type page struct {
 type message struct {
 	// Heading is what happened, and Text says more.
 	Heading, Text string
+	// Notice is a banner above it saying why, and nil for none.
+	Notice *notice
 }
 
 // failurePage answers a surface request whose handler failed, as a page. The

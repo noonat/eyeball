@@ -42,7 +42,7 @@ func Walk(ctx context.Context, root string, paths []string) ([]Entry, error) {
 			return nil, err
 		}
 	}
-	return keep(root, found)
+	return keep(root, found, false)
 }
 
 // walkOne adds everything under one of the review's paths.
@@ -55,7 +55,7 @@ func walkOne(root, p string, found map[string]Entry) error {
 	// checked them. Without this a path of ../secrets reads files outside the
 	// project into the blob store, and the store's own refusal comes after the
 	// content is already written and blobs are never pruned.
-	inside, err := safePath(p)
+	inside, err := CleanPath(p)
 	if err != nil {
 		return errors.Wrapf(ErrNoSuchPath, "%q is not a path inside the project", p)
 	}
@@ -83,8 +83,8 @@ func walkOne(root, p string, found map[string]Entry) error {
 //
 // os.Lstat follows every component of a path but the last, so a path of
 // link/s.txt, where link points outside the project, reads a file from outside
-// it. Both the walk outside git and the reader's working-copy fallback check a
-// path with this before touching it. The final component may itself be a link,
+// it. The walk outside git checks a path with this before touching it, and
+// the live read has its own check through os.Root. The final component may itself be a link,
 // which each caller handles as a link. A missing component is not a link, and
 // the caller's own read reports it as missing.
 func linkedParent(root, p string) string {

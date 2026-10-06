@@ -10,6 +10,7 @@ require (
 	github.com/cockroachdb/errors v1.14.0
 	github.com/onsi/gomega v1.42.1
 	github.com/urfave/cli/v3 v3.14.0
+	github.com/yuin/goldmark v1.8.6
 	golang.org/x/net v0.56.0
 	golang.org/x/term v0.45.0
 	modernc.org/sqlite v1.57.0

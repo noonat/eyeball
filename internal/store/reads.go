@@ -154,8 +154,8 @@ func (s *Store) ReviewsFor(ctx context.Context, projectID int64, agent string) (
 // done once, when it is first seen.
 func (s *Store) ProjectByRoot(ctx context.Context, root string) (Project, error) {
 	var out Project
-	row := s.db.QueryRowContext(ctx, "SELECT id, root, name FROM projects WHERE root = ?", root)
-	if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+	row := s.db.QueryRowContext(ctx, "SELECT id, root, name, inside_checkout FROM projects WHERE root = ?", root)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Project{}, errors.Wrapf(ErrNotFound, "project at %s", root)
 		}
@@ -359,7 +359,8 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 
 // ProjectRow is one project as the empty queue lists it.
 type ProjectRow struct {
-	// Project is the project's id, root and name.
+	// Project is the project's id, root and name. Its InsideCheckout is not
+	// read here and stays false, since nothing that lists projects shows it.
 	Project
 	// Agents counts the agents with an open review in the project, which is
 	// what says whether anything is happening there.
@@ -392,8 +393,8 @@ func (s *Store) Projects(ctx context.Context) ([]ProjectRow, error) {
 // Project reads one project by its id.
 func (s *Store) Project(ctx context.Context, projectID int64) (Project, error) {
 	var out Project
-	row := s.db.QueryRowContext(ctx, "SELECT id, root, name FROM projects WHERE id = ?", projectID)
-	if err := row.Scan(&out.ID, &out.Root, &out.Name); err != nil {
+	row := s.db.QueryRowContext(ctx, "SELECT id, root, name, inside_checkout FROM projects WHERE id = ?", projectID)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Project{}, errors.Wrapf(ErrNotFound, "project %d", projectID)
 		}

@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -44,6 +42,17 @@ type Reader struct {
 	base  string
 	blobs *blob.Store
 	files map[string]store.File
+	// live is whether Open may fall back to the working copy, and under
+	// which rules. NewReader guesses it from the root, and State.Reader sets
+	// it from what Inspect found.
+	live Live
+	// git reports a .git entry at the root, which makes the project a git
+	// project. A git project with no base lists the capture alone, where a
+	// marker project lists its disk.
+	git bool
+	// pause runs between the steps of a live read, so a test can change the
+	// disk where a racing process would. It is nil outside tests.
+	pause func(step string)
 	// oids caches what the base holds, path to object id, with an empty id for
 	// a path the base does not have. A round is frozen, so an answer stays
 	// true for as long as the reader lives.
@@ -70,16 +79,31 @@ func (r *Reader) capture() []store.File {
 //
 // An empty base means the round has no commit to fall back to, which is a
 // project with no git and a repository with no commits yet.
+//
+// The reader it returns allows a live read. A root holding a .git entry reads
+// live only what git does not ignore, and any other root reads its whole
+// working copy. That guess knows nothing of a lost repository or of a marker
+// project inside a checkout, so a reader for a page is built by State.Reader
+// instead, which applies what Inspect found.
 func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader {
 	held := make(map[string]store.File, len(files))
 	for _, f := range files {
 		held[f.Path] = f
+	}
+	live := LiveOpen
+	git, err := holds(root, gitDir)
+	if err != nil || git {
+		// A root that cannot be looked at asks git as well, and a failure
+		// there refuses the read rather than serving the root unfiltered.
+		live, git = LiveIgnoreRules, true
 	}
 	return &Reader{
 		root:  root,
 		base:  base,
 		blobs: blobs,
 		files: held,
+		live:  live,
+		git:   git,
 		oids:  map[string]string{},
 		batch: batchBytes,
 	}
@@ -91,7 +115,7 @@ func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader
 // and reading the working copy instead would put content the agent never had
 // into a frozen comparison.
 func (r *Reader) Frozen(ctx context.Context, p string) (io.ReadCloser, Source, error) {
-	clean, err := safePath(p)
+	clean, err := CleanPath(p)
 	if err != nil {
 		return nil, "", err
 	}
@@ -115,13 +139,29 @@ func (r *Reader) frozen(ctx context.Context, clean string) (io.ReadCloser, Sourc
 	return r.fromBase(ctx, clean)
 }
 
+// Deleted reports whether the round records p as deleted.
+//
+// A deleted path is a file the page shows by its removed lines, whatever the
+// working copy holds at that path now. The round is what is being read, and a
+// file put back on disk is a later fact.
+func (r *Reader) Deleted(p string) bool {
+	clean, err := CleanPath(p)
+	if err != nil {
+		return false
+	}
+	f, held := r.files[clean]
+	return held && f.Digest == ""
+}
+
 // Open reads a path as of the round, falling back to the working copy.
 //
 // It is what browsing uses. The third source is not frozen and says so through
 // the Source it returns, because the alternative is showing nothing, and a
-// reviewer who cannot look up a definition goes to a computer.
+// reviewer who cannot look up a definition goes to a computer. A reader built
+// by State.Reader skips that source wherever Inspect refused live reads, and a
+// path the round does not hold is then not found.
 func (r *Reader) Open(ctx context.Context, p string) (io.ReadCloser, Source, error) {
-	clean, err := safePath(p)
+	clean, err := CleanPath(p)
 	if err != nil {
 		return nil, "", err
 	}
@@ -137,7 +177,7 @@ func (r *Reader) Open(ctx context.Context, p string) (io.ReadCloser, Source, err
 		// and showing that would be showing a file the round says is gone.
 		return nil, "", err
 	}
-	return r.fromWorking(clean)
+	return r.fromWorking(ctx, clean)
 }
 
 // fromBase reads a path out of the base commit.
@@ -157,31 +197,6 @@ func (r *Reader) fromBase(ctx context.Context, clean string) (io.ReadCloser, Sou
 		return nil, "", err
 	}
 	return rc, SourceBase, nil
-}
-
-// fromWorking reads a path off disk as it is now.
-func (r *Reader) fromWorking(clean string) (io.ReadCloser, Source, error) {
-	if link := linkedParent(r.root, clean); link != "" {
-		return nil, "", errors.Wrapf(ErrNotFound, "%s runs through %s, a symlink, so the working copy is not read for it", clean, link)
-	}
-	full := filepath.Join(r.root, filepath.FromSlash(clean))
-	info, err := os.Lstat(full)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, "", errors.Wrapf(ErrNotFound, "%s is in no source", clean)
-		}
-		return nil, "", errors.Wrapf(err, "stat %s", clean)
-	}
-	if !info.Mode().IsRegular() {
-		// A directory, a socket or a link. Nothing here opens one, for the
-		// same reasons a capture does not.
-		return nil, "", errors.Wrapf(ErrNotFound, "%s is not a regular file", clean)
-	}
-	f, err := os.Open(full)
-	if err != nil {
-		return nil, "", errors.Wrapf(err, "read %s", clean)
-	}
-	return f, SourceWorking, nil
 }
 
 // baseOID is the object the base holds at a path, empty where it holds none.
@@ -306,24 +321,35 @@ func (o *objectReader) Close() error {
 	return nil
 }
 
-// safePath refuses a path that would read outside the project.
+// CleanPath is p as a slash-separated path inside the project, or
+// ErrNotFound where p names nothing a page may read.
 //
-// The path arrives from a round's file list today and from a URL once the
-// surface exists, and a join over an unchecked string reads whatever the caller
-// asked for.
-func safePath(p string) (string, error) {
-	cleaned := path.Clean(strings.TrimLeft(p, "/"))
-	if cleaned == gitDir || strings.HasPrefix(cleaned, gitDir+"/") {
-		// A capture excludes the repository's own directory, and browsing has
-		// to as well or the working-copy fallback serves .git/config, which
-		// holds a remote URL and whatever credentials are in it.
-		return "", errors.Wrapf(ErrNotFound, "%q is the repository's own directory", p)
+// The path arrives from a round's file list and from an address, and a join
+// over an unchecked string reads whatever the caller asked for. It is exported
+// so a handler cleans a path the same way the reads in this package do, and
+// the two agree on what a path names.
+func CleanPath(p string) (string, error) {
+	if strings.ContainsRune(p, 0) {
+		// %00 in an address arrives as a NUL. The kernel and exec both refuse
+		// one with "invalid argument", which is no answer a page can show.
+		return "", errors.Wrapf(ErrNotFound, "%q holds a NUL byte", p)
 	}
+	cleaned := path.Clean(strings.TrimLeft(p, "/"))
 	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		// Cleaning would absorb the climb and answer with a different file
 		// inside the root. Refusing says what happened instead, which is what
 		// a caller with a bug needs and what a caller probing does not get.
 		return "", errors.Wrapf(ErrNotFound, "%q is not a path inside the project", p)
+	}
+	segments := strings.Split(cleaned, "/")
+	for _, segment := range segments {
+		if segment == gitDir {
+			// A capture excludes a repository's own directory, and browsing
+			// has to as well, at any depth. An untracked checkout inside the
+			// project keeps its own .git/config, with a remote URL and
+			// whatever credentials are in it.
+			return "", errors.Wrapf(ErrNotFound, "%q is inside a repository's own directory", p)
+		}
 	}
 	return cleaned, nil
 }

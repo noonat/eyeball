@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +29,8 @@ const (
 type reviewPage struct {
 	// Title, Project and Agent say what the review is and where it came from.
 	Title, Project, Agent string
+	// ProjectHref is the project's view, which the brief's project links to.
+	ProjectHref string
 	// Round is the round's number.
 	Round int
 	// Abandoned says the agent withdrew the review, which no round's verdict
@@ -46,6 +50,10 @@ type reviewPage struct {
 	Against *againstControl
 	// Shown is every in-scope file that moved, in path order.
 	Shown []fileView
+	// Fresh is the one file shown, rendered on the page rather than in a
+	// card, where the round shows one markdown file whose old side has no
+	// blocks. It is nil otherwise.
+	Fresh *fileView
 	// Comments are the comments that belong to no file shown: the review-level
 	// ones, and any on a file this comparison does not show. On an earlier
 	// round they are every comment, listed before the files as the tearout
@@ -58,6 +66,9 @@ type reviewPage struct {
 	// Closed says an earlier round is closed and which round is current, and
 	// is empty on the current round.
 	Closed string
+	// AllFiles is the tree's root at this round, keeping the page's
+	// comparison.
+	AllFiles string
 }
 
 // earlierRound is one row of the list of earlier rounds.
@@ -102,6 +113,16 @@ type fileView struct {
 	Open bool
 	// Diff is its rows, or the flag saying why it has none.
 	Diff render.File
+	// IsDocument says the file is shown as a document rather than as rows.
+	IsDocument bool
+	// Document is a markdown file rendered with what moved marked.
+	Document template.HTML
+	// Whole is the file's own page, where it is shown whole, keeping the
+	// page's comparison.
+	Whole string
+	// RawDiff is a document's Source view on its own page, keeping the page's
+	// comparison, and empty for a file shown as rows.
+	RawDiff string
 	// Comments are the round's comments on it.
 	Comments []commentView
 }
@@ -193,13 +214,14 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	now := s.now()
 	view := reviewPage{
-		Title:     review.Title,
-		Project:   project.Name,
-		Agent:     review.Agent,
-		Round:     round.Number,
-		Abandoned: review.State == store.StateAbandoned,
-		Note:      paragraphs(round.Note),
-		Waiting:   render.Age(now, round.Created),
+		Title:       review.Title,
+		Project:     project.Name,
+		ProjectHref: projectHref(project.ID),
+		Agent:       review.Agent,
+		Round:       round.Number,
+		Abandoned:   review.State == store.StateAbandoned,
+		Note:        paragraphs(round.Note),
+		Waiting:     render.Age(now, round.Created),
 	}
 
 	decision, err := s.db.s.Decision(ctx, round.ID)
@@ -207,7 +229,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return reviewPage{}, err
 	}
-	moved, err := s.compare(ctx, project.Root, review, round, wholeReview)
+	moved, before, after, err := s.compare(ctx, project.Root, review, round, wholeReview)
 	if err != nil {
 		return reviewPage{}, err
 	}
@@ -220,6 +242,11 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		view.Against = &againstControl{Previous: fmt.Sprintf("Since round %d", round.Number-1), Base: wholeReview}
 	}
 	current := round.Number == review.LatestRound
+	against := url.Values{}
+	if wholeReview {
+		against.Set("against", "base")
+	}
+	view.AllFiles = withQuery(roundHref(review.ID, round.Number, current)+"/files/", against)
 	if current {
 		if view.Earlier, err = s.earlierRounds(ctx, review, now); err != nil {
 			return reviewPage{}, err
@@ -228,6 +255,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
+	// lastOld is the old side of the last document shown, which decides the
+	// fresh layout when it is the only file.
+	var lastOld []byte
 	for _, m := range moved {
 		if !store.Covers(review.Paths, m.Path) {
 			continue
@@ -236,12 +266,40 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		added += m.Result.Added
 		removed += m.Result.Removed
 		byPath[m.Path] = len(view.Shown)
-		view.Shown = append(view.Shown, fileView{
+		at := fileAt{review: review, round: round, current: current, wholeReview: wholeReview, path: m.Path}
+		file := fileView{
 			Path:    m.Path,
 			Added:   thousands(m.Result.Added),
 			Removed: thousands(m.Result.Removed),
-			Diff:    render.Diff(m.Path, m.Result),
-		})
+			Whole:   at.href(m.Path),
+		}
+		// The result's flags cover the line limit as well as the byte limit,
+		// and a document past either shows the too-large line. Each block
+		// starts a line of its own, so that is also what keeps the block
+		// comparison under its own limit, past which a document would show
+		// with nothing marked.
+		if !at.markdown() || m.Result.Binary || m.Result.TooLarge {
+			file.Diff = render.Diff(m.Path, m.Result)
+			view.Shown = append(view.Shown, file)
+			continue
+		}
+		old, _, err := before.Side(ctx, m.Path)
+		if err != nil {
+			return reviewPage{}, err
+		}
+		content, _, err := after.Side(ctx, m.Path)
+		if err != nil {
+			return reviewPage{}, err
+		}
+		// Two documents on one page could repeat a heading id, so a card
+		// writes none, and a fragment link goes to the document's own page.
+		doc := at.page()
+		doc.HeadingIDs = false
+		file.IsDocument = true
+		file.Document = render.Document(old, content, doc)
+		file.RawDiff = at.viewHref("source")
+		lastOld = old
+		view.Shown = append(view.Shown, file)
 	}
 	open := files <= maxOpenFiles && added+removed <= maxOpenLines
 	for i := range view.Shown {
@@ -249,6 +307,11 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	view.Files = count(files, "file", "files")
 	view.Added, view.Removed = thousands(added), thousands(removed)
+	// One new document on its own reads as a document, with nothing marked
+	// and no card around it: marking every passage marks none.
+	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
+		view.Fresh = &view.Shown[0]
+	}
 
 	batched := 0
 	for _, c := range comments {
@@ -260,7 +323,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		if c.Reply != "" {
 			view.Replies = append(view.Replies, commentView{Where: card.Where, Body: c.Reply})
 		}
-		if i, ok := byPath[c.Path]; ok && current {
+		// The fresh layout has no card to hold a file's comments, so they
+		// join the review's own.
+		if i, ok := byPath[c.Path]; ok && current && view.Fresh == nil {
 			view.Shown[i].Comments = append(view.Shown[i].Comments, card)
 			continue
 		}
@@ -319,24 +384,28 @@ func verdictText(v store.Verdict) string {
 // compare diffs a round against the previous one, or against its base for the
 // whole review and on a first round. It is the comparison the round's stored
 // size was summed from, so the page's totals and the queue's agree.
-func (s *Server) compare(ctx context.Context, root string, review store.Review, round store.Round, wholeReview bool) ([]capture.Moved, error) {
+//
+// It returns the two readers as well, so a document reads its sides through
+// the object ids the comparison already loaded in one batch.
+func (s *Server) compare(ctx context.Context, root string, review store.Review, round store.Round, wholeReview bool) ([]capture.Moved, *capture.Reader, *capture.Reader, error) {
 	current, err := s.roundFiles(ctx, round.ID)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	var previous []store.File
 	if round.Number > 1 && !wholeReview {
 		before, err := s.db.s.Round(ctx, review.ID, round.Number-1)
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 		if previous, err = s.roundFiles(ctx, before.ID); err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 	}
 	before := capture.NewReader(root, round.BaseCommit, s.blobs, previous)
 	now := capture.NewReader(root, round.BaseCommit, s.blobs, current)
-	return capture.Compare(ctx, before, now)
+	moved, err := capture.Compare(ctx, before, now)
+	return moved, before, now, err
 }
 
 // roundFiles is a round's capture as the reader takes it.

@@ -124,6 +124,11 @@ func Test_schemaRejectsBadRows(t *testing.T) {
 			want: "CHECK",
 		},
 		{
+			name: "project flagged neither inside a checkout nor outside one",
+			sql:  "INSERT INTO projects (root, name, created, inside_checkout) VALUES ('/tmp/other', 'other', :at, 2)",
+			want: "CHECK",
+		},
+		{
 			name: "project root reused",
 			sql:  "INSERT INTO projects (root, name, created) VALUES ('/tmp/project', 'again', :at)",
 			want: "UNIQUE",

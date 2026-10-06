@@ -15,7 +15,21 @@ const (
 	roleComment  = "c"
 	roleNumber   = "n"
 	roleFunction = "f"
+	// classBlk is a document's block, and classChanged marks one.
+	classBlk     = "blk"
+	classChanged = "changed"
+	// classWas is a removed run with nothing in its place, and classWasText
+	// the text of one block it replaced.
+	classWas     = "was"
+	classWasText = "was-text"
+	// classHint is small faint text: a block's cue, and an HTML block's
+	// placeholder.
+	classHint = "hint"
+	// classCueShow and classCueHide are what a tap on a block holding
+	// replaced text does, closed and open.
+	classCueShow = "cue-show"
+	classCueHide = "cue-hide"
 )
 
 // Classes is every class render chooses at runtime.
-var Classes = []string{classAdd, classDel, classMark, roleKeyword, roleString, roleComment, roleNumber, roleFunction}
+var Classes = []string{classAdd, classDel, classMark, roleKeyword, roleString, roleComment, roleNumber, roleFunction, classBlk, classChanged, classWas, classWasText, classHint, classCueShow, classCueHide}

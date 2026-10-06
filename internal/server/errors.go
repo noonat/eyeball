@@ -108,6 +108,17 @@ var mappings = []mapping{
 		fix:    "name paths inside the project, relative to the directory the command ran in",
 	},
 	{
+		// An error carrying it is marked ErrNotFound as well, so the
+		// capture.ErrNotFound row, earlier in this table, answers it first,
+		// with the same status. The row is here because every sentinel needs
+		// one.
+		name:   "capture.ErrRulesUnreadable",
+		err:    capture.ErrRulesUnreadable,
+		status: http.StatusNotFound,
+		code:   api.CodeNotFound,
+		fix:    "read eyeball.log in the state directory to see why git could not say what it ignores",
+	},
+	{
 		name:   "capture.ErrTooManyFiles",
 		err:    capture.ErrTooManyFiles,
 		status: http.StatusUnprocessableEntity,

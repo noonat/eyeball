@@ -1,0 +1,8 @@
+{{define "treepage"}}<div class="scroll"><div class="page">
+<div class="crumb"><span class="i i-folder" aria-hidden="true"></span>{{with .Dir}}<span class="dir"><bdi>{{.}}</bdi></span>{{end}}<span class="name">{{.Name}}</span></div>
+{{range .Notices}}{{template "notice" .}}{{end}}{{if .Rows}}<div class="tree">
+{{range .Rows}}<a class="treerow{{if .Indent}} indent{{end}}{{if .InScope}} inscope{{end}}" href="{{.Href}}">{{if .Dir}}<span class="i i-folder" aria-hidden="true"></span><span class="nm">{{.Name}}</span><span class="i i-chevron-right" aria-hidden="true"></span>{{else}}<span class="i i-file-text" aria-hidden="true"></span><span class="nm">{{.Name}}</span>{{if or .Added .Removed}}<span class="counts">{{with .Added}}<span class="plus">+{{.}}</span>{{end}}{{if and .Added .Removed}} {{end}}{{with .Removed}}<span class="minus">&minus;{{.}}</span>{{end}}</span>{{end}}{{end}}</a>
+{{end}}</div>
+{{else}}<div class="empty"><p class="headline">Nothing here</p><p>{{.Empty}}</p></div>
+{{end}}</div></div>
+{{end}}

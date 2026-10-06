@@ -149,6 +149,37 @@ func TestStore_EnsureProject(t *testing.T) {
 	g.Expect(errors.Is(err, ErrInvalidPath)).To(BeTrue())
 }
 
+func TestStore_MarkInsideCheckout(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	p := ensureProject(g, t, s)
+	other, err := s.EnsureProject(t.Context(), "/tmp/other", "other")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(p.InsideCheckout).To(BeFalse())
+
+	// Marking twice leaves it set. A second sighting is the common case, since
+	// every request in the project writes it.
+	g.Expect(s.MarkInsideCheckout(t.Context(), p.ID)).To(Succeed())
+	g.Expect(s.MarkInsideCheckout(t.Context(), p.ID)).To(Succeed())
+
+	// Every read that fills a Project reads the column, EnsureProject
+	// included, because it returns the row from its own SELECT.
+	byID, err := s.Project(t.Context(), p.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(byID.InsideCheckout).To(BeTrue())
+	byRoot, err := s.ProjectByRoot(t.Context(), p.Root)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(byRoot.InsideCheckout).To(BeTrue())
+	again, err := s.EnsureProject(t.Context(), p.Root, "")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(again.InsideCheckout).To(BeTrue())
+
+	// Only the project named.
+	untouched, err := s.Project(t.Context(), other.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(untouched.InsideCheckout).To(BeFalse())
+}
+
 func TestStore_OpenReview(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)

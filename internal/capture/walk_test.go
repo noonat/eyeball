@@ -75,6 +75,11 @@ func TestWalk_nestedRepository(t *testing.T) {
 	got, err := Walk(t.Context(), dir, []string{"docs"})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(Equal([]Entry{{Path: "docs/a.md"}}))
+
+	// Named directly, a file inside that repository's own directory is
+	// refused rather than captured.
+	_, err = Walk(t.Context(), dir, []string{"docs/.git/HEAD"})
+	g.Expect(errors.Is(err, ErrNoSuchPath)).To(BeTrue())
 }
 
 func TestWalk_skipsWhatCannotBeRead(t *testing.T) {

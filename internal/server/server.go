@@ -198,6 +198,26 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /reviews/{review}/files/{path...}",
+		handle:  (*Server).handleFilePage,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /reviews/{review}/rounds/{round}/files/{path...}",
+		handle:  (*Server).handleRoundFilePage,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /projects/{project}",
+		handle:  (*Server).handleProjectPage,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /projects/{project}/files/{path...}",
+		handle:  (*Server).handleProjectFilePage,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /healthz",
 		handle:  (*Server).handleHealthz,
 	},

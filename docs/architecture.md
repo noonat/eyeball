@@ -354,9 +354,10 @@ Routes, with the spec that builds each:
 | `GET /{$}`                                             | the queue                                     | 006  |
 | `GET /reviews/{review}`                                | the current round                             | 006  |
 | `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
-| `GET /reviews/{review}/files/{path...}`                | a file, at the current round                  | 007  |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file, at that round                         | 007  |
+| `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round   | 007  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round          | 007  |
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
+| `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
 | `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
 | `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
@@ -537,21 +538,21 @@ closes.
 
 ## Dependencies
 
-| Dependency                              | Why                                                               |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| `github.com/alecthomas/chroma/v2`       | syntax highlighting, server side                                  |
-| `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads       |
-| `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                     |
-| `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
-| `github.com/onsi/gomega` (test)         | assertions                                                        |
-| `github.com/SherClockHolmes/webpush-go` | push payload encryption                                           |
-| `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                |
-| `github.com/yuin/goldmark`              | markdown                                                          |
-| `golang.org/x/net/html` (test)          | tokenizing the tearouts                                           |
-| `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires     |
-| `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                    |
-| `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                        |
-| `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate    |
+| Dependency                              | Why                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| `github.com/alecthomas/chroma/v2`       | syntax highlighting, server side                                      |
+| `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads           |
+| `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                         |
+| `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working     |
+| `github.com/onsi/gomega` (test)         | assertions                                                            |
+| `github.com/SherClockHolmes/webpush-go` | push payload encryption                                               |
+| `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                    |
+| `github.com/yuin/goldmark`              | markdown with GFM's tables and task lists, which specs are written in |
+| `golang.org/x/net/html` (test)          | tokenizing the tearouts, and parsing rendered pages                   |
+| `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires         |
+| `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                        |
+| `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
+| `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.

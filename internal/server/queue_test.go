@@ -72,7 +72,7 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)
 	eyeball := q.project(g, t, "/home/a/src/eyeball", "eyeball")
-	q.project(g, t, "/srv/field-notes", "field-notes")
+	fieldNotes := q.project(g, t, "/srv/field-notes", "field-notes")
 	harbor := q.project(g, t, "/home/a/src/harbor", "harbor")
 	working := q.open(g, t, eyeball, "one", "first", "a")
 	q.decide(g, t, working, store.VerdictChanges)
@@ -100,16 +100,17 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 
 	projects := findAll(find(doc, "section"), hasClass("row"))
 	type shape struct {
-		Project, Activity, Root string
+		Element, Href, Project, Activity, Root string
 	}
 	var got []shape
 	for _, p := range projects {
-		got = append(got, shape{Project: text(find(p, "project")), Activity: text(find(p, "age")), Root: text(find(p, "agent"))})
+		got = append(got, shape{Element: p.Data, Href: attr(p, "href"), Project: text(find(p, "project")), Activity: text(find(p, "age")), Root: text(find(p, "agent"))})
 	}
+	// Each row is a link to its project's view.
 	g.Expect(got).To(Equal([]shape{
-		{Project: "eyeball", Activity: "2 agents", Root: "~/src/eyeball"},
-		{Project: "field-notes", Activity: "Idle", Root: "/srv/field-notes"},
-		{Project: "harbor", Activity: "1 agent", Root: "~/src/harbor"},
+		{Element: "a", Href: projectHref(eyeball), Project: "eyeball", Activity: "2 agents", Root: "~/src/eyeball"},
+		{Element: "a", Href: projectHref(fieldNotes), Project: "field-notes", Activity: "Idle", Root: "/srv/field-notes"},
+		{Element: "a", Href: projectHref(harbor), Project: "harbor", Activity: "1 agent", Root: "~/src/harbor"},
 	}))
 }
 

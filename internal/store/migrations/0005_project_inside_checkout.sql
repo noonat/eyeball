@@ -1,0 +1,15 @@
+-- Whether a .git entry has ever been seen at or above a project root that holds
+-- a marker file. It is set and never cleared.
+--
+-- A marker project inside a checkout reads the outer repository's ignore rules.
+-- Once that repository's .git is moved away, its working files stay behind and
+-- nothing on the disk says a repository was ever there, so the project would
+-- read as one with no ignore rules at all and serve its ignored files live.
+-- This column is what remembers that it sat inside a checkout, and its live
+-- reads are refused from then on.
+--
+-- There is no backfill. Whether an existing project sat inside a checkout was
+-- never recorded and cannot be recovered, so a row written before this
+-- migration reads 0 until a request or a page view sees a .git at or above its
+-- root. An outer .git moved away before then is not caught.
+ALTER TABLE projects ADD COLUMN inside_checkout INTEGER NOT NULL DEFAULT 0 CHECK (inside_checkout IN (0, 1));
