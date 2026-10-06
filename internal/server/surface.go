@@ -3,7 +3,9 @@ package server
 import (
 	"bytes"
 	"crypto/subtle"
+	"io/fs"
 	"net/http"
+	"path"
 
 	"github.com/noonat/eyeball"
 )
@@ -242,4 +244,52 @@ func setSurfaceHeaders(h http.Header) {
 	// page's origin, the tailnet's machine name, under its default policy. One
 	// header covers every link on every page.
 	h.Set("Referrer-Policy", "no-referrer")
+}
+
+// handleWorker serves the service worker at the root, so its scope is the
+// whole surface.
+func (s *Server) handleWorker(w http.ResponseWriter, _ *http.Request) error {
+	js, err := eyeball.Worker()
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	_, _ = w.Write(js)
+	return nil
+}
+
+// handleIcon serves one of the installed page's icons.
+func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) error {
+	data, err := fs.ReadFile(eyeball.Icons, "web/static/icons/"+path.Base(r.PathValue("name")))
+	if err != nil {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	w.Header().Set("Content-Type", "image/png")
+	_, _ = w.Write(data)
+	return nil
+}
+
+// manifest is what makes the page installable: its name, where it opens, and
+// its icons. The colors are app.css's light background and accent.
+const manifest = `{
+  "name": "eyeball",
+  "short_name": "eyeball",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf8",
+  "theme_color": "#fbfaf8",
+  "icons": [
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
+`
+
+// handleManifest serves the web app manifest.
+func (s *Server) handleManifest(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "application/manifest+json")
+	_, _ = w.Write([]byte(manifest))
+	return nil
 }

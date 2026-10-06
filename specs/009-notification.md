@@ -195,17 +195,33 @@ required_acks:
 
 ## Iteration 2: Installable
 
-- [ ] `GET /manifest.webmanifest` with the name, start URL, standalone display,
+- [x] `GET /manifest.webmanifest` with the name, start URL, standalone display,
       colors and icons, linked from the layout with the apple-touch-icon
-- [ ] `tool/appicon` rendering the 180, 192 and 512 pixel icons from an HTML
+- [x] `tool/appicon` rendering the 180, 192 and 512 pixel icons from an HTML
       page with headless Chromium, and the icons committed and served
-- [ ] `web/ts/sw.ts` built as a second entry and served at `/sw.js`, handling
+- [x] `web/ts/sw.ts` built as a second entry and served at `/sw.js`, handling
       push and notificationclick only, under `web/tsconfig.sw.json`
-- [ ] `make lint` running tsc over both configurations
-- [ ] The page registering the worker, with a browser test that it is registered
+- [x] `make lint` running tsc over both configurations
+- [x] The page registering the worker, with a browser test that it is registered
       and that the manifest is served with its icons
-- [ ] architecture.md's listeners section recording the owner's answer on
+- [x] architecture.md's listeners section recording the owner's answer on
       tailnet writes, and the routes table gaining the new routes
+
+**Departures, iteration 2.**
+
+- The manifest is a constant in Go rather than a file under `web/`, since it
+  holds nothing but the name, the colors and the icons' addresses, and the test
+  parses what the route answers.
+- The layout also carries `apple-mobile-web-app-capable`, which older iOS reads
+  before the manifest's `display`.
+- `web/ts/sw.ts` is a module through its exported `Payload` interface, so its
+  declaration of `self` narrows the worker's global rather than colliding with
+  it. oxlint's type-aware pass did not resolve the worker library's
+  `PushMessageData`, so the parser takes the structural `{ json(): unknown }`.
+  oxlint runs twice, once per configuration, the page's pass ignoring the
+  worker.
+- The icon is drawn full bleed, without the badge icon's rounded corners, since
+  iOS and Android mask an icon to their own shape.
 
 ## Iteration 3: Subscriptions
 

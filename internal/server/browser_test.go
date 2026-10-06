@@ -411,6 +411,19 @@ func TestServer_Surface_browserStream(t *testing.T) {
 	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(BeNil())
 }
 
+// The page registers its service worker, scoped to the whole surface, which
+// push needs.
+func TestServer_Surface_browserWorker(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `navigator.serviceWorker.getRegistration().then(r => !!r && !!r.active)`)
+	g.Expect(b.eval(g, `navigator.serviceWorker.getRegistration().then(r => r.scope)`)).To(Equal(srv.URL + "/"))
+}
+
 // comments reads a round's comments.
 func (f *fixture) comments(g *WithT, t *testing.T, roundID int64) []store.Comment {
 	g.THelper()

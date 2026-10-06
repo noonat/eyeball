@@ -288,6 +288,51 @@ func TestServer_Surface_htmxConfig(t *testing.T) {
 	g.Expect(config.ResponseHandling[3].Error).To(HaveValue(BeTrue()))
 }
 
+// The page is installable: the layout links a manifest naming icons that are
+// served, and the service worker is served at the root, so its scope is the
+// whole surface.
+func TestServer_Surface_installable(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	surface := f.s.Surface()
+	doc := f.page(g, "/", http.StatusOK)
+	links := map[string]string{}
+	for _, l := range findAll(doc, isElement("link")) {
+		links[attr(l, "rel")] = attr(l, "href")
+	}
+	g.Expect(links).To(HaveKeyWithValue("manifest", "/manifest.webmanifest"))
+	g.Expect(links).To(HaveKeyWithValue("apple-touch-icon", "/static/icons/icon-180.png"))
+
+	res := serveSurface(surface, http.MethodGet, "/manifest.webmanifest")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(Equal("application/manifest+json"))
+	var m struct {
+		Name    string `json:"name"`
+		Start   string `json:"start_url"`
+		Display string `json:"display"`
+		Icons   []struct {
+			Src   string `json:"src"`
+			Sizes string `json:"sizes"`
+		} `json:"icons"`
+	}
+	g.Expect(json.Unmarshal(res.Body.Bytes(), &m)).To(Succeed())
+	g.Expect([]string{m.Name, m.Start, m.Display}).To(Equal([]string{"eyeball", "/", "standalone"}))
+	g.Expect(m.Icons).To(HaveLen(2))
+	icons := []string{m.Icons[0].Src, m.Icons[1].Src, links["apple-touch-icon"]}
+	for _, src := range icons {
+		res := serveSurface(surface, http.MethodGet, src)
+		g.Expect(res.Code).To(Equal(http.StatusOK), src)
+		g.Expect(res.Header().Get("Content-Type")).To(Equal("image/png"))
+		g.Expect(res.Body.Bytes()[:4]).To(Equal([]byte("\x89PNG")))
+	}
+	g.Expect(serveSurface(surface, http.MethodGet, "/static/icons/nope.png").Code).To(Equal(http.StatusNotFound))
+
+	res = serveSurface(surface, http.MethodGet, "/sw.js")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/javascript"))
+	g.Expect(res.Body.String()).To(ContainSubstring("notificationclick"))
+}
+
 func TestServer_Surface_keepsAHandlersOwn404(t *testing.T) {
 	g := NewWithT(t)
 	// No surface route answers 404 of its own yet, so one is added for the

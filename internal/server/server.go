@@ -273,6 +273,21 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /manifest.webmanifest",
+		handle:  (*Server).handleManifest,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /sw.js",
+		handle:  (*Server).handleWorker,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/icons/{name}",
+		handle:  (*Server).handleIcon,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /static/htmx.js",
 		handle:  (*Server).handleHtmx,
 	},

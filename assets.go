@@ -36,3 +36,9 @@ var Scripts embed.FS
 //
 //go:embed web/vendor/htmx.min.js
 var Htmx []byte
+
+// Icons is web/static/icons, the installed page's icons, which tool/appicon
+// renders and commits.
+//
+//go:embed web/static/icons
+var Icons embed.FS

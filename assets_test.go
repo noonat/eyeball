@@ -40,7 +40,14 @@ func Test_scriptClassesAreInTheStylesheet(t *testing.T) {
 
 func TestBundle(t *testing.T) {
 	g := NewWithT(t)
-	out, err := build()
+	out, err := build("web/ts/main.ts")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(string(out)).To(ContainSubstring("prefers-color-scheme"))
+}
+
+func TestWorker(t *testing.T) {
+	g := NewWithT(t)
+	out, err := Worker()
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(out)).To(ContainSubstring("notificationclick"))
 }
