@@ -355,10 +355,29 @@ list of screens; the owner runs `eyeball tailnet login` at a terminal, installs
 the page, grants permission, and checks each screen. `phone-checked` is given
 only by the owner.
 
-- [/] The owner joining the tailnet with `eyeball tailnet login`
-- [/] The page installed to the home screen and permission granted from the
-  queue's steps
-- [/] A request from an agent arriving as a notification on the locked phone,
-  opening its round, with the badge counting what waits
+- [x] The owner joining the tailnet with `eyeball tailnet login`
+- [x] The page installed to the home screen and permission granted from the
+      queue's steps
+- [x] A request from an agent arriving as a notification on the locked phone,
+      opening its round, with the badge counting what waits
 - [/] Every screen checked on the phone, the page shell 006 added in `shell.css`
   included, and what was found recorded in this spec
+
+**What iteration 6 found, on 2026-10-06.**
+
+- The owner joined the tailnet with `eyeball tailnet login`, and the daemon
+  served the surface at its `ts.net` address. The page installed to the home
+  screen, Allow subscribed it with Apple's push service, and the steps went.
+- A request reached the phone and the owner's Apple Watch as a notification.
+- With the app closed and the phone locked, a tap opened the review's round.
+  With the app open on the queue, a tap left it on the queue: iOS gives an
+  installed app one window, and `openWindow` only brought it forward. Fixed in
+  2221191: the worker navigates the open window to the round, claims open
+  windows on activating, and a new version activates at once. Tested again on
+  the phone, a tap with the app open landed on the round.
+- The badge counted the reviews waiting, and opening the app left it as it was,
+  which is right while those reviews wait.
+- The owner asked for a margin between the setup notice and the first step, as
+  between the steps, and for "Eyeball" as the installed app's name and in the
+  page title, with the wordmark staying lowercase. Fixed in a79c36c. iOS keeps
+  the name an icon was added with until it is added again.
