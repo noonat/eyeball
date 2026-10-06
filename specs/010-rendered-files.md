@@ -360,10 +360,26 @@ real one in iteration 8.
 
 ## Iteration 7: Seeded
 
-- [ ] `tool/seed` gaining a review with an image changed, added and deleted, an
+- [x] `tool/seed` gaining a review with an image changed, added and deleted, an
       SVG, audio, video, a PDF, an HTML page with a stylesheet beside it, a file
       past the send limit, and a binary file
-- [ ] A view override on the HTML page in the seeded round
+- [x] A view override on the HTML page in the seeded round
+
+**Departures, iteration 7.**
+
+- The seeded review is in a fifth project, `status-page`. Its images, the WAV
+  and the PDF are made by the seed in Go. The MP4 is three seconds of ffmpeg's
+  test pattern, committed at 17 kB under `tool/seed/testdata`, since a real
+  video is the only way to see one play and the build must not need ffmpeg.
+- Seen at 390 pixels in Chromium, a 48 pixel icon is stretched to the card's
+  width and reads as pixelated. Whether a small image should show at its own
+  size instead is put to the owner in iteration 8.
+
+> **Completed** 2026-10-06 23:16 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.1s
+> - `go test -race ./...` — 32.3s
 
 ## Iteration 8: On the phone
 
