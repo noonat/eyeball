@@ -1012,6 +1012,40 @@ fifteen, two, two and thirty days.
   path is the line tap's with other fields.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Iteration 6, the review of everything since d8b5b6d.** The driving agent read
+007 and 008's first five iterations as one change, looking for what spans them,
+with the `review:` entry's list as its start.
+
+- Fixed in 40e0f4c: the review page answered 500 once a project's repository was
+  gone, its root was missing, or its base commit was no longer readable. 006
+  built the page before 007's `capture.Inspect` existed, 007 handled those
+  states on the file pages only, and 008 put the bar on the review page, so the
+  failure had become one that stopped a review from being decided. The page now
+  asks `Inspect` first, and where nothing can be compared it shows the files the
+  review changes as the round captured them, without counts, under a warning
+  naming the reason. The bar and the composer stay. A probe deleting a review's
+  `.git` answered 500 before the fix and 200 after it.
+- Fixed in iteration 5, and recorded there: htmx's settle delay let a form
+  tapped right after a swap submit natively and lose its text.
+- Left, with the reason: the review page still compares through
+  `capture.NewReader`. Its readers are read through `Side`, which reads only the
+  capture and the base, never the working copy, so the refusals `State.Reader`
+  adds for live reads do not apply. `Inspect` now decides whether the comparison
+  runs at all.
+- Left, with the reason: the server's quote of a comment's lines does not write
+  the inside-checkout flag that the file, tree and project routes write. It
+  reads only frozen content, and the flag guards live reads, which the next page
+  view of the project writes it for.
+- Checked, with nothing found: every write resolves its round or comment within
+  the review its address names; every address a page builds is numeric or passes
+  `escapePath`; a composer's path travels in a hidden field that `html/template`
+  escapes; list and slot ids are hashes of the path; a removed row's quote reads
+  the side the page's `against` names; banner reasons are still chosen by
+  `errors.Is`; the loopback token reaches no log line or request line;
+  `http.CrossOriginProtection` is outermost on both listeners; and every
+  fragment is rendered from a clone of the template set, as pages are, so no
+  execution touches the shared one.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1298,12 +1332,12 @@ Who does what:
 An ack only the owner gives, as `phone-approved` is, was the alternative. It
 would hold the run on testing the owner chose not to block on.
 
-- [ ] A review of everything since d8b5b6d, run after iteration 5 closes, with
+- [x] A review of everything since d8b5b6d, run after iteration 5 closes, with
       its findings recorded in this spec
-- [ ] Each finding fixed in its own reviewed commit or entered in specs/TODO.md
+- [x] Each finding fixed in its own reviewed commit or entered in specs/TODO.md
       with its reason
-- [ ] specs/TODO.md's `review:` entry removed once the review has run
-- [ ] The owner told that the loop is ready to try on the loopback listener,
+- [x] specs/TODO.md's `review:` entry removed once the review has run
+- [x] The owner told that the loop is ready to try on the loopback listener,
       with the command to run and the address to open
 
 ## Iteration 7: Passages

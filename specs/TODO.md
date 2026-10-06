@@ -40,19 +40,6 @@ requirement in either document that none of them names is a gap in this list.
 
 ## Unscheduled
 
-- [ ] review: a whole-branch review of everything since d8b5b6d (the 006 merge),
-      the last point reviewed as a whole. It runs as 008's iteration 6, once
-      iteration 5 closes and before the owner tries the loop on the loopback
-      listener. Each spec's iterations were reviewed one at a time; this review
-      looks for what spans them. In 006 the whole-branch review found a template
-      race and a nil dereference in tsnet's `Close` that no iteration review
-      saw. Per spec:
-  - 007: every route builds its reader through `capture.State.Reader`, except
-    the review page, which still uses `NewReader`; the inside-checkout flag read
-    and written the same way on the file, tree and project routes; every href
-    escaped per segment; `against` carried on every link; the banner and notice
-    reasons chosen by `errors.Is` across file, tree and project pages; `Locate`,
-    `List` and `ReadWorkingCopy` agreeing on what a path is.
 - [ ] design: a tearout for the comment composer's line-range selection on a
       touch screen. The open question in product.md is whether ranges are worth
       the interaction cost at all.
