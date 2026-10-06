@@ -223,6 +223,12 @@ required_acks:
 - The icon is drawn full bleed, without the badge icon's rounded corners, since
   iOS and Android mask an icon to their own shape.
 
+> **Completed** 2026-10-06 18:38 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.0s
+> - `go test -race ./...` — 26.8s
+
 ## Iteration 3: Subscriptions
 
 - [ ] Migration `0007`: the `vapid` table and the `subscriptions` table, with a
