@@ -58,6 +58,10 @@ type Server struct {
 	stopping     chan struct{}
 	stoppingOnce sync.Once
 
+	// pushes counts the notifications being sent, which shutdown waits for
+	// within its grace.
+	pushes sync.WaitGroup
+
 	// vapidMu guards vapidKey, the public key read from the store on first
 	// use and kept, since it never changes once made.
 	vapidMu  sync.Mutex

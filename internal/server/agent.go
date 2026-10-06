@@ -330,6 +330,7 @@ func (s *Server) firstRound(ctx context.Context, c caller, body api.RequestBody)
 	if err != nil {
 		return api.RequestResult{}, s.explainClaim(ctx, c, err)
 	}
+	s.notify(review, round)
 	return s.requestResult(ctx, review, round)
 }
 
@@ -381,6 +382,7 @@ func (s *Server) nextRound(ctx context.Context, c caller, body api.RequestBody) 
 		return api.RequestResult{}, err
 	}
 	review.LatestRound = round.Number
+	s.notify(review, round)
 	return s.requestResult(ctx, review, round)
 }
 

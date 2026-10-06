@@ -257,15 +257,30 @@ required_acks:
 
 ## Iteration 4: Sending
 
-- [ ] A request sending one push to every active subscription, from a goroutine
+- [x] A request sending one push to every active subscription, from a goroutine
       after the answer, with the title, body, round URL and waiting count,
       tested against an `httptest` push service
-- [ ] A 404 or 410 marking the subscription lapsed, and a 500 leaving it active,
+- [x] A 404 or 410 marking the subscription lapsed, and a 500 leaving it active,
       each with a row
-- [ ] No push for a comment or a verdict, with a test
-- [ ] A hung push service not delaying the request's answer, and shutdown
+- [x] No push for a comment or a verdict, with a test
+- [x] A hung push service not delaying the request's answer, and shutdown
       waiting for pushes in flight up to the grace
-- [ ] No push at all from a daemon with no tailnet address
+- [x] No push at all from a daemon with no tailnet address
+
+**Departures, iteration 4.**
+
+- Pushes go to every active subscription in turn from one goroutine per request,
+  each with its own ten-second timeout, rather than one goroutine per
+  subscription. One reviewer has a device or two, and a single goroutine keeps a
+  lapse marked before the next push is tried.
+- A push service holds a notification for a device that is off for a day, the
+  TTL, since a review asked for overnight still waits in the morning. The
+  urgency is high, so a phone in low-power mode still shows it.
+- The notification's body is the project and the round, "harbor · Round 2", and
+  its address is relative to the surface, which the worker opens against its own
+  origin.
+- The daemon's shutdown waits for pushes in flight alongside the listeners,
+  within the same grace.
 
 ## Iteration 5: First run on the page
 
