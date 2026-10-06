@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-04T00:00:00Z
-updated: 2026-10-06T20:04:19.214531383Z
+updated: 2026-10-05T06:55:07.268014622Z
 required_acks:
   - reviewed
 required_commands:

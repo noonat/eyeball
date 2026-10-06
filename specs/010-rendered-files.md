@@ -269,6 +269,12 @@ browser's PDF viewer keeps a document's script away from the page is assumed.
 - [x] product.md's command list naming `--view`
 - [x] Tests: each refusal, a stored view, and a next round not inheriting it
 
+> **Completed** 2026-10-06 20:05 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.1s
+> - `go test -race ./...` — 2.7s
+
 ## Iteration 4: The tearouts for rendered files
 
 ```backlog
