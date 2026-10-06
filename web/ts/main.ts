@@ -6,6 +6,7 @@ import {
 } from "./composer";
 import { reportFailures } from "./failures";
 import { followStream } from "./stream";
+import { catchFailedSaves } from "./unsent";
 import { followTheme } from "./theme";
 import { sendToken, takeToken } from "./token";
 
@@ -21,6 +22,7 @@ keyComments();
 openComposers();
 settleComposers();
 guardVerdicts();
+catchFailedSaves();
 // The stream reads the page's stamp, which is in the body, and the bundle runs
 // in the head before the body is parsed.
 document.addEventListener("DOMContentLoaded", followStream);

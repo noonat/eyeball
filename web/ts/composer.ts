@@ -150,7 +150,7 @@ const threadGroup = "tr.thread, div[id^='thread-']";
 
 // closeAnchored puts an anchored composer's slot back empty and returns what
 // it held.
-function closeAnchored(): string {
+export function closeAnchored(): string {
   const form = document.querySelector<HTMLFormElement>(anchoredForm);
   if (form === null) {
     return "";
@@ -271,19 +271,29 @@ export function settleComposers(): void {
 // updateGuard shows the bar's notice and marks both verdicts unavailable while
 // text is unsaved. A verdict sent then would release the round without that
 // comment.
-function updateGuard(): void {
+export function updateGuard(): void {
   const notice = document.getElementById("unsaved");
   const whyNot = document.getElementById("whynot");
   const held = unsavedText(false);
   const down = isOffline();
+  const unsent = document.querySelectorAll(".comment.unsent").length;
   if (notice) {
     notice.hidden = !held;
+  }
+  const unsentNotice = document.getElementById("unsent");
+  const count = document.getElementById("unsent-count");
+  if (unsentNotice) {
+    unsentNotice.hidden = unsent === 0;
+  }
+  if (count) {
+    count.textContent =
+      unsent === 1 ? "1 comment" : `${String(unsent)} comments`;
   }
   if (whyNot) {
     whyNot.hidden = !down;
   }
   for (const button of document.querySelectorAll("#bar .buttons button")) {
-    if (held || down) {
+    if (held || down || unsent > 0) {
       button.setAttribute("aria-disabled", "true");
     } else {
       button.removeAttribute("aria-disabled");
@@ -310,7 +320,12 @@ export function guardVerdicts(): void {
     updateGuard();
   });
   document.addEventListener("htmx:beforeRequest", (event) => {
-    if (eltOf(event)?.id === "bar" && (unsavedText(false) || isOffline())) {
+    if (
+      eltOf(event)?.id === "bar" &&
+      (unsavedText(false) ||
+        isOffline() ||
+        document.querySelector(".comment.unsent") !== null)
+    ) {
       updateGuard();
       event.preventDefault();
     }

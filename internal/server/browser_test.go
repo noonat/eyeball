@@ -141,6 +141,83 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
+// A comment that cannot be saved becomes an unsent card in its list, Retry
+// stores it once the server is back, Delete drops it, and the verdict waits
+// while any card remains. A verdict that cannot be sent says so in the bar and
+// keeps its note.
+func TestServer_Surface_browserFailedSave(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	round := f.latestRound(g, t, id)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := ln.Addr().String()
+	serve := func(l net.Listener) *http.Server {
+		hs := &http.Server{Handler: f.s.LoopbackSurface(browserToken), ReadHeaderTimeout: 5 * time.Second}
+		go func() { _ = hs.Serve(l) }()
+		return hs
+	}
+	hs := serve(ln)
+	t.Cleanup(func() { _ = hs.Close() })
+	restart := func() {
+		g.THelper()
+		ln, err := net.Listen("tcp", addr)
+		g.Expect(err).NotTo(HaveOccurred())
+		hs = serve(ln)
+		b := hs
+		t.Cleanup(func() { _ = b.Close() })
+	}
+	b := openBrowser(g, t)
+	b.navigate(g, "http://"+addr+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	// A verdict sent while the server is gone says so in the bar and keeps
+	// its note.
+	b.typeInto(g, "#bar textarea", "Close.")
+	g.Expect(hs.Close()).To(Succeed())
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	b.waitFor(g, `!!document.querySelector("#bar .failed")`)
+	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("Close."))
+	b.typeInto(g, "#bar textarea", "")
+	restart()
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+
+	// Two saves made while the server is gone become two cards.
+	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
+	b.typeInto(g, ".page > form.composer textarea", "Overall fine.")
+	g.Expect(hs.Close()).To(Succeed())
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 1`)
+	b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 2`)
+	g.Expect(b.eval(g, `!!document.querySelector("tr.thread form.composer")`)).To(BeFalse(), "the line's composer closed")
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal(""))
+	g.Expect(b.eval(g, `document.getElementById("unsent").hidden`)).To(BeFalse())
+	g.Expect(b.eval(g, `document.getElementById("unsent-count").textContent`)).To(Equal("2 comments"))
+
+	// Back online, Retry stores the line's comment once.
+	restart()
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	b.eval(g, `document.querySelector("tr.thread .comment.unsent [data-retry]").click()`)
+	b.waitFor(g, `document.querySelectorAll("tr.thread .comment:not(.unsent)").length === 1`)
+	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
+	g.Expect(b.eval(g, `document.querySelectorAll(".comment.unsent").length`)).To(BeEquivalentTo(1))
+
+	// The verdict waits while a card remains.
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	time.Sleep(300 * time.Millisecond)
+	_, err = f.store.Decision(t.Context(), round)
+	g.Expect(err).To(MatchError(store.ErrNotFound), "a verdict went out with a comment unsent")
+
+	// Delete drops the other card and sends nothing.
+	b.eval(g, `document.querySelector(".comment.unsent [data-discard]").click()`)
+	g.Expect(b.eval(g, `document.querySelectorAll(".comment.unsent").length`)).To(BeEquivalentTo(0))
+	g.Expect(b.eval(g, `document.getElementById("unsent").hidden`)).To(BeTrue())
+	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
+}
+
 // A passage takes a comment under it, in a document card and in the layout a
 // single new document gets. A tap selects a passage, and only its hint shows
 // what a changed one replaced.

@@ -1,7 +1,8 @@
 {{define "bar"}}<form class="decide" id="bar" hx-post="{{.Action}}" hx-target="this" hx-swap="outerHTML">
 <input type="hidden" name="round" value="{{.Round}}">
 {{if .Refused}}<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
-{{end}}<div id="unsaved" hidden><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
+{{end}}<div id="unsent" hidden><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong><span id="unsent-count">1 comment</span> did not save.</strong> Retry it, or delete it, before deciding.</span></div></div>
+<div id="unsaved" hidden><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
 {{template "tally" .Tally}}<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…">{{.Note}}</textarea>
 <div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
 <div id="whynot" hidden><span class="why-not">A verdict needs eyeball. Both become available when the connection is back.</span></div>

@@ -21,6 +21,11 @@ export function setOffline(down: boolean): void {
 // stored, and with note set, whether the verdict's note does too. The note is
 // not a comment, so it holds back a reload but not a verdict.
 export function unsavedText(note: boolean): boolean {
+  // An unsent card holds text the store does not, so a reload waits for it
+  // too, until drafts are kept across one.
+  if (note && document.querySelector(".comment.unsent") !== null) {
+    return true;
+  }
   const fields = note
     ? "form.composer textarea, #bar textarea"
     : "form.composer textarea";

@@ -1139,6 +1139,25 @@ with the `review:` entry's list as its start.
   `/events`, so no review page ever reloaded; the browser test caught it.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Departures, iteration 11.**
+
+- Only a save that reached no server, timed out, or met a 5xx becomes an unsent
+  card. A 4xx is the server refusing the form, which a retry would meet again,
+  so its text stays in the composer with the server's sentence.
+- The card is cloned from a `<template>` the review page renders on an open
+  round, so its classes are in a template the class check reads, and the client
+  writes none. Its Retry and Delete are anchors with `role="button"` and no
+  `href`, for the reason iteration 10 gave Retry.
+- A card survives a swap that replaces the list it sits in, which another
+  comment's answer does: the client lifts the list's other cards before the swap
+  and puts them into the new list after it.
+- A reload the stream wants waits while an unsent card is on the page, since a
+  card holds text the store does not, until iteration 12 keeps cards across a
+  reload.
+- The edit form's failure, and a failed delete, report through the failure
+  handler iteration 5 built, and have no browser test of their own here.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1578,17 +1597,17 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] A comment whose save fails becoming a dashed `.comment.unsent` card in its
+- [x] A comment whose save fails becoming a dashed `.comment.unsent` card in its
       list holding the form's fields and submission key, with Retry and Delete,
       and the composer closing
-- [ ] Retry sending the same form and key, and Delete removing the card with no
+- [x] Retry sending the same form and key, and Delete removing the card with no
       request
-- [ ] An edit whose save fails keeping its form with the failure line, and a
+- [x] An edit whose save fails keeping its form with the failure line, and a
       failed delete reporting beside its card
-- [ ] The bar's approved notice counting unsent cards, with both verdicts
+- [x] The bar's approved notice counting unsent cards, with both verdicts
       unavailable while any shows
-- [ ] A verdict whose request fails reporting in the bar and keeping its note
-- [ ] Browser tests: two saves with the server down becoming two unsent cards,
+- [x] A verdict whose request fails reporting in the bar and keeping its note
+- [x] Browser tests: two saves with the server down becoming two unsent cards,
       one retried once it returns and stored once, one deleted, and a verdict
       withheld while a card remains
 

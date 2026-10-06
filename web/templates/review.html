@@ -13,7 +13,8 @@
 {{else}}{{with .Decided}}{{if .Approved}}<div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> {{.Sentence}}</span></div>
 {{else}}<div class="notice"><span class="glyph i i-message-square" aria-hidden="true"></span><span><strong>Changes requested.</strong> {{.Sentence}}</span></div>
 {{end}}{{end}}{{end}}{{with .Unmeasurable}}<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span>{{.}} Each file is shown as this round captured it.</span></div>
-{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}{{with .Acting}}{{template "composer" .Composer}}{{template "commentlist" .List}}{{end}}<div class="toolbar">
+{{end}}{{if .Closed}}{{template "discussion" .}}{{end}}{{template "notes" .}}{{with .Acting}}{{template "composer" .Composer}}{{template "commentlist" .List}}{{if .Bar}}<template id="unsent-card"><div class="comment unsent"><div class="anchor"><span class="where"></span></div><p></p><div class="acts"><a role="button" tabindex="0" data-retry><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a role="button" tabindex="0" data-discard><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div></div></template>
+{{end}}{{end}}<div class="toolbar">
 {{with .Fresh}}<span class="counts"><b class="files">1 file, new</b></span>
 <a class="btn small" href="{{.RawDiff}}">Raw diff</a>
 {{else}}{{if .Unmeasurable}}<span class="counts"><b class="files">{{.Files}}</b></span>
