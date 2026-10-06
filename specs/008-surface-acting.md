@@ -1394,6 +1394,12 @@ required_acks:
       the code block's visible width, a composer inside `.prose`, a wrapping
       composer foot, and `button.chip`
 
+> **Completed** 2026-10-06 16:34 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 4.6s
+> - `go test -race ./...` — 25.5s
+
 ## Iteration 8: Comments in place
 
 ```backlog
