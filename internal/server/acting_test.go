@@ -15,6 +15,20 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 )
 
+func Test_dedent(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{in: "\t\tcase <-done:", want: "case <-done:"},
+		{in: "\tif x {\n\t\treturn\n\t}", want: "if x {\n\treturn\n}"},
+		{in: "  a\n\n  b", want: "a\n\nb"},
+		{in: "prose with no indent", want: "prose with no indent"},
+		{in: "\ta\n  b", want: "\ta\n  b"},
+	}
+	for _, c := range cases {
+		g := NewWithT(t)
+		g.Expect(dedent(c.in)).To(Equal(c.want), c.in)
+	}
+}
+
 // Every write is the surface's alone. Sent to the socket's handler, each is a
 // 404 and changes nothing.
 func TestServer_AgentHandler_refusesEveryWrite(t *testing.T) {

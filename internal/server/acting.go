@@ -683,7 +683,7 @@ func cardOf(reviewID int64, c store.Comment, open bool, decided *store.Decision)
 		ID:       c.ID,
 		Href:     fmt.Sprintf("/reviews/%d/comments/%d", reviewID, c.ID),
 		Where:    where(c),
-		Quoted:   c.Quoted,
+		Quoted:   dedent(c.Quoted),
 		Body:     c.Body,
 		Late:     late,
 		Editable: open,
@@ -805,4 +805,43 @@ func plain(w http.ResponseWriter, status int, text string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(text))
+}
+
+// dedent drops the indentation every line of a quote shares, so a quoted line
+// of code reads from its first character rather than wrapping after its tabs.
+// The stored quote keeps it, since the agent is given the text exactly.
+func dedent(s string) string {
+	lines := strings.Split(s, "\n")
+	common := ""
+	first := true
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		lead := l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+		if first || !strings.HasPrefix(lead, common) {
+			common = sharedPrefix(common, lead, first)
+		}
+		first = false
+	}
+	if common == "" {
+		return s
+	}
+	for i, l := range lines {
+		lines[i] = strings.TrimPrefix(l, common)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// sharedPrefix is the longest prefix of a and b, or b alone for the first
+// line seen.
+func sharedPrefix(a, b string, first bool) string {
+	if first {
+		return b
+	}
+	n := 0
+	for n < len(a) && n < len(b) && a[n] == b[n] {
+		n++
+	}
+	return a[:n]
 }

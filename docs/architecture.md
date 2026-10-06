@@ -388,9 +388,15 @@ Routes, with the spec that builds each:
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
 | `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
+| `PUT /reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict      | 008  |
 | `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
+| `GET /reviews/{review}/comments/{comment}`             | a comment's card, or its edit form            | 008  |
 | `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
+| `GET /reviews/{review}/composer`                       | a composer anchored where the query says      | 008  |
+| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a collapsed file card's body, on first open   | 008  |
 | `GET /events`                                          | the live stream, and therefore the connection | 008  |
+| `GET /static/htmx.js`                                  | the vendored htmx, from the binary            | 008  |
+| `GET /static/app.js`                                   | the TypeScript, bundled once from the binary  | 008  |
 | `POST /subscriptions`                                  | a device's push subscription                  | 009  |
 | `GET /static/app.css`                                  | the stylesheet, from the binary               | 006  |
 | `GET /static/shell.css`                                | the page around the app, from the binary      | 006  |
@@ -459,9 +465,9 @@ and the selection exist twice, in the templates and in TypeScript, and can
 disagree. On a tailnet the round trip is a few milliseconds, so there is nothing
 to buy by guessing at the answer locally.
 
-What htmx costs: a vendored dependency, about fourteen kilobytes, and handlers
-that answer with a fragment as well as a page. Template blocks cover the second,
-since the fragment is the block the full page already renders.
+What htmx costs: a vendored dependency, 52 KB as sent, 16 KB gzipped, and
+handlers that answer with a fragment as well as a page. Template blocks cover
+the second, since the fragment is the block the full page already renders.
 
 **This is the decision offline was blocking.** With comments stored on the
 device and drained later, the offline write path had no server to ask, so one
@@ -517,10 +523,13 @@ server-rendered surface does by default when the server is gone. It is a product
 requirement in [product.md](product.md). These are the mechanisms.
 
 **A Server-Sent Events stream is the connection, and its state is the answer.**
-The surface opens `GET /events` and holds it. The daemon writes to it when a
-review changes, so the queue and an open review update without a refresh, which
-is what a surface watching an agent work needs anyway. The stream's `readyState`
-is then not an inference about the connection. It is the connection.
+The surface opens `GET /events` and holds it. The stream sends a stamp of what
+its page shows, recomputed after every change in the store and sent only when it
+moved, and a page whose stamp moved reloads once nothing on it is unsaved. So
+the queue and an open review follow what agents do, and a reader's own comment
+reloads nothing. A page that saved its place and its drafts comes back where it
+was. The stream's `readyState` is then not an inference about the connection. It
+is the connection.
 
 `EventSource` reconnects on its own with backoff, and the daemon sends a comment
 line as a keepalive, so an idle stream is distinguishable from a dead one.
@@ -537,11 +546,14 @@ for an unexpected status, and `htmx:timeout` for a slow one. One handler for all
 three writes the reason beside the element that triggered it. With none of that,
 the swap simply never happens, which looks exactly like a tap that missed.
 
-**While the stream is down, write controls are marked unavailable and say why.**
+**While the stream is down, the verdicts are marked unavailable and say why.**
 That is a stronger claim than reporting failures afterward, and it earns it:
 being told beforehand that a verdict will not go through beats attempting it and
 being told it failed. The read surface stays fully usable, because what is on
-screen is already loaded.
+screen is already loaded. The composer stays live, as the approved connection
+frame draws it: a comment typed while the daemon is gone becomes an unsent card
+with Retry rather than being refused. An earlier version of this paragraph said
+every write control was marked unavailable, which the frame never showed.
 
 **Nothing is rendered while the connection is healthy.** The notice appears on
 loss and disappears on recovery.

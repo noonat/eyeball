@@ -14,27 +14,15 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-1. **008 The surface: acting.** htmx, TypeScript through esbuild with the `tsc`
-   and `oxlint` gates, the comment composer at all four levels, editing and
-   deleting before the verdict, the decision bar and its refusal, the comment
-   box on a decided round, the live stream, the connection notice, a failure
-   reported on the control that failed, a failed save that keeps its text, the
-   theme following the device, file bodies loaded when their disclosure opens,
-   and a review half-read and closed reopening where it was. The verdict route
-   is the surface's alone, and 005's listener test is extended to prove the
-   socket cannot reach it. Any process that can reach a surface listener can
-   then approve a review, including an agent on this machine through the
-   loopback listener. 006 records why reading through it gives a local process
-   nothing it lacks, and 008 has to say the same, or something else, about
-   deciding.
-2. **009 Notification.** Web push with VAPID, the service worker that exists for
+1. **009 Notification.** Web push with VAPID, the service worker that exists for
    it, the manifest and installed page, the first-run steps, the badge count on
    the icon, and the lapsed-subscription state the surface has to report. Its
    last iteration is the owner's: joining the tailnet with
    `eyeball tailnet login`, installing the page, granting permission, and
    checking every screen on the phone, including the page shell 006 added in
-   `shell.css` without a phone.
-3. **010 Rendered files.** `internal/kind`, images before and after, audio,
+   `shell.css` without a phone. It also decides who may write on the tailnet
+   listener, which 008 left open, with tsnet's `WhoIs` in hand.
+2. **010 Rendered files.** `internal/kind`, images before and after, audio,
    video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
    view override on `request`, and a file too large to send.
 

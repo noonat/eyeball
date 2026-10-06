@@ -221,6 +221,18 @@ func (s *seed) write() error {
 	if err := s.next(eyeball, &product, "Both comments from round 1 are done. The widening section now names the control instead of describing the behavior.\n\nStill unsure the compare control needs two settings."); err != nil {
 		return err
 	}
+	// A comment on a passage of round 2, which sits under that passage.
+	if _, err := s.comment(product, store.NewComment{Level: store.LevelPassage, Path: "docs/product.md", StartLine: 5, EndLine: 5, Quoted: "Three steps out, each one control rather than a navigation.", Body: "Name the three steps here, not further down."}); err != nil {
+		return err
+	}
+
+	// The widening diagram: waiting, and only an image, so its review has no
+	// line to tap and takes comments in the review's own box.
+	s.ago(20 * time.Minute)
+	s.edit(eyeball, "docs/widening.png", widening+"\x00redrawn")
+	if _, err := s.open(eyeball, "spec/012-surface", "Widening diagram", []string{"docs/widening.png"}, "Redrawn with the three steps labeled."); err != nil {
+		return err
+	}
 
 	// The queue markup: changes requested four minutes ago.
 	s.ago(time.Hour)
@@ -265,8 +277,22 @@ func (s *seed) write() error {
 	s.ago(61 * time.Minute)
 	s.edit(harbor, "internal/upload/worker.go", workerAfter)
 	s.edit(harbor, "internal/upload/backoff.go", backoffGo)
-	if _, err := s.open(harbor, "feat/upload-retry", "Upload worker and its retry ladder", []string{"internal/upload"}, "The worker retries with backoff now, and gives up when the context ends.\n\nThe backoff numbers are guesses."); err != nil {
+	upload, err := s.open(harbor, "feat/upload-retry", "Upload worker and its retry ladder", []string{"internal/upload"}, "The worker retries with backoff now, and gives up when the context ends.\n\nThe backoff numbers are guesses.")
+	if err != nil {
 		return err
+	}
+	// The open round holds a comment at each level the code offers, so the
+	// page shows a line's row, a file's list and the review's own box filled.
+	s.ago(40 * time.Minute)
+	inProgress := []store.NewComment{
+		{Level: store.LevelLine, Path: "internal/upload/worker.go", StartLine: 19, EndLine: 19, Quoted: "\t\tcase <-time.After(backoff(attempt)):", Body: "Cap the wait, or a long run sleeps for minutes."},
+		{Level: store.LevelFile, Path: "internal/upload/backoff.go", Body: "A table test for the first few attempts would pin the numbers."},
+		{Level: store.LevelReview, Body: "The shape is right. The numbers are the open question."},
+	}
+	for _, c := range inProgress {
+		if _, err := s.comment(upload, c); err != nil {
+			return err
+		}
 	}
 
 	// The outbox drainer: changes requested 26 minutes ago.

@@ -1180,6 +1180,28 @@ with the `review:` entry's list as its start.
   a time.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Departures, iteration 13.**
+
+- The seed's open upload review holds a line comment, a file comment and a
+  review comment, the product document's round 2 a passage comment, and a new
+  waiting review changes only `docs/widening.png`. The decided round with a late
+  comment was already seeded, as the delta sync watermark.
+- The screenshots were taken through the DevTools protocol, the browser tests'
+  harness, at 390 by 844 and twice the pixels, against the seeded daemon opened
+  through its printed address. The offline states were produced with the
+  protocol's network emulation set offline, which drops the stream and fails a
+  save as a lost connection does. They are in the run's scratchpad, not the
+  repository.
+- The screenshots showed a quoted line of code keeping its indentation, so the
+  quote read as wrapped after its tabs. Cards now drop the indentation every
+  line of a quote shares. The stored quote keeps it, since the agent is given
+  the text exactly.
+- architecture.md's live connection section said every write control is marked
+  unavailable while the stream is down. The approved connection frame keeps the
+  composer live, and a comment typed then becomes an unsent card, so the section
+  now says the verdicts are held and names the earlier claim as corrected.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1678,10 +1700,10 @@ required_commands:
 
 ## Iteration 13: Seeing it
 
-- [ ] `tool/seed` writing an open round with comments at every level, a decided
+- [x] `tool/seed` writing an open round with comments at every level, a decided
       round with a late comment, a review of binary files and a passage comment
-- [ ] Screenshots at 390 pixels of each changed frame's state beside its tearout
+- [x] Screenshots at 390 pixels of each changed frame's state beside its tearout
       frame, opened through the printed address in a persistent profile
-- [ ] architecture.md's routes table, its htmx size and its live connection
+- [x] architecture.md's routes table, its htmx size and its live connection
       section matching what was built
-- [ ] specs/TODO.md entries for this spec's departures
+- [x] specs/TODO.md entries for this spec's departures

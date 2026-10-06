@@ -68,7 +68,7 @@ func Test_seedAnswersEverythingWaiting(t *testing.T) {
 	q, err := s.store.Queue(context.Background(), 5)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(q.Waiting).To(BeEmpty())
-	g.Expect(q.Working).To(HaveLen(6))
+	g.Expect(q.Working).To(HaveLen(7))
 }
 
 func Test_seedRefusesADirectoryThatExists(t *testing.T) {
@@ -137,12 +137,12 @@ func Test_seedWritesEveryQueueSection(t *testing.T) {
 	s := seeded(g, t)
 	q, err := s.store.Queue(context.Background(), 5)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(q.Waiting).To(HaveLen(3))
+	g.Expect(q.Waiting).To(HaveLen(4))
 	g.Expect(q.Working).To(HaveLen(3))
 	g.Expect(q.Settled).To(HaveLen(2))
 	// Backdated as the tearouts' ages read: the longest wait is three hours.
 	g.Expect(s.now.Sub(q.Waiting[0].RequestedAt)).To(BeNumerically("~", 3*time.Hour, time.Millisecond), "the store keeps milliseconds")
-	g.Expect(q.Waiting[2].Round).To(Equal(2), "the product document waits on its second round")
+	g.Expect(q.Waiting[3].Round).To(Equal(2), "the product document waits on its second round")
 }
 
 // seeded is a seed written into a fresh directory with a short path, since

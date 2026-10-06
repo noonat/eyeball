@@ -460,7 +460,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		if !late {
 			batched++
 		}
-		card := commentView{Where: where(c), Quoted: c.Quoted, Body: c.Body, Late: late}
+		card := commentView{Where: where(c), Quoted: dedent(c.Quoted), Body: c.Body, Late: late}
 		if c.Reply != "" {
 			view.Replies = append(view.Replies, commentView{Where: card.Where, Body: c.Reply})
 		}
