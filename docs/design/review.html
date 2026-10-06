@@ -65,7 +65,7 @@
           </div>
 
           <details class="file" open>
-            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></summary>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
             <div class="filebody">
               <div class="prose">
                 <div class="blk"><h2>Widening</h2></div>
@@ -83,7 +83,6 @@
                 rendered document offers instead of lines.</p></div>
               </div>
             </div>
-            <div class="filelinks"><a class="btn small" href="widening.html#whole">Raw diff</a></div>
           </details>
 
           <div class="tree">
@@ -129,7 +128,7 @@
           </div>
 
           <details class="file" open>
-            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></summary>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
             <div class="filebody">
               <div class="prose">
                 <div class="blk"><h2>Widening</h2></div>
@@ -147,7 +146,6 @@
                 rendered document offers instead of lines.</p></div>
               </div>
             </div>
-            <div class="filelinks"><a class="btn small" href="widening.html#whole">Raw diff</a></div>
           </details>
 
           <div class="tree">
@@ -222,36 +220,43 @@
           </div>
 
           <details class="file" open>
-            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
             <div class="code narrow">
               <table>
                 <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
                 <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
                 <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <form class="composer">
+                    <div class="anchor">internal/upload/worker.go:42</div>
+                    <textarea class="field" aria-label="Comment" placeholder="Comment on line 42&hellip;"></textarea>
+                    <div class="foot">
+                      <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
+                      <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
+                    </div>
+                  </form>
+                </div></td></tr>
                 <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
                 <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
                 <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/upload/worker.go:45</span></div>
+                    <p>Wrap this so the job records why it stopped.</p>
+                    <div class="acts"><a href="#large"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#large"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+                  </div>
+                </div></td></tr>
                 <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
                 <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
               </table>
             </div>
-            <div class="filecomposer">
-              <div class="composer">
-                <div class="anchor">internal/upload/worker.go:42</div>
-                <textarea class="field" aria-label="Comment" placeholder="Comment on line 42&hellip;"></textarea>
-                <div class="foot">
-                  <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
-                  <button type="button" class="btn small accent">Add</button>
-                </div>
-              </div>
-            </div>
           </details>
 
-          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
 
         </div>
         <div class="decide">
@@ -287,12 +292,12 @@
             <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
           </div>
 
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
 
         </div>
         <div class="decide">
@@ -305,9 +310,10 @@
   </div>
 
   <ul class="note-list">
-    <li><b>The composer opens after the file&rsquo;s diff and scrolls into
-    view</b>, and the tapped line keeps its outline, so the code it is about is
-    one scroll away while the comment is typed. The level chips
+    <li><b>The composer opens under the line it is attached to</b>, and a
+    line&rsquo;s comments stay there, so the code they are about is beside
+    them however long the diff is. The row is pinned to the card&rsquo;s width
+    while the code scrolls sideways under it. Cancel closes it. The level chips
     let the same text land on the file or the review instead, without
     retyping.</li>
     <li><b>The refusal appears on the bar, above the buttons.</b> Both buttons
@@ -392,7 +398,7 @@
               <button type="button" class="btn small accent">Send</button>
             </div>
           </div>
-          <details class="file"><summary><span class="path"><bdi>internal/storage/sync.go</bdi></span><span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/sync.go</bdi></span><span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
         </div></div>
       </div></div>
     </figure>
@@ -429,21 +435,19 @@
             <h2 class="title">Product doc, second pass</h2>
           </div>
           <details class="file" open>
-            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;4</span></span></summary>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;4</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
             <div class="filebody"><div class="prose">
               <div class="blk"><h2>Widening</h2></div>
               <details class="blk changed sel"><summary><p><strong>What the change is measured against is one control with two settings.</strong> The previous round is the default from round two onward.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><div class="was"><p class="was-text">The comparison is a setting in the toolbar.</p></div></details>
-            </div></div>
-            <div class="filecomposer">
-              <div class="composer">
+              <form class="composer">
                 <div class="anchor">docs/product.md:214&ndash;215</div>
                 <textarea class="field" aria-label="Comment" placeholder="Comment on this passage&hellip;"></textarea>
                 <div class="foot">
-                  <span class="levels"><a class="chip" href="#passage" aria-pressed="true">Passage</a><a class="chip" href="#passage">File</a><a class="chip" href="#passage">Review</a></span>
-                  <button type="button" class="btn small accent">Add</button>
+                  <span class="levels"><button type="button" class="chip" aria-pressed="true">Passage</button><button type="button" class="chip" aria-pressed="false">File</button><button type="button" class="chip" aria-pressed="false">Review</button></span>
+                  <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
                 </div>
-              </div>
-            </div>
+              </form>
+            </div></div>
           </details>
         </div>
         <div class="decide">
@@ -463,21 +467,19 @@
             <h2 class="title">Product doc, second pass</h2>
           </div>
           <details class="file" open>
-            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;4</span></span></summary>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;4</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
             <div class="filebody"><div class="prose">
               <div class="blk"><h2>Widening</h2></div>
               <details class="blk changed sel"><summary><p><strong>What the change is measured against is one control with two settings.</strong> The previous round is the default from round two onward.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><div class="was"><p class="was-text">The comparison is a setting in the toolbar.</p></div></details>
-            </div></div>
-            <div class="filecomposer">
-              <div class="composer">
+              <form class="composer">
                 <div class="anchor">docs/product.md:214&ndash;215</div>
                 <textarea class="field" aria-label="Comment" placeholder="Comment on this passage&hellip;"></textarea>
                 <div class="foot">
-                  <span class="levels"><a class="chip" href="#passage" aria-pressed="true">Passage</a><a class="chip" href="#passage">File</a><a class="chip" href="#passage">Review</a></span>
-                  <button type="button" class="btn small accent">Add</button>
+                  <span class="levels"><button type="button" class="chip" aria-pressed="true">Passage</button><button type="button" class="chip" aria-pressed="false">File</button><button type="button" class="chip" aria-pressed="false">Review</button></span>
+                  <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
                 </div>
-              </div>
-            </div>
+              </form>
+            </div></div>
           </details>
         </div>
         <div class="decide">
@@ -493,8 +495,8 @@
     <li><b>One gesture means one thing.</b> A tap selects, on code and on prose
     alike, and the hint is the one control that reveals the replaced text. A
     link inside a passage still follows.</li>
-    <li><b>The composer opens after the file and scrolls into view</b>, and the
-    selected passage keeps its outline so the reader can find it again.</li>
+    <li><b>The composer opens under the passage</b>, and the passage keeps its
+    outline. Cancel closes it.</li>
   </ul>
 </section>
 
@@ -534,8 +536,8 @@
           <div class="toolbar">
             <span class="counts"><b class="files">2 files</b> &nbsp;<span class="plus">+252</span> <span class="minus">&minus;12</span></span>
           </div>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
         </div>
         <div class="decide">
           <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
@@ -570,8 +572,8 @@
           <div class="toolbar">
             <span class="counts"><b class="files">2 files</b> &nbsp;<span class="plus">+252</span> <span class="minus">&minus;12</span></span>
           </div>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
         </div>
         <div class="decide">
           <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
@@ -708,7 +710,7 @@
         <span class="segmented"><a href="#full-review" aria-current="true">Since round 1</a><a href="#full-review">Whole review</a></span>
       </div>
       <details class="file" open>
-        <summary><span class="path"><bdi>internal/store/round.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span></span></summary>
+        <summary><span class="path"><bdi>internal/store/round.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
         <div class="code narrow">
           <table>
             <tr class="hunkhead"><td colspan="3">@@ 88,6 +88,11 @@ func (s *Store) Freeze</td></tr>
@@ -722,7 +724,6 @@
             <tr class="add"><td class="ln">95</td><td class="sign">+</td><td class="src">	}</td></tr>
           </table>
         </div>
-        <div class="filelinks"><a class="btn small" href="widening.html#whole">Whole file</a></div>
       </details>
       <div class="tree">
         <a class="treerow" href="widening.html#browse"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>

@@ -41,8 +41,8 @@ device, file bodies loaded when their disclosure opens, and a review reopening
 where it was left. Under all of it sit htmx, TypeScript compiled by esbuild in
 the binary, and the `tsc` and `oxlint` gates.
 
-This is item 1 under Next in specs/TODO.md. It fits eleven iterations without a
-split, one of them a review. They are ordered so the loop from reading to a
+This is item 1 under Next in specs/TODO.md. It fits thirteen iterations without
+a split, one of them a review. They are ordered so the loop from reading to a
 released agent works on the loopback listener at the end of iteration 5: a
 comment written on the page, a verdict given from the bar, and an agent's
 `eyeball wait` returning both. A review of the whole branch since 006 follows at
@@ -211,7 +211,7 @@ Every route joins the surface's side of the table in
 | `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a collapsed file card's body, on its disclosure's open | 9         |
 
 architecture.md's table names the comment, delete, decision and stream routes.
-The rest are new, and iteration 11 adds them there. Editing is in product.md and
+The rest are new, and iteration 13 adds them there. Editing is in product.md and
 had no route, so it takes `PUT` on the comment's own address. The composer and
 the card come from the server because a composer anchored to a line is a piece
 of the page the server already knows how to render, and architecture.md's
@@ -306,7 +306,7 @@ event, `htmx:error`, where architecture.md's connection layer is written against
 2.0's three: `htmx:sendError`, `htmx:responseError` and `htmx:timeout`,
 confirmed in both builds. `htmx.min.js` is 52,182 bytes, 16,861 gzipped,
 confirmed, and the server sends it uncompressed. architecture.md's "about
-fourteen kilobytes" is corrected in iteration 11. The license is 0BSD, which
+fourteen kilobytes" is corrected in iteration 13. The license is 0BSD, which
 asks for no notice. The script and its `htmx.esm.d.ts`, from the same package,
 live in `web/vendor/` with the version and the script's sha256 written beside
 them, and a test holds the file to that hash so an edit is noticed. oxfmt and
@@ -440,6 +440,28 @@ diff, is scrolled into view when it opens, and the tapped line stays marked
 `sel`. Rejected: opening it under the hunk, which is a tearout change and would
 put the box inside the table, scrolling sideways with the code.
 
+**Comments and the composer sit under the line they are about.** The owner
+decided on 2026-10-06, after trying the loop on loopback, that a line's comments
+and the composer a tap opens appear in a row under that line, and a passage's
+under that passage. This reverses the owner's earlier decision of the same day,
+recorded above, to keep the composer after the file's diff and scroll to it: on
+a long diff that put a comment far from its line. The row is a `tr.thread` under
+the tapped row, its body pinned to the card's visible width while the code
+scrolls sideways beneath it. File-level and review-level comments stay where
+they are. Iterations 7 and 8 draw and build it, and the paragraph above stands
+as the decision it replaced.
+
+**The anchored composer has Cancel**, which closes it and drops the line's
+outline, as the owner asked on 2026-10-06. The approved comments frame already
+drew Cancel beside Add.
+
+**A card's way out to the file's own page is an icon in its header.** The owner
+asked on 2026-10-06 for "Whole file" in the file header rather than the card's
+foot, where 007 put it. It is an icon alone, `maximize-2` for a code file and
+`file-text` for a document's "Raw diff", labeled for screen readers: the path
+already truncates on a phone, and a labeled button would take about 80 pixels
+from it where the icon takes 28.
+
 **What a tap anchors to:**
 
 | Tapped                                            | Level   | Range                           |
@@ -534,7 +556,7 @@ deciding.", with the count. Both verdicts are marked unavailable while either
 shows. A verdict sent then would release the round without that comment, and
 product.md says the surface never discards what somebody typed. The guard for
 typed text ships in iteration 5, because the owner tries the loop from iteration
-6, and the unsent cards and their notice in iteration 9.
+6, and the unsent cards and their notice in iteration 11.
 
 **A verdict refused as stale keeps its note.** The 409 carries a sentence saying
 the round was decided or withdrawn since the page loaded. The failure handler
@@ -562,7 +584,7 @@ that fail silently is the failure product.md ranks worst.
 failed save follows the approved foundations frame: the comment appears in its
 list as the dashed `.comment.unsent` card with Retry and Delete, the box closes,
 and several can wait at once. Rejected: keeping the text in the box with Retry
-and Discard. Until iteration 9 builds the card, htmx swaps nothing on an error,
+and Discard. Until iteration 11 builds the card, htmx swaps nothing on an error,
 so the box still holds what was typed and the failure line says why.
 
 The card holds what the form held: the round, the level, the path, the line, the
@@ -611,8 +633,8 @@ text.** It happens once the text is stored, sent or discarded.
 open review update without a refresh. Swapping regions in place means choosing
 regions that never hold the composer, a file body or the scroll position, and
 keeping that choice correct as the page grows. A reload that saves and restores
-the place, from iteration 10, keeps one way to render a page. Until iteration
-10, a reload starts at the top of the page.
+the place, from iteration 12, keeps one way to render a page. Until iteration
+12, a reload starts at the top of the page.
 
 **The notice appears after two seconds without an open stream, or at once on
 `offline`, and goes when the stream opens.** It is the `.offline` bar under the
@@ -630,7 +652,7 @@ element: for a form, htmx reports the form as the element, not the button that
 was pressed. The composer stays live while the notice shows, as drawn, and
 reports its own failure. architecture.md says every write control is marked
 unavailable while the stream is down. The approved connection frame keeps the
-composer live, so iteration 11 corrects architecture.md, as a correction, rather
+composer live, so iteration 13 corrects architecture.md, as a correction, rather
 than recording it as matching what was built.
 
 **Each tab holds one connection for its stream, on both listeners.** Over
@@ -1075,7 +1097,7 @@ iteration with no browser harness to test it. Its twelve minor findings were
 applied, and its four questions went to the owner. A second round, scoped to the
 fixes, did not run: the owner ended subagent reviews on 2026-10-06. The fixes
 carry defects at about the rate of the draft they corrected, so the risk is that
-iteration 4's answers table and iteration 9's unsent cards, the two parts most
+iteration 4's answers table and iteration 11's unsent cards, the two parts most
 rewritten, disagree somewhere with the routes section.
 
 What is riskiest, in the shape every earlier review found, two things that must
@@ -1094,7 +1116,7 @@ agree with nothing checking that they do:
   reports failures, which together decide whether a refusal is swapped, shown as
   a failure or lost
 - the client's place in `localStorage` and the reload the stream triggers, which
-  is correct only once iteration 10 exists
+  is correct only once iteration 12 exists
 - the class table in `web/ts/classes.ts` and the classes the code actually
   writes, which a test can only check if every class goes through the table
 
@@ -1346,7 +1368,49 @@ would hold the run on testing the owner chose not to block on.
 > - `make check` — 4.9s
 > - `go test -race ./...` — 26.6s
 
-## Iteration 7: Passages
+## Iteration 7: The tearouts for comments in place
+
+```backlog
+required_acks:
+  - reviewed
+  - phone-approved
+```
+
+- [x] review.html's large-change frame drawing the composer, with Cancel, in a
+      `tr.thread` row under the selected line, and an existing comment in a row
+      under its line
+- [x] review.html's passage frames drawing the composer, with Cancel, under the
+      selected passage, with the chips as buttons
+- [x] A "Whole file" or "Raw diff" icon in every file card's header in
+      review.html and widening.html, and no `.filelinks` footer
+- [x] app.css rules for `.fileopen`, `tr.thread` and `.thread-body` pinned to
+      the code block's visible width, a composer inside `.prose`, a wrapping
+      composer foot, and `button.chip`
+
+## Iteration 8: Comments in place
+
+```backlog
+required_commands:
+  - cmd: make check
+  - cmd: go test -race ./...
+  - cmd: go test -tags browser ./internal/server/...
+  - cmd: go vet -tags browser ./internal/server/...
+  - cmd: go tool staticcheck -tags browser ./internal/server/...
+```
+
+- [ ] A line's comments rendered in a `tr.thread` row under their line on the
+      review page, and the composer a tap opens inserted as such a row
+- [ ] Cancel closing the anchored composer and dropping the line's outline,
+      keeping nothing it held
+- [ ] A comment's answer replacing that line's row, so it appears under its
+      line, with file-level comments where they were
+- [ ] The file card's header carrying the icon link, and the footer gone from
+      the template
+- [ ] Browser tests: a comment added under its line and found there after a
+      reload, Cancel closing the composer, and the header link opening the file
+      page
+
+## Iteration 9: Passages
 
 ```backlog
 required_commands:
@@ -1370,7 +1434,7 @@ required_commands:
 - [ ] A passage comment stored with its range and listed with its quote, on a
       card and in the fresh layout, with a browser test
 
-## Iteration 8: The live stream
+## Iteration 10: The live stream
 
 ```backlog
 required_commands:
@@ -1399,7 +1463,7 @@ required_commands:
 - [ ] Browser tests: a verdict recorded elsewhere reloading an open page, and
       the notice after the server stops and gone once it returns
 
-## Iteration 9: A failed save
+## Iteration 11: A failed save
 
 ```backlog
 required_commands:
@@ -1424,7 +1488,7 @@ required_commands:
       one retried once it returns and stored once, one deleted, and a verdict
       withheld while a card remains
 
-## Iteration 10: Loading and remembering
+## Iteration 12: Loading and remembering
 
 ```backlog
 required_commands:
@@ -1449,7 +1513,7 @@ required_commands:
 - [ ] Browser tests: a large review scrolled with a card open, reloaded, and
       found in place with that body loaded; a draft surviving a reload
 
-## Iteration 11: Seeing it
+## Iteration 13: Seeing it
 
 - [ ] `tool/seed` writing an open round with comments at every level, a decided
       round with a late comment, a review of binary files and a passage comment

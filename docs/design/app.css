@@ -722,9 +722,27 @@ a.bit .project,
   direction: ltr;
 }
 
+/* The way out of a card to the file's own page: "Whole file" for code, "Raw
+ * diff" for a rendered document. It sits in the header, where the owner asked
+ * for it on 2026-10-06, as an icon alone: the path already truncates on a
+ * phone, and a labeled button would take about 80 pixels from it where the
+ * icon takes 28. A link inside a summary follows without toggling the card. */
+.fileopen {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  border-radius: var(--r-sm);
+  color: var(--accent);
+}
+
 /* The code block owns the horizontal overflow. The page never scrolls
  * sideways, because a page that does takes the decision bar with it. */
 .code {
+  container-type: inline-size;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   font-family: var(--mono);
@@ -737,6 +755,34 @@ a.bit .project,
   border-collapse: collapse;
   width: 100%;
   min-width: max-content;
+}
+
+/* A line's comments, and the composer a tap opens, sit in a row under the
+ * line, so they stay beside the code however long the diff is. The code
+ * scrolls sideways on a phone and the row would scroll with it, so its body is
+ * pinned: sticky to the left edge, and as wide as the code block's visible
+ * width, which 100cqw is because the block is a size container. */
+.code tr.thread > td {
+  padding: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.thread-body {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: 100cqw;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--prose);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  white-space: normal;
+  tab-size: initial;
 }
 
 .hunkhead td {
@@ -1409,14 +1455,21 @@ details.blk.changed[open] > summary > .cue-hide {
 
 .composer .foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--gap);
 }
 
+/* A passage's composer opens under the passage, inside the document. */
+.prose > .composer {
+  margin: 8px 0 12px;
+}
+
 .composer .foot .acts {
   display: flex;
   gap: 8px;
+  margin-left: auto;
 }
 
 /* An unsent comment is visibly unsent. Silence is what turns a delayed comment
@@ -1479,6 +1532,13 @@ details.blk.changed[open] > summary > .cue-hide {
  * browser's own margin and font unless told otherwise. */
 button.btn {
   margin: 0;
+}
+
+button.chip {
+  margin: 0;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
 }
 
 .btn.small {
