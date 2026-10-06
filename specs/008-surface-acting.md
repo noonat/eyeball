@@ -1667,6 +1667,15 @@ required_commands:
 - [x] Browser tests: a large review scrolled with a card open, reloaded, and
       found in place with that body loaded; a draft surviving a reload
 
+> **Completed** 2026-10-06 17:24 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.7s
+> - `go test -race ./...` — 26.5s
+> - `go test -tags browser ./internal/server/...` — 18.9s
+> - `go vet -tags browser ./internal/server/...` — 73ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 174ms
+
 ## Iteration 13: Seeing it
 
 - [ ] `tool/seed` writing an open round with comments at every level, a decided
