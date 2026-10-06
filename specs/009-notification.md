@@ -282,6 +282,12 @@ required_acks:
 - The daemon's shutdown waits for pushes in flight alongside the listeners,
   within the same grace.
 
+> **Completed** 2026-10-06 18:47 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.5s
+> - `go test -race ./...` — 29.3s
+
 ## Iteration 5: First run on the page
 
 ```backlog
