@@ -1063,6 +1063,12 @@ required_acks:
 - [x] specs/TODO.md's entries on a dark device and on a build step beyond
       esbuild, and architecture.md's matching open question, removed as answered
 
+> **Completed** 2026-10-06 12:13 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.4s
+> - `go test -race ./...` — 21.4s
+
 ## Iteration 3: Who may act
 
 - [ ] `http.CrossOriginProtection` around the surface handler on both listeners,
