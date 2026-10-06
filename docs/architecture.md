@@ -537,21 +537,21 @@ closes.
 
 ## Dependencies
 
-| Dependency                              | Why                                                               |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| `github.com/alecthomas/chroma/v2`       | syntax highlighting, server side                                  |
-| `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads       |
-| `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                     |
-| `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working |
-| `github.com/onsi/gomega` (test)         | assertions                                                        |
-| `github.com/SherClockHolmes/webpush-go` | push payload encryption                                           |
-| `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                |
-| `github.com/yuin/goldmark`              | markdown                                                          |
-| `golang.org/x/net/html` (test)          | tokenizing the tearouts                                           |
-| `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires     |
-| `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                    |
-| `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                        |
-| `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate    |
+| Dependency                              | Why                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| `github.com/alecthomas/chroma/v2`       | syntax highlighting, server side                                      |
+| `github.com/aymanbagabas/go-udiff`      | the line comparison, two-sided so a huge change still reads           |
+| `github.com/cockroachdb/errors`         | a stack at the point an error was constructed                         |
+| `github.com/evanw/esbuild`              | TypeScript without Node, which is what keeps `go install` working     |
+| `github.com/onsi/gomega` (test)         | assertions                                                            |
+| `github.com/SherClockHolmes/webpush-go` | push payload encryption                                               |
+| `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                    |
+| `github.com/yuin/goldmark`              | markdown with GFM's tables and task lists, which specs are written in |
+| `golang.org/x/net/html` (test)          | tokenizing the tearouts, and parsing rendered pages                   |
+| `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires         |
+| `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                        |
+| `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
+| `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.

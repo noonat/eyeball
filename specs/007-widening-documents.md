@@ -876,7 +876,7 @@ tearout wraps in one `.blk`.
 
 **A changed block with replaced text is a `<details>` element.** The block's
 rendering is its `summary` and the replaced text is its body:
-`<details class="blk changed"><summary>…</summary><span class="was-text">…</span></details>`.
+`<details class="blk changed"><summary>…<span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">…</span></details>`.
 Closed, it shows the teal rule. Open, it shows the replaced text and the amber
 rule. foundations.html describes these as two states of one control, which is
 what `<details>` is. A block with nothing replaced stays
@@ -1609,6 +1609,12 @@ leaves one alive has a test that cannot fail:
   an earlier round's tree from the current one, but the page holding the row
   already names its round, and the owner approved the shorter label on the
   phone.
+- Recorded after the iteration closed, from its review: the tree's back link
+  goes to the parent directory, labeled with its name, and to "Files" from a
+  directory one level down. Only the tree's root goes back to the round. The
+  approved tearout's browse frame in docs/design/widening.html shows `internal/`
+  going back to "Review". The todo asks for the parent, and the code follows the
+  todo. Iteration 10 revisits the label beside the frame.
 - A subdirectory is expanded when it holds a file the review changes at any
   depth, a deletion in the review's paths included. The design's "holding" did
   not say how deep, and the frame's `upload` holds its files directly, which
@@ -1663,6 +1669,80 @@ leaves one alive has a test that cannot fail:
   every path. So the code took the mutant's rule, and a row under a truncated
   index asks for a 300-byte name and expects the banner, which kills the
   narrower rule instead.
+
+**Departures, iteration 7.**
+
+- Correction: iteration 6's fourth bullet says that only a file found on disk
+  skips the check-ignore question, and its last bullet that the answer order
+  asks git first for every path. Both claim more than the code does.
+  `locateWorking` runs `checkParents` before `refuseIgnored`, so under a
+  truncated index `nope/x.txt`, whose parent does not exist, fails the parent
+  check and answers the plain 404 page with no banner. A path whose parent is
+  missing skips the question too. That order is the live read's step 1, which
+  checks the parents before check-ignore, so the code stays and the two claims
+  are corrected here.
+- The keys go through `diff.Whole`, not `diff.Text`. `diff.Text` leaves out
+  every unchanged block more than three lines from a change, and `diff.Whole` is
+  the same comparison with every line in one hunk, so each block is read off the
+  hunk by its line numbers. Past diff's 20,000-line limit, one line per block,
+  which a document of one-character paragraphs reaches at about 60KB and one of
+  80-character paragraphs at about 1.6MB, the comparison gives no hunks and the
+  document shows whole with nothing marked. `TestDocument_pastTheLineLimit`
+  holds it to that rather than to an empty page.
+- goldmark puts a link reference definition in the tree as a top-level node that
+  renders nothing. It is not a block: as one it would be an empty passage, and a
+  change to it already marks every block whose link it resolves, since the key
+  writes the resolved destination.
+- An HTML block's placeholder is
+  `<p class="hint">This block is HTML, which is not rendered. <a href="…">Read it in Source.</a></p>`,
+  with the link left out when the caller passes no Source address. No tearout
+  draws one, so the wording and the markup are this iteration's, built from a
+  class `app.css` already has. The placeholder also stands in for an HTML block
+  inside a list or a quote, which goldmark would otherwise write as a comment
+  that shows nothing. At 390 pixels it reads as one faint line in the hint
+  style, and a changed one reads as that line over the cue, opening to the old
+  source. Iteration 10's screenshots are where it is first seen beside the
+  frames.
+- A relative link's query is dropped, since the file route's query is the
+  surface's own view and comparison. An empty destination, or a query alone,
+  resolves to the document itself, as a browser resolves an empty reference. A
+  link's title is not written, because a phone has no hover to show it.
+- A fragment alone is written as given. On the review page the design points it
+  at the document's file page, which is iteration 8's todo, and `resolve`'s
+  fragment case is where it goes.
+- An image inside a link written as an `a` element renders its alt text without
+  a link of its own, because the HTML parser splits an `a` inside an `a` in two.
+  Inside a refused link, which renders as text, the image links to its file page
+  as usual. An autolink inside such a link renders its label as text for the
+  same reason.
+- An old block with no text, such as a thematic break, gives an empty `was-text`
+  span. A removed rule still shows as the amber rule beside an empty box rather
+  than vanishing, and a block paired with one opens to the empty box. Both were
+  looked at in Chromium at 390 pixels, with the box 16 pixels tall. A new image
+  with empty alt text renders as nothing, so a block changed to one shows only
+  its cue.
+- `render.IsMarkdown` ignores case, so `README.MD` is markdown.
+- The API the design left open is
+  `render.Document(old, new []byte, p render.Page) template.HTML`, where
+  `render.Page` holds the document's path, the `render.Href` function writing a
+  file page's address, the Source address for the placeholder, and whether to
+  write heading ids.
+- The pass ran 104 mutations over the new code, the spec's ten rows for
+  rendering among them, and the three overrides of goldmark's link, autolink and
+  image rendering each dropped. Seven of the first run's did not build and were
+  rewritten. Nine survived their first run. An address written unescaped and a
+  whitespace collapse missing tab, CR or form feed each got a test row: a space
+  in an address, and a document moved from CRLF to LF with a tab, a lone CR and
+  a form feed in its text, which goldmark keeps. A `<pre>` match limited to the
+  bare tag and a greedy one got a raw `<pre class>` block and a quote holding a
+  paragraph between two code blocks. Three survivors were dead code, removed
+  rather than kept: replaced text skipping inline raw HTML, which has no
+  children to skip; reading an `ast.String`, which only the typographer
+  extension makes; and an email autolink's check for a `mailto:` it never
+  carries. One survives as equivalent: the key's table alignment written as a
+  style rather than an attribute. The doubled style goldmark writes comes from
+  rendering one parsed node twice, the key renders each node once, and both
+  sides are keyed by the same configuration.
 
 ## Out of scope
 
@@ -2095,43 +2175,49 @@ required_acks:
       ignores and one whose repository's `.git` has gone, each listing the
       capture alone with its notice
 
+> **Completed** 2026-10-06 00:48 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.9s
+> - `go test -race ./...` — 21.1s
+
 ## Iteration 7: Rendering a document
 
-- [ ] goldmark v1.8.6 added, its row in architecture.md's table checked,
+- [x] goldmark v1.8.6 added, its row in architecture.md's table checked,
       `render.IsMarkdown` by extension, and `render.Document` with the GFM
       extensions, cell alignment as attributes, and raw HTML omitted
-- [ ] Links, autolinks and images through the allowlist, anything else as text,
+- [x] Links, autolinks and images through the allowlist, anything else as text,
       tested against a corpus including `java&#x09;script:`, `vscode:` and a
       reference definition
-- [ ] A relative or root-relative reference resolved against the document's path
+- [x] A relative or root-relative reference resolved against the document's path
       through a caller's function, and one `CleanPath` refuses rendered as text
-- [ ] An image rendered as its alt text, linked when its source is a project
+- [x] An image rendered as its alt text, linked when its source is a project
       path, and a fenced code block highlighted into role classes with no
       `language-` class
-- [ ] Blocks keyed by a separate goldmark parse and rendering, ids off,
+- [x] Blocks keyed by a separate goldmark parse and rendering, ids off,
       destinations as written and raw HTML on, collapsed outside `pre`, hashed
       one to a line, every line ending in a newline
-- [ ] Key tests: a reflowed paragraph unmarked, a re-indented code block and a
+- [x] Key tests: a reflowed paragraph unmarked, a re-indented code block and a
       fenced block's middle line marking only their block, and an appended block
       leaving the one before it unmarked
-- [ ] A repeated heading added above another left unmarked, with the shown side
+- [x] A repeated heading added above another left unmarked, with the shown side
       rendered with heading ids on
-- [ ] An HTML block shown as a placeholder linking to Source, marked when its
+- [x] An HTML block shown as a placeholder linking to Source, marked when its
       source changes, and opening to its old source lines
-- [ ] An HTML block's source read as `Lines()` plus a guarded `ClosureLine`,
+- [x] An HTML block's source read as `Lines()` plus a guarded `ClosureLine`,
       with a comment block row and a `<div>` row
-- [ ] Equal runs paired, an unequal run's replaced text on its last new block, a
+- [x] Equal runs paired, an unequal run's replaced text on its last new block, a
       removal as its own block, and nothing marked when the old side has no
       blocks
-- [ ] Replaced text taken from text nodes, code lines, table cells and task
+- [x] Replaced text taken from text nodes, code lines, table cells and task
       boxes as `[ ]` or `[x]`, with a test for each
-- [ ] `render.Document` writing the "Show what it replaced" and "Hide what it
+- [x] `render.Document` writing the "Show what it replaced" and "Hide what it
       replaced" spans as the last children of every `details.blk.changed`
       summary, and neither in a `div.blk.changed`, with a test for each
-- [ ] `blk`, `changed`, `was`, `was-text`, `hint`, `cue-show` and `cue-hide` in
+- [x] `blk`, `changed`, `was`, `was-text`, `hint`, `cue-show` and `cue-hide` in
       `render.Classes`, and a test holding every class in a rendered document to
       it
-- [ ] Heading ids written only when the caller asks, and `render/doc.go`
+- [x] Heading ids written only when the caller asks, and `render/doc.go`
       recording the allowlist, the key and the pairing rule
 
 ## Iteration 8: Documents on the page

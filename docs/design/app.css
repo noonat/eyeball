@@ -994,8 +994,9 @@ tr.sel {
 /* A margin inside a details element stays inside it, where the same margin in
  * a div collapses through. Left alone, the rule beside a details passage ran a
  * line above and below its text, and the passage read as a taller block than
- * the div passages around it. The summary holds one block and its hint, and the
- * hint sets its own margin above it, so zeroing them here is safe. */
+ * the div passages around it. The summary holds one block and its two hint
+ * spans, one per state, and the hints set their own margin above them, so
+ * zeroing them here is safe. */
 .blk > summary > * {
   margin-top: 0;
   margin-bottom: 0;
@@ -1028,8 +1029,8 @@ tr.sel {
  * than the owner's, the chevron took a strip down the right of every such
  * passage, and the dashed rule was a pattern a reader had to learn.
  *
- * The hint is a second child in the summary on purpose, so these selectors
- * have to outrank the margin reset on .blk > summary > *. */
+ * The hints are the second and third children in the summary on purpose, so
+ * these selectors have to outrank the margin reset on .blk > summary > *. */
 details.blk.changed > summary > .cue-show,
 details.blk.changed > summary > .cue-hide {
   display: block;
