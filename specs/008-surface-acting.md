@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-05T00:00:00Z
-updated: 2026-10-06T11:49:38.126235487Z
+updated: 2026-10-06T11:49:44.475152256Z
 required_acks:
   - reviewed
 required_commands:
@@ -877,6 +877,33 @@ sending `Sec-Fetch-Site`; six connections to one host over HTTP/1.1 in Chromium;
 HTTP/2 on the tailnet listener; and the numbers chosen here, ten seconds,
 fifteen, two, two and thirty days.
 
+**Departures, iteration 1.**
+
+- foundations.html's `#connection` dark frame drew a failed save kept in the
+  composer, with Discard and Retry. The owner's 2026-10-06 decision makes a
+  failed save the dashed unsent card, so that frame now shows the card with
+  Retry now and Delete, and its note says so. The design's table named only the
+  textarea change for that frame.
+- review.html's `#large` note said the composer opens under the line. It now
+  says the composer opens after the file's diff and scrolls into view, as the
+  owner decided and as the frame already drew it.
+- The new frames link the brief's project, as 007 made it a link.
+- The verdict's note in the bar is the composer's field class, `.decide .field`,
+  with no new class. The bar's closed state, a control that opens the note, is
+  not drawn: the `#deciding` frames show the note open. Iteration 5 shows the
+  field whenever the bar shows, so there is no closed state to draw.
+- The selected passage is `.blk.sel`, outlined as `tr.sel` is, with an offset
+  that keeps the outline clear of the passage's rule.
+- The classes the TypeScript writes stay the five app.css already defined:
+  `sel`, `failed`, `why-not`, `offline` and `retry`. The note needed none. The
+  templates' new markup uses `field`, `composer`, `levels`, `chip`, `blk`,
+  `sel`, `comment`, `unsent`, `failed` and the button classes, all in app.css.
+- `.composer .field.empty` is gone. Every field is a `<textarea>`, and its
+  placeholder takes the faint color the class gave a drawn empty field.
+- The owner's standing approval of 2026-10-06 covers `reviewed`. Whether it
+  covers `phone-approved`, which asserts a look at the frames on the phone, was
+  asked of the owner at this iteration's close.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -955,23 +982,23 @@ required_acks:
   - phone-approved
 ```
 
-- [ ] app.css rules for a 16-pixel textarea composer field, its placeholder,
+- [x] app.css rules for a 16-pixel textarea composer field, its placeholder,
       full width and vertical resize, and `button.btn` matching `a.btn`,
       rendered in both themes
-- [ ] foundations.html's composers holding a textarea and buttons in `#comments`
+- [x] foundations.html's composers holding a textarea and buttons in `#comments`
       and `#connection`, and a comment edited in place in `#comments`
-- [ ] foundations.html's `#actions` gaining a second danger notice, "A comment
+- [x] foundations.html's `#actions` gaining a second danger notice, "A comment
       is still being written. Add it, or cancel it, before deciding.", beside
       the drawn notice for unsent cards
-- [ ] review.html's large and decided composers holding a textarea and buttons
-- [ ] review.html's `#passage` section: a changed block selected as `.blk.sel`,
+- [x] review.html's large and decided composers holding a textarea and buttons
+- [x] review.html's `#passage` section: a changed block selected as `.blk.sel`,
       its hint the only reveal, with the composer under it and Passage, File and
       Review chips, in both themes
-- [ ] review.html's `#deciding` section: the review composer under the note with
+- [x] review.html's `#deciding` section: the review composer under the note with
       the bar's note open, and a verdict that could not be sent
-- [ ] Every class the templates and `web/ts/classes.ts` will use present in
+- [x] Every class the templates and `web/ts/classes.ts` will use present in
       app.css, listed in this spec
-- [ ] README's review.html row naming the passage and deciding sections
+- [x] README's review.html row naming the passage and deciding sections
 
 ## Iteration 2: The client
 

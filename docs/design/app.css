@@ -822,6 +822,14 @@ tr.sel {
   outline-offset: -2px;
 }
 
+/* A selected passage is outlined as a selected row is, so a tap reads the same
+ * on prose and on code. The offset keeps the outline clear of the rule. */
+.blk.sel {
+  outline: 2px solid var(--accent-vivid);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
 /* syntax, kept to five roles: more colors than that on a phone reads as noise */
 .k {
   color: var(--accent);
@@ -1372,18 +1380,30 @@ details.blk.changed[open] > summary > .cue-hide {
   box-shadow: var(--shadow-pop);
 }
 
-.composer .field {
+/* Sixteen pixels, not the 13 of the text around it: iOS Safari zooms the page
+ * when a field under 16 pixels takes focus. The owner chose the larger text
+ * over the zoom on 2026-10-06. The verdict's note in the bar is the same field. */
+.composer .field,
+.decide .field {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--bg);
   padding: 8px 10px;
-  font: 400 var(--t-sm) / 1.5 var(--prose);
+  font: 400 16px / 1.5 var(--prose);
   color: var(--ink);
   min-height: 64px;
-  white-space: pre-wrap;
+  resize: vertical;
 }
 
-.composer .field.empty {
+.decide .field {
+  min-height: 44px;
+}
+
+.composer .field::placeholder,
+.decide .field::placeholder {
   color: var(--ink-faint);
 }
 
@@ -1453,6 +1473,12 @@ details.blk.changed[open] > summary > .cue-hide {
   cursor: pointer;
   white-space: nowrap;
   min-height: 40px;
+}
+
+/* A form's verdicts and a composer's actions are buttons, which carry the
+ * browser's own margin and font unless told otherwise. */
+button.btn {
+  margin: 0;
 }
 
 .btn.small {

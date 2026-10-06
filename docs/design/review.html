@@ -238,10 +238,10 @@
             <div class="filecomposer">
               <div class="composer">
                 <div class="anchor">internal/upload/worker.go:42</div>
-                <div class="field empty">Comment on line 42&hellip;</div>
+                <textarea class="field" aria-label="Comment" placeholder="Comment on line 42&hellip;"></textarea>
                 <div class="foot">
                   <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
-                  <a class="btn small accent" href="#large">Add</a>
+                  <button type="button" class="btn small accent">Add</button>
                 </div>
               </div>
             </div>
@@ -305,8 +305,9 @@
   </div>
 
   <ul class="note-list">
-    <li><b>The composer opens under the line it is attached to</b>, so the code
-    it is about is still on screen while the comment is typed. The level chips
+    <li><b>The composer opens after the file&rsquo;s diff and scrolls into
+    view</b>, and the tapped line keeps its outline, so the code it is about is
+    one scroll away while the comment is typed. The level chips
     let the same text land on the file or the review instead, without
     retyping.</li>
     <li><b>The refusal appears on the bar, above the buttons.</b> Both buttons
@@ -385,10 +386,10 @@
           </div>
           <div class="composer">
             <div class="anchor">This review</div>
-            <div class="field empty">One more thing&hellip;</div>
+            <textarea class="field" aria-label="Comment on this review" placeholder="One more thing&hellip;"></textarea>
             <div class="foot">
               <span class="hint">Sends immediately</span>
-              <a class="btn small accent" href="#fresh">Send</a>
+              <button type="button" class="btn small accent">Send</button>
             </div>
           </div>
           <details class="file"><summary><span class="path"><bdi>internal/storage/sync.go</bdi></span><span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span></span></summary></details>
@@ -405,6 +406,188 @@
     <li><b>The verdict note is shown in the same shape as the agent&rsquo;s
     note.</b> Both are somebody speaking about the whole thing rather than about
     a line of it.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================= passage -->
+<section class="spec" id="passage">
+  <h2>Commenting on a passage <span class="tag">a document, one passage selected</span></h2>
+  <p>A passage is one of the four levels a comment attaches to. A tap anywhere on
+  it selects it and opens the composer after the file, as a tap on a code line
+  does. Only the hint shows what a changed passage replaced.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; a changed passage selected</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;4</span></span></summary>
+            <div class="filebody"><div class="prose">
+              <div class="blk"><h2>Widening</h2></div>
+              <details class="blk changed sel"><summary><p><strong>What the change is measured against is one control with two settings.</strong> The previous round is the default from round two onward.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><div class="was"><p class="was-text">The comparison is a setting in the toolbar.</p></div></details>
+            </div></div>
+            <div class="filecomposer">
+              <div class="composer">
+                <div class="anchor">docs/product.md:214&ndash;215</div>
+                <textarea class="field" aria-label="Comment" placeholder="Comment on this passage&hellip;"></textarea>
+                <div class="foot">
+                  <span class="levels"><a class="chip" href="#passage" aria-pressed="true">Passage</a><a class="chip" href="#passage">File</a><a class="chip" href="#passage">Review</a></span>
+                  <button type="button" class="btn small accent">Add</button>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#passage">Request changes</a><a class="btn primary" href="#passage">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">&minus;4</span></span></summary>
+            <div class="filebody"><div class="prose">
+              <div class="blk"><h2>Widening</h2></div>
+              <details class="blk changed sel"><summary><p><strong>What the change is measured against is one control with two settings.</strong> The previous round is the default from round two onward.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><div class="was"><p class="was-text">The comparison is a setting in the toolbar.</p></div></details>
+            </div></div>
+            <div class="filecomposer">
+              <div class="composer">
+                <div class="anchor">docs/product.md:214&ndash;215</div>
+                <textarea class="field" aria-label="Comment" placeholder="Comment on this passage&hellip;"></textarea>
+                <div class="foot">
+                  <span class="levels"><a class="chip" href="#passage" aria-pressed="true">Passage</a><a class="chip" href="#passage">File</a><a class="chip" href="#passage">Review</a></span>
+                  <button type="button" class="btn small accent">Add</button>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#passage">Request changes</a><a class="btn primary" href="#passage">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>One gesture means one thing.</b> A tap selects, on code and on prose
+    alike, and the hint is the one control that reveals the replaced text. A
+    link inside a passage still follows.</li>
+    <li><b>The composer opens after the file and scrolls into view</b>, and the
+    selected passage keeps its outline so the reader can find it again.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================ deciding -->
+<section class="spec" id="deciding">
+  <h2>Deciding <span class="tag">the review box, the verdict note, a verdict not sent</span></h2>
+  <p>The review level is always on an open round, under the agent&rsquo;s note,
+  so a review of files with no line to tap still takes the comment that matters
+  most. The verdict note sits in the bar, above the buttons, where the refusal
+  points.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; the review box and a verdict note</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Retry ladder</h1></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and
+            records the failure on the job.</p>
+          </div>
+          <div class="composer">
+            <div class="anchor">This review</div>
+            <textarea class="field" aria-label="Comment on this review" placeholder="Comment on the whole review&hellip;"></textarea>
+            <div class="foot">
+              <span class="hint">Saved as you type</span>
+              <button type="button" class="btn small accent">Add</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <span class="counts"><b class="files">2 files</b> &nbsp;<span class="plus">+252</span> <span class="minus">&minus;12</span></span>
+          </div>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
+        </div>
+        <div class="decide">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <textarea class="field" aria-label="Verdict note">Close. Make the first wait a constant with the measurement beside it.</textarea>
+          <div class="buttons"><button type="button" class="btn danger">Request changes</button><button type="button" class="btn primary">Approve</button></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a verdict that could not be sent</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Retry ladder</h1></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and
+            records the failure on the job.</p>
+          </div>
+          <div class="composer">
+            <div class="anchor">This review</div>
+            <textarea class="field" aria-label="Comment on this review" placeholder="Comment on the whole review&hellip;"></textarea>
+            <div class="foot">
+              <span class="hint">Saved as you type</span>
+              <button type="button" class="btn small accent">Add</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <span class="counts"><b class="files">2 files</b> &nbsp;<span class="plus">+252</span> <span class="minus">&minus;12</span></span>
+          </div>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></summary></details>
+        </div>
+        <div class="decide">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <textarea class="field" aria-label="Verdict note">Close. Make the first wait a constant with the measurement beside it.</textarea>
+          <span class="failed"><span class="i i-circle-alert" aria-hidden="true"></span><span>Could not reach eyeball. Nothing was sent, and the note is still here.</span></span>
+          <div class="buttons"><button type="button" class="btn danger">Request changes</button><button type="button" class="btn primary">Approve</button></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A verdict that could not be sent says so in the bar</b> and keeps the
+    note. Nothing went to the agent, and the reviewer must not believe it
+    did.</li>
   </ul>
 </section>
 
