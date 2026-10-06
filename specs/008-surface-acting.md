@@ -980,6 +980,38 @@ fifteen, two, two and thirty days.
   end, are 400s that name the file.
 - No mutation run, under the owner's 2026-10-06 change.
 
+**Departures, iteration 5.**
+
+- The browser harness drives headless Chromium over the DevTools protocol, with
+  `golang.org/x/net/websocket` from the `x/net` module the repository already
+  required, rather than through a same-origin script and an image it releases.
+  `Runtime.evaluate` runs outside the page's content policy, so the page carries
+  no script of the test's, and a test reads and taps it as a person does.
+  Chromium needs `--remote-allow-origins` for the protocol's websocket, and is
+  killed as a process group with its profile in its own temporary directory,
+  since its helper processes outlive the main one and keep writing there.
+- `defaultSettleDelay` is 0 in the htmx configuration, and the config test holds
+  it. htmx binds swapped content only once it settles, 20ms by default, and the
+  browser test's Save, clicked inside that window, submitted the edit form
+  natively as a GET to `/reviews/1?body=…`, losing the edit. A phone tap could
+  do the same, and the page uses none of the transitions the delay is for.
+- The client writes two classes, `sel` and `failed`. The "still being written"
+  notice is rendered by the server inside the bar, in a wrapper with no class
+  that the client shows and hides with `hidden`, so no notice classes are
+  written at run time. The failure line is a `span.failed` holding the sentence,
+  without the drawn icon, whose classes are not in the table.
+- An anchored composer arrives wrapped in the drawn `.filecomposer`, carrying
+  the slot's id, and its `outerHTML` swap replaces the empty slot. Closing it
+  puts an empty slot back.
+- On the current round the review-level comments sit under the review box, where
+  its answers go, rather than in the comments section at the foot.
+- htmx's event details are read through checked accessors in `web/ts/events.ts`
+  rather than cast, which oxlint's `no-unsafe-type-assertion` refuses.
+- The browser tests do not tap a removed row or a too-large file's line. The
+  server's quoting of a removed row is iteration 4's test, and the tap's code
+  path is the line tap's with other fields.
+- No mutation run, under the owner's 2026-10-06 change.
+
 ## Out of scope
 
 - **Push, the manifest, the service worker, installing, the badge and the
@@ -1192,35 +1224,35 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] The open round's page in the tearout's markup: the review composer under
+- [x] The open round's page in the tearout's markup: the review composer under
       the note, a composer slot after each file's diff, and cards with Edit and
       Delete
-- [ ] The bar on an open current round: the tally, the note and both verdicts,
+- [x] The bar on an open current round: the tally, the note and both verdicts,
       posting the round shown
-- [ ] The decided current round's box posting a late comment, and no box on an
+- [x] The decided current round's box posting a late comment, and no box on an
       earlier round or an abandoned review
-- [ ] A tap on an added or unchanged row opening the composer for its line,
+- [x] A tap on an added or unchanged row opening the composer for its line,
       marking it `sel`, scrolling it into view, and carrying typed text to a new
       anchor
-- [ ] A tap on a removed row opening the file-level composer with that line
+- [x] A tap on a removed row opening the file-level composer with that line
       quoted, a binary or too-large file's line opening it at the file level,
       and a hunk header opening nothing
-- [ ] The chips switching the level without a request and keeping the text
-- [ ] Edit swapping a card for its form with Save and Cancel, and Delete
+- [x] The chips switching the level without a request and keeping the text
+- [x] Edit swapping a card for its form with Save and Cancel, and Delete
       removing it, each updating the tally
-- [ ] One handler for the three htmx failure events writing a `failed` line
+- [x] One handler for the three htmx failure events writing a `failed` line
       beside the control, with the server's sentence or a fixed one
-- [ ] The verdict withheld while any composer or edit form holds typed text,
+- [x] The verdict withheld while any composer or edit form holds typed text,
       with the bar's "still being written" notice and both verdicts unavailable
-- [ ] The bundle storing a fragment's `token=` under `eyeball:token`, replacing
+- [x] The bundle storing a fragment's `token=` under `eyeball:token`, replacing
       the history entry without it, and adding the header to every write
-- [ ] A browser test harness behind the `browser` tag, driving headless Chromium
+- [x] A browser test harness behind the `browser` tag, driving headless Chromium
       in real time through a same-origin script and an image it releases
-- [ ] Browser tests: a line comment added, edited and deleted, a review comment,
+- [x] Browser tests: a line comment added, edited and deleted, a review comment,
       a refused change request sent with a note, an approval reloading, and an
       approval withheld while a composer holds text, the store holding no
       decision
-- [ ] A browser test of the handover: the printed address opened, the fragment
+- [x] A browser test of the handover: the printed address opened, the fragment
       gone from the address, a write accepted, and no request line holding the
       token
 

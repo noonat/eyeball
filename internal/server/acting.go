@@ -96,12 +96,18 @@ type composerView struct {
 	Chips []chipView
 	// Placeholder is the field's hint.
 	Placeholder string
+	// Hint is the line beside the button, and Button what the button reads.
+	Hint, Button string
+	// Slot is the element id of the slot a tapped line's composer fills, and
+	// empty for the review's own box.
+	Slot string
 }
 
 // chipView is one level a composer's text can be sent to.
 type chipView struct {
-	// Level is the level it sets, and Label what it reads.
-	Level, Label string
+	// Level is the level it sets, Label what it reads, and Target the list
+	// a comment at that level goes in.
+	Level, Label, Target string
 	// Pressed marks the level the composer is on.
 	Pressed bool
 }
@@ -386,9 +392,15 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 		End:     end,
 		OldLine: old,
 		Against: against,
+		Hint:    "Saved as you type",
+		Button:  "Add",
 	}
-	review := chipView{Level: string(store.LevelReview), Label: "Review"}
-	file := chipView{Level: string(store.LevelFile), Label: "File"}
+	if level != store.LevelReview {
+		c.Slot = slotID(path)
+	}
+	fileList := "#" + listID(store.LevelFile, path)
+	review := chipView{Level: string(store.LevelReview), Label: "Review", Target: "#" + listID(store.LevelReview, "")}
+	file := chipView{Level: string(store.LevelFile), Label: "File", Target: fileList}
 	switch level {
 	case store.LevelReview:
 		if path != "" || start != 0 || old != 0 {
@@ -413,13 +425,13 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 		}
 		c.End = start
 		c.Anchor, c.Placeholder = fmt.Sprintf("%s:%d", path, start), fmt.Sprintf("Comment on line %d…", start)
-		c.Chips = []chipView{{Level: string(store.LevelLine), Label: fmt.Sprintf("Line %d", start), Pressed: true}, file, review}
+		c.Chips = []chipView{{Level: string(store.LevelLine), Label: fmt.Sprintf("Line %d", start), Target: fileList, Pressed: true}, file, review}
 	case store.LevelPassage:
 		if path == "" || start == 0 || end < start || old != 0 {
 			return c, false
 		}
 		c.Anchor, c.Placeholder = fmt.Sprintf("%s:%d–%d", path, start, end), "Comment on this passage…"
-		c.Chips = []chipView{{Level: string(store.LevelPassage), Label: "Passage", Pressed: true}, file, review}
+		c.Chips = []chipView{{Level: string(store.LevelPassage), Label: "Passage", Target: fileList, Pressed: true}, file, review}
 	default:
 		return c, false
 	}
@@ -606,6 +618,11 @@ func listID(level store.Level, path string) string {
 	}
 	sum := sha256.Sum256([]byte(path))
 	return "comments-" + hex.EncodeToString(sum[:6])
+}
+
+// slotID is the element id of a file's composer slot, hashed as listID is.
+func slotID(path string) string {
+	return "slot-" + strings.TrimPrefix(listID(store.LevelFile, path), "comments-")
 }
 
 // commentsHref is where a comment posts, and decisionHref where a verdict

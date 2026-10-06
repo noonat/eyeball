@@ -53,7 +53,9 @@ func TestServer_Surface_review(t *testing.T) {
 	g.Expect(paragraphs).To(Equal([]string{"Upload worker and its retry ladder", "The second paragraph says what to look at."}))
 	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file +1 −0"))
 	g.Expect(find(doc, "segmented")).To(BeNil(), "a first round has only its base")
-	g.Expect(find(doc, "decide")).To(BeNil(), "no decision bar until the write path can act on it")
+	bar := find(doc, "decide")
+	g.Expect(bar).NotTo(BeNil(), "an open round has the decision bar")
+	g.Expect(text(find(bar, "buttons"))).To(Equal("Request changesApprove"))
 
 	files := findAll(doc, hasClass("file"))
 	g.Expect(files).To(HaveLen(1))
@@ -150,16 +152,17 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	}
 	g.Expect(onFile).To(Equal([]string{"a.txt:1–2 one two Both lines.", "a.txt:2 two Why two?"}))
 
-	// The review's own comments follow the files, and the late one says so.
-	section := find(doc, "section")
-	g.Expect(text(find(section, "count"))).To(Equal("2"))
+	// The review's own comments sit under the box a late comment is written
+	// in, and the late one says so. Nothing released can change.
 	var onReview []string
-	for _, c := range findAll(section, hasClass("comment")) {
+	for _, c := range findAll(byID(doc, "comments-review"), hasClass("comment")) {
 		onReview = append(onReview, text(c))
 	}
 	g.Expect(onReview).To(Equal([]string{"This review Overall fine.", "This reviewafter the verdict One more thing."}))
-	g.Expect(findAll(doc, func(n *html.Node) bool { return n.Data == "form" || n.Data == "textarea" })).To(BeEmpty(), "comments are read-only")
-	g.Expect(find(doc, "section")).NotTo(BeNil())
+	forms := findAll(doc, isElement("form"))
+	g.Expect(forms).To(HaveLen(1), "a decided round keeps one box, for a late comment")
+	g.Expect(text(find(forms[0], "foot"))).To(Equal("Sends immediately Send"))
+	g.Expect(find(doc, "acts")).To(BeNil(), "released comments cannot change")
 	g.Expect(text(doc)).NotTo(ContainSubstring("What was done"), "nothing has been answered yet")
 
 	// An approved round is the last, so a reply the agent writes to it can
@@ -201,7 +204,7 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"kept: Kept two.",
 		"added: Added at the end.",
 	}))
-	g.Expect(findAll(cards["docs/product.md"], func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
+	g.Expect(findAll(find(cards["docs/product.md"], "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
 	links := find(cards["docs/product.md"], "filelinks")
 	g.Expect(text(links)).To(Equal("Raw diff"))
 	g.Expect(attr(find(links, "btn"), "href")).To(Equal(base + "/files/docs/product.md?view=source"))

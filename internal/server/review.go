@@ -69,6 +69,28 @@ type reviewPage struct {
 	// AllFiles is the tree's root at this round, keeping the page's
 	// comparison.
 	AllFiles string
+	// Acting is what the reviewer can do on the page, and nil on a round
+	// nothing more can be said on.
+	Acting *actingView
+}
+
+// actingView is what the reviewer can do on the current round: comment and
+// decide while it is open, or add a late comment once it is decided.
+type actingView struct {
+	// Review and Round are what every write names.
+	Review int64
+	Round  int
+	// State is "open" on an undecided round and "late" on a decided one. The
+	// client reads it to know whether a tap opens a composer.
+	State string
+	// Against is the page's comparison, which a removed row's quote needs.
+	Against string
+	// Composer is the review's own box under the agent's note.
+	Composer composerView
+	// List is the review-level comments, where that box's answers go.
+	List listView
+	// Bar is the decision bar, and nil once the round is decided.
+	Bar *barView
 }
 
 // earlierRound is one row of the list of earlier rounds.
@@ -125,6 +147,12 @@ type fileView struct {
 	RawDiff string
 	// Comments are the round's comments on it.
 	Comments []commentView
+	// List holds them as cards on the current round, where a composer's
+	// answer replaces it, and is nil elsewhere.
+	List *listView
+	// Slot is the element id a tapped line's composer is swapped into, and
+	// empty where no composer opens.
+	Slot string
 }
 
 // commentView is one comment card.
@@ -301,9 +329,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		lastOld = old
 		view.Shown = append(view.Shown, file)
 	}
-	open := files <= maxOpenFiles && added+removed <= maxOpenLines
+	expand := files <= maxOpenFiles && added+removed <= maxOpenLines
 	for i := range view.Shown {
-		view.Shown[i].Open = open
+		view.Shown[i].Open = expand
 	}
 	view.Files = count(files, "file", "files")
 	view.Added, view.Removed = thousands(added), thousands(removed)
@@ -311,6 +339,22 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	// and no card around it: marking every passage marks none.
 	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
 		view.Fresh = &view.Shown[0]
+	}
+
+	open := current && !decided && review.State == store.StateOpen
+	var decisionAt *store.Decision
+	if decided {
+		decisionAt = &decision
+	}
+	if current && review.State != store.StateAbandoned {
+		view.Acting = s.acting(review, round, open, against.Get("against"))
+		for i := range view.Shown {
+			p := view.Shown[i].Path
+			view.Shown[i].List = &listView{ID: listID(store.LevelFile, p)}
+			if open {
+				view.Shown[i].Slot = slotID(p)
+			}
+		}
 	}
 
 	batched := 0
@@ -327,11 +371,21 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		// join the review's own.
 		if i, ok := byPath[c.Path]; ok && current && view.Fresh == nil {
 			view.Shown[i].Comments = append(view.Shown[i].Comments, card)
+			if l := view.Shown[i].List; l != nil {
+				l.Cards = append(l.Cards, cardOf(review.ID, c, open, decisionAt))
+			}
+			continue
+		}
+		if view.Acting != nil && c.Level == store.LevelReview {
+			view.Acting.List.Cards = append(view.Acting.List.Cards, cardOf(review.ID, c, open, decisionAt))
 			continue
 		}
 		view.Comments = append(view.Comments, card)
 	}
 
+	if view.Acting != nil && view.Acting.Bar != nil {
+		view.Acting.Bar.Tally = tallyView{Count: len(comments)}
+	}
 	if decided {
 		went := "The verdict went out " + render.Ago(now, decision.Decided) + "."
 		if batched > 0 {
@@ -461,4 +515,18 @@ func thousands(n int) string {
 		b.WriteRune(d)
 	}
 	return b.String()
+}
+
+// acting is what the current round offers the reviewer.
+func (s *Server) acting(review store.Review, round store.Round, open bool, against string) *actingView {
+	a := &actingView{Review: review.ID, Round: round.Number, State: "late", Against: against}
+	a.Composer, _ = composer(review.ID, round.Number, store.LevelReview, "", 0, 0, 0, "")
+	a.List = listView{ID: listID(store.LevelReview, "")}
+	if open {
+		a.State = "open"
+		a.Bar = &barView{Action: decisionHref(review.ID), Round: round.Number}
+	} else {
+		a.Composer.Hint, a.Composer.Button = "Sends immediately", "Send"
+	}
+	return a
 }

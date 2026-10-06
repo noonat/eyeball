@@ -259,6 +259,7 @@ func TestServer_Surface_htmxConfig(t *testing.T) {
 		AllowEval              *bool `json:"allowEval"`
 		HistoryEnabled         *bool `json:"historyEnabled"`
 		Timeout                int   `json:"timeout"`
+		DefaultSettleDelay     *int  `json:"defaultSettleDelay"`
 		ResponseHandling       []struct {
 			Code  string `json:"code"`
 			Swap  bool   `json:"swap"`
@@ -270,6 +271,10 @@ func TestServer_Surface_htmxConfig(t *testing.T) {
 	g.Expect(config.AllowEval).To(HaveValue(BeFalse()))
 	g.Expect(config.HistoryEnabled).To(HaveValue(BeFalse()))
 	g.Expect(config.Timeout).To(Equal(10000))
+	// htmx binds swapped content only once it settles. A form tapped inside
+	// that window submits natively and loses its text, and nothing here uses
+	// the transitions the delay exists for.
+	g.Expect(config.DefaultSettleDelay).To(HaveValue(BeZero()))
 	g.Expect(config.ResponseHandling).To(HaveLen(4))
 	codes := []string{"204", "[23]..", "422", "[45].."}
 	swaps := []bool{false, true, true, false}

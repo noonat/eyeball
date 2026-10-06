@@ -1,7 +1,8 @@
 {{define "bar"}}<form class="decide" id="bar" hx-post="{{.Action}}" hx-target="this" hx-swap="outerHTML">
 <input type="hidden" name="round" value="{{.Round}}">
 {{if .Refused}}<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Requesting changes needs something to act on.</strong> Add a comment, or write a note with the verdict.</span></div>
-{{end}}{{template "tally" .Tally}}<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…">{{.Note}}</textarea>
+{{end}}<div id="unsaved" hidden><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
+{{template "tally" .Tally}}<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…">{{.Note}}</textarea>
 <div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
 </form>
 {{end}}
@@ -26,7 +27,7 @@
 </div>
 </form>
 {{end}}
-{{define "composer"}}<form class="composer" hx-post="{{.Action}}" hx-target="{{.Target}}" hx-swap="outerHTML">
+{{define "composer"}}{{if .Slot}}<div class="filecomposer" id="{{.Slot}}">{{end}}<form class="composer" hx-post="{{.Action}}" hx-target="{{.Target}}" hx-swap="outerHTML">
 <input type="hidden" name="round" value="{{.Round}}">
 <input type="hidden" name="level" value="{{.Level}}">
 {{with .Path}}<input type="hidden" name="path" value="{{.}}">
@@ -38,9 +39,9 @@
 <div class="anchor">{{.Anchor}}</div>
 <textarea class="field" name="body" aria-label="Comment" placeholder="{{.Placeholder}}"></textarea>
 <div class="foot">
-{{if .Chips}}<span class="levels">{{range .Chips}}<button type="button" class="chip" data-level="{{.Level}}" aria-pressed="{{.Pressed}}">{{.Label}}</button>{{end}}</span>
-{{else}}<span class="hint">Saved as you type</span>
-{{end}}<button type="submit" class="btn small accent">Add</button>
+{{if .Chips}}<span class="levels">{{range .Chips}}<button type="button" class="chip" data-level="{{.Level}}" data-target="{{.Target}}" aria-pressed="{{.Pressed}}">{{.Label}}</button>{{end}}</span>
+{{else}}<span class="hint">{{.Hint}}</span>
+{{end}}<button type="submit" class="btn small accent">{{.Button}}</button>
 </div>
 </form>
-{{end}}
+{{if .Slot}}</div>{{end}}{{end}}
