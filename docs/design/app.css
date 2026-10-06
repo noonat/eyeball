@@ -1212,6 +1212,54 @@ details.blk.changed[open] > summary > .cue-hide {
   color: var(--add);
 }
 
+/* A page renders at the frame's width and a fixed height, and scrolls inside
+ * the frame as it would on a phone screen. A PDF shows in the same frame. The
+ * white is the page's own background, which no theme reaches. */
+.pageframe {
+  display: block;
+  width: 100%;
+  height: 560px;
+  border: 0;
+  background: #fff;
+}
+
+.preview > video {
+  display: block;
+  width: 100%;
+  background: #000;
+}
+
+.preview > audio {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 10px;
+}
+
+/* Open is the one control a frame carries: the same file as a page of its own,
+ * still under the sandbox. */
+.preview > .cap .open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.preview > .cap .dim + .open {
+  margin-left: 0;
+}
+
+/* A rendered file inside a review's card sits in from the card's edge, where a
+ * diff runs edge to edge. */
+.file > .rendered {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
 /* What a file is, when it is not something this surface can show. */
 .filefacts {
   display: flex;

@@ -283,7 +283,7 @@ required_acks:
   - phone-approved
 ```
 
-- [ ] widening.html's "an image, shown as an image" frame showing the image
+- [/] widening.html's "an image, shown as an image" frame showing the image
 - [ ] New frames: a new image, a deleted image, SVG in its Image view, audio,
       video, a PDF, and a page's frame with its Open link
 - [ ] review.html's cards for a changed image, a page in its Page view, a media
