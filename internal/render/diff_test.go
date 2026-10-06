@@ -2,6 +2,7 @@ package render
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/noonat/eyeball"
@@ -110,4 +111,67 @@ func TestDiff_noRows(t *testing.T) {
 	g := NewWithT(t)
 	g.Expect(Diff("a.png", diff.Result{Binary: true})).To(Equal(File{Binary: true}))
 	g.Expect(Diff("a.go", diff.Result{TooLarge: true, Added: 30000})).To(Equal(File{TooLarge: true}))
+}
+
+func TestPlain(t *testing.T) {
+	g := NewWithT(t)
+	got := Plain("a.go", []byte("package a\n\nfunc f() {}"))
+	g.Expect(got.Binary).To(BeFalse())
+	g.Expect(got.TooLarge).To(BeFalse())
+	g.Expect(rowShapes(got)).To(Equal([]rowShape{
+		{Number: 1, Text: "package a"},
+		{Number: 2, Text: ""},
+		{Number: 3, Text: "func f() {}", NoNewline: true},
+	}))
+	// Each line is highlighted by the file's lexer, as a diff's are.
+	g.Expect(got.Rows[2].Segments).To(ContainElement(Segment{Text: "func", Role: roleKeyword}))
+	g.Expect(Plain("a.go", []byte("a\x00b"))).To(Equal(File{Binary: true}))
+	g.Expect(Plain("a.go", []byte(strings.Repeat("x\n", 20001)))).To(Equal(File{TooLarge: true}))
+}
+
+func TestWhole(t *testing.T) {
+	g := NewWithT(t)
+	// Changes eight lines apart, so a diff splits them into two hunks and
+	// leaves the unchanged ends out.
+	before := "package a\n\nvar a = 1\n\n// one\n// two\n// three\n// four\n// five\n// six\n// seven\nvar b = 1\n\n// end\n// end\n// end\n// end\n"
+	after := strings.Replace(strings.Replace(before, "var a = 1", "var a = 2", 1), "var b = 1", "var b = 2", 1)
+	r := diff.Whole([]byte(before), []byte(after))
+	got := Whole("a.go", r)
+
+	shapes := rowShapes(got)
+	g.Expect(shapes).To(HaveLen(19), "every line of the file, the two removed lines among them")
+	for _, s := range shapes {
+		g.Expect(s.Header).To(BeEmpty(), "the whole file carries no hunk header")
+	}
+	g.Expect(shapes[0]).To(Equal(rowShape{Number: 1, Text: "package a"}))
+	g.Expect(shapes[2]).To(Equal(rowShape{Class: "del", Number: 3, Sign: "−", Text: "var a = 1"}))
+	g.Expect(shapes[3]).To(Equal(rowShape{Class: "add", Number: 3, Sign: "+", Text: "var a = 2"}))
+	g.Expect(shapes[18]).To(Equal(rowShape{Number: 17, Text: "// end"}))
+	// The word marks are the comparison's own.
+	g.Expect(got.Rows[3].Segments).To(ContainElement(Segment{Text: "2", Role: roleNumber, Mark: true}))
+	g.Expect(Whole("a.go", diff.Result{Binary: true})).To(Equal(File{Binary: true}))
+	g.Expect(Whole("a.go", diff.Result{TooLarge: true})).To(Equal(File{TooLarge: true}))
+}
+
+// rowShape is a row with its segments joined, for a test comparing rows.
+type rowShape struct {
+	Header    string
+	Class     string
+	Number    int
+	Sign      string
+	Text      string
+	NoNewline bool
+}
+
+// rowShapes is every row of f as a shape.
+func rowShapes(f File) []rowShape {
+	var out []rowShape
+	for _, r := range f.Rows {
+		text := ""
+		for _, s := range r.Segments {
+			text += s.Text
+		}
+		out = append(out, rowShape{Header: r.Header, Class: r.Class, Number: r.Number, Sign: r.Sign, Text: text, NoNewline: r.NoNewline})
+	}
+	return out
 }

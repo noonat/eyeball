@@ -113,3 +113,39 @@ func TestComparePaths(t *testing.T) {
 	g.Expect(got[0].Result.Added).To(Equal(2))
 	g.Expect(got[0].Result.Removed).To(Equal(1))
 }
+
+func TestDiffers(t *testing.T) {
+	previous := []store.File{
+		{Path: "same.txt", Digest: "aa"},
+		{Path: "edited.txt", Digest: "aa"},
+		{Path: "reverted.txt", Digest: "aa"},
+		{Path: "deleted.txt", Digest: ""},
+	}
+	current := []store.File{
+		{Path: "same.txt", Digest: "aa"},
+		{Path: "edited.txt", Digest: "bb"},
+		{Path: "added.txt", Digest: "aa"},
+		{Path: "deleted.txt", Digest: ""},
+	}
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{path: "same.txt", want: false},
+		{path: "edited.txt", want: true},
+		{path: "reverted.txt", want: true},
+		{path: "added.txt", want: true},
+		{path: "deleted.txt", want: false},
+		{path: "neither.txt", want: false},
+	}
+	for _, c := range cases {
+		t.Run(c.path, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(Differs(previous, current, c.path)).To(Equal(c.want))
+		})
+	}
+	// Against no capture at all, which is a comparison with the base, a
+	// deletion the round records is a change.
+	g := NewWithT(t)
+	g.Expect(Differs(nil, current, "deleted.txt")).To(BeTrue())
+}

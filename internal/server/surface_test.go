@@ -43,6 +43,7 @@ func TestServer_Surface(t *testing.T) {
 	g.Expect(res.Body.String()).To(Equal("ok\n"))
 	g.Expect(res.Header().Get("Content-Security-Policy")).To(Equal(contentSecurityPolicy))
 	g.Expect(res.Header().Get("Cache-Control")).To(Equal("no-store"))
+	g.Expect(res.Header().Get("Referrer-Policy")).To(Equal("no-referrer"))
 
 	res = serveSurface(surface, http.MethodGet, "/static/app.css")
 	g.Expect(res.Code).To(Equal(http.StatusOK))
@@ -85,6 +86,7 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
 	g.Expect(res.Header().Get("Content-Security-Policy")).To(Equal(contentSecurityPolicy))
+	g.Expect(res.Header().Get("Referrer-Policy")).To(Equal("no-referrer"))
 	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("There is no page at this address."))
 	// The layout carries the topbar, the light theme and the stylesheet.
 	g.Expect(res.Body.String()).To(ContainSubstring(`<html lang="en" data-theme="light">`))

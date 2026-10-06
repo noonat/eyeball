@@ -1465,15 +1465,14 @@ leaves one alive has a test that cannot fail:
   deleted and `a/x` added, lists as a directory, in path order, so the answer is
   the same every time. The answer order's step 3 answers `a` as a deleted file,
   so the tree and that address disagree. Iteration 6 settles it.
-- Four mutants survive, three equivalent and one untestable. Correction: this
-  bullet first said five survived, four of them equivalent, counting the guard
-  that keeps an empty batch from git as equivalent. It is not: check-ignore
-  exits 1 on empty input only while git can answer, and exits 128 under
-  `GIT_CEILING_DIRECTORIES` or a damaged index, confirmed by the stand-in's
-  review, so without the guard an empty directory in a marker project whose
-  rules have become unreadable answers an error instead of an empty listing.
-  `TestReader_List_ignoreRules` now lists an empty directory at that point and
-  kills it.
+- Four mutants survive, three equivalent and one untestable. The guard that
+  keeps an empty batch from git is not among them, though it looks equivalent.
+  check-ignore exits 1 on empty input only while git can answer, and exits 128
+  under `GIT_CEILING_DIRECTORIES` or a damaged index, confirmed by the
+  stand-in's review, so without the guard an empty directory in a marker project
+  whose rules have become unreadable answers an error instead of an empty
+  listing. `TestReader_List_ignoreRules` lists an empty directory at that point
+  and kills it.
   - Equivalent: `diff.Whole` with its context set to the old side's line count
     alone. Every gap between changes, and each unchanged end, is made of lines
     both sides hold, so none is longer than the old side and one hunk still
@@ -1491,6 +1490,71 @@ leaves one alive has a test that cannot fail:
   with no base and a current round with one would have run `ls-tree` with an
   empty base and failed. Rounds of one review share their base, so it never
   happened, but it changes more than "Compare calls it unchanged" says.
+
+**Departures, iteration 5.**
+
+- `capture.Reader.Locate` answers steps 2 to 7 of the answer order in one call,
+  returning a `capture.PathType`, file, directory or deleted, and the source a
+  file is read from. The steps need the reader's capture and base, which the
+  handler does not hold. A file found on disk is reported without asking
+  check-ignore, and `capture.ReadLive`, which reads it next, asks and refuses an
+  ignored one, so a live file costs one check-ignore rather than two. Step 6
+  asks check-ignore before `root.Lstat` for every path. Here only a directory is
+  asked, after the `Lstat`, since nothing reads a directory afterward. The
+  answers are the same and only the order of two reads that open nothing
+  changes. A blob found by the type lookup keeps its object id, so reading the
+  file asks git no second time.
+- A gitlink the type lookup finds is not found, rather than falling through to
+  the disk, where its checkout would read as a directory. The design names a
+  gitlink only for the tree.
+- A directory and the empty path answer the 404 page with no banner until
+  iteration 6, as the link table plans.
+- `capture.readSide` is exported as `Reader.Side`, so the file page reads each
+  side of its comparison through the same bounded read as `Compare`.
+  `capture.Differs` is the per-path rule `Compare` uses to choose what moved,
+  exported so a file page and the review page agree on whether a file moved.
+  `State.Measurable` says when a comparison would read a base git cannot serve,
+  and `State.Reader` clears the base by the same rule, so the two cannot drift.
+- `diff.Plain` turns content into one hunk of unchanged lines, applying `Text`'s
+  binary test and limits, and `render.Plain` renders it. The design had
+  `render.Plain` work from content directly. Splitting lines and the line limit
+  live in `internal/diff`, and a second copy of the limit in `internal/render`
+  would drift.
+- A file captured outside the review's paths that moved in the comparison gets
+  counts and Marked and Plain under its capture banner. The design says the
+  control appears for a file that moved, and its own example is a file the
+  review changes.
+- A binary or too-large file has no toolbar, only the line 006 prints. Its
+  counts would be the review page's zero.
+- The banners the design named but did not word are worded here. A state that
+  refuses every live read puts a `notice warn` reading "Only what this round
+  captured can be shown." with its reason on the 404 page for a path a live read
+  might have answered. A failed ignore check reads "Nothing on disk can be
+  shown. Git could not say which files it ignores." A missing root and a lost
+  repository put the same banner on every file page as well, as the design asks
+  for a missing root, since the base is unreadable there too. The toolbar's
+  sentence for an unmeasurable change names the missing root or the lost
+  repository where one is the cause, beside the design's gone base.
+- `against` is carried as `against=base` alone. An explicit `against=previous`
+  is the default and is dropped from the links, which changes the address and
+  not the page.
+- The review page keeps building its readers with `NewReader`, as iteration 4
+  recorded. Every reader the file routes build comes from `State.Reader`.
+- "Whole file" sits at the foot of every card, after the card's comments, a
+  binary, too-large or deleted file's card included. Each opens a page saying
+  what it shows.
+- Two mutants survive, one equivalent and one untestable.
+  - Equivalent: writing the flag when it already reads 1. The update sets 1 only
+    where the column is 0, so the extra write changes nothing.
+  - Untestable: reading a live file with no bound. `render.Plain` refuses a file
+    past the limit by its length, so the page is the same either way. The bound
+    keeps a large file out of memory, which no test observes.
+- Dropping the empty path's step, or the directory's branch, still answers the
+  404 page, since `CleanPath` refuses the empty path and the live read refuses a
+  directory. Under a lost repository the mutant's page carries the refusal
+  banner, though no live read was asked for, and the lost-repository row asserts
+  the plain page for both, which kills them. The spec's row for the empty path,
+  the tree's root answering 200, is iteration 6's.
 
 ## Out of scope
 
@@ -1850,40 +1914,46 @@ required_acks:
       more than three unchanged lines at each end, so three lines of context
       fails it
 
+> **Completed** 2026-10-05 23:35 UTC
+>
+> - acks: reviewed
+> - `make check` — 3.1s
+> - `go test -race ./...` — 21.1s
+
 ## Iteration 5: A file at a round
 
-- [ ] Both file routes in the route table on the surface side, and the listener
-      test substituting `{path...}`
-- [ ] The answer order: `Inspect` first, the empty path to the tree, and file or
-      directory decided before `Frozen`
-- [ ] The type lookup as `git --literal-pathspecs ls-tree` with no `-r`, with a
-      colon-named base file read from the base
-- [ ] Project paths escaped by segment in every address, and
-      `Referrer-Policy: no-referrer` on every surface response, each with a test
-- [ ] `render.Whole` rows from `diff.Whole` with no hunk header, and
-      `render.Plain` rows from content, both highlighted, with tests of each
-- [ ] The `filepage` template: crumb, banner, toolbar counts saying what they
-      count, Marked and Plain as `?view=` links keeping `against`, and the whole
-      file, with runtime classes in `render.Classes`
-- [ ] The banner chosen by source and scope, and by `Inspect`'s answer: the two
-      info banners, the live warning's reasons, and the capture-only banner
-- [ ] The file route writing `Inspect`'s finding through
-      `db.MarkInsideCheckout`, with a server-level row whose project and review
-      are opened through the store, as `tool/seed` does, so the request path
-      never runs: the flag is 0 before the GET and 1 after it
-- [ ] A refused path, an encoded climb and a path in no source answered with the
-      404 page, tested through the surface handler with the escaped forms
-- [ ] A live read refused by a failed ignore check, a disowned marker project or
-      a moved outer `.git` answered with the 404 page and its banner, while a
-      captured file opens
-- [ ] A deleted file shown as its removed lines in Marked and as deleted in
-      Plain, in scope, out of scope and unmoved, under each comparison, and
-      binary and too-large files given 006's lines
-- [ ] Each code card on the review page linking "Whole file", and every file
-      page's back link going to its round, both keeping `against`, with a test
-- [ ] `TestServer_Surface_fileBanners` covering each source on a current and an
-      earlier round, a gone base and a lost repository with no counts and no
-      Marked control
+- [x] Both file routes in the route table on the surface side, and the listener
+  test substituting `{path...}`
+- [x] The answer order: `Inspect` first, the empty path to the tree, and file or
+  directory decided before `Frozen`
+- [x] The type lookup as `git --literal-pathspecs ls-tree` with no `-r`, with a
+  colon-named base file read from the base
+- [x] Project paths escaped by segment in every address, and
+  `Referrer-Policy: no-referrer` on every surface response, each with a test
+- [x] `render.Whole` rows from `diff.Whole` with no hunk header, and
+  `render.Plain` rows from content, both highlighted, with tests of each
+- [x] The `filepage` template: crumb, banner, toolbar counts saying what they
+  count, Marked and Plain as `?view=` links keeping `against`, and the whole
+  file, with runtime classes in `render.Classes`
+- [x] The banner chosen by source and scope, and by `Inspect`'s answer: the two
+  info banners, the live warning's reasons, and the capture-only banner
+- [x] The file route writing `Inspect`'s finding through
+  `db.MarkInsideCheckout`, with a server-level row whose project and review are
+  opened through the store, as `tool/seed` does, so the request path never runs:
+  the flag is 0 before the GET and 1 after it
+- [x] A refused path, an encoded climb and a path in no source answered with the
+  404 page, tested through the surface handler with the escaped forms
+- [x] A live read refused by a failed ignore check, a disowned marker project or
+  a moved outer `.git` answered with the 404 page and its banner, while a
+  captured file opens
+- [x] A deleted file shown as its removed lines in Marked and as deleted in
+  Plain, in scope, out of scope and unmoved, under each comparison, and binary
+  and too-large files given 006's lines
+- [x] Each code card on the review page linking "Whole file", and every file
+  page's back link going to its round, both keeping `against`, with a test
+- [x] `TestServer_Surface_fileBanners` covering each source on a current and an
+  earlier round, a gone base and a lost repository with no counts and no Marked
+  control
 
 ## Iteration 6: The tree
 

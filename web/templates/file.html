@@ -1,0 +1,16 @@
+{{define "filepage"}}<div class="scroll"><div class="page">
+<div class="crumb"><span class="i i-file-text" aria-hidden="true"></span>{{with .Dir}}<span class="dir"><bdi>{{.}}</bdi></span>{{end}}<span class="name">{{.Name}}</span></div>
+{{range .Notices}}{{template "notice" .}}{{end}}{{with .Toolbar}}<div class="toolbar">
+{{if .Note}}<span class="counts"><span class="hint">{{.Note}}</span></span>
+{{else}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span> <span class="hint">{{.Counted}}</span></span>
+<span class="segmented"><a href="{{.Marked}}"{{if not .ShowPlain}} aria-current="true"{{end}}>Marked</a><a href="{{.Plain}}"{{if .ShowPlain}} aria-current="true"{{end}}>Plain</a></span>
+{{end}}</div>
+{{end}}{{if .Deleted}}<div class="empty"><span class="headline">Deleted</span><p>{{.Deleted}}</p></div>
+{{else}}<div class="file">
+{{if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
+{{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
+{{else}}{{template "code" .Diff.Rows}}{{end}}</div>
+{{end}}</div></div>
+{{end}}
+{{define "notice"}}<div class="notice{{if .Warn}} warn{{end}}">{{if .Warn}}<span class="glyph i i-triangle-alert" aria-hidden="true"></span>{{else}}<span class="glyph i i-info" aria-hidden="true"></span>{{end}}<span><strong>{{.Heading}}</strong> {{.Text}}</span></div>
+{{end}}

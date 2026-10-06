@@ -111,9 +111,7 @@ func moved(previous, current []store.File) []string {
 				continue
 			}
 			seen[p] = struct{}{}
-			oldDigest, hadOld := was[p]
-			newDigest, hasNew := is[p]
-			if hadOld == hasNew && oldDigest == newDigest {
+			if !differs(was, is, p) {
 				continue
 			}
 			out = append(out, p)
@@ -121,6 +119,23 @@ func moved(previous, current []store.File) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// Differs reports whether p's state differs between two captures, by the rule
+// Compare uses to choose what it diffs: present in one and not the other, or
+// held by both with different content.
+//
+// It is how a page asks whether one path moved without diffing every path
+// that did, so a file's page and the review page agree on what moved.
+func Differs(previous, current []store.File, p string) bool {
+	return differs(states(previous), states(current), p)
+}
+
+// differs is Differs over captures already mapped by states.
+func differs(was, is map[string]string, p string) bool {
+	oldDigest, hadOld := was[p]
+	newDigest, hasNew := is[p]
+	return hadOld != hasNew || oldDigest != newDigest
 }
 
 // states maps each captured path to its digest, which is empty for a path the
@@ -138,14 +153,14 @@ func states(files []store.File) map[string]string {
 // Both sides are read frozen, never from the working copy, because a round is
 // what is being compared and the working copy has moved on.
 func compareFile(ctx context.Context, before, now *Reader, p string) (diff.Result, error) {
-	old, tooBig, err := readSide(ctx, before, p)
+	old, tooBig, err := before.Side(ctx, p)
 	if err != nil {
 		return diff.Result{}, err
 	}
 	if tooBig {
 		return diff.Result{TooLarge: true}, nil
 	}
-	current, tooBig, err := readSide(ctx, now, p)
+	current, tooBig, err := now.Side(ctx, p)
 	if err != nil {
 		return diff.Result{}, err
 	}
@@ -163,12 +178,12 @@ func compareFile(ctx context.Context, before, now *Reader, p string) (diff.Resul
 	return result, nil
 }
 
-// readSide reads one side of a comparison, reporting a file too large to diff
-// rather than holding it.
+// Side reads p as one side of a comparison, from the reader's frozen sources,
+// reporting a file too large to diff rather than holding it.
 //
 // A path that does not exist as of that round reads as nothing, which is what
 // makes an addition and a deletion fall out of the same comparison.
-func readSide(ctx context.Context, r *Reader, p string) ([]byte, bool, error) {
+func (r *Reader) Side(ctx context.Context, p string) ([]byte, bool, error) {
 	rc, _, err := r.Frozen(ctx, p)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {

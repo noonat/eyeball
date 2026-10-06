@@ -52,11 +52,7 @@ func ReadLive(ctx context.Context, st State, p string) (io.ReadCloser, error) {
 // swapped for a link after it was checked still cannot lead outside.
 func (r *Reader) fromWorking(ctx context.Context, clean string) (io.ReadCloser, Source, error) {
 	if r.live.Refused() {
-		err := errors.Wrapf(ErrNotFound, "%s is in no frozen source, and the project allows no live read (%s)", clean, r.live)
-		if r.live == LiveRulesUnreadable {
-			err = errors.Mark(err, ErrRulesUnreadable)
-		}
-		return nil, "", err
+		return nil, "", r.refusal(clean)
 	}
 	root, err := os.OpenRoot(r.root)
 	if err != nil {
@@ -103,6 +99,17 @@ func (r *Reader) fromWorking(ctx context.Context, clean string) (io.ReadCloser, 
 	// A directory, a socket or a FIFO. Nothing here opens one, for the same
 	// reasons a capture does not.
 	return nil, "", errors.Wrapf(ErrNotFound, "%s is not a regular file", clean)
+}
+
+// refusal is the error a live read of clean answers with in a state that
+// refuses every live read. It is ErrNotFound, and ErrRulesUnreadable as well
+// where that is the reason, so a page can name it.
+func (r *Reader) refusal(clean string) error {
+	err := errors.Wrapf(ErrNotFound, "%s is in no frozen source, and the project allows no live read (%s)", clean, r.live)
+	if r.live == LiveRulesUnreadable {
+		err = errors.Mark(err, ErrRulesUnreadable)
+	}
+	return err
 }
 
 // step runs the test's pause, if there is one.

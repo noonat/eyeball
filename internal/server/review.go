@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +103,9 @@ type fileView struct {
 	Open bool
 	// Diff is its rows, or the flag saying why it has none.
 	Diff render.File
+	// Whole is the file's own page, where it is shown whole, keeping the
+	// page's comparison.
+	Whole string
 	// Comments are the round's comments on it.
 	Comments []commentView
 }
@@ -220,6 +224,10 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		view.Against = &againstControl{Previous: fmt.Sprintf("Since round %d", round.Number-1), Base: wholeReview}
 	}
 	current := round.Number == review.LatestRound
+	against := url.Values{}
+	if wholeReview {
+		against.Set("against", "base")
+	}
 	if current {
 		if view.Earlier, err = s.earlierRounds(ctx, review, now); err != nil {
 			return reviewPage{}, err
@@ -241,6 +249,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			Added:   thousands(m.Result.Added),
 			Removed: thousands(m.Result.Removed),
 			Diff:    render.Diff(m.Path, m.Result),
+			Whole:   withQuery(fileHref(review.ID, round.Number, current, m.Path), against),
 		})
 	}
 	open := files <= maxOpenFiles && added+removed <= maxOpenLines

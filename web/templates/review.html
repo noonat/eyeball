@@ -42,13 +42,15 @@
 <summary><span class="path"><bdi>{{.Path}}</bdi></span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></summary>
 {{if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
-{{else}}<div class="code narrow">
+{{else}}{{template "code" .Diff.Rows}}{{end}}{{range .Comments}}{{template "comment" .}}{{end}}<div class="filelinks"><a class="btn small" href="{{.Whole}}">Whole file</a></div>
+</details>
+{{end}}
+{{define "code"}}<div class="code narrow">
 <table>
-{{range .Diff.Rows}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
+{{range .}}{{if .Header}}<tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
 {{else}}<tr{{with .Class}} class="{{.}}"{{end}}><td class="ln">{{.Number}}</td><td class="sign">{{.Sign}}</td><td class="src">{{range .Segments}}{{template "segment" .}}{{end}}</td></tr>
 {{end}}{{end}}</table>
 </div>
-{{end}}{{range .Comments}}{{template "comment" .}}{{end}}</details>
 {{end}}
 {{define "segment"}}{{if .Mark}}<span class="w">{{if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}</span>{{else if .Role}}<span class="{{.Role}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
 {{define "comment"}}<div class="comment">

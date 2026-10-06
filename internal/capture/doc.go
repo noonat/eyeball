@@ -28,6 +28,12 @@
 // either fails or answers for an outer one. Every state but two refuses a live
 // read, and a refused live read never stops a captured file from opening.
 //
+// A page locates a path before it reads one, in a fixed order: a deletion the
+// round records, a file the capture holds, a directory the capture holds files
+// under, the base's one entry at the path, and last the disk, where the state
+// allows a live read. Nothing lists recursively to decide it, so a directory
+// is never read as a file.
+//
 // A live read, of a file no frozen source holds, refuses a path with a .git
 // segment or a NUL, a path through a symlinked directory or into a directory
 // holding another repository, a path git ignores, and a path inside a

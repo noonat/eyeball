@@ -110,6 +110,63 @@ func Test_splitLinesReportsTheTrailingNewline(t *testing.T) {
 	}
 }
 
+func TestPlain(t *testing.T) {
+	g := NewWithT(t)
+	got := Plain([]byte("one\ntwo\nthree"))
+	g.Expect(got.Added).To(BeZero())
+	g.Expect(got.Removed).To(BeZero())
+	g.Expect(got.Hunks).To(Equal([]Hunk{{
+		OldStart: 1,
+		OldLines: 3,
+		NewStart: 1,
+		NewLines: 3,
+		Lines: []Line{
+			{Op: OpContext, Old: 1, New: 1, Text: "one"},
+			{Op: OpContext, Old: 2, New: 2, Text: "two"},
+			{Op: OpContext, Old: 3, New: 3, Text: "three", NoNewline: true},
+		},
+	}}))
+	// A final newline is a property of the text, not a line of its own.
+	ended := Plain([]byte("one\n"))
+	g.Expect(ended.Hunks[0].Lines).To(Equal([]Line{{Op: OpContext, Old: 1, New: 1, Text: "one"}}))
+	g.Expect(Plain(nil)).To(Equal(Result{}))
+}
+
+func TestPlain_limits(t *testing.T) {
+	cases := []struct {
+		name    string
+		content []byte
+		want    Result
+	}{
+		{
+			name:    "a NUL byte",
+			content: []byte("text\x00more\n"),
+			want:    Result{Binary: true},
+		},
+		{
+			name:    "past the byte limit",
+			content: []byte(strings.Repeat("x", MaxBytes) + "\n"),
+			want:    Result{TooLarge: true},
+		},
+		{
+			name:    "past the line limit",
+			content: []byte(strings.Repeat("x\n", defaultLimits().maxLines+1)),
+			want:    Result{TooLarge: true},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(Plain(c.content)).To(Equal(c.want))
+		})
+	}
+	// The line limit is Text's own: one line fewer is shown.
+	g := NewWithT(t)
+	at := Plain([]byte(strings.Repeat("x\n", defaultLimits().maxLines)))
+	g.Expect(at.TooLarge).To(BeFalse())
+	g.Expect(at.Hunks[0].Lines).To(HaveLen(defaultLimits().maxLines))
+}
+
 func TestText(t *testing.T) {
 	cases := []struct {
 		name    string

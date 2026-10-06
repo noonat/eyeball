@@ -52,13 +52,34 @@ type Segment struct {
 // Diff turns a comparison of one file into rows, highlighting each line by the
 // lexer path's name chooses.
 func Diff(path string, r diff.Result) File {
+	return rows(path, r, true)
+}
+
+// Whole turns diff.Whole's one hunk into rows with no hunk header. The header
+// would say the hunk covers every line, which is what the page already is.
+func Whole(path string, r diff.Result) File {
+	return rows(path, r, false)
+}
+
+// Plain turns a file's content into rows with no comparison: every line
+// unchanged, highlighted, and numbered from one. A binary file and one past
+// the diff's limits have no rows, as in a comparison.
+func Plain(path string, content []byte) File {
+	return rows(path, diff.Plain(content), false)
+}
+
+// rows turns a result's hunks into rows, each headed by its hunk header where
+// headers is set.
+func rows(path string, r diff.Result, headers bool) File {
 	if r.Binary || r.TooLarge {
 		return File{Binary: r.Binary, TooLarge: r.TooLarge}
 	}
 	h := newHighlighter(path)
 	var f File
 	for _, hunk := range r.Hunks {
-		f.Rows = append(f.Rows, Row{Header: hunkHeader(hunk)})
+		if headers {
+			f.Rows = append(f.Rows, Row{Header: hunkHeader(hunk)})
+		}
 		for _, line := range hunk.Lines {
 			row := Row{Number: line.New, NoNewline: line.NoNewline}
 			switch line.Op {

@@ -94,6 +94,37 @@ func Whole(before, after []byte) Result {
 	return text(before, after, l)
 }
 
+// Plain returns a text as one hunk of unchanged lines, compared with nothing,
+// or no hunk for an empty text.
+//
+// It is how a file nothing is compared against is shown, such as one opened
+// for context. It applies Text's binary test and size limits, so a file shown
+// plain and the same file shown as a change are refused at the same size.
+func Plain(b []byte) Result {
+	l := defaultLimits()
+	if isBinary(b) {
+		return Result{Binary: true}
+	}
+	lines, ends := splitLines(b)
+	if len(b) > l.maxBytes || len(lines) > l.maxLines {
+		return Result{TooLarge: true}
+	}
+	if len(lines) == 0 {
+		return Result{}
+	}
+	h := Hunk{OldStart: 1, OldLines: len(lines), NewStart: 1, NewLines: len(lines), Lines: make([]Line, 0, len(lines))}
+	for i, text := range lines {
+		h.Lines = append(h.Lines, Line{
+			Op:        OpContext,
+			Old:       i + 1,
+			New:       i + 1,
+			Text:      text,
+			NoNewline: !ends && i == len(lines)-1,
+		})
+	}
+	return Result{Hunks: []Hunk{h}}
+}
+
 // limits are the bounds every bail-out is measured against.
 //
 // They are a parameter rather than a set of constants so a test can reach each

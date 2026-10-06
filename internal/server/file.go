@@ -1,0 +1,504 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"path"
+	"strconv"
+	"strings"
+
+	"github.com/cockroachdb/errors"
+	"github.com/noonat/eyeball/internal/capture"
+	"github.com/noonat/eyeball/internal/diff"
+	"github.com/noonat/eyeball/internal/render"
+	"github.com/noonat/eyeball/internal/store"
+)
+
+// filePage is what the filepage template prints for one path at one round.
+type filePage struct {
+	// Dir is the path's directory with a trailing slash, empty at the root,
+	// and Name its last segment.
+	Dir, Name string
+	// Notices are the banners above the file, in order.
+	Notices []notice
+	// Toolbar is the counts and the Marked and Plain control, and nil for a
+	// file nothing is compared for.
+	Toolbar *fileToolbar
+	// Deleted is the sentence the empty box shows in place of the file, and
+	// empty where the file is shown.
+	Deleted string
+	// Diff is the file's rows, or the flag saying why it has none.
+	Diff render.File
+}
+
+// fileToolbar is the toolbar above a file that a comparison covers.
+type fileToolbar struct {
+	// Note says why there are no counts and no control, in their place:
+	// nothing moved, or the change cannot be measured.
+	Note string
+	// Added and Removed are the lines each way, and Counted says what they
+	// count.
+	Added, Removed, Counted string
+	// Marked and Plain are the two views' addresses.
+	Marked, Plain string
+	// ShowPlain says the plain view is the one shown.
+	ShowPlain bool
+}
+
+// notice is one banner.
+type notice struct {
+	// Warn says the banner warns rather than informs.
+	Warn bool
+	// Heading is the banner's bold opening, and Text the rest of it.
+	Heading, Text string
+}
+
+// handleFilePage answers GET /reviews/{review}/files/{path...}: a path at the
+// review's latest round.
+func (s *Server) handleFilePage(w http.ResponseWriter, r *http.Request) error {
+	review, ok, err := s.reviewFromPath(r)
+	if err != nil || !ok {
+		return s.missing(w, err)
+	}
+	return s.filePage(w, r, review, review.LatestRound)
+}
+
+// handleRoundFilePage answers GET /reviews/{review}/rounds/{round}/files/
+// {path...}: a path at any round. The latest round answers here as well.
+func (s *Server) handleRoundFilePage(w http.ResponseWriter, r *http.Request) error {
+	number, err := strconv.Atoi(r.PathValue("round"))
+	if err != nil {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	review, ok, err := s.reviewFromPath(r)
+	if err != nil || !ok {
+		return s.missing(w, err)
+	}
+	return s.filePage(w, r, review, number)
+}
+
+// reviewFromPath reads the review an address names, reporting false for one
+// that does not exist.
+func (s *Server) reviewFromPath(r *http.Request) (store.Review, bool, error) {
+	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
+	if err != nil {
+		return store.Review{}, false, nil
+	}
+	review, err := s.db.s.Review(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		return store.Review{}, false, nil
+	}
+	return review, err == nil, err
+}
+
+// missing answers with the 404 page where err is nil, and passes err on
+// otherwise.
+func (s *Server) missing(w http.ResponseWriter, err error) error {
+	if err != nil {
+		return err
+	}
+	s.errorPage(w, http.StatusNotFound)
+	return nil
+}
+
+// filePage answers one path at one round of a review.
+//
+// The project's state is settled first, once, and everything after reads it:
+// which reader is built, whether anything is compared, and which banners the
+// page carries. A path is then located before anything is read, so a
+// directory is never read as a file.
+func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.Review, number int) error {
+	ctx := r.Context()
+	round, err := s.db.s.Round(ctx, review.ID, number)
+	if errors.Is(err, store.ErrNotFound) {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	project, err := s.db.s.Project(ctx, review.ProjectID)
+	if err != nil {
+		return err
+	}
+	st, err := capture.Inspect(ctx, project.Root, round.BaseCommit, project.InsideCheckout)
+	if err != nil {
+		return err
+	}
+	if st.FoundCheckout && !project.InsideCheckout {
+		if err := s.db.MarkInsideCheckout(ctx, project.ID); err != nil {
+			return err
+		}
+	}
+
+	p := r.PathValue("path")
+	if p == "" {
+		// The tree's root, which the tree answers once it exists.
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	stored, err := s.db.s.RoundFiles(ctx, round.ID)
+	if err != nil {
+		return err
+	}
+	files := make([]store.File, len(stored))
+	scope := make(map[string]bool, len(stored))
+	for i, f := range stored {
+		files[i] = f.File
+		scope[f.Path] = f.InScope
+	}
+	now := st.Reader(s.blobs, files)
+	pathType, source, err := now.Locate(ctx, p)
+	if errors.Is(err, capture.ErrNotFound) {
+		s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if pathType == capture.PathDir {
+		// A directory, which the tree answers once it exists.
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	clean, err := capture.CleanPath(p)
+	if err != nil {
+		return err
+	}
+
+	at := fileAt{
+		review:      review,
+		round:       round,
+		current:     round.Number == review.LatestRound,
+		wholeReview: r.URL.Query().Get("against") == "base",
+		plain:       r.URL.Query().Get("view") == "plain",
+		path:        clean,
+	}
+	view := filePage{Name: path.Base(clean)}
+	if dir := path.Dir(clean); dir != "." {
+		view.Dir = dir + "/"
+	}
+	if n := stateNotice(st, s.tilde(project.Root)); n != nil {
+		view.Notices = append(view.Notices, *n)
+	}
+
+	switch source {
+	case capture.SourceRound:
+		inScope := scope[clean]
+		if !inScope {
+			view.Notices = append(view.Notices, captureNotice(pathType == capture.PathDeleted, round.Number))
+		}
+		previous, err := s.previousFiles(ctx, at)
+		if err != nil {
+			return err
+		}
+		if err := s.compareView(ctx, &view, at, st, now, previous, files, inScope, pathType == capture.PathDeleted); err != nil {
+			return err
+		}
+	case capture.SourceBase:
+		view.Notices = append(view.Notices, baseNotice(store.Covers(review.Paths, clean)))
+		content, tooLarge, err := now.Side(ctx, clean)
+		if err != nil {
+			return err
+		}
+		view.Diff = plainRows(clean, content, tooLarge)
+	default:
+		rc, err := capture.ReadLive(ctx, st, clean)
+		if errors.Is(err, capture.ErrNotFound) {
+			s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		content, err := readBounded(rc)
+		if err != nil {
+			return err
+		}
+		view.Notices = append(view.Notices, liveNotice(st))
+		view.Diff = render.Plain(clean, content)
+	}
+
+	back, label := at.roundHref(), "Review"
+	if !at.current {
+		label = fmt.Sprintf("Round %d", round.Number)
+	}
+	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: back, BackLabel: label, Body: view})
+	return nil
+}
+
+// fileAt is the address a file page answers, which every link it writes is
+// built from.
+type fileAt struct {
+	review store.Review
+	round  store.Round
+	// current says the round is the review's latest, whose links use the
+	// short form.
+	current bool
+	// wholeReview says the comparison is against the base rather than the
+	// previous round, and every link carries it.
+	wholeReview bool
+	// plain says the plain view was asked for.
+	plain bool
+	path  string
+}
+
+// against is the comparison as a query, empty for the default.
+func (a fileAt) against() url.Values {
+	q := url.Values{}
+	if a.wholeReview {
+		q.Set("against", "base")
+	}
+	return q
+}
+
+// roundHref is the round's page, keeping the comparison.
+func (a fileAt) roundHref() string {
+	return withQuery(roundHref(a.review.ID, a.round.Number, a.current), a.against())
+}
+
+// viewHref is this file's page in one view, keeping the comparison.
+func (a fileAt) viewHref(view string) string {
+	q := a.against()
+	q.Set("view", view)
+	return withQuery(fileHref(a.review.ID, a.round.Number, a.current, a.path), q)
+}
+
+// previousFiles is the capture the round is compared against: the previous
+// round's, or none, which compares the round with its base.
+func (s *Server) previousFiles(ctx context.Context, at fileAt) ([]store.File, error) {
+	if at.round.Number == 1 || at.wholeReview {
+		return nil, nil
+	}
+	before, err := s.db.s.Round(ctx, at.review.ID, at.round.Number-1)
+	if err != nil {
+		return nil, err
+	}
+	return s.roundFiles(ctx, before.ID)
+}
+
+// compareView fills in a captured file: its toolbar, and either its rows or
+// the box saying it was deleted.
+//
+// Whether the file moved is decided from the two captures' digests, as the
+// review page decides which files it lists, so the two cannot disagree about
+// a file. The rows come from diff.Whole, which marks what the review page's
+// hunks marked.
+func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st capture.State, now *capture.Reader, previous, current []store.File, inScope, deleted bool) error {
+	deletedText := fmt.Sprintf("The agent deleted this file as of round %d.", at.round.Number)
+	if !st.Measurable() {
+		view.Toolbar = &fileToolbar{Note: unmeasurable(st)}
+		if deleted {
+			view.Deleted = deletedText
+			return nil
+		}
+		content, tooLarge, err := now.Side(ctx, at.path)
+		if err != nil {
+			return err
+		}
+		view.Diff = plainRows(at.path, content, tooLarge)
+		return nil
+	}
+
+	before := st.Reader(s.blobs, previous)
+	old, tooLarge, err := before.Side(ctx, at.path)
+	if err != nil {
+		return err
+	}
+	content, currentTooLarge, err := now.Side(ctx, at.path)
+	if err != nil {
+		return err
+	}
+	if tooLarge || currentTooLarge {
+		view.Diff = render.File{TooLarge: true}
+		return nil
+	}
+
+	if !capture.Differs(previous, current, at.path) {
+		if inScope && !deleted {
+			view.Toolbar = &fileToolbar{Note: fmt.Sprintf("Not changed since round %d", at.round.Number-1)}
+		}
+		if deleted {
+			view.Deleted = deletedText
+			return nil
+		}
+		view.Diff = render.Plain(at.path, content)
+		return nil
+	}
+
+	result := diff.Whole(old, content)
+	if result.Binary || result.TooLarge {
+		view.Diff = render.Whole(at.path, result)
+		return nil
+	}
+	counted := "in this round"
+	if at.wholeReview && at.round.Number > 1 {
+		counted = "in this review"
+	}
+	view.Toolbar = &fileToolbar{
+		Added:     thousands(result.Added),
+		Removed:   thousands(result.Removed),
+		Counted:   counted,
+		Marked:    at.viewHref("marked"),
+		Plain:     at.viewHref("plain"),
+		ShowPlain: at.plain,
+	}
+	switch {
+	case !at.plain:
+		view.Diff = render.Whole(at.path, result)
+	case deleted:
+		view.Deleted = deletedText
+	default:
+		view.Diff = render.Plain(at.path, content)
+	}
+	return nil
+}
+
+// plainRows is a file's content as plain rows, or the too-large flag where
+// reading stopped at the limit.
+func plainRows(p string, content []byte, tooLarge bool) render.File {
+	if tooLarge {
+		return render.File{TooLarge: true}
+	}
+	return render.Plain(p, content)
+}
+
+// readBounded reads at most one byte past the diff's limit and closes rc. A
+// file past the limit is refused by render.Plain on its length, so stopping
+// there keeps a large file out of memory without changing the answer.
+func readBounded(rc io.ReadCloser) ([]byte, error) {
+	defer func() { _ = rc.Close() }()
+	content, err := io.ReadAll(io.LimitReader(rc, diff.MaxBytes+1))
+	if err != nil {
+		return nil, errors.Wrap(err, "read the working copy")
+	}
+	return content, nil
+}
+
+// captureNotice is the banner on a file the round captured outside the
+// review's paths. The capture is exact and frozen, so it informs.
+func captureNotice(deleted bool, round int) notice {
+	text := fmt.Sprintf("Changed by the agent outside the review's paths, shown as it was when round %d was taken.", round)
+	if deleted {
+		text = fmt.Sprintf("Deleted by the agent outside the review's paths, as of round %d.", round)
+	}
+	return notice{Heading: "Not part of this review.", Text: text}
+}
+
+// baseNotice is the banner on a file read from the base commit. A review's
+// base is fixed at its first round, so the banner names round 1 always.
+func baseNotice(covered bool) notice {
+	heading := "Not part of this review."
+	if covered {
+		heading = "Unchanged by this review."
+	}
+	return notice{Heading: heading, Text: "Unchanged since the commit round 1 was taken from."}
+}
+
+// liveNotice is the banner on a file read off disk, naming why nothing frozen
+// holds it.
+func liveNotice(st capture.State) notice {
+	reason := "Nothing captured this file"
+	switch {
+	case st.BaseGone:
+		reason = "The commit round 1 was taken from is gone"
+	case st.Live == capture.LiveOpen:
+		reason = "The project is outside git"
+	}
+	return notice{Warn: true, Heading: "Live, not from this round.", Text: reason + ", so it is shown as it is on disk now and may have moved."}
+}
+
+// stateNotice is the banner every file page of a project carries when the
+// project's root or its repository is gone, and nil otherwise. Either way the
+// round's capture is all that can be read.
+func stateNotice(st capture.State, root string) *notice {
+	switch st.Live {
+	case capture.LiveRootMissing, capture.LiveLost:
+		return refusalNotice(st, nil, root)
+	}
+	return nil
+}
+
+// refusalNotice is the banner on the 404 page for a path a live read might
+// have answered, naming why it did not, and nil where a live read was allowed
+// and the path is simply not there.
+//
+// The reason comes from the state and from the error's sentinel, never from
+// its text, which carries git's message and the operating system's.
+func refusalNotice(st capture.State, err error, root string) *notice {
+	heading := "Only what this round captured can be shown."
+	var text string
+	switch {
+	case errors.Is(err, capture.ErrRulesUnreadable):
+		heading, text = "Nothing on disk can be shown.", "Git could not say which files it ignores."
+	case st.Live == capture.LiveRootMissing:
+		text = "The project's root, " + root + ", no longer exists."
+	case st.Live == capture.LiveLost:
+		text = "The project's repository is gone from its root."
+	case st.Live == capture.LiveIgnored:
+		text = "The checkout around the project ignores it."
+	case st.Live == capture.LiveCheckoutGone:
+		text = "The checkout the project sat inside has lost its repository."
+	default:
+		return nil
+	}
+	return &notice{Warn: true, Heading: heading, Text: text}
+}
+
+// unmeasurable is the toolbar's sentence where a captured file cannot be
+// compared, because git can no longer read the round's base.
+func unmeasurable(st capture.State) string {
+	switch st.Live {
+	case capture.LiveRootMissing:
+		return "The project's root is gone, so the change cannot be measured."
+	case capture.LiveLost:
+		return "The project's repository is gone, so the change cannot be measured."
+	}
+	return "The commit this review started from is gone, so the change cannot be measured."
+}
+
+// notFoundPage writes the 404 page, with a banner where one says why.
+func (s *Server) notFoundPage(w http.ResponseWriter, n *notice) {
+	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address.", Notice: n}}
+	s.renderPage(w, http.StatusNotFound, "error", p)
+}
+
+// roundHref is a round's page: the review's own address for its latest round,
+// and the round's for an earlier one.
+func roundHref(reviewID int64, number int, current bool) string {
+	if current {
+		return fmt.Sprintf("/reviews/%d", reviewID)
+	}
+	return fmt.Sprintf("/reviews/%d/rounds/%d", reviewID, number)
+}
+
+// fileHref is a file's page at a round, in the same form roundHref chooses.
+func fileHref(reviewID int64, number int, current bool, p string) string {
+	return roundHref(reviewID, number, current) + "/files/" + escapePath(p)
+}
+
+// escapePath writes a project path for an address, escaping each segment.
+//
+// Written raw, a#b.md is the path a with a fragment, q?.md is the path q with
+// a query, and 50%.md does not parse. html/template leaves # and ? alone in an
+// href, so the escaping is done here. url.PathEscape escapes a slash too,
+// which is why it is applied a segment at a time.
+func escapePath(p string) string {
+	segments := strings.Split(p, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
+}
+
+// withQuery appends q to an address, or nothing for an empty q.
+func withQuery(href string, q url.Values) string {
+	if len(q) == 0 {
+		return href
+	}
+	return href + "?" + q.Encode()
+}

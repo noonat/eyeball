@@ -138,12 +138,29 @@ func Inspect(ctx context.Context, root, base string, insideCheckout bool) (State
 // capture and the base.
 func (s State) Reader(blobs *blob.Store, files []store.File) *Reader {
 	base := s.Base
-	if s.BaseGone || s.Live == LiveLost || s.Live == LiveRootMissing {
+	if !s.baseReadable() {
 		base = ""
 	}
 	r := NewReader(s.Root, base, blobs, files)
 	r.live = s.Live
 	return r
+}
+
+// Measurable reports whether a round's captures can be compared: the round has
+// no base, or git can still read the one it has.
+//
+// A reader built under a gone base, a lost repository or a missing root has no
+// base, so a comparison would read every captured file against nothing and
+// count it as wholly added. That is a wrong number shown as a right one, so
+// the caller shows no comparison at all.
+func (s State) Measurable() bool {
+	return s.Base == "" || s.baseReadable()
+}
+
+// baseReadable reports whether git can read the round's base, given that it
+// has one.
+func (s State) baseReadable() bool {
+	return !s.BaseGone && s.Live != LiveLost && s.Live != LiveRootMissing
 }
 
 // BaseGone reports whether the repository at root no longer holds the commit

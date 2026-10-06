@@ -34,8 +34,8 @@ func (d *db) EnsureProject(ctx context.Context, root, name string) (store.Projec
 
 // MarkInsideCheckout records that a .git was seen at or above a marker
 // project's root. It does not publish: nothing a waiting agent reads changes,
-// and a page view writes it, so once the live stream reloads a page on every
-// publish, a page that published here would reload itself in a loop.
+// and a file page's GET writes it, so once the live stream reloads a page on
+// every publish, a page that published here would reload itself in a loop.
 func (d *db) MarkInsideCheckout(ctx context.Context, projectID int64) error {
 	return d.s.MarkInsideCheckout(ctx, projectID)
 }
