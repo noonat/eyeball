@@ -51,6 +51,16 @@ async function setBadge(n: number): Promise<void> {
   }
 }
 
+// A new version replaces the old at once rather than waiting for every
+// window to close, which an installed app's window rarely does, and takes
+// control of the windows already open, so a tap can load a round in them.
+self.addEventListener("install", () => {
+  void self.skipWaiting();
+});
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   const p = payloadOf(event.data);
   if (p === null) {
@@ -79,16 +89,25 @@ self.addEventListener("notificationclick", (event) => {
   }
 });
 
-// openReview focuses a window already on the round, or opens one, so a tap
-// lands on the review rather than the home screen.
+// openReview lands a tap on the round. A window already there is focused.
+// An installed app on iOS has one window, and openWindow only brings it
+// forward without loading the address, so an open window is navigated to the
+// round instead; with the app open on the queue, a tap left it there.
 async function openReview(url: string): Promise<void> {
   const windows = await self.clients.matchAll({
     type: "window",
     includeUncontrolled: true,
   });
-  for (const w of windows) {
-    if (new URL(w.url).pathname === url) {
-      await w.focus();
+  const there = windows.find((w) => new URL(w.url).pathname === url);
+  if (there) {
+    await there.focus();
+    return;
+  }
+  const open = windows[0];
+  if (open) {
+    const moved = await open.navigate(url).catch(() => null);
+    if (moved) {
+      await moved.focus();
       return;
     }
   }
