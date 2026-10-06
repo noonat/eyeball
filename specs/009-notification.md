@@ -299,16 +299,39 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] The queue showing the steps that apply, the icon row with them, and
+- [x] The queue showing the steps that apply, the icon row with them, and
       neither once the device is subscribed
-- [ ] Allow asking for permission and subscribing in one tap, then posting the
+- [x] Allow asking for permission and subscribing in one tap, then posting the
       subscription
-- [ ] A subscription posted on every load, and the lapsed warning with
+- [x] A subscription posted on every load, and the lapsed warning with
       Re-subscribe when the answer is `lapsed`
-- [ ] The badge set from the queue's count on load and on each stamp
-- [ ] Browser tests with the push manager stubbed through the DevTools protocol:
+- [x] The badge set from the queue's count on load and on each stamp
+- [x] Browser tests with the push manager stubbed through the DevTools protocol:
       Allow posting a subscription, a request then reaching the stubbed
       endpoint, and a lapsed answer showing the warning
+
+**Departures, iteration 5.**
+
+- The browser test's first stub of the push manager did not apply, because
+  `Page.addScriptToEvaluateOnNewDocument` needs `Page.enable` first, and
+  headless Chromium then made a real subscription with Google's push service,
+  Firebase Cloud Messaging. Eyeball sent nothing to it: the test failed on the
+  endpoint first. This broke the spec's promise that nothing before iteration 6
+  contacts a push service. Every test browser now sends everything but loopback
+  to a proxy that is not there, so no test can reach the internet. A host
+  resolver rule blocked it as well but slowed the place test's own loads past
+  its window, so the proxy is the rule kept.
+- The test grants the notification permission through the protocol's
+  `Browser.grantPermissions` rather than stubbing `Notification`, whose
+  `permission` could not be redefined.
+- The steps, their notice and the lapsed warning are server-rendered on the
+  queue in holders with no class, as 008's notices are. The install step reads
+  done wherever the browser offers push in a tab, as Chromium does, and on iOS
+  Safari in a tab says to add the page to the home screen, with Allow's line
+  saying it is available once the page is opened from there, as the approved
+  frame words it.
+- The badge is set on the queue only, which is the page that knows the count.
+- No mutation run, under the owner's 2026-10-06 change.
 
 ## Iteration 6: On the phone
 

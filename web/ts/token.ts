@@ -24,6 +24,17 @@ export function takeToken(): void {
   window.history.replaceState(null, "", pathname + search);
 }
 
+// tokenHeaders is the header a write made outside htmx carries, empty where
+// no token is stored.
+export function tokenHeaders(): Record<string, string> {
+  try {
+    const token = window.localStorage.getItem(key);
+    return token === null ? {} : { [header]: token };
+  } catch {
+    return {};
+  }
+}
+
 // sendToken adds the stored token to every write. The tailnet's origin never
 // stores one, so nothing is added there.
 export function sendToken(): void {

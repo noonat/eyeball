@@ -1,5 +1,5 @@
 {{define "queue"}}<div class="scroll"><div class="page" data-stream="/events?queue=1" data-stamp="{{.Stamp}}">
-{{with .Empty}}<div class="empty"><span class="headline">Nothing waiting</span><p>{{.Sentence}}</p></div>
+{{template "firstrun"}}{{with .Empty}}<div class="empty"><span class="headline">Nothing waiting</span><p>{{.Sentence}}</p></div>
 {{if .Projects}}<div class="section">
 <h2>Projects <span class="count">{{len .Projects}}</span></h2>
 <div class="rows">
@@ -29,3 +29,13 @@
 {{define "workingrow"}}<a class="row working" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Changes requested, round {{.Round}}</span></span></a>
 {{end}}
 {{define "where"}}<span class="where">{{with .Project}}<span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">{{.}}</span></span>{{end}}<span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">{{.Agent}}</span></span></span>{{end}}
+{{define "firstrun"}}<div id="firstrun" hidden>
+<div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications are not set up.</strong> Nothing will reach this phone until both steps are done.</span></div>
+<div class="steps">
+<div id="install-done" hidden><div class="step done"><span class="mark"><span class="i i-check" aria-hidden="true"></span></span><span class="what">Installed to the home screen</span><span class="why">iOS delivers web push only to an installed page.</span></div></div>
+<div id="install-todo" hidden><div class="step"><span class="mark">1</span><span class="what">Add to Home Screen</span><span class="why">Share, then Add to Home Screen. iOS delivers web push only to an installed page.</span></div></div>
+<div class="step"><span class="mark">2</span><span class="what">Allow notifications</span><button type="button" class="btn small accent" id="allow">Allow</button><span class="why" id="allow-why">One notification per review. Comments and verdicts send none.</span></div>
+</div>
+</div>
+<div id="lapsed" hidden><div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications stopped arriving.</strong> This device&rsquo;s subscription lapsed. <a role="button" tabindex="0" id="resubscribe">Re-subscribe</a></span></div></div>
+{{end}}

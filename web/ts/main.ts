@@ -8,6 +8,7 @@ import { keepDrafts } from "./drafts";
 import { reportFailures } from "./failures";
 import { keepPlace } from "./place";
 import { prune } from "./storage";
+import { followPush } from "./push";
 import { followStream } from "./stream";
 import { registerWorker } from "./worker";
 import { catchFailedSaves } from "./unsent";
@@ -32,6 +33,7 @@ catchFailedSaves();
 document.addEventListener("DOMContentLoaded", () => {
   registerWorker();
   followStream();
+  followPush();
   prune();
   keepPlace();
   keepDrafts();

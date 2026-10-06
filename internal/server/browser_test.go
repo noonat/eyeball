@@ -218,6 +218,70 @@ func TestServer_Surface_browserFailedSave(t *testing.T) {
 	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
 }
 
+// First run on the queue, with the browser's push manager stubbed so nothing
+// reaches a real push service and its permission granted through the
+// protocol: the steps show until Allow subscribes, a
+// request then reaches the device, and a lapsed subscription says so and
+// subscribes again.
+func TestServer_Surface_browserFirstRun(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	svc := newPushService(t, map[string]int{"/device/1": http.StatusCreated, "/device/2": http.StatusCreated})
+	f.s.surface = func() api.Surface { return api.Surface{URL: "https://eyeball.example.ts.net"} }
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+
+	var keys struct {
+		Keys map[string]string `json:"keys"`
+	}
+	g.Expect(json.Unmarshal([]byte(svc.subscription(g, "/x")), &keys)).To(Succeed())
+	stub := fmt.Sprintf(`(() => {
+		let sub = null, n = 0;
+		const make = () => {
+			const endpoint = %q + "/device/" + (++n);
+			const json = { endpoint, keys: { p256dh: %q, auth: %q } };
+			return { endpoint, toJSON: () => json, unsubscribe: async () => { sub = null; return true; } };
+		};
+		PushManager.prototype.getSubscription = async () => sub;
+		PushManager.prototype.subscribe = async () => (sub = make());
+	})()`, svc.url, keys.Keys["p256dh"], keys.Keys["auth"])
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": stub})
+
+	// The steps show until the device subscribes. Chromium offers push in a
+	// tab, so the install step reads done.
+	b.navigate(g, srv.URL+"/#token="+browserToken)
+	b.waitFor(g, `document.getElementById("firstrun").hidden === false`)
+	g.Expect(b.eval(g, `document.getElementById("install-done").hidden`)).To(BeFalse())
+	// The prompt is the browser's, so the permission is granted through the
+	// protocol before the tap, and requestPermission answers granted.
+	b.call(g, "Browser.grantPermissions", map[string]any{"permissions": []string{"notifications"}, "origin": srv.URL})
+	b.eval(g, `document.getElementById("allow").click()`)
+	b.waitFor(g, `document.getElementById("firstrun").hidden === true`)
+	subs, err := f.store.ActiveSubscriptions(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(subs).To(HaveLen(1))
+	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/1"))
+
+	// A request now reaches the device.
+	actingReview(g, t, f)
+	f.s.WaitPushes(t.Context())
+	g.Expect(svc.paths()).To(Equal([]string{"/device/1"}))
+
+	// A subscription the push service called gone says so on the next load,
+	// and Re-subscribe makes a new one.
+	g.Expect(f.store.MarkLapsed(t.Context(), svc.url+"/device/1")).To(Succeed())
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `document.getElementById("lapsed").hidden === false`)
+	b.eval(g, `document.getElementById("resubscribe").click()`)
+	b.waitFor(g, `document.getElementById("lapsed").hidden === true`)
+	subs, err = f.store.ActiveSubscriptions(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(subs).To(HaveLen(1))
+	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
+}
+
 // A passage takes a comment under it, in a document card and in the layout a
 // single new document gets. A tap selects a passage, and only its hint shows
 // what a changed one replaced.
@@ -480,6 +544,13 @@ func openBrowser(g *WithT, t *testing.T) *browser {
 		"--remote-debugging-port=0",
 		"--user-data-dir="+dir,
 		"--remote-allow-origins=http://127.0.0.1",
+		// Everything but this machine goes to a proxy that is not there, so a
+		// test can reach no service on the internet; Chromium bypasses a proxy
+		// for loopback by itself. Without it, Chromium registered a real
+		// subscription with Google's push service when a stub failed to
+		// apply. A host resolver rule blocked it too, and slowed a page's
+		// own loads past what the place test allows.
+		"--proxy-server=http://127.0.0.1:9",
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--disable-gpu",
