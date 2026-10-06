@@ -863,6 +863,18 @@ tr.del .w {
   display: none;
 }
 
+/* What a tap opens a composer on. iOS Safari sends a tap's click only from an
+ * element it takes to be clickable, and a page listening on the document for
+ * the click heard nothing from a line or a passage until the pointer said so.
+ * Found on the owner's phone on 2026-10-06; a desktop browser has no such
+ * rule, so the browser tests could not catch it. */
+.page[data-acting="open"] .code tr[data-line],
+.page[data-acting="open"] .code tr[data-old],
+.page[data-acting="open"] .toobig,
+.page[data-acting="open"] .prose .blk[data-lines] {
+  cursor: pointer;
+}
+
 tr.sel {
   outline: 2px solid var(--accent-vivid);
   outline-offset: -2px;
