@@ -1449,6 +1449,15 @@ required_commands:
       reload, Cancel closing the composer, and the header link opening the file
       page
 
+> **Completed** 2026-10-06 16:40 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.6s
+> - `go test -race ./...` — 24.9s
+> - `go test -tags browser ./internal/server/...` — 9.5s
+> - `go vet -tags browser ./internal/server/...` — 75ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 167ms
+
 ## Iteration 9: Passages
 
 ```backlog
