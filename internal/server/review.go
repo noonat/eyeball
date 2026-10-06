@@ -12,6 +12,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/capture"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/render"
 	"github.com/noonat/eyeball/internal/store"
 )
@@ -360,7 +361,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		added += m.Result.Added
 		removed += m.Result.Removed
 		byPath[m.Path] = len(view.Shown)
-		at := fileAt{review: review, round: round, current: current, wholeReview: wholeReview, path: m.Path}
+		at := fileAt{review: review, round: round, current: current, wholeReview: wholeReview, path: m.Path, file: kind.ByName(m.Path)}
 		file := fileView{
 			Path:    m.Path,
 			Added:   thousands(m.Result.Added),
@@ -665,7 +666,7 @@ func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.Stat
 			continue
 		}
 		shown++
-		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path}
+		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path, file: kind.ByName(f.Path)}
 		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true, Open: true}
 		if f.Digest == "" {
 			file.Deleted = true

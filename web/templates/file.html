@@ -4,9 +4,10 @@
 {{if .Note}}<span class="counts"><span class="hint">{{.Note}}</span></span>
 {{else if .Counted}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span> <span class="hint">{{.Counted}}</span></span>
 {{end}}{{if .Marked}}<span class="segmented"><a href="{{.Marked}}"{{if not .ShowPlain}} aria-current="true"{{end}}>Marked</a><a href="{{.Plain}}"{{if .ShowPlain}} aria-current="true"{{end}}>Plain</a></span>
-{{else if .Document}}<span class="segmented"><a href="{{.Document}}"{{if not .ShowSource}} aria-current="true"{{end}}>Document</a><a href="{{.Source}}"{{if .ShowSource}} aria-current="true"{{end}}>Source</a></span>
+{{else if .Rendered}}<span class="segmented"><a href="{{.Rendered}}"{{if not .ShowSource}} aria-current="true"{{end}}>{{.RenderedLabel}}</a><a href="{{.Source}}"{{if .ShowSource}} aria-current="true"{{end}}>Source</a></span>
 {{end}}</div>
-{{end}}{{if .Deleted}}<div class="empty"><span class="headline">Deleted</span><p>{{.Deleted}}</p></div>
+{{end}}{{if .Rendered}}{{template "rendered" .Rendered}}
+{{else if .Deleted}}<div class="empty"><span class="headline">Deleted</span><p>{{.Deleted}}</p></div>
 {{else if .ShowDocument}}<div class="prose">{{.Document}}</div>
 {{else}}<div class="file">
 {{if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
@@ -16,3 +17,7 @@
 {{end}}
 {{define "notice"}}<div class="notice{{if .Warn}} warn{{end}}">{{if .Warn}}<span class="glyph i i-triangle-alert" aria-hidden="true"></span>{{else}}<span class="glyph i i-info" aria-hidden="true"></span>{{end}}<span>{{with .Heading}}<strong>{{.}}</strong> {{end}}{{.Text}}</span></div>
 {{end}}
+{{define "rendered"}}{{if .Facts}}{{with .Facts}}<div class="file"><div class="filefacts"><span class="kind">{{.Kind}}</span>{{with .Size}}<span class="size">{{.}}</span>{{end}}{{with .Hint}}<span class="hint">{{.}}</span>{{end}}</div></div>
+{{end}}{{else if .Frame}}<div class="preview"><div class="cap">{{if .Sandboxed}}<span class="i i-triangle-alert" aria-hidden="true"></span><span>Sandboxed</span>{{else}}<span>{{.Kind}}</span><span class="dim">{{.Size}}</span>{{end}}<a class="open" href="{{.Frame}}" target="_blank" rel="noopener"><span class="i i-maximize-2" aria-hidden="true"></span>Open</a></div>{{if .Sandboxed}}<iframe class="pageframe" sandbox="allow-scripts" loading="lazy" title="{{.Title}}" src="{{.Frame}}"></iframe>{{else}}<iframe class="pageframe" loading="lazy" title="{{.Title}}" src="{{.Frame}}"></iframe>{{end}}</div>
+{{else}}<div class="beforeafter">{{range .Sides}}<div class="preview{{with .Tint}} {{.}}{{end}}"><div class="cap"><span>{{.Label}}</span><span class="dim">{{.Caption}}</span></div>{{if eq .Element "video"}}<video controls playsinline preload="metadata" src="{{.Src}}"></video>{{else if eq .Element "audio"}}<audio controls preload="metadata" src="{{.Src}}"></audio>{{else}}<img class="shot" loading="lazy" src="{{.Src}}" alt="{{.Label}}">{{end}}</div>{{end}}</div>
+{{end}}{{end}}

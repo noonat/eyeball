@@ -1,7 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/png"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +14,7 @@ import (
 	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/diff"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/store"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
@@ -717,6 +721,146 @@ func TestServer_Surface_fileRefusedLive(t *testing.T) {
 	})
 }
 
+func TestServer_Surface_fileRendered(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	commitFile(g, repo, "icon.png", pngOf(g, 2, 3))
+	commitFile(g, repo, "gone.png", pngOf(g, 1, 1))
+	commitFile(g, repo, "badge.svg", "<svg xmlns='http://www.w3.org/2000/svg'/>\n")
+	commitFile(g, repo, "site/index.html", "<p>before</p>\n")
+	commitFile(g, repo, "paper.pdf", "%PDF-1.4 before\n")
+	write(g, repo, "icon.png", pngOf(g, 4, 5))
+	write(g, repo, "new.png", pngOf(g, 6, 7))
+	g.Expect(os.Remove(filepath.Join(repo, "gone.png"))).To(Succeed())
+	write(g, repo, "badge.svg", "<svg xmlns='http://www.w3.org/2000/svg'><rect/></svg>\n")
+	write(g, repo, "site/index.html", "<p>after</p>\n")
+	write(g, repo, "paper.pdf", "%PDF-1.4 after\n")
+	write(g, repo, "clip.mp4", "not really a video")
+	write(g, repo, "big.png", strings.Repeat("x", kind.MaxSend+1))
+	write(g, repo, "data.zip", "PK\x03\x04")
+	paths := []string{"icon.png", "new.png", "gone.png", "badge.svg", "site", "paper.pdf", "clip.mp4", "big.png", "data.zip"}
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: paths, Note: "first"}).Review.ID
+	base := "/reviews/" + itoa(id) + "/files/"
+	raw := "/reviews/" + itoa(id) + "/raw/"
+
+	// sides is each frame of a before-over-after as its caption and source.
+	sides := func(doc *html.Node) []string {
+		var out []string
+		for _, p := range findAll(doc, hasClass("preview")) {
+			media := findAll(p, func(n *html.Node) bool { return n.Data == "img" || n.Data == "video" || n.Data == "audio" })
+			g.Expect(media).To(HaveLen(1))
+			out = append(out, attr(p, "class")+" | "+text(find(p, "cap"))+" | "+media[0].Data+" "+attr(media[0], "src"))
+		}
+		return out
+	}
+	frame := func(doc *html.Node) *html.Node {
+		frames := findAll(doc, func(n *html.Node) bool { return n.Data == "iframe" })
+		if len(frames) == 0 {
+			return nil
+		}
+		g.Expect(frames).To(HaveLen(1))
+		return frames[0]
+	}
+
+	t.Run("a changed image, before over after", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"icon.png", http.StatusOK)
+		g.Expect(sides(doc)).To(Equal([]string{
+			"preview was | Before2 × 3 · " + bytesOf(pngOf(g, 2, 3)) + " | img " + raw + "0/icon.png",
+			"preview now | After4 × 5 · " + bytesOf(pngOf(g, 4, 5)) + " | img " + raw + "1/icon.png",
+		}))
+		g.Expect(find(doc, "code")).To(BeNil())
+	})
+	t.Run("a new image", func(t *testing.T) {
+		g := NewWithT(t)
+		g.Expect(sides(f.page(g, base+"new.png", http.StatusOK))).To(Equal([]string{"preview now | New6 × 7 · " + bytesOf(pngOf(g, 6, 7)) + " | img " + raw + "1/new.png"}))
+	})
+	t.Run("a deleted image shows the side that had it", func(t *testing.T) {
+		g := NewWithT(t)
+		g.Expect(sides(f.page(g, base+"gone.png", http.StatusOK))).To(Equal([]string{"preview was | Deleted1 × 1 · " + bytesOf(pngOf(g, 1, 1)) + " | img " + raw + "0/gone.png"}))
+	})
+	t.Run("a recording plays", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"clip.mp4", http.StatusOK)
+		g.Expect(sides(doc)).To(Equal([]string{"preview now | NewMP4 video · 18 B | video " + raw + "1/clip.mp4"}))
+		video := findAll(doc, func(n *html.Node) bool { return n.Data == "video" })[0]
+		g.Expect(attr(video, "preload")).To(Equal("metadata"))
+		g.Expect(video.Attr).To(ContainElement(html.Attribute{Key: "playsinline"}))
+	})
+	t.Run("a pdf shows in an unsandboxed frame", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"paper.pdf", http.StatusOK)
+		fr := frame(doc)
+		g.Expect(attr(fr, "src")).To(Equal(raw + "1/paper.pdf"))
+		g.Expect(fr.Attr).NotTo(ContainElement(HaveField("Key", "sandbox")))
+		g.Expect(text(find(doc, "cap"))).To(Equal("PDF document15 BOpen"))
+		g.Expect(attr(find(doc, "open"), "href")).To(Equal(raw + "1/paper.pdf"))
+	})
+	t.Run("a page opens as source", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"site/index.html", http.StatusOK)
+		g.Expect(frame(doc)).To(BeNil())
+		g.Expect(find(doc, "code")).NotTo(BeNil())
+		g.Expect(segmentLinks(doc)).To(Equal([]string{
+			"Page " + base + "site/index.html?view=page",
+			"Source " + base + "site/index.html?view=source current",
+		}))
+	})
+	t.Run("a page in its Page view is sandboxed", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"site/index.html?view=page", http.StatusOK)
+		fr := frame(doc)
+		g.Expect(attr(fr, "sandbox")).To(Equal("allow-scripts"))
+		g.Expect(attr(fr, "src")).To(Equal(raw + "1/site/index.html"))
+		g.Expect(find(doc, "code")).To(BeNil())
+		g.Expect(text(find(doc, "notice"))).To(ContainSubstring("Runs with no access to this surface."))
+		g.Expect(text(find(doc, "toolbar"))).To(ContainSubstring("+1 −1"))
+		g.Expect(segmentLinks(doc)).To(Equal([]string{
+			"Page " + base + "site/index.html?view=page current",
+			"Source " + base + "site/index.html?view=source",
+		}))
+	})
+	t.Run("svg in its Image view", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"badge.svg?view=image", http.StatusOK)
+		g.Expect(sides(doc)).To(Equal([]string{
+			"preview was | Before42 B | img " + raw + "0/badge.svg",
+			"preview now | After54 B | img " + raw + "1/badge.svg",
+		}))
+		g.Expect(frame(doc)).To(BeNil(), "an svg never runs in a frame")
+		g.Expect(segmentLinks(doc)).To(Equal([]string{
+			"Image " + base + "badge.svg?view=image current",
+			"Source " + base + "badge.svg?view=source",
+		}))
+	})
+	t.Run("past the send limit", func(t *testing.T) {
+		g := NewWithT(t)
+		doc := f.page(g, base+"big.png", http.StatusOK)
+		g.Expect(text(find(doc, "filefacts"))).To(Equal("PNG image21.0 MB" + tooLargeToSend))
+		g.Expect(findAll(doc, func(n *html.Node) bool { return n.Data == "img" })).To(BeEmpty())
+	})
+	t.Run("a file with no rendering", func(t *testing.T) {
+		g := NewWithT(t)
+		g.Expect(text(find(f.page(g, base+"data.zip", http.StatusOK), "filefacts"))).To(Equal("ZIP archive4 B"))
+	})
+
+	// The agent's choice is the page's default at that round, and the
+	// segmented control still offers the other view.
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	write(g, repo, "site/index.html", "<p>again</p>\n")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second", Views: map[string]string{"site/index.html": "rendered"}})
+	doc := f.page(g, base+"site/index.html", http.StatusOK)
+	g.Expect(attr(frame(doc), "src")).To(Equal(raw + "2/site/index.html"))
+	g.Expect(segmentLinks(doc)).To(Equal([]string{
+		"Page " + base + "site/index.html?view=page current",
+		"Source " + base + "site/index.html?view=source",
+	}))
+	g.Expect(frame(f.page(g, base+"site/index.html?view=source", http.StatusOK))).To(BeNil())
+	g.Expect(frame(f.page(g, "/reviews/"+itoa(id)+"/rounds/1/files/site/index.html", http.StatusOK))).To(BeNil(), "the first round has no choice")
+}
+
 func TestServer_Surface_fileTooLargeOrBinary(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -741,21 +885,22 @@ func TestServer_Surface_fileTooLargeOrBinary(t *testing.T) {
 	write(g, repo, "live-binary.md", "# Live\n\x00\x03")
 
 	pages := []struct {
-		path string
-		want string
+		path  string
+		want  string
+		facts string
 	}{
 		{path: "big.txt", want: "Too large to show as a diff."},
-		{path: "a.bin", want: "Binary file, not shown as a diff."},
-		{path: "base.bin", want: "Binary file, not shown as a diff."},
+		{path: "a.bin", facts: "Binary file8 B"},
+		{path: "base.bin", facts: "Binary file20 B"},
 		{path: "huge.txt", want: "Too large to show as a diff."},
 		{path: "shrunk.txt", want: "Too large to show as a diff."},
 		{path: "long.md", want: "Too large to show as a diff."},
-		{path: "binary.md", want: "Binary file, not shown as a diff."},
+		{path: "binary.md", facts: "Binary file11 B"},
 		{path: "bytes.md", want: "Too large to show as a diff."},
-		{path: "base.md", want: "Binary file, not shown as a diff."},
+		{path: "base.md", facts: "Binary file11 B"},
 		{path: "huge.md", want: "Too large to show as a diff."},
 		{path: "live.md", want: "Too large to show as a diff."},
-		{path: "live-binary.md", want: "Binary file, not shown as a diff."},
+		{path: "live-binary.md", facts: "Binary file9 B"},
 	}
 	for _, c := range pages {
 		t.Run(c.path, func(t *testing.T) {
@@ -763,7 +908,11 @@ func TestServer_Surface_fileTooLargeOrBinary(t *testing.T) {
 			views := []string{"", "?view=source"}
 			for _, view := range views {
 				doc := f.page(g, "/reviews/"+itoa(id)+"/files/"+c.path+view, http.StatusOK)
-				g.Expect(text(find(doc, "toobig"))).To(Equal(c.want), view)
+				if c.facts != "" {
+					g.Expect(text(find(doc, "filefacts"))).To(Equal(c.facts), view)
+				} else {
+					g.Expect(text(find(doc, "toobig"))).To(Equal(c.want), view)
+				}
 				g.Expect(find(doc, "code")).To(BeNil(), view)
 				g.Expect(find(doc, "prose")).To(BeNil(), view)
 				g.Expect(find(doc, "segmented")).To(BeNil(), view)
@@ -875,6 +1024,19 @@ func documentLinks(prose *html.Node) []string {
 		out = append(out, attr(a, "href"))
 	}
 	return out
+}
+
+// bytesOf is a content's size as a caption writes it.
+func bytesOf(content string) string {
+	return bytesText(int64(len(content)))
+}
+
+// pngOf is a blank PNG of a size, encoded.
+func pngOf(g *WithT, w, h int) string {
+	g.THelper()
+	var b bytes.Buffer
+	g.Expect(png.Encode(&b, image.NewGray(image.Rect(0, 0, w, h)))).To(Succeed())
+	return b.String()
 }
 
 // segmentLinks is each link of a page's segmented control, as its text, its

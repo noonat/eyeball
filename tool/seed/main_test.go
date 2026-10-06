@@ -261,6 +261,11 @@ func (c *crawler) check(base *url.URL, ids map[string]struct{}, a *html.Node) (s
 	if !strings.HasPrefix(res.Header().Get("Content-Type"), "text/html") {
 		return "", true
 	}
+	// A file's own bytes are the agent's page, not the surface's, so its
+	// links are not the surface's to check and it carries no crumb.
+	if strings.Contains(pattern, "/raw/") {
+		return "", true
+	}
 	if within(a, "prose") != nil && strings.Contains(target.RawQuery, "view=source") {
 		c.sources++
 	}

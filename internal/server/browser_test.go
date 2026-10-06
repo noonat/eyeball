@@ -394,6 +394,28 @@ fetch("/reviews/%d/decision", {method: "POST", body, mode: "no-cors"})
 	g.Expect(err).To(MatchError(store.ErrNotFound))
 }
 
+// A page in its Page view loads its own stylesheet from the round it is
+// shown at, through the raw route the relative link resolves into.
+func TestServer_Surface_browserPreviewStylesheet(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	commitFile(g, repo, "site/app.css", "body { color: rgb(1, 2, 3) }\n")
+	write(g, repo, "site/index.html", `<link rel="stylesheet" href="app.css"><p>page</p>
+<script>setInterval(() => parent.postMessage(getComputedStyle(document.body).color, "*"), 50);</script>`)
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"site"}, Note: "first", Views: map[string]string{"site/index.html": "rendered"}}).Review.ID
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+
+	// The frame posts until the test stops it, so a listener added after
+	// the page loads still hears it.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"/files/site/index.html")
+	b.eval(g, `addEventListener("message", (e) => { window.__got = e.data; })`)
+	b.waitFor(g, `typeof window.__got === "string"`)
+	g.Expect(b.eval(g, `window.__got`)).To(Equal("rgb(1, 2, 3)"))
+}
+
 func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

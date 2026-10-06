@@ -303,13 +303,35 @@ real one in iteration 8.
 
 ## Iteration 5: Rendered on the file page
 
-- [ ] The image before and after with dimensions and bytes, the players, the PDF
+- [x] The image before and after with dimensions and bytes, the players, the PDF
       frame and link, the page frame, and SVG as an image
-- [ ] Page and Source, Image and Source in the toolbar, and the round's stored
+- [x] Page and Source, Image and Source in the toolbar, and the round's stored
       view as the default
-- [ ] The too-large and other lines naming kind and size
-- [ ] Tests for each kind's page, and a browser test that a page's frame loads
+- [x] The too-large and other lines naming kind and size
+- [x] Tests for each kind's page, and a browser test that a page's frame loads
       its stylesheet from the round
+
+**Departures, iteration 5.**
+
+- A page or SVG in its Source view has Page or Image and Source in its toolbar,
+  as markdown has Document and Source, and no Marked and Plain. Source is the
+  whole file with the change marked, so there is no Plain view of HTML or SVG.
+- A file the table names other, such as a ZIP archive, is named by its kind even
+  when its bytes pass diff's binary test, which a short archive can. A file
+  whose name says text or markdown and whose bytes are binary is named "Binary
+  file", since its name is wrong about it.
+- A file read live from the working copy has no raw address, since the route
+  reads frozen rounds only. One the browser would show is named, with "Read from
+  the working copy, which is not sent."
+- A file shown as itself skips the line comparison, so an image not changed
+  since the previous round has no "Not changed since round N" note. Reading both
+  sides to diff them was the cost of keeping it.
+
+> **Completed** 2026-10-06 23:04 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.1s
+> - `go test -race ./...` — 32.6s
 
 ## Iteration 6: Rendered in the review's cards
 
