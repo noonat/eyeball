@@ -360,8 +360,8 @@ only by the owner.
       queue's steps
 - [x] A request from an agent arriving as a notification on the locked phone,
       opening its round, with the badge counting what waits
-- [/] Every screen checked on the phone, the page shell 006 added in `shell.css`
-  included, and what was found recorded in this spec
+- [x] Every screen checked on the phone, the page shell 006 added in `shell.css`
+      included, and what was found recorded in this spec
 
 **What iteration 6 found, on 2026-10-06.**
 
@@ -394,3 +394,10 @@ only by the owner.
   build on each connect, and a different one shows an "Update ready." bar under
   the top bar with Refresh, which reloads. The bar is drawn in no tearout; the
   owner judges it on the phone.
+- A tap on a line still opened nothing after b32b04d. A touch tap sent through
+  the DevTools protocol to the owner's daemon showed the click arriving, and
+  every review on the phone already approved: a decided round opens no composer
+  on a line, by design. On a new open review the owner commented on a line from
+  the phone. A decided round gives no sign that its lines take no tap, which is
+  a `design:` entry in specs/TODO.md.
+- The owner checked every screen on the phone and found nothing else.
