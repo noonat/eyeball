@@ -1256,6 +1256,15 @@ required_commands:
       gone from the address, a write accepted, and no request line holding the
       token
 
+> **Completed** 2026-10-06 12:42 UTC
+>
+> - acks: reviewed
+> - `make check` — 4.7s
+> - `go test -race ./...` — 24.7s
+> - `go test -tags browser ./internal/server/...` — 9.0s
+> - `go vet -tags browser ./internal/server/...` — 72ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 169ms
+
 ## Iteration 6: The whole-branch review before the owner tries the loop
 
 ```backlog
