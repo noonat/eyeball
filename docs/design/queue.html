@@ -270,6 +270,93 @@
 
 <hr class="rule">
 
+<!-- ======================================================= notifications -->
+<section class="spec" id="notifications">
+  <h2>Notifications, part way set up <span class="tag">allow, and a lapse</span></h2>
+  <p>Once the page is installed, one step remains, and it is a tap. A
+  subscription can also stop working with nothing on the phone saying so, and
+  the queue is where that has to show, because an empty queue would otherwise
+  read as nothing waiting.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; installed, notifications not allowed</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="pill waiting">2 waiting</span></div>
+        <div class="scroll"><div class="page">
+          <div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications are not set up.</strong> Nothing will reach this phone until both steps are done.</span></div>
+          <div class="steps">
+            <div class="step done">
+              <span class="mark"><span class="i i-check" aria-hidden="true"></span></span>
+              <span class="what">Installed to the home screen</span>
+              <span class="why">iOS delivers web push only to an installed page.</span>
+            </div>
+            <div class="step">
+              <span class="mark">2</span>
+              <span class="what">Allow notifications</span>
+              <a class="btn small accent" href="#notifications">Allow</a>
+              <span class="why">One notification per review. Comments and verdicts send none.</span>
+            </div>
+          </div>
+          <div class="section">
+            <h2>Waiting on you <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title">Product doc, second pass</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span></span>
+              </a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a subscription that lapsed</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="pill waiting">2 waiting</span></div>
+        <div class="scroll"><div class="page">
+          <div class="notice warn"><span class="glyph i i-bell" aria-hidden="true"></span><span><strong>Notifications stopped arriving.</strong> This device&rsquo;s subscription lapsed. <a href="#notifications">Re-subscribe</a></span></div>
+          <div class="section">
+            <h2>Waiting on you <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title">Product doc, second pass</span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span></span>
+              </a>
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title">Upload worker and its retry ladder</span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span></span>
+              </a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>Allow asks and subscribes in one tap.</b> iOS asks for permission
+    only from a tap, so the button is the whole step.</li>
+    <li><b>A lapse is found when the page opens</b>, since no notification
+    reaches a dead subscription to say so. Re-subscribe makes a new one in
+    place of the old.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
 <!-- ============================================================ awkward -->
 <section class="spec" id="awkward">
   <h2>Awkward content <span class="tag">the week that breaks it</span></h2>

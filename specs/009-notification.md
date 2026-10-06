@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-06T00:00:00Z
-updated: 2026-10-06T17:42:46.950460414Z
+updated: 2026-10-06T17:43:01.860019257Z
 required_acks:
   - reviewed
 required_commands:
@@ -117,9 +117,12 @@ notification the reviewer would see, which product.md rules out.
 
 ### First run
 
-**The queue says what is missing, in order, until both steps are done**, with
-foundations.html's first-run steps placed at the top of the queue. Iteration 1
-places them in a queue frame.
+**The queue says what is missing, in order, until both steps are done**, above
+the reviews, as queue.html's approved "not installed yet" frame draws it: the
+warn notice, then the two steps. Iteration 1 draws the two states no frame
+showed, an installed page with Allow left and a lapsed subscription.
+foundations.html's icon row illustrates the badge and is not placed on the
+queue.
 
 - _Installed to the home screen_ is done when the page runs standalone, or when
   the browser offers push in a tab, as every browser but iOS Safari does. On iOS
@@ -132,9 +135,9 @@ link, which unsubscribes the dead endpoint and subscribes again. A device whose
 permission was granted but has no subscription subscribes again on load, without
 asking.
 
-The steps, the icon row and the warning are rendered by the server, hidden, in
-holders with no class, and the client shows the ones that apply, as 008 does for
-its notices.
+The steps, their notice and the lapsed warning are rendered by the server,
+hidden, in holders with no class, and the client shows the ones that apply, as
+008 does for its notices.
 
 ## Out of scope
 
@@ -158,6 +161,16 @@ behavior, assumed here and not measured; iteration 6 measures them on the phone.
   `vapid` Authorization header. The endpoint's 201 and 410 came back as the
   response's status. It adds `golang-jwt/jwt/v5` to the module.
 
+**Departures, iteration 1.**
+
+- queue.html already held an approved "not installed yet" frame placing both
+  steps above the reviews, with a warn notice and no icon row. The new section
+  draws the two states it did not: an installed page with Allow left, and a
+  lapsed subscription on a populated queue. The todos' icon row, from
+  foundations.html's illustration of the badge, is not placed on the queue.
+- The app icon is not shown in a frame. The frames draw no icon row, and the PNG
+  is iteration 2's; the owner sees it on the home screen in iteration 6.
+
 ## Iteration 1: The tearouts for first run
 
 ```backlog
@@ -166,13 +179,13 @@ required_acks:
   - phone-approved
 ```
 
-- [ ] queue.html gaining a frame of the queue on a device that has not
+- [x] queue.html gaining a frame of the queue on a device that has not
       subscribed: the icon row and the two steps at the top, in both themes
-- [ ] queue.html gaining a frame with the lapsed warning at the top of a
+- [x] queue.html gaining a frame with the lapsed warning at the top of a
       populated queue
-- [ ] The app icon at 180 pixels shown in the frame's icon row, rendered from
+- [x] The app icon at 180 pixels shown in the frame's icon row, rendered from
       the badge icon
-- [ ] README's queue.html row naming the two new frames
+- [x] README's queue.html row naming the two new frames
 
 ## Iteration 2: Installable
 
