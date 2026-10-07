@@ -191,11 +191,22 @@ required_acks:
   - phone-approved
 ```
 
-- [/] review.html gaining a frame of cards whose file changed mode: a mode line,
-  "regular file → executable file", over a diff, one with no changed lines, and
-  an added file's "new symlink"
-- [ ] widening.html's file page showing the same line under its toolbar
-- [ ] The `.modeline` rule in app.css, and README's rows naming the frames
+- [x] review.html gaining a frame of cards whose file changed mode: a mode line,
+      "regular file → executable file", over a diff, one with no changed lines,
+      and an added file's "new symlink"
+- [x] widening.html's file page showing the same line under its toolbar
+- [x] The `.modeline` rule in app.css, and README's rows naming the frames
+
+The owner judged the frames on the phone on 2026-10-07 and asked for the mode in
+parentheses on each side, then for permissions alone, 644 or 755, rather than
+git's 100644, with no number for a symlink, which has no permission bits.
+Approved with those changes.
+
+> **Completed** 2026-10-07 08:04 UTC
+>
+> - acks: phone-approved
+> - `make check` — 5.3s
+> - `go test -race ./...` — 36.3s
 
 ## Iteration 4: The mode on the page
 

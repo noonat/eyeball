@@ -754,11 +754,11 @@
           </div>
 
           <details class="file" open><summary><span class="path"><bdi>scripts/deploy.sh</bdi></span><span class="counts"><span class="plus">+0</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#modes" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
-            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file &rarr; executable file</span></div>
+            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file (644) &rarr; executable file (755)</span></div>
             
           </details>
           <details class="file" open><summary><span class="path"><bdi>bin/sync</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span></span><a class="fileopen" href="widening.html#modes" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
-            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file &rarr; executable file</span></div>
+            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file (644) &rarr; executable file (755)</span></div>
             <div class="code narrow"><table><tr class="hunkhead"><td colspan="3">@@ 1,3 +1,4 @@</td></tr><tr><td class="ln">1</td><td class="sign"></td><td class="src">#!/bin/sh</td></tr><tr class="del"><td class="ln">2</td><td class="sign">&minus;</td><td class="src">exec ./sync --once</td></tr><tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src">set -eu</td></tr><tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src">exec ./sync --once --quiet</td></tr></table></div>
           </details>
           <details class="file" open><summary><span class="path"><bdi>docs/current</bdi></span><span class="counts"><span class="plus">+1</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#modes" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
@@ -793,11 +793,11 @@
           </div>
 
           <details class="file" open><summary><span class="path"><bdi>scripts/deploy.sh</bdi></span><span class="counts"><span class="plus">+0</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#modes" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
-            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file &rarr; executable file</span></div>
+            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file (644) &rarr; executable file (755)</span></div>
             
           </details>
           <details class="file" open><summary><span class="path"><bdi>bin/sync</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span></span><a class="fileopen" href="widening.html#modes" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
-            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file &rarr; executable file</span></div>
+            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file (644) &rarr; executable file (755)</span></div>
             <div class="code narrow"><table><tr class="hunkhead"><td colspan="3">@@ 1,3 +1,4 @@</td></tr><tr><td class="ln">1</td><td class="sign"></td><td class="src">#!/bin/sh</td></tr><tr class="del"><td class="ln">2</td><td class="sign">&minus;</td><td class="src">exec ./sync --once</td></tr><tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src">set -eu</td></tr><tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src">exec ./sync --once --quiet</td></tr></table></div>
           </details>
           <details class="file" open><summary><span class="path"><bdi>docs/current</bdi></span><span class="counts"><span class="plus">+1</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#modes" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
@@ -823,6 +823,9 @@
     line, since the mode is the whole of what changed.</li>
     <li><b>An added file says so only when it is not a regular file.</b> A new
     executable or a new symlink gets a line; a new text file needs none.</li>
+    <li><b>Each side of a file carries its permissions in parentheses</b>, 644
+    or 755, the two git records. A symlink has none, so it carries no
+    number.</li>
   </ul>
 </section>
 
