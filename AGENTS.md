@@ -26,10 +26,10 @@ repository, and the documents they point at hold the rest.
   [docs/design/](docs/design/README.md).
 - Code follows [docs/conventions.md](docs/conventions.md), which says of each
   rule whether it is enforced or left to judgment.
-- Never commit or push without asking, and draft the message with the
-  `dev-commit-message` skill first. The review gate is enabled here
-  (`dev-review status`), so git refuses an agent's commit until the reviewer
-  approves the staged change and the message has passed the skill's gate.
+- Draft every commit message with the `dev-commit-message` skill. Never push
+  without asking. The review gate is enabled here (`dev-review status`): commits
+  on a branch need only a message that passed the skill's gate, and `master`
+  moves only to a tree the reviewer approved in eyeball.
 - All prose (documentation, comments, specs, commit messages) follows
   [docs/voice.md](docs/voice.md). Read it before writing any.
 - The prose voice is shared and has no per-developer override.
