@@ -210,6 +210,7 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `already_decided`      | the round already has a verdict                                |
 | `awaiting_verdict`     | a next round was asked for while the last one waits            |
 | `bad_base`             | `--base` does not name a commit                                |
+| `bad_commit`           | `check` was given a ref that names no commit                   |
 | `bad_request`          | the daemon could not read the request                          |
 | `bad_view`             | `--view` names a file the round lacks, or a view it has not    |
 | `base_gained`          | the repository gained its first commit after the review opened |

@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-07T00:00:00Z
-updated: 2026-10-07T03:59:20.027964507Z
+updated: 2026-10-07T04:03:47.978833185Z
 required_acks:
   - reviewed
 required_commands:
@@ -82,17 +82,40 @@ match rule, in the change that adds them.
 
 ## Iteration 1: The comparison
 
-- [ ] `capture.Match(ctx, root, old, new, files)` returning the first mismatch
+- [x] `capture.Match(ctx, root, old, new, files)` returning the first mismatch
       as a sentence naming the path, or none
-- [ ] `<old>` and `<new>` resolved with `rev-parse --verify <ref>^{commit}`, and
+- [x] `<old>` and `<new>` resolved with `rev-parse --verify <ref>^{commit}`, and
       the comparison done with `diff-tree`, `ls-tree` and `cat-file` against the
       two commits alone, never the index or the working tree. A merge holds
       `index.lock` while the gate runs, as measured while designing the gate
-- [ ] Tests on real repositories: a match, a fast-forward and a merge commit
+- [x] Tests on real repositories: a match, a fast-forward and a merge commit
       both accepted, and each of these refused: one file differing, a path in
       `<new>` not captured, a captured deletion `<new>` still holds, an in-scope
       stray `<new>` lacks, and an out-of-scope change `<new>` makes. Also a
       symlink matched, and an out-of-scope capture `<new>` leaves alone ignored
+
+**Departures, iteration 1.**
+
+- A review cannot claim `.`. `store.NormalizePath` refuses the project root as a
+  path, so a whole-branch review names its files or directories, as review 13
+  named its 19 files. Measured against the store: no review there claims `.`.
+  This corrects the premise above that a review of `.` captures strays in scope.
+  Every round captures every untracked file whatever its paths, as said above,
+  so a stray is in scope only inside a path the review claims. The rule holds as
+  written. It refuses fewer strays than the premise suggested.
+- Tested on real repositories: a symlink's captured digest equals the digest of
+  git's blob for it, which the plan assumed.
+- A ref that names no commit is a third refusal, `bad_commit`, beside the plan's
+  `not_approved` and `tree_differs`, since every sentinel the daemon can return
+  maps to a code.
+- A commit that adds a submodule is refused with its own sentence. No capture
+  records one, so it would be refused as uncaptured anyway.
+
+> **Completed** 2026-10-07 04:04 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.1s
+> - `go test -race ./...` — 34.5s
 
 ## Iteration 2: The command
 
