@@ -169,6 +169,9 @@ type fileView struct {
 	// Slot is the element id a tapped line's composer is swapped into, and
 	// empty where no composer opens.
 	Slot string
+	// Mode is the line saying the file's mode changed, or that an added file
+	// is not a regular one, and empty otherwise.
+	Mode string
 	// Unmeasured says the file has no counts, because nothing could be
 	// compared, and Deleted that the round captured it as deleted.
 	Unmeasured, Deleted bool
@@ -386,6 +389,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		// comparison under its own limit, past which a document would show
 		// with nothing marked.
 		at.stored = views[m.Path]
+		if file.Mode, err = modeLine(ctx, before, after, m.Path); err != nil {
+			return reviewPage{}, err
+		}
 		rendered, err := s.cardRendering(ctx, at, before, after, m)
 		if err != nil {
 			return reviewPage{}, err
