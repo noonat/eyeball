@@ -95,8 +95,30 @@ func Match(ctx context.Context, root, base, target string, files []store.RoundFi
 		if digest != f.Digest {
 			return fmt.Sprintf("%s differs from the approved round", p), nil
 		}
+		// A round taken before modes were kept is read as having captured a
+		// regular file, so an executable or a symlink fails closed there.
+		want := f.Mode
+		if want == "" {
+			want = modeRegular
+		}
+		if change.mode != want {
+			return fmt.Sprintf("%s is %s in the new tree and %s in the approved round", p, modeName(change.mode), modeName(want)), nil
+		}
 	}
 	return "", nil
+}
+
+// modeName is a git mode as words.
+func modeName(mode string) string {
+	switch mode {
+	case modeRegular:
+		return "a regular file"
+	case modeExecutable:
+		return "an executable file"
+	case modeSymlink:
+		return "a symlink"
+	}
+	return "mode " + mode
 }
 
 // treeChange is one path two commits' trees disagree on.
@@ -104,6 +126,8 @@ type treeChange struct {
 	// object is the blob the later tree holds, empty where it deletes the
 	// path.
 	object string
+	// mode is the later tree's mode for the path.
+	mode string
 	// deleted says the later tree lacks the path.
 	deleted bool
 	// gitlink says either side is a submodule, whose content is another
@@ -119,16 +143,27 @@ func changedBetween(ctx context.Context, root, base, target string) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
 	changes := map[string]treeChange{}
-	for i := 0; i+1 < len(fields); i += 2 {
+	if len(out) == 0 {
+		return changes, nil
+	}
+	fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
+	// A record git did not write as a pair is an error rather than a skipped
+	// path, since a skipped path is a difference the check never sees.
+	if len(fields)%2 != 0 {
+		return nil, errors.Newf("diff-tree printed %d fields, which do not pair into records", len(fields))
+	}
+	for i := 0; i < len(fields); i += 2 {
 		meta, p := fields[i], fields[i+1]
 		// :oldmode newmode oldsha newsha status
+		if !strings.HasPrefix(meta, ":") {
+			return nil, errors.Newf("diff-tree record %q does not start with a colon", meta)
+		}
 		parts := strings.Fields(strings.TrimPrefix(meta, ":"))
 		if len(parts) != 5 {
-			return nil, errors.Newf("diff-tree entry %q has %d fields, not 5", meta, len(parts))
+			return nil, errors.Newf("diff-tree record %q has %d fields, not 5", meta, len(parts))
 		}
-		c := treeChange{object: parts[3], deleted: parts[4] == "D"}
+		c := treeChange{object: parts[3], mode: parts[1], deleted: parts[4] == "D"}
 		if parts[0] == submoduleMode || parts[1] == submoduleMode {
 			c.gitlink = true
 		}

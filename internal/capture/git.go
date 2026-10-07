@@ -122,11 +122,15 @@ func scrubEnv(env []string, drop map[string]struct{}) []string {
 // runArgs is the full argument list for one git call, built here so the flags
 // that belong on every call cannot be dropped from one of them.
 //
-// Neither flag has an effect a test can observe, which is why they are asserted
-// on the list rather than through behavior: -C decides the directory, and
-// --no-optional-locks only matters when another git holds index.lock.
+// -C decides the directory, and --no-optional-locks only matters when another
+// git holds index.lock. --no-replace-objects makes every read see the objects a
+// ref names rather than what refs/replace swaps in: with replacements honored,
+// `git replace <commit> <approved>` made eyeball check compare an approved tree
+// while the branch moved to a different one, found by the end-of-branch review
+// of 012. The flag rather than GIT_NO_REPLACE_OBJECTS, which gitCommand drops
+// as a repository-local variable.
 func runArgs(root string, args []string) []string {
-	return append([]string{"-C", root, "--no-optional-locks"}, args...)
+	return append([]string{"-C", root, "--no-optional-locks", "--no-replace-objects"}, args...)
 }
 
 // message is what git said on stderr, trimmed to one line for an error string.

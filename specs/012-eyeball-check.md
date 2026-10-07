@@ -158,6 +158,31 @@ environment scrub in `internal/capture/git.go` removed.
 > - `make check` — 5.1s
 > - `go test -race ./...` — 33.8s
 
+**What the end-of-branch review pass found, on 2026-10-07.** One Opus subagent,
+one round, blocked the branch on two defects it demonstrated, each letting a
+tree the reviewer did not approve exit 0:
+
+- Replace refs. Every read honored `refs/replace`, so after
+  `git replace <evil> <approved>` the check compared the approved tree while the
+  branch moved to the other. Fixed by `--no-replace-objects` in `runArgs`, on
+  every git command eyeball runs, captures included. `TestMatch_replaceRefs`
+  covers a replaced commit and a replaced blob, and fails without the flag.
+- File mode and type. The plan's rule compared bytes only, so an execute bit set
+  after approval, or a file turned into a symlink with the same bytes, passed.
+  This corrects the plan: a round now records each file's git mode,
+  `round_files.mode` by migration 0009, and the check compares it with the
+  tree's. A round from before 0009 is read as regular files, so an executable or
+  a symlink there fails closed. A round outside git records the execute bit as
+  any other round does, through the same `describe`.
+
+It also found the diff-tree parse skipping a record it could not pair, now an
+error, and that a repository with a git filter or `core.fileMode` off is refused
+even where nothing changed. That fails closed, and the manual and
+architecture.md say so. A second round, scoped to these fixes, confirmed both
+holes closed and found that the review page never showed a mode, so a `chmod`
+between rounds read as nothing moved while the round carried it. The owner chose
+to fix that in 012, with a tearout first, as iteration 3.
+
 ## Out of scope
 
 - The gate itself, which lives outside eyeball.
