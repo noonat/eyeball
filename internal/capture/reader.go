@@ -58,6 +58,8 @@ type Reader struct {
 	// a path the base does not have. A round is frozen, so an answer stays
 	// true for as long as the reader lives.
 	oids map[string]string
+	// modes is the base's git mode at each path oids names a blob for.
+	modes map[string]string
 	// batch is how much path text one ls-tree call carries, so a test can
 	// reach the chunking without naming ten thousand files.
 	batch int
@@ -106,6 +108,7 @@ func NewReader(root, base string, blobs *blob.Store, files []store.File) *Reader
 		live:  live,
 		git:   git,
 		oids:  map[string]string{},
+		modes: map[string]string{},
 		batch: batchBytes,
 	}
 }
@@ -299,8 +302,36 @@ func (r *Reader) readTree(out string) error {
 			continue
 		}
 		r.oids[clean(p)] = fields[2]
+		r.modes[clean(p)] = fields[0]
 	}
 	return nil
+}
+
+// Mode is a path's git mode as of the round: the capture's, or the base's
+// where the capture does not hold it. It is empty where the round has no file
+// at the path. A file a round captured before modes were kept is a regular
+// file here, as eyeball check reads it.
+func (r *Reader) Mode(ctx context.Context, p string) (string, error) {
+	clean, err := CleanPath(p)
+	if err != nil {
+		return "", err
+	}
+	if f, held := r.files[clean]; held {
+		switch {
+		case f.Digest == "":
+			return "", nil
+		case f.Mode == "":
+			return modeRegular, nil
+		}
+		return f.Mode, nil
+	}
+	if r.base == "" {
+		return "", nil
+	}
+	if _, err := r.baseOID(ctx, clean); err != nil {
+		return "", err
+	}
+	return r.modes[clean], nil
 }
 
 // catFile streams one object out of the repository.

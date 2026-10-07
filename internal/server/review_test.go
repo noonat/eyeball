@@ -602,6 +602,46 @@ func TestServer_Surface_reviewMarksAChangedWord(t *testing.T) {
 	g.Expect(res.Body.String()).To(ContainSubstring(`<td class="src">	<span class="k">return</span> <span class="w"><span class="n">1</span></span></td>`))
 }
 
+func TestServer_Surface_reviewModeChange(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	commitFile(g, repo, "deploy.sh", "#!/bin/sh\n")
+	g.Expect(os.Chmod(filepath.Join(repo, "deploy.sh"), 0o700)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(repo, "docs"), 0o700)).To(Succeed())
+	g.Expect(os.Symlink("v2/", filepath.Join(repo, "docs", "current"))).To(Succeed())
+	write(g, repo, "docs/notes.txt", "a new text file\n")
+	me := api.Caller{Dir: repo}
+	paths := []string{"a.txt", "deploy.sh", "docs"}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: paths, Note: "first"}).Review.ID
+
+	// lines is each card's mode line, by path, for the cards that have one.
+	lines := func(doc *html.Node) map[string]string {
+		out := map[string]string{}
+		for _, file := range findAll(doc, hasClass("file")) {
+			if line := find(file, "modeline"); line != nil {
+				out[text(find(file, "path"))] = text(line)
+			}
+		}
+		return out
+	}
+	// An execute bit with no byte changed, against the base, and a new
+	// symlink. A new text file and an edited one carry no line.
+	g.Expect(lines(f.page(g, "/reviews/"+itoa(id), http.StatusOK))).To(Equal(map[string]string{
+		"deploy.sh":    "regular file (644) → executable file (755)",
+		"docs/current": "new symlink",
+	}))
+	file := f.page(g, "/reviews/"+itoa(id)+"/files/deploy.sh", http.StatusOK)
+	g.Expect(text(find(file, "modeline"))).To(Equal("regular file (644) → executable file (755)"))
+
+	// A chmod between rounds is a file that moved, though no byte did.
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	g.Expect(os.Chmod(filepath.Join(repo, "a.txt"), 0o700)).To(Succeed())
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	g.Expect(lines(doc)).To(Equal(map[string]string{"a.txt": "regular file (644) → executable file (755)"}))
+}
+
 func TestServer_Surface_reviewNotFound(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

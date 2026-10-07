@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-07T00:00:00Z
-updated: 2026-10-07T07:57:39.200587812Z
+updated: 2026-10-07T08:08:55.428426684Z
 required_acks:
   - reviewed
 required_commands:
@@ -209,14 +209,30 @@ Approved with those changes.
 
 ## Iteration 4: The mode on the page
 
-- [ ] Rounds compared by digest and mode, an empty mode read as 100644, so a
+- [x] Rounds compared by digest and mode, an empty mode read as 100644, so a
       `chmod` between rounds is a file that moved
-- [ ] The reader keeping each base file's mode from `ls-tree`, and a card and a
+- [x] The reader keeping each base file's mode from `ls-tree`, and a card and a
       file page showing the mode line where the two sides' modes differ, or an
       added file is not a regular one
-- [ ] Tests: a mode-only change between rounds listed and lined, a round from
+- [x] Tests: a mode-only change between rounds listed and lined, a round from
       before 0009 not shown as moved, an added symlink lined, and the file
       page's line
+
+**Departures, iteration 4.**
+
+- A review that spans migration 0009 shows an executable captured before it as
+  "regular file (644) → executable file (755)" in its first later round, since
+  the earlier round recorded no mode and is read as regular files. That is the
+  reading eyeball check makes of it too.
+- A file shown as itself, such as an image, carries the line on its file page as
+  any file does. A mode-only change shows a card holding the line and an empty
+  diff.
+
+> **Completed** 2026-10-07 08:08 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.3s
+> - `go test -race ./...` — 36.0s
 
 ## Out of scope
 
