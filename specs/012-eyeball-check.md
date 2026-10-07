@@ -1,7 +1,7 @@
 ---
-status: done
+status: active
 created: 2026-10-07T00:00:00Z
-updated: 2026-10-07T04:09:54.187952295Z
+updated: 2026-10-07T07:57:39.200587812Z
 required_acks:
   - reviewed
 required_commands:
@@ -183,6 +183,30 @@ architecture.md say so. A second round, scoped to these fixes, confirmed both
 holes closed and found that the review page never showed a mode, so a `chmod`
 between rounds read as nothing moved while the round carried it. The owner chose
 to fix that in 012, with a tearout first, as iteration 3.
+
+## Iteration 3: The tearout for a mode change
+
+```backlog
+required_acks:
+  - phone-approved
+```
+
+- [/] review.html gaining a frame of cards whose file changed mode: a mode line,
+  "regular file → executable file", over a diff, one with no changed lines, and
+  an added file's "new symlink"
+- [ ] widening.html's file page showing the same line under its toolbar
+- [ ] The `.modeline` rule in app.css, and README's rows naming the frames
+
+## Iteration 4: The mode on the page
+
+- [ ] Rounds compared by digest and mode, an empty mode read as 100644, so a
+      `chmod` between rounds is a file that moved
+- [ ] The reader keeping each base file's mode from `ls-tree`, and a card and a
+      file page showing the mode line where the two sides' modes differ, or an
+      added file is not a regular one
+- [ ] Tests: a mode-only change between rounds listed and lined, a round from
+      before 0009 not shown as moved, an added symlink lined, and the file
+      page's line
 
 ## Out of scope
 
