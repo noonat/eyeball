@@ -13,6 +13,8 @@ const (
 	CodeAwaitingVerdict Code = "awaiting_verdict"
 	// CodeBadBase is a base that does not name a commit.
 	CodeBadBase Code = "bad_base"
+	// CodeBadCommit is a ref a check was given that names no commit.
+	CodeBadCommit Code = "bad_commit"
 	// CodeBadRequest is a request the daemon could not read.
 	CodeBadRequest Code = "bad_request"
 	// CodeBadView is a file view the round cannot open: a path the capture

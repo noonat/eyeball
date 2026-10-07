@@ -52,6 +52,13 @@ var mappings = []mapping{
 		fix:    "name a commit, a branch or a tag with --base, or leave it out to use HEAD",
 	},
 	{
+		name:   "capture.ErrBadCommit",
+		err:    capture.ErrBadCommit,
+		status: http.StatusBadRequest,
+		code:   api.CodeBadCommit,
+		fix:    "pass a commit, a branch or a tag that exists in this repository",
+	},
+	{
 		name:   "capture.ErrBaseGained",
 		err:    capture.ErrBaseGained,
 		status: http.StatusConflict,
