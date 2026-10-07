@@ -55,11 +55,11 @@ const (
 	CodeNoProject Code = "no_project"
 	// CodeNoSuchPath is a review path the project does not have, outside git.
 	CodeNoSuchPath Code = "no_such_path"
-	// CodeNotFound is an id that names nothing.
-	CodeNotFound Code = "not_found"
 	// CodeNotApproved is a check that found no approved review in the
 	// project whose latest round is measured from the base it was given.
 	CodeNotApproved Code = "not_approved"
+	// CodeNotFound is an id that names nothing.
+	CodeNotFound Code = "not_found"
 	// CodeNotOpen is a review that has already been approved or abandoned.
 	CodeNotOpen Code = "not_open"
 	// CodeNotReleased is a reply to a comment the agent cannot have seen.
