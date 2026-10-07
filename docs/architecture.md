@@ -377,18 +377,29 @@ rejected for adding a second reader of the schema. A gate that sets
 
 **They match when the two disagree on no path that matters.** Every path `<new>`
 changes from `<old>` must be captured inside the review's paths with `<new>`'s
-bytes, by the SHA-256 the blob store names content by, or as a deletion where
-`<new>` lacks it. Every path captured inside the review's paths must be one
-`<new>` changes, since a captured file differs from the base by definition. A
-file captured outside the review's paths that `<new>` leaves alone is ignored,
+bytes, by the SHA-256 the blob store names content by, and its mode: 100644,
+100755 or 120000, recorded per round file since 012. A file approved as text and
+merged as executable, or as a symlink with the same bytes, is not what was
+approved. A round taken before modes were kept is read as regular files, so an
+executable or a symlink there fails closed. Or a path is captured as a deletion
+where `<new>` lacks it. Every path captured inside the review's paths must be
+one `<new>` changes, since a captured file differs from the base by definition.
+A file captured outside the review's paths that `<new>` leaves alone is ignored,
 because nobody approved it and none of it merges. Comparing trees rather than
 history makes a fast-forward and a merge commit the same question.
 
 **Only commits are read**: `rev-parse`, `diff-tree`, `ls-tree` and `cat-file`. A
 merge holds `index.lock` while the gate's hook runs, so the index and the
-working tree are not the check's to read. A daemon started from a hook inherits
-`GIT_DIR`, which git sets to a worktree's git directory there, and every git
-command the daemon runs already drops git's repository-local variables.
+working tree are not the check's to read. Every git command eyeball runs passes
+`--no-replace-objects`: with `refs/replace` honored,
+`git replace <commit> <approved>` made the check compare an approved tree while
+the branch moved to another. A round captures working-tree bytes and the check
+reads committed ones, so a repository with a clean or smudge filter, line-ending
+conversion or `core.fileMode` off is refused even where nothing changed. That
+fails closed, and is left until such a repository needs the gate. A daemon
+started from a hook inherits `GIT_DIR`, which git sets to a worktree's git
+directory there, and every git command the daemon runs already drops git's
+repository-local variables.
 
 **It records nothing.** The project is looked up and never registered, so a
 repository eyeball has not seen is refused. A worktree is a project of its own,

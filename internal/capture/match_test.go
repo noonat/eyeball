@@ -105,6 +105,46 @@ func TestMatch(t *testing.T) {
 			want: "a.txt changes in the new tree and is outside the approved review's paths",
 		},
 		{
+			name:  "an executable approved as one",
+			paths: whole,
+			work: func(g *WithT, r *repo) {
+				r.write(g, "lib/run.sh", "#!/bin/sh\n")
+				g.Expect(os.Chmod(filepath.Join(r.root, "lib/run.sh"), 0o700)).To(Succeed())
+			},
+		},
+		{
+			name:  "an execute bit set after approval",
+			paths: whole,
+			work:  func(g *WithT, r *repo) { r.write(g, "a.txt", "a, approved\n") },
+			land: func(g *WithT, r *repo) {
+				g.Expect(os.Chmod(filepath.Join(r.root, "a.txt"), 0o700)).To(Succeed())
+			},
+			want: "a.txt is an executable file in the new tree and a regular file in the approved round",
+		},
+		{
+			name:  "a file turned into a symlink with the same bytes",
+			paths: whole,
+			work:  func(g *WithT, r *repo) { r.write(g, "a.txt", "b.txt") },
+			land: func(g *WithT, r *repo) {
+				g.Expect(os.Remove(filepath.Join(r.root, "a.txt"))).To(Succeed())
+				g.Expect(os.Symlink("b.txt", filepath.Join(r.root, "a.txt"))).To(Succeed())
+			},
+			want: "a.txt is a symlink in the new tree and a regular file in the approved round",
+		},
+		{
+			name:  "a symlink turned into a file with the same bytes",
+			paths: whole,
+			work: func(g *WithT, r *repo) {
+				g.Expect(os.Remove(filepath.Join(r.root, "link"))).To(Succeed())
+				g.Expect(os.Symlink("b.txt", filepath.Join(r.root, "link"))).To(Succeed())
+			},
+			land: func(g *WithT, r *repo) {
+				g.Expect(os.Remove(filepath.Join(r.root, "link"))).To(Succeed())
+				r.write(g, "link", "b.txt")
+			},
+			want: "link is a regular file in the new tree and a symlink in the approved round",
+		},
+		{
 			name:  "an out-of-scope capture the new tree leaves alone",
 			paths: []string{"lib"},
 			work: func(g *WithT, r *repo) {
@@ -152,6 +192,48 @@ func TestMatch_mergeCommit(t *testing.T) {
 	got, err = Match(t.Context(), r.root, base, r.git(g, "rev-parse", "work"), files)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(BeEmpty())
+}
+
+func TestMatch_replaceRefs(t *testing.T) {
+	// git replace swaps one object for another in every read that honors
+	// refs/replace. A commit the branch moves to must be compared as itself,
+	// not as the approved commit an agent swapped in for it.
+	g := NewWithT(t)
+	r, base := matchRepo(g, t)
+	r.write(g, "a.txt", "a, approved\n")
+	files := approve(g, t, r, base, whole)
+	approved := r.commit(g, "approved")
+	r.write(g, "a.txt", "a, not approved\n")
+	evil := r.commit(g, "evil")
+
+	r.git(g, "replace", evil, approved)
+	got, err := Match(t.Context(), r.root, base, evil, files)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal("a.txt differs from the approved round"), "a replaced commit")
+	r.git(g, "replace", "-d", evil)
+
+	r.git(g, "replace", r.git(g, "rev-parse", evil+":a.txt"), r.git(g, "rev-parse", approved+":a.txt"))
+	got, err = Match(t.Context(), r.root, base, evil, files)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal("a.txt differs from the approved round"), "a replaced blob")
+}
+
+func TestMatch_roundWithoutModes(t *testing.T) {
+	// A round taken before modes were kept is read as having captured regular
+	// files, so a regular file still matches and an executable fails closed.
+	g := NewWithT(t)
+	r, base := matchRepo(g, t)
+	r.write(g, "a.txt", "a, approved\n")
+	r.write(g, "lib/run.sh", "#!/bin/sh\n")
+	g.Expect(os.Chmod(filepath.Join(r.root, "lib/run.sh"), 0o700)).To(Succeed())
+	files := approve(g, t, r, base, whole)
+	for i := range files {
+		files[i].Mode = ""
+	}
+	target := r.commit(g, "work")
+	got, err := Match(t.Context(), r.root, base, target, files)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal("lib/run.sh is an executable file in the new tree and a regular file in the approved round"))
 }
 
 func TestMatch_submodule(t *testing.T) {

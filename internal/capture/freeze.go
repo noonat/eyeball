@@ -139,12 +139,27 @@ func freezeFile(root string, blobs *blob.Store, e Entry) (store.File, error) {
 	}
 	full := filepath.Join(root, filepath.FromSlash(e.Path))
 	if e.Symlink {
-		return freezeLink(blobs, e.Path, full)
+		f, err := freezeLink(blobs, e.Path, full)
+		f.Mode = modeSymlink
+		return f, err
 	}
-	return storeContent(blobs, e.Path, func() (io.ReadCloser, error) {
+	f, err := storeContent(blobs, e.Path, func() (io.ReadCloser, error) {
 		return open(e.Path, full)
 	})
+	f.Mode = modeRegular
+	if e.Executable {
+		f.Mode = modeExecutable
+	}
+	return f, err
 }
+
+// The git modes a round records, which are git's own spellings, so a round's
+// file and a tree's entry compare as strings.
+const (
+	modeRegular    = "100644"
+	modeExecutable = "100755"
+	modeSymlink    = "120000"
+)
 
 // opener yields a path's bytes. It exists because the miss path reads twice,
 // and the two reads are what can disagree.

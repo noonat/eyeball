@@ -143,17 +143,23 @@ compares trees, so a fast-forward and a merge commit are treated alike.
 | `--base` | The commit the branch moves from. Required |
 
 They match when every path `<new>` changes from `<old>` was captured inside the
-review's paths with `<new>`'s bytes, or as a deletion where `<new>` lacks it,
-and every path captured inside the review's paths is one `<new>` changes. A file
-captured outside the review's paths that `<new>` leaves alone is ignored. So a
-stray file inside a claimed path that `<new>` does not hold refuses the check:
-delete it or ignore it before asking for review.
+review's paths with `<new>`'s bytes and mode, so an execute bit or a symlink
+counts, or as a deletion where `<new>` lacks it, and every path captured inside
+the review's paths is one `<new>` changes. A file captured outside the review's
+paths that `<new>` leaves alone is ignored. So a stray file inside a claimed
+path that `<new>` does not hold refuses the check: delete it or ignore it before
+asking for review.
 
 It prints one line naming the review, or refuses with one line naming the first
 path that differs. It reads and records nothing, and acknowledges nothing. It
 starts a daemon like any command; with `EYEBALL_NO_START` set, a stopped daemon
 is a refusal. A worktree is a project of its own, so a review opened from one
 does not match a merge made in the main clone.
+
+A round captures working-tree bytes and the check reads committed ones, so a
+repository whose files pass through a git filter, such as LFS or line-ending
+conversion, or that sets `core.fileMode` to false, is refused even where nothing
+changed.
 
 ### `eyeball start`, `eyeball stop` and `eyeball serve`
 
