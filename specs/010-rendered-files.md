@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-06T00:00:00Z
-updated: 2026-10-06T19:50:10.90650348Z
+updated: 2026-10-07T00:15:05.30962334Z
 required_acks:
   - reviewed
 required_commands:
@@ -392,7 +392,38 @@ required_acks:
 This iteration is the owner's. The driving agent serves the seeded review on the
 tailnet and lists what to check. `phone-checked` is given only by the owner.
 
-- [/] Each kind checked on the phone, in the file page and the card
-- [ ] The PDF view decided: frame, link, or both, and the spec and code
+- [x] Each kind checked on the phone, in the file page and the card
+- [x] The PDF view decided: frame, link, or both, and the spec and code
       following
-- [ ] The page frame's height judged, and what was found recorded in this spec
+- [x] The page frame's height judged, and what was found recorded in this spec
+
+**What iteration 8 found, on 2026-10-06.** The owner opened the seeded review in
+Safari on the phone, through `socat` from the tailnet address to a seeded daemon
+on loopback.
+
+- The PDF showed whole in its frame, every page, and Open opened it with a way
+  back. The frame and the link both stay.
+- The video and the recording played. The page's frame, at 560 pixels and
+  scrolling inside, was right.
+- A tap on an image opened a comment on the file, and SVG's Image view showed
+  before over after.
+- The owner asked for small images at their own size: a 48 pixel icon stretched
+  to the frame read as pixelated. Fixed in f6e4587 with `.shot.natural`, up to
+  the frame's width. The tearouts' placeholders keep the full width.
+- The line on a file past the limit said "Too large to send over a phone
+  connection", which read wrong on wifi, and the surface cannot tell the two
+  apart. The owner chose to name the limit and offer Load anyway, so nothing
+  large is sent by accident and a reviewer can still look. Fixed in 528453f: the
+  line reads "Past the 20 MB the surface sends on its own.", Load anyway opens
+  the file's page with `?load=1`, and the raw route answers past the limit only
+  with that query, streaming a blob from disk and a base file through a
+  temporary file. This corrects the Design section's "the route refuses past the
+  send limit" and product.md's "is not sent", which now says "is not sent until
+  asked". `kind.MaxSend` became 20,000,000 bytes, so a file past it never prints
+  as 20.0 MB.
+
+> **Completed** 2026-10-07 00:15 UTC
+>
+> - acks: reviewed, phone-checked
+> - `make check` — 5.1s
+> - `go test -race ./...` — 33.7s
