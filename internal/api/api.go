@@ -57,6 +57,9 @@ const (
 	CodeNoSuchPath Code = "no_such_path"
 	// CodeNotFound is an id that names nothing.
 	CodeNotFound Code = "not_found"
+	// CodeNotApproved is a check that found no approved review in the
+	// project whose latest round is measured from the base it was given.
+	CodeNotApproved Code = "not_approved"
 	// CodeNotOpen is a review that has already been approved or abandoned.
 	CodeNotOpen Code = "not_open"
 	// CodeNotReleased is a reply to a comment the agent cannot have seen.
@@ -83,6 +86,9 @@ const (
 	CodeRoundClosed Code = "round_closed"
 	// CodeTooManyFiles is a walk outside git that passed its file limit.
 	CodeTooManyFiles Code = "too_many_files"
+	// CodeTreeDiffers is a check whose approved reviews with the right base
+	// each capture something other than the tree it was given.
+	CodeTreeDiffers Code = "tree_differs"
 	// CodeUsage is a command line the CLI could not parse.
 	CodeUsage Code = "usage"
 	// CodeVanished is a file that disappeared while it was being captured.
@@ -142,6 +148,18 @@ type RequestBody struct {
 	// keyed by path. Paths are written as Paths are, relative to the caller's
 	// directory.
 	Views map[string]string `json:"views,omitempty"`
+}
+
+// CheckResult is the approved review whose latest round matches a tree.
+type CheckResult struct {
+	// Review is the review's id.
+	Review int64 `json:"review"`
+	// Round is its latest round's number.
+	Round int `json:"round"`
+	// Title is what the queue shows for it.
+	Title string `json:"title"`
+	// Agent is the agent that opened it.
+	Agent string `json:"agent"`
 }
 
 // ReceiptBody names the comments the agent's client printed.
