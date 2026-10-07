@@ -15,6 +15,9 @@ const (
 	CodeBadBase Code = "bad_base"
 	// CodeBadRequest is a request the daemon could not read.
 	CodeBadRequest Code = "bad_request"
+	// CodeBadView is a file view the round cannot open: a path the capture
+	// does not hold, or a view its kind has no rendering or source for.
+	CodeBadView Code = "bad_view"
 	// CodeBaseGained is a later round on a review opened before the
 	// repository had a commit.
 	CodeBaseGained Code = "base_gained"
@@ -133,6 +136,10 @@ type RequestBody struct {
 	Base string `json:"base"`
 	// Review is the review to ask the next round of, zero for a new review.
 	Review int64 `json:"review"`
+	// Views picks the view a file opens in at this round, rendered or source,
+	// keyed by path. Paths are written as Paths are, relative to the caller's
+	// directory.
+	Views map[string]string `json:"views,omitempty"`
 }
 
 // ReceiptBody names the comments the agent's client printed.

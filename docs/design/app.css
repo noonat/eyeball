@@ -871,6 +871,9 @@ tr.del .w {
 .page[data-acting="open"] .code tr[data-line],
 .page[data-acting="open"] .code tr[data-old],
 .page[data-acting="open"] .toobig,
+.page[data-acting="open"] .file > .filefacts,
+.page[data-acting="open"] .file > .rendered .shot,
+.page[data-acting="open"] .file > .rendered .cap,
 .page[data-acting="open"] .prose .blk[data-lines] {
   cursor: pointer;
 }
@@ -1188,6 +1191,16 @@ details.blk.changed[open] > summary > .cue-hide {
     -7px 0;
 }
 
+/* A real image shows at its own size, up to the frame's width. Stretched to
+ * the width, a 48 pixel icon read as pixelated on the owner's phone on
+ * 2026-10-06, and its size is half of what an icon change asks. The tearouts'
+ * placeholders keep the full width. */
+.shot.natural {
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 /* Before over after, at one width. Two images across a phone are two
  * thumbnails, which is the same reason diffs are unified. */
 .beforeafter {
@@ -1212,6 +1225,54 @@ details.blk.changed[open] > summary > .cue-hide {
   color: var(--add);
 }
 
+/* A page renders at the frame's width and a fixed height, and scrolls inside
+ * the frame as it would on a phone screen. A PDF shows in the same frame. The
+ * white is the page's own background, which no theme reaches. */
+.pageframe {
+  display: block;
+  width: 100%;
+  height: 560px;
+  border: 0;
+  background: #fff;
+}
+
+.preview > video {
+  display: block;
+  width: 100%;
+  background: #000;
+}
+
+.preview > audio {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 10px;
+}
+
+/* Open is the one control a frame carries: the same file as a page of its own,
+ * still under the sandbox. */
+.preview > .cap .open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.preview > .cap .dim + .open {
+  margin-left: 0;
+}
+
+/* A rendered file inside a review's card sits in from the card's edge, where a
+ * diff runs edge to edge. */
+.file > .rendered {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
 /* What a file is, when it is not something this surface can show. */
 .filefacts {
   display: flex;
@@ -1226,6 +1287,15 @@ details.blk.changed[open] > summary > .cue-hide {
   font-size: var(--t-md);
   font-weight: 600;
   color: var(--ink);
+}
+
+/* Load anyway sends a file past the send limit, on a tap and never on its
+ * own, so a reviewer can look without spending data by accident. */
+.filefacts .load {
+  margin-top: 6px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .filefacts .size {

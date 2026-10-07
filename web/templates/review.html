@@ -52,8 +52,9 @@
 {{if .Deferred}}<div data-body></div>
 {{else}}{{template "filebody" .}}{{end}}</details>
 {{end}}
-{{define "filebody"}}{{if .Deleted}}<div class="toobig">Deleted as of this round.</div>
-{{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
+{{define "filebody"}}{{if and .Deleted (not .Rendered)}}<div class="toobig">Deleted as of this round.</div>
+{{else if .Rendered}}{{if .Rendered.Facts}}{{template "rendered" .Rendered}}{{else}}<div class="rendered">{{template "rendered" .Rendered}}</div>
+{{end}}{{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
 {{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>
 {{else if .Diff.TooLarge}}<div class="toobig">Too large to show as a diff.</div>
 {{else if .List}}{{template "reviewcode" .}}{{else}}{{template "code" .Diff.Rows}}{{end}}{{with .List}}{{template "commentlist" .}}{{else}}{{range .Comments}}{{template "comment" .}}{{end}}{{end}}{{with .Slot}}<div id="{{.}}"></div>

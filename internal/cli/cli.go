@@ -353,6 +353,25 @@ func note(cmd *ucli.Command, what string) (string, error) {
 	return joined, nil
 }
 
+// viewFlags reads each --view as a path and a choice. The choice is split off
+// at the last equals sign, since a path may hold one and a choice never does.
+// Whether the choice names a view the file has is the daemon's to say, since
+// only the capture knows the file.
+func viewFlags(flags []string) (map[string]string, error) {
+	if len(flags) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]string, len(flags))
+	for _, f := range flags {
+		i := strings.LastIndex(f, "=")
+		if i <= 0 || i == len(f)-1 {
+			return nil, &usageError{message: fmt.Sprintf("--view %q names no path and view", f), fix: "pass --view <path>=rendered or --view <path>=source"}
+		}
+		out[f[:i]] = f[i+1:]
+	}
+	return out, nil
+}
+
 // id reads the one positional argument a command takes as an id.
 func id(cmd *ucli.Command, what string) (int64, error) {
 	if cmd.Args().Len() != 1 {
@@ -381,9 +400,14 @@ func (a *app) requestCommand() *ucli.Command {
 			&ucli.StringFlag{Name: "title", Usage: "the title the queue shows (default: the note's first line)"},
 			&ucli.StringFlag{Name: "base", Usage: "the commit a first round is measured from (default: HEAD)"},
 			&ucli.Int64Flag{Name: "review", Usage: "ask for the next round of this review instead of opening one"},
+			&ucli.StringSliceFlag{Name: "view", Usage: "open a file in its rendered or source view first, as <path>=rendered or <path>=source (repeatable)"},
 		},
 		Action: func(ctx context.Context, cmd *ucli.Command) error {
 			text, err := note(cmd, "a request")
+			if err != nil {
+				return err
+			}
+			views, err := viewFlags(cmd.StringSlice("view"))
 			if err != nil {
 				return err
 			}
@@ -394,6 +418,7 @@ func (a *app) requestCommand() *ucli.Command {
 				Title:  cmd.String("title"),
 				Base:   cmd.String("base"),
 				Review: cmd.Int64("review"),
+				Views:  views,
 			}
 			raw, err := a.do(ctx, http.MethodPost, "/agent/requests", body)
 			if err != nil {

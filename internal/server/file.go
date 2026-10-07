@@ -14,6 +14,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/diff"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/render"
 	"github.com/noonat/eyeball/internal/store"
 )
@@ -37,6 +38,10 @@ type filePage struct {
 	Document template.HTML
 	// Diff is the file's rows, or the flag saying why it has none.
 	Diff render.File
+	// Rendered is the file shown as itself, a page in its frame, or the line
+	// naming a file the surface does not show, and nil for rows or a
+	// document.
+	Rendered *rendering
 }
 
 // fileToolbar is the toolbar above a file that a comparison covers.
@@ -52,9 +57,10 @@ type fileToolbar struct {
 	Marked, Plain string
 	// ShowPlain says the plain view is the one shown.
 	ShowPlain bool
-	// Document and Source are a markdown file's two views' addresses, and
-	// empty where the control is not shown.
-	Document, Source string
+	// Rendered and Source are the two views' addresses of a file with a
+	// rendering, markdown or a page, and empty where the control is not
+	// shown. RenderedLabel names the rendering: Document, Page or Image.
+	Rendered, RenderedLabel, Source string
 	// ShowSource says the source view is the one shown.
 	ShowSource bool
 }
@@ -167,9 +173,11 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	}
 	files := make([]store.File, len(stored))
 	scope := make(map[string]bool, len(stored))
+	views := make(map[string]string, len(stored))
 	for i, f := range stored {
 		files[i] = f.File
 		scope[f.Path] = f.InScope
+		views[f.Path] = f.View
 	}
 	at := fileAt{
 		review:      review,
@@ -178,6 +186,9 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		wholeReview: r.URL.Query().Get("against") == "base",
 		view:        r.URL.Query().Get("view"),
 		path:        clean,
+		file:        kind.ByName(clean),
+		stored:      views[clean],
+		load:        r.URL.Query().Get("load") == "1",
 	}
 	if clean == "" {
 		return s.treeView(ctx, w, at, project, st, files, scope)
@@ -223,11 +234,47 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		if err != nil {
 			return err
 		}
+		if at.file.Shown() || at.rendering() == kind.ViewImage {
+			before := sideReader{reader: st.Reader(s.blobs, previous), number: at.previousNumber()}
+			changed := st.Measurable() && capture.Differs(previous, files, at.path)
+			if view.Rendered, err = s.renderShown(ctx, at, before, sideReader{reader: now, number: round.Number}, changed); err != nil {
+				return err
+			}
+			if view.Rendered == nil && pathType == capture.PathDeleted {
+				view.Deleted = fmt.Sprintf("The agent deleted this file as of round %d.", at.round.Number)
+			}
+			if at.file.Shown() {
+				break
+			}
+		}
+		rendered := view.Rendered
 		if err := s.compareView(ctx, &view, at, st, now, previous, files, inScope, pathType == capture.PathDeleted); err != nil {
 			return err
 		}
+		if rendered != nil {
+			view.Rendered, view.Deleted = rendered, ""
+		}
+		if at.rendering() == kind.ViewPage && pathType != capture.PathDeleted {
+			if view.Rendered, err = s.framePage(ctx, at, now); err != nil {
+				return err
+			}
+			view.Notices = append(view.Notices, sandboxNotice)
+		}
 	case capture.SourceBase:
 		view.Notices = append(view.Notices, baseNotice(store.Covers(review.Paths, clean)))
+		if at.file.Shown() || at.rendering() == kind.ViewImage {
+			if view.Rendered, err = s.renderShown(ctx, at, sideReader{}, sideReader{reader: now, number: round.Number}, false); err != nil {
+				return err
+			}
+			break
+		}
+		if at.rendering() == kind.ViewPage {
+			if view.Rendered, err = s.framePage(ctx, at, now); err != nil {
+				return err
+			}
+			view.Notices = append(view.Notices, sandboxNotice)
+			break
+		}
 		content, tooLarge, err := now.Side(ctx, clean)
 		if err != nil {
 			return err
@@ -248,8 +295,21 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		}
 		view.Notices = append(view.Notices, liveNotice(st))
 		view.showPlain(at, content, false)
+		switch {
+		case at.file.Shown():
+			// The raw route reads frozen rounds only, so a file read live
+			// from the working copy is named rather than shown.
+			view.Rendered = &rendering{Facts: &facts{Kind: at.file.Name, Size: bytesText(int64(len(content))), Hint: "Read from the working copy, which is not sent."}}
+		case view.Diff.Binary:
+			view.Rendered = &rendering{Facts: &facts{Kind: binaryName(at.file), Size: bytesText(int64(len(content)))}}
+		}
 	}
-	view.documentControl(at)
+	view.viewControl(at)
+	if view.Rendered == nil && view.Deleted == "" && (view.Diff.Binary || at.file.Kind == kind.Other) {
+		if view.Rendered, err = nameBinary(ctx, at, now); err != nil {
+			return err
+		}
+	}
 
 	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: back, BackLabel: label, Body: view})
 	return nil
@@ -270,18 +330,77 @@ type fileAt struct {
 	// or source for a markdown file, and empty for the default.
 	view string
 	path string
+	// file is what the path is, by its name.
+	file kind.File
+	// stored is the view the agent chose for the path at this round, and
+	// empty for the file's default.
+	stored string
+	// load says the reviewer asked for a file past the send limit anyway.
+	load bool
 }
 
-// markdown says the path is shown as a document by default.
+// raw is the path's bytes as of a round, asking for them past the send limit
+// where the reviewer did.
+func (a fileAt) raw(number int) string {
+	href := rawHref(a.review.ID, number, a.path)
+	if a.load {
+		href += "?load=1"
+	}
+	return href
+}
+
+// loadHref is this file's page in the view shown, with a file past the send
+// limit sent anyway. A card has no view of its own, so its link opens the
+// file's default.
+func (a fileAt) loadHref() string {
+	q := a.against()
+	if a.view != "" {
+		q.Set("view", a.view)
+	}
+	q.Set("load", "1")
+	return withQuery(fileHref(a.review.ID, a.round.Number, a.current, a.path), q)
+}
+
+// chosen is the view the page opens in: the one asked for, then the one the
+// agent chose, then the file's default.
+func (a fileAt) chosen() string {
+	if a.view != "" {
+		return a.view
+	}
+	if a.stored != "" {
+		return a.stored
+	}
+	return a.file.Default()
+}
+
+// markdown says the path is markdown, which has a document and a source.
 func (a fileAt) markdown() bool {
-	return render.IsMarkdown(a.path)
+	return a.file.Kind == kind.Markdown
 }
 
 // document says the path is shown as a document: a markdown file, in any
 // view but Source. Marked and Plain are a code file's views, so either names
 // the default.
 func (a fileAt) document() bool {
-	return a.markdown() && a.view != "source"
+	return a.markdown() && a.chosen() != kind.ViewSource
+}
+
+// rendering is the rendered view a page is shown in, Page or Image, and
+// empty where it is shown as source.
+func (a fileAt) rendering() string {
+	if a.file.Kind == kind.Page && a.chosen() == a.file.Rendered() {
+		return a.file.Rendered()
+	}
+	return ""
+}
+
+// previousNumber is the round the comparison reads its earlier side from,
+// as the raw route numbers it: the previous round, or 0 for the base.
+func (a fileAt) previousNumber() int {
+	if a.round.Number == 1 || a.wholeReview {
+		return 0
+	}
+	return a.round.Number - 1
 }
 
 // href is a project path's page at the address's round, keeping the
@@ -441,19 +560,24 @@ func (v *filePage) showPlain(at fileAt, content []byte, tooLarge bool) {
 	v.Diff = render.Plain(at.path, content)
 }
 
-// documentControl gives a markdown file the Document and Source control,
-// beside whatever its toolbar already says. Every markdown file has both
-// views, whether or not anything moved, so the control is not tied to a
-// change as Marked and Plain are. A file shown as the binary or too-large
-// line, or as the deleted box, has one view and no control.
-func (v *filePage) documentControl(at fileAt) {
-	if !at.markdown() || v.Deleted != "" || v.Diff.Binary || v.Diff.TooLarge {
+// viewControl gives a file with a rendering its two views, beside whatever
+// its toolbar already says: Document and Source for markdown, Page or Image
+// and Source for a page. Every such file has both views, whether or not
+// anything moved, so the control is not tied to a change as Marked and Plain
+// are. A file shown as the binary or too-large line, or as the deleted box,
+// has one view and no control.
+func (v *filePage) viewControl(at fileAt) {
+	rendered := at.file.Rendered()
+	if rendered == "" || v.Deleted != "" || v.Diff.Binary || (v.Diff.TooLarge && v.Rendered == nil) {
 		return
 	}
 	if v.Toolbar == nil {
 		v.Toolbar = &fileToolbar{}
 	}
-	v.Toolbar.Document, v.Toolbar.Source, v.Toolbar.ShowSource = at.viewHref("document"), at.viewHref("source"), !at.document()
+	v.Toolbar.Marked, v.Toolbar.Plain = "", ""
+	labels := map[string]string{kind.ViewDocument: "Document", kind.ViewPage: "Page", kind.ViewImage: "Image"}
+	showSource := !at.document() && at.rendering() == ""
+	v.Toolbar.Rendered, v.Toolbar.RenderedLabel, v.Toolbar.Source, v.Toolbar.ShowSource = at.viewHref(rendered), labels[rendered], at.viewHref(kind.ViewSource), showSource
 }
 
 // readBounded reads at most one byte past the diff's limit and closes rc. A

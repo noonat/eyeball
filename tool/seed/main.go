@@ -14,9 +14,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
+	"encoding/binary"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +34,7 @@ import (
 	"github.com/noonat/eyeball/internal/blob"
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/daemon"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/store"
 )
 
@@ -333,12 +341,144 @@ func (s *seed) write() error {
 		return err
 	}
 
+	if err := s.renderedFiles(); err != nil {
+		return err
+	}
+
 	// Written after every capture and claimed by no open review, so harbor's
 	// working copy shows work no agent has submitted, beside sync.go, whose
 	// only review is approved.
 	s.edit(harbor, "docs/architecture.md", archAfter)
 	s.edit(harbor, "internal/storage/cache.go", "package storage\n\n// cache keeps the last listing in memory.\ntype cache struct{ names []string }\n")
 	return nil
+}
+
+// clipMP4 is three seconds of ffmpeg's test pattern at 320 by 180, H.264
+// baseline with its index at the front, committed because a real video is
+// the only way to see one play, and the build must not need ffmpeg.
+//
+//go:embed testdata/clip.mp4
+var clipMP4 string
+
+// renderedFiles opens a review holding every kind a browser displays, and two
+// it does not: an icon changed, added and deleted, an SVG, a recording, a
+// video, a PDF, a page with its stylesheet beside it, a file past the send
+// limit and an archive. The agent chose the page's rendered view, so its card
+// shows the page. The images, the recording and the PDF are real, so they
+// render and play on a phone.
+func (s *seed) renderedFiles() error {
+	s.ago(40 * time.Minute)
+	status, err := s.repo("status-page", map[string]string{
+		"web/icon.png":    pngImage(48, 48, color.RGBA{R: 0xb0, G: 0x4a, B: 0x3c, A: 0xff}),
+		"web/old.png":     pngImage(32, 32, color.RGBA{R: 0x8a, G: 0xab, B: 0xff, A: 0xff}),
+		"web/badge.svg":   "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#b04a3c\"/></svg>\n",
+		"web/status.css":  "body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: #faf8f5; color: #2b2724 }\nheader { padding: 14px 16px; background: #2b2724; color: #faf8f5; font-weight: 600 }\nsection { margin: 12px 16px; padding: 12px; border: 1px solid #ddd5cc; border-radius: 8px; background: #fff }\n",
+		"web/status.html": statusPage("Uploads"),
+	})
+	if err != nil {
+		return err
+	}
+	s.edit(status, "web/icon.png", pngImage(48, 48, color.RGBA{R: 0x1f, G: 0x7a, B: 0x6a, A: 0xff}))
+	s.edit(status, "web/new.png", pngImage(64, 40, color.RGBA{R: 0xf0, G: 0xc6, B: 0x74, A: 0xff}))
+	if err := os.Remove(filepath.Join(status.root, "web", "old.png")); err != nil {
+		return errors.Wrap(err, "remove old.png")
+	}
+	s.edit(status, "web/badge.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" rx=\"5\" fill=\"#1f7a6a\"/></svg>\n")
+	s.edit(status, "web/status.html", statusPage("Upload status"))
+	s.edit(status, "media/chime.wav", wavTone(660, 8000, 1))
+	s.edit(status, "media/clip.mp4", clipMP4)
+	s.edit(status, "docs/retry-policy.pdf", pdfDocument("Retry policy", "Three attempts with backoff, then the job records why it stopped."))
+	s.edit(status, "media/capture-03.mov", strings.Repeat("\x00", kind.MaxSend+1))
+	s.edit(status, "media/fixture.zip", "PK\x03\x04 an archive nobody opens on a phone")
+	paths := []string{"web", "media", "docs"}
+	views := map[string]string{"web/status.html": kind.ViewPage}
+	if _, err := s.openViews(status, "feat/upload-status", "Upload status page and its icon", paths, "A status page for uploads, its icon redrawn, a chime, a demo clip and the policy as a PDF.\n\nThe page is the thing to look at, so it opens rendered.", views); err != nil {
+		return err
+	}
+	return nil
+}
+
+// statusPage is a small page that links its stylesheet beside it, long enough
+// to scroll inside its frame.
+func statusPage(title string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<link rel=\"stylesheet\" href=\"status.css\">\n<header>%s</header>\n", title)
+	for i := 1; i <= 12; i++ {
+		fmt.Fprintf(&b, "<section>Job %d: retrying, attempt %d of 3</section>\n", i, i%3+1)
+	}
+	return b.String()
+}
+
+// pngImage is a w by h PNG: a field of c with a lighter disc in the middle,
+// so a before and an after are told apart at a glance.
+func pngImage(w, h int, c color.RGBA) string {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	light := color.RGBA{R: c.R/2 + 0x7f, G: c.G/2 + 0x7f, B: c.B/2 + 0x7f, A: 0xff}
+	r := min(w, h) / 3
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			dx, dy := x-w/2, y-h/2
+			if dx*dx+dy*dy <= r*r {
+				img.Set(x, y, light)
+			} else {
+				img.Set(x, y, c)
+			}
+		}
+	}
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, img)
+	return buf.String()
+}
+
+// wavTone is seconds of a sine at freq hertz, 16-bit mono PCM at rate.
+func wavTone(freq, rate, seconds int) string {
+	n := rate * seconds
+	var buf bytes.Buffer
+	le := binary.LittleEndian
+	buf.WriteString("RIFF")
+	_ = binary.Write(&buf, le, uint32(36+n*2))
+	buf.WriteString("WAVEfmt ")
+	_ = binary.Write(&buf, le, struct {
+		Size                      uint32
+		Format, Channels          uint16
+		Rate, ByteRate            uint32
+		BlockAlign, BitsPerSample uint16
+	}{Size: 16, Format: 1, Channels: 1, Rate: uint32(rate), ByteRate: uint32(rate * 2), BlockAlign: 2, BitsPerSample: 16})
+	buf.WriteString("data")
+	_ = binary.Write(&buf, le, uint32(n*2))
+	for i := 0; i < n; i++ {
+		// A fade out over the second keeps the end from clicking.
+		v := math.Sin(2*math.Pi*float64(freq)*float64(i)/float64(rate)) * (1 - float64(i)/float64(n))
+		_ = binary.Write(&buf, le, int16(v*12000))
+	}
+	return buf.String()
+}
+
+// pdfDocument is a one-page PDF with a title and a line of text, with its
+// cross-reference offsets computed so a strict reader opens it.
+func pdfDocument(title, line string) string {
+	stream := fmt.Sprintf("BT /F1 18 Tf 56 760 Td (%s) Tj ET\nBT /F1 11 Tf 56 730 Td (%s) Tj ET\n", title, line)
+	objects := []string{
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+		fmt.Sprintf("<< /Length %d >>\nstream\n%sendstream", len(stream), stream),
+		"<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>",
+	}
+	var b strings.Builder
+	b.WriteString("%PDF-1.4\n")
+	offsets := make([]int, len(objects))
+	for i, o := range objects {
+		offsets[i] = b.Len()
+		fmt.Fprintf(&b, "%d 0 obj\n%s\nendobj\n", i+1, o)
+	}
+	xref := b.Len()
+	fmt.Fprintf(&b, "xref\n0 %d\n0000000000 65535 f \n", len(objects)+1)
+	for _, off := range offsets {
+		fmt.Fprintf(&b, "%010d 00000 n \n", off)
+	}
+	fmt.Fprintf(&b, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(objects)+1, xref)
+	return b.String()
 }
 
 // answerAll requests changes on every waiting round a minute ago, which leaves
@@ -418,11 +558,18 @@ func (s *seed) edit(p project, path, content string) {
 
 // open captures a first round and opens a review on it.
 func (s *seed) open(p project, agent, title string, paths []string, note string) (review, error) {
+	return s.openViews(p, agent, title, paths, note, nil)
+}
+
+// openViews is open with the agent's choice of view for some files, keyed by
+// path, as the store holds it.
+func (s *seed) openViews(p project, agent, title string, paths []string, note string, views map[string]string) (review, error) {
 	req, err := capture.Freeze(s.ctx, capture.Options{Root: p.root, Base: p.base, Paths: paths, Round: 1, Blobs: s.blobs})
 	if err != nil {
 		return review{}, errors.Wrapf(err, "capture %s", title)
 	}
 	req.Note = note
+	req.Views = views
 	r, round, err := s.store.OpenReview(s.ctx, store.NewReview{ProjectID: p.id, Agent: agent, Title: title, Paths: paths, Request: req})
 	if err != nil {
 		return review{}, errors.Wrapf(err, "open %s", title)

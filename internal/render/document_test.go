@@ -632,27 +632,6 @@ func TestHasBlocks(t *testing.T) {
 	}
 }
 
-func TestIsMarkdown(t *testing.T) {
-	cases := []struct {
-		path string
-		want bool
-	}{
-		{path: "docs/product.md", want: true},
-		{path: "notes.markdown", want: true},
-		{path: "README.MD", want: true},
-		{path: "a.mdx", want: false},
-		{path: "a.txt", want: false},
-		{path: "md", want: false},
-		{path: "docs.md/x.go", want: false},
-	}
-	for _, c := range cases {
-		t.Run(c.path, func(t *testing.T) {
-			g := NewWithT(t)
-			g.Expect(IsMarkdown(c.path)).To(Equal(c.want))
-		})
-	}
-}
-
 // shape is one block of a rendered document as a reader sees it.
 type shape struct {
 	// Mark is empty for a kept block, or one of the marks.

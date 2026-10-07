@@ -14,20 +14,21 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-1. **009 Notification.** Web push with VAPID, the service worker that exists for
-   it, the manifest and installed page, the first-run steps, the badge count on
-   the icon, and the lapsed-subscription state the surface has to report. Its
-   last iteration is the owner's: joining the tailnet with
-   `eyeball tailnet login`, installing the page, granting permission, and
-   checking every screen on the phone, including the page shell 006 added in
-   `shell.css` without a phone. It also decides who may write on the tailnet
-   listener, which 008 left open, with tsnet's `WhoIs` in hand.
-2. **010 Rendered files.** `internal/kind`, images before and after, audio,
-   video and PDF, the sandbox that HTML and SVG render in, the agent's per-file
-   view override on `request`, and a file too large to send.
+Nothing. As of 010, every requirement product.md and architecture.md describe is
+built, and the next work comes from Unscheduled below, once real reviews say
+which of it matters.
 
 ## Unscheduled
 
+- [ ] design: a rendered file in a round whose repository is gone. That page
+      shows captured files through a path of its own, which still shows a binary
+      file as the binary line, and rendering there needs the raw route, which
+      reads the base from that same repository. 010 left it.
+- [ ] design: an image not changed since the previous round has no "Not changed
+      since round N" note, since a file shown as itself skips the line
+      comparison that writes it. 010 left it.
+- [ ] design: the project view's live file page still shows a binary file as the
+      binary line, where a review's file page names its kind and size.
 - [ ] design: a tearout for the comment composer's line-range selection on a
       touch screen. The open question in product.md is whether ranges are worth
       the interaction cost at all.

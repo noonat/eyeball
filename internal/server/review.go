@@ -12,6 +12,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/noonat/eyeball/internal/capture"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/render"
 	"github.com/noonat/eyeball/internal/store"
 )
@@ -150,6 +151,10 @@ type fileView struct {
 	IsDocument bool
 	// Document is a markdown file rendered with what moved marked.
 	Document template.HTML
+	// Rendered is the file shown as itself, a page in its frame, or the line
+	// naming a file the surface does not show, and nil for rows or a
+	// document.
+	Rendered *rendering
 	// Whole is the file's own page, where it is shown whole, keeping the
 	// page's comparison.
 	Whole string
@@ -346,6 +351,14 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			}
 		}
 	}
+	stored, err := s.db.s.RoundFiles(ctx, round.ID)
+	if err != nil {
+		return reviewPage{}, err
+	}
+	views := make(map[string]string, len(stored))
+	for _, f := range stored {
+		views[f.Path] = f.View
+	}
 	var renderErr error
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
@@ -360,7 +373,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		added += m.Result.Added
 		removed += m.Result.Removed
 		byPath[m.Path] = len(view.Shown)
-		at := fileAt{review: review, round: round, current: current, wholeReview: wholeReview, path: m.Path}
+		at := fileAt{review: review, round: round, current: current, wholeReview: wholeReview, path: m.Path, file: kind.ByName(m.Path)}
 		file := fileView{
 			Path:    m.Path,
 			Added:   thousands(m.Result.Added),
@@ -372,6 +385,19 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		// starts a line of its own, so that is also what keeps the block
 		// comparison under its own limit, past which a document would show
 		// with nothing marked.
+		at.stored = views[m.Path]
+		rendered, err := s.cardRendering(ctx, at, before, after, m)
+		if err != nil {
+			return reviewPage{}, err
+		}
+		if rendered != nil {
+			file.Rendered = rendered
+			// A page in its frame keeps the counts its source moved by. A file
+			// shown as itself moved by no lines.
+			file.Unmeasured = rendered.Frame == "" || !rendered.Sandboxed
+			view.Shown = append(view.Shown, file)
+			continue
+		}
 		if !at.markdown() || m.Result.Binary || m.Result.TooLarge {
 			file.Diff = render.Diff(m.Path, m.Result)
 			view.Shown = append(view.Shown, file)
@@ -577,6 +603,23 @@ func (s *Server) compare(ctx context.Context, root string, review store.Review, 
 	return moved, before, now, err
 }
 
+// cardRendering is a changed file's card shown as itself, a page in its
+// frame where the agent chose that view, or the line naming a file with no
+// rendering, and nil for a card of rows or a document. The card's default is
+// the agent's choice or the file's own, since a card has no address to ask
+// for another.
+func (s *Server) cardRendering(ctx context.Context, at fileAt, before, after *capture.Reader, m capture.Moved) (*rendering, error) {
+	switch {
+	case at.file.Shown() || at.rendering() == kind.ViewImage:
+		return s.renderShown(ctx, at, sideReader{reader: before, number: at.previousNumber()}, sideReader{reader: after, number: at.round.Number}, true)
+	case at.rendering() == kind.ViewPage:
+		return s.framePage(ctx, at, after)
+	case at.file.Kind == kind.Other || m.Result.Binary:
+		return nameBinary(ctx, at, after)
+	}
+	return nil, nil
+}
+
 // roundFiles is a round's capture as the reader takes it.
 func (s *Server) roundFiles(ctx context.Context, roundID int64) ([]store.File, error) {
 	stored, err := s.db.s.RoundFiles(ctx, roundID)
@@ -665,7 +708,7 @@ func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.Stat
 			continue
 		}
 		shown++
-		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path}
+		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path, file: kind.ByName(f.Path)}
 		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true, Open: true}
 		if f.Digest == "" {
 			file.Deleted = true

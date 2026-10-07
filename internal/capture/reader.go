@@ -6,6 +6,7 @@ import (
 	"io"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -137,6 +138,41 @@ func (r *Reader) frozen(ctx context.Context, clean string) (io.ReadCloser, Sourc
 		return rc, SourceRound, nil
 	}
 	return r.fromBase(ctx, clean)
+}
+
+// Size is the length in bytes of a path as of the round, from the capture or
+// from the base, without reading it. It is what says a file is too large to
+// send before anything is sent.
+func (r *Reader) Size(ctx context.Context, p string) (int64, error) {
+	clean, err := CleanPath(p)
+	if err != nil {
+		return 0, err
+	}
+	if f, held := r.files[clean]; held {
+		if f.Digest == "" {
+			return 0, errors.Wrapf(ErrNotFound, "%s was deleted", clean)
+		}
+		return f.Size, nil
+	}
+	if r.base == "" {
+		return 0, errors.Wrapf(ErrNotFound, "%s, and the round has no base", clean)
+	}
+	oid, err := r.baseOID(ctx, clean)
+	if err != nil {
+		return 0, err
+	}
+	if oid == "" {
+		return 0, errors.Wrapf(ErrNotFound, "%s is not in the base", clean)
+	}
+	out, err := run(ctx, r.root, "cat-file", "-s", oid)
+	if err != nil {
+		return 0, err
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		return 0, errors.Wrapf(err, "size of object %s", oid)
+	}
+	return n, nil
 }
 
 // Deleted reports whether the round records p as deleted.

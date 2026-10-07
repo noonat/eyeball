@@ -183,6 +183,9 @@ type Request struct {
 	// what moved since the base. The store sums the ones inside the review's
 	// scope into the round's stored size.
 	Changes []Change
+	// Views is the view each path opens in at this round, as the agent chose
+	// it, keyed by path. A path it does not name opens in its default.
+	Views map[string]string
 }
 
 // NewReview is a review to open, together with its first request.
@@ -302,7 +305,7 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 			}
 		}
 		round.ReviewID = review.ID
-		return s.insertRound(ctx, tx, &round, paths, roundContent{files: nr.Request.Files, changes: changes})
+		return s.insertRound(ctx, tx, &round, paths, roundContent{files: nr.Request.Files, changes: changes, views: nr.Request.Views})
 	})
 	if err != nil {
 		return Review{}, Round{}, err
@@ -341,7 +344,7 @@ func (s *Store) OpenRound(ctx context.Context, reviewID int64, req Request) (Rou
 		if err != nil {
 			return err
 		}
-		return s.insertRound(ctx, tx, &round, paths, roundContent{files: req.Files, changes: changes})
+		return s.insertRound(ctx, tx, &round, paths, roundContent{files: req.Files, changes: changes, views: req.Views})
 	})
 	if err != nil {
 		return Round{}, err
@@ -450,6 +453,7 @@ func size(paths []string, changes []Change) (files, added, removed int) {
 type roundContent struct {
 	files   []File
 	changes []Change
+	views   map[string]string
 }
 
 // insertRound writes a round, its captured files and its size, marking each
@@ -489,9 +493,9 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 		if err != nil {
 			return err
 		}
-		add := "INSERT INTO round_files (round_id, path, digest, size, in_scope) VALUES (?, ?, ?, ?, ?)"
+		add := "INSERT INTO round_files (round_id, path, digest, size, in_scope, view) VALUES (?, ?, ?, ?, ?, ?)"
 		inScope := Covers(paths, p)
-		if _, err := tx.ExecContext(ctx, add, round.ID, p, f.Digest, f.Size, inScope); err != nil {
+		if _, err := tx.ExecContext(ctx, add, round.ID, p, f.Digest, f.Size, inScope, req.views[p]); err != nil {
 			return errors.Wrapf(err, "capture file %s", p)
 		}
 	}

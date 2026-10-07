@@ -595,6 +595,138 @@
 
 <hr class="rule">
 
+<section class="spec" id="cards">
+  <h2>Rendered files in a review <span class="tag">image, page, video, too large, binary</span></h2>
+  <p>A file a browser can display is displayed in its card, the way a document
+  already renders in its own. The agent asked for the page in its Page view,
+  so the card shows the page; without that it would show the markup&rsquo;s
+  diff. Opening a file still goes through the card&rsquo;s header.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; a changed icon, and a page the agent asked to show rendered</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Status page</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 20m</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-status</span></span></span></div>
+            <h2 class="title">Upload status page and its icon</h2>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+96</span> <span class="minus">&minus;14</span></span>
+          </div>
+
+          <details class="file" open><summary><span class="path"><bdi>web/static/icons/icon-192.png</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="rendered">
+              <div class="beforeafter">
+                <div class="preview was">
+                  <div class="cap"><span>Before</span><span class="dim">192 &times; 192 &middot; 8.1 kB</span></div>
+                  <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%23faf8f5'/><rect x='110' y='20' width='100' height='80' rx='18' fill='%23b04a3c' opacity='.8'/><text x='160' y='112' font-family='monospace' font-size='11' fill='%23b04a3c' text-anchor='middle' opacity='.75'>previous</text></svg>" alt="">
+                </div>
+                <div class="preview now">
+                  <div class="cap"><span>After</span><span class="dim">192 &times; 192 &middot; 7.4 kB</span></div>
+                  <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%23faf8f5'/><rect x='110' y='20' width='100' height='80' rx='18' fill='%231f7a6a' opacity='.8'/><text x='160' y='112' font-family='monospace' font-size='11' fill='%231f7a6a' text-anchor='middle' opacity='.75'>current</text></svg>" alt="">
+                </div>
+              </div>
+            </div>
+          </details>
+          <details class="file" open><summary><span class="path"><bdi>web/status.html</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="rendered">
+              <div class="preview">
+                <div class="cap"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Sandboxed</span><a class="open" href="#cards"><span class="i i-maximize-2" aria-hidden="true"></span>Open</a></div>
+                <iframe class="pageframe" sandbox="allow-scripts" title="web/status.html" srcdoc="&lt;!doctype html&gt;&lt;meta name=viewport content=&quot;width=device-width&quot;&gt;&lt;style&gt;body{margin:0;font:15px/1.4 system-ui,sans-serif;color:#2b2724;background:#faf8f5}header{padding:14px 16px;background:#2b2724;color:#faf8f5;font-weight:600}section{margin:12px 16px;padding:12px;border:1px solid #ddd5cc;border-radius:8px;background:#fff}h2{margin:0 0 6px;font-size:15px}p{margin:0;color:#6b625b}&lt;/style&gt;&lt;header&gt;Upload status&lt;/header&gt;&lt;section&gt;&lt;h2&gt;Job 1&lt;/h2&gt;&lt;p&gt;retrying, attempt 2 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 2&lt;/h2&gt;&lt;p&gt;retrying, attempt 3 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 3&lt;/h2&gt;&lt;p&gt;retrying, attempt 1 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 4&lt;/h2&gt;&lt;p&gt;retrying, attempt 2 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 5&lt;/h2&gt;&lt;p&gt;retrying, attempt 3 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 6&lt;/h2&gt;&lt;p&gt;retrying, attempt 1 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 7&lt;/h2&gt;&lt;p&gt;retrying, attempt 2 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 8&lt;/h2&gt;&lt;p&gt;retrying, attempt 3 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 9&lt;/h2&gt;&lt;p&gt;retrying, attempt 1 of 3&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Job 10&lt;/h2&gt;&lt;p&gt;retrying, attempt 2 of 3&lt;/p&gt;&lt;/section&gt;"></iframe>
+              </div>
+            </div>
+          </details>
+          <details class="file"><summary><span class="path"><bdi>web/status.css</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/media/retry-demo.mp4</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>testdata/capture-03.mov</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>testdata/fixture.db</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#cards">Request changes</a><a class="btn primary" href="#cards">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a new video, one too large to send, and a binary file</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Status page</h1>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 20m</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-status</span></span></span></div>
+            <h2 class="title">Upload status page and its icon</h2>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+96</span> <span class="minus">&minus;14</span></span>
+          </div>
+
+          <details class="file"><summary><span class="path"><bdi>web/static/icons/icon-192.png</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>web/status.html</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>web/status.css</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file" open><summary><span class="path"><bdi>docs/media/retry-demo.mp4</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="rendered">
+              <div class="beforeafter">
+              <div class="preview now">
+                <div class="cap"><span>New</span><span class="dim">MP4 video &middot; 4.2 MB</span></div>
+                <video controls playsinline preload="metadata" poster="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'><rect width='320' height='180' fill='%23111'/><polygon points='145,70 145,110 180,90' fill='%23eee' opacity='.8'/></svg>"></video>
+              </div>
+              </div>
+            </div>
+          </details>
+          <details class="file" open><summary><span class="path"><bdi>testdata/capture-03.mov</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="filefacts">
+              <span class="kind">QuickTime video</span>
+              <span class="size">214 MB</span>
+              <span class="hint">Past the 20 MB the surface sends on its own.</span>
+              <a class="load" href="#cards">Load anyway</a>
+            </div>
+          </details>
+          <details class="file" open><summary><span class="path"><bdi>testdata/fixture.db</bdi></span><a class="fileopen" href="widening.html#media" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="filefacts">
+              <span class="kind">Binary file</span>
+              <span class="size">48 kB</span>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#cards">Request changes</a><a class="btn primary" href="#cards">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A rendered card sits in from the card&rsquo;s edge</b>, where a diff
+    runs edge to edge, so the frame&rsquo;s tint and border read as the
+    file&rsquo;s own.</li>
+    <li><b>A file the surface does not show says what it is and its size</b>,
+    replacing &ldquo;Binary file, not shown as a diff.&rdquo; A file past 20 MB
+    adds why it was not sent, and Load anyway to send it on a tap. Tapping either takes a comment on the file, as
+    the binary line does now.</li>
+    <li><b>Images and frames load when their card is open and on screen.</b> A
+    collapsed card holds nothing, as before.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
 <section class="spec" id="history">
   <h2>An earlier round <span class="tag">one tap away, out of the way</span></h2>
   <p>Comments are done once a new round starts, so they are not on the screen

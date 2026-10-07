@@ -271,11 +271,9 @@
         </div>
         <div class="scroll"><div class="page">
           <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>testdata/</bdi></span><span class="name">plate-04.jpg</span></div>
-          <div class="file">
-            <div class="filefacts">
-              <span class="kind">JPEG image</span>
-              <span class="size">1.4 MB</span>
-            </div>
+          <div class="preview">
+            <div class="cap"><span>JPEG image</span><span class="dim">1600 &times; 1067 &middot; 1.4 MB</span></div>
+            <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 214'><rect width='320' height='214' fill='%23384a5c'/><circle cx='240' cy='60' r='26' fill='%23f0c674' opacity='.85'/><path d='M0 214 L90 110 L150 170 L210 120 L320 214 Z' fill='%231d2a36'/><text x='160' y='204' font-family='monospace' font-size='11' fill='%23f0f0f0' text-anchor='middle' opacity='.7'>plate-04.jpg</text></svg>" alt="">
           </div>
         </div></div>
       </div></div>
@@ -327,8 +325,8 @@
             <span class="segmented"><a href="#rendered" aria-current="true">Page</a><a href="#rendered">Source</a></span>
           </div>
           <div class="preview">
-            <div class="cap"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Sandboxed</span><span class="dim">390 &times; 800</span></div>
-            <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 190'><rect width='320' height='190' fill='%23faf8f5'/><rect x='18' y='18' width='120' height='9' rx='4' fill='%232b2724'/><rect x='18' y='38' width='250' height='6' rx='3' fill='%232b2724' opacity='.5'/><rect x='18' y='52' width='214' height='6' rx='3' fill='%232b2724' opacity='.5'/><rect x='18' y='78' width='284' height='94' rx='7' fill='%232b2724' opacity='.22'/><text x='160' y='170' font-family='monospace' font-size='11' fill='%232b2724' text-anchor='middle' opacity='.75'>rendered page</text></svg>" alt="">
+            <div class="cap"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Sandboxed</span><a class="open" href="#rendered"><span class="i i-maximize-2" aria-hidden="true"></span>Open</a></div>
+            <iframe class="pageframe" sandbox="allow-scripts" title="docs/design/queue.html" srcdoc="&lt;!doctype html&gt;&lt;meta name=viewport content=&quot;width=device-width&quot;&gt;&lt;style&gt;body{margin:0;font:15px/1.4 system-ui,sans-serif;color:#2b2724;background:#faf8f5}header{padding:14px 16px;background:#2b2724;color:#faf8f5;font-weight:600}section{margin:12px 16px;padding:12px;border:1px solid #ddd5cc;border-radius:8px;background:#fff}h2{margin:0 0 6px;font-size:15px}p{margin:0;color:#6b625b}&lt;/style&gt;&lt;header&gt;eyeball&lt;/header&gt;&lt;section&gt;&lt;h2&gt;Review 1&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 1h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 2&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 2h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 3&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 3h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 4&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 4h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 5&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 5h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 6&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 6h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 7&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 7h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 8&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 8h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 9&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 9h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 10&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 10h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 11&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 11h&lt;/p&gt;&lt;/section&gt;&lt;section&gt;&lt;h2&gt;Review 12&lt;/h2&gt;&lt;p&gt;harbor &amp;middot; feat/upload-retry &amp;middot; waiting 12h&lt;/p&gt;&lt;/section&gt;"></iframe>
           </div>
           <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Runs with no access to this surface. A page an agent wrote is a program, not a document.</span></div>
         </div></div>
@@ -369,7 +367,8 @@
             <div class="filefacts">
               <span class="kind">QuickTime video</span>
               <span class="size">214 MB</span>
-              <span class="hint">Too large to send over a phone connection.</span>
+              <span class="hint">Past the 20 MB the surface sends on its own.</span>
+              <a class="load" href="#rendered">Load anyway</a>
             </div>
           </div>
         </div></div>
@@ -398,6 +397,154 @@
     is not something anybody reviews.</li>
   </ul>
 </section>
+
+<hr class="rule">
+
+<section class="spec" id="media">
+  <h2>Images, recordings and documents <span class="tag">new, deleted, played, framed</span></h2>
+  <p>The rest of what a browser displays, each in the frame the page and the
+  changed image already use. A recording plays in place. A PDF shows in a frame
+  with Open beside it, because how a phone draws a PDF inside a page is the one
+  thing here a tearout cannot show; the phone check decides which survives.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; a new image, on its own</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#media"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>icon-512.png</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>web/static/icons/</bdi></span><span class="name">icon-512.png</span></div>
+          <div class="beforeafter">
+            <div class="preview now">
+              <div class="cap"><span>New</span><span class="dim">512 &times; 512 &middot; 24.6 kB</span></div>
+              <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%2312312e'/><rect x='110' y='20.0' width='100' height='80' rx='18' fill='%2355d6c4' opacity='.8'/><text x='160' y='110' font-family='monospace' font-size='11' fill='%2355d6c4' text-anchor='middle' opacity='.75'>new</text></svg>" alt="">
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a deleted image</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#media"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>plate-03.jpg</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>testdata/</bdi></span><span class="name">plate-03.jpg</span></div>
+          <div class="beforeafter">
+            <div class="preview was">
+              <div class="cap"><span>Deleted</span><span class="dim">1600 &times; 1067 &middot; 1.2 MB</span></div>
+              <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%231d2430'/><rect x='110' y='20.0' width='100' height='80' rx='18' fill='%238aabff' opacity='.8'/><text x='160' y='110' font-family='monospace' font-size='11' fill='%238aabff' text-anchor='middle' opacity='.75'>deleted</text></svg>" alt="">
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>light &mdash; SVG in its Image view</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#media"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>badge.svg</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>web/static/</bdi></span><span class="name">badge.svg</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+3</span> <span class="minus">&minus;3</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#media" aria-current="true">Image</a><a href="#media">Source</a></span>
+          </div>
+          <div class="beforeafter">
+            <div class="preview was">
+              <div class="cap"><span>Before</span><span class="dim">1.2 kB</span></div>
+              <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%23faf8f5'/><rect x='110' y='20.0' width='100' height='80' rx='18' fill='%23b04a3c' opacity='.8'/><text x='160' y='110' font-family='monospace' font-size='11' fill='%23b04a3c' text-anchor='middle' opacity='.75'>previous</text></svg>" alt="">
+            </div>
+            <div class="preview now">
+              <div class="cap"><span>After</span><span class="dim">1.3 kB</span></div>
+              <img class="shot" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 120'><rect width='320' height='120' fill='%23faf8f5'/><rect x='110' y='20.0' width='100' height='80' rx='18' fill='%231f7a6a' opacity='.8'/><text x='160' y='110' font-family='monospace' font-size='11' fill='%231f7a6a' text-anchor='middle' opacity='.75'>current</text></svg>" alt="">
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a new video</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#media"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>retry-demo.mp4</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>docs/media/</bdi></span><span class="name">retry-demo.mp4</span></div>
+          <div class="beforeafter">
+            <div class="preview now">
+              <div class="cap"><span>New</span><span class="dim">MP4 video &middot; 4.2 MB</span></div>
+              <video controls playsinline preload="metadata" poster="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'><rect width='320' height='180' fill='%23111'/><polygon points='145,70 145,110 180,90' fill='%23eee' opacity='.8'/></svg>"></video>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>light &mdash; a changed recording, before over after</figcaption>
+      <div class="phone lg" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#media"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>chime.mp3</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>assets/sounds/</bdi></span><span class="name">chime.mp3</span></div>
+          <div class="beforeafter">
+            <div class="preview was">
+              <div class="cap"><span>Before</span><span class="dim">MP3 audio &middot; 38 kB</span></div>
+              <audio controls preload="metadata"></audio>
+            </div>
+            <div class="preview now">
+              <div class="cap"><span>After</span><span class="dim">MP3 audio &middot; 41 kB</span></div>
+              <audio controls preload="metadata"></audio>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; a PDF, in a frame with Open beside it</figcaption>
+      <div class="phone lg" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="#media"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>retry-policy.pdf</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>docs/</bdi></span><span class="name">retry-policy.pdf</span></div>
+          <div class="preview">
+            <div class="cap"><span>PDF document</span><span class="dim">220 kB</span><a class="open" href="#media"><span class="i i-maximize-2" aria-hidden="true"></span>Open</a></div>
+            <iframe class="pageframe" title="docs/retry-policy.pdf" srcdoc="&lt;!doctype html&gt;&lt;style&gt;body{margin:0;background:#525659;padding:12px}div{background:#fff;height:520px;margin:0 auto 12px;max-width:300px;padding:24px;box-sizing:border-box;font:12px/1.5 Georgia,serif;color:#333}h1{font-size:16px;margin:0 0 10px}&lt;/style&gt;&lt;div&gt;&lt;h1&gt;Retry policy&lt;/h1&gt;&lt;p&gt;Three attempts with backoff, measured against the staging bucket.&lt;/p&gt;&lt;/div&gt;&lt;div&gt;&lt;p&gt;Page two.&lt;/p&gt;&lt;/div&gt;"></iframe>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A new file has only its After, and a deleted one only its
+    Before</b>, captioned New and Deleted in the same tints, so a lone frame
+    still says which side it is.</li>
+    <li><b>SVG opens as source and flips to Image.</b> It shows through an
+    image element, where its script cannot run, so it gets the image&rsquo;s
+    before and after. A size alone captions it, since an SVG&rsquo;s dimensions
+    are whatever its viewBox says.</li>
+    <li><b>Players fetch only headers until one is played</b>, so a review with
+    six recordings costs six small requests to open. Video plays inline rather
+    than taking the screen.</li>
+    <li><b>Open is the frame&rsquo;s one control.</b> It opens the same file as
+    a page of its own, still under the sandbox, for a page or a PDF that wants
+    the whole screen.</li>
+  </ul>
+</section>
+
 
 <section class="spec" id="browse">
   <h2>Browsing, and the file that will not render <span class="tag">two states</span></h2>

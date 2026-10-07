@@ -59,7 +59,12 @@ export function openComposers(): void {
       void anchor(at, file, row, query);
       return;
     }
-    if (target?.closest(".toobig")) {
+    // A file shown as itself takes a comment on the file, as the line naming
+    // a file with no rows does. A player and the Open link keep their taps.
+    if (
+      target?.closest(".toobig, .filefacts, .rendered .shot, .rendered .cap") &&
+      !target.closest("a")
+    ) {
       void anchor(at, file, null, { level: "file", path });
     }
   });

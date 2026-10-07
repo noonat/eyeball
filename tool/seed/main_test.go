@@ -31,7 +31,7 @@ func Test_linksResolve(t *testing.T) {
 	// from the queue, so the crawl rendered every page the seed made.
 	projects, err := s.store.Projects(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(projects).To(HaveLen(4))
+	g.Expect(projects).To(HaveLen(5))
 	for _, p := range projects {
 		g.Expect(c.seen).To(HaveKey(fmt.Sprintf("/projects/%d", p.ID)), p.Name)
 		reviews, err := s.store.ReviewsIn(t.Context(), p.ID)
@@ -59,6 +59,7 @@ func Test_linksResolve(t *testing.T) {
 	g.Expect(c.sources).To(BeNumerically(">", 0), "an HTML block's link to Source")
 	g.Expect(c.patterns).To(HaveKey("GET /projects/{project}/files/{path...}"))
 	g.Expect(c.patterns).To(HaveKey("GET /reviews/{review}/rounds/{round}/files/{path...}"))
+	g.Expect(c.patterns).To(HaveKey("GET /reviews/{review}/raw/{round}/{path...}"), "a frame's Open link")
 }
 
 func Test_seedAnswersEverythingWaiting(t *testing.T) {
@@ -68,7 +69,7 @@ func Test_seedAnswersEverythingWaiting(t *testing.T) {
 	q, err := s.store.Queue(context.Background(), 5)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(q.Waiting).To(BeEmpty())
-	g.Expect(q.Working).To(HaveLen(7))
+	g.Expect(q.Working).To(HaveLen(8))
 }
 
 func Test_seedRefusesADirectoryThatExists(t *testing.T) {
@@ -137,12 +138,17 @@ func Test_seedWritesEveryQueueSection(t *testing.T) {
 	s := seeded(g, t)
 	q, err := s.store.Queue(context.Background(), 5)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(q.Waiting).To(HaveLen(4))
+	g.Expect(q.Waiting).To(HaveLen(5))
 	g.Expect(q.Working).To(HaveLen(3))
 	g.Expect(q.Settled).To(HaveLen(2))
 	// Backdated as the tearouts' ages read: the longest wait is three hours.
 	g.Expect(s.now.Sub(q.Waiting[0].RequestedAt)).To(BeNumerically("~", 3*time.Hour, time.Millisecond), "the store keeps milliseconds")
-	g.Expect(q.Waiting[3].Round).To(Equal(2), "the product document waits on its second round")
+	rounds := map[string]int{}
+	for _, w := range q.Waiting {
+		rounds[w.Title] = w.Round
+	}
+	g.Expect(rounds).To(HaveKeyWithValue("Product doc, second pass", 2), "the product document waits on its second round")
+	g.Expect(rounds).To(HaveKey("Upload status page and its icon"))
 }
 
 // seeded is a seed written into a fresh directory with a short path, since
@@ -259,6 +265,11 @@ func (c *crawler) check(base *url.URL, ids map[string]struct{}, a *html.Node) (s
 		return fail("answers %d", res.Code)
 	}
 	if !strings.HasPrefix(res.Header().Get("Content-Type"), "text/html") {
+		return "", true
+	}
+	// A file's own bytes are the agent's page, not the surface's, so its
+	// links are not the surface's to check and it carries no crumb.
+	if strings.Contains(pattern, "/raw/") {
 		return "", true
 	}
 	if within(a, "prose") != nil && strings.Contains(target.RawQuery, "view=source") {

@@ -236,6 +236,27 @@ throws. Most things a reviewer looks at, a mockup, a chart, a rendered document,
 do not. A page that needs storage to render is the signal to buy the second
 hostname.
 
+**A file's bytes come from `GET /reviews/{review}/raw/{round}/{path...}`**,
+where round 0 is the base commit, so every side a comparison shows has an
+address. The path mirrors the project's, so a page's relative links resolve
+through the same route: a mockup's stylesheet beside it loads from the same
+round. A round reads its capture and then the base, never the working copy,
+because a preview that mixed live bytes into a frozen round would carry no
+banner saying so. Every response carries
+`Content-Security-Policy: sandbox allow-scripts; frame-ancestors 'self'`, except
+a PDF's, since Chrome runs no PDF viewer under the sandbox. That rests on a
+browser's PDF viewer keeping a document's script away from the page around it,
+which is assumed and not measured. A file kind says is other is never sent.
+
+**The route sends no CORS headers.** The frame's origin is `null`, so a load in
+CORS mode is cross-origin and fails: measured in Chromium 152, a module script,
+a web font and a `mask-image` from a file do not load, while a stylesheet and a
+classic script do. Answering with `Access-Control-Allow-Origin: null` would let
+any page the phone opens read a project's files, since any site can frame itself
+sandboxed and review ids count up from 1. If a preview ever needs CORS, the
+answer is an unguessable path segment per round, answered with CORS only under
+it.
+
 ## Storage
 
 Under `$XDG_STATE_HOME/eyeball`, defaulting to `~/.local/state/eyeball`. Nothing
@@ -344,16 +365,28 @@ pins the current answer, so a version bump that changes it is noticed.
 
 ## What a file is
 
-`internal/kind` maps a path and its first bytes to one of: text, markdown,
-image, audio, video, PDF, or none of those. That decides which view opens first,
-per the table in [product.md](product.md). Extension first, content sniffing
-second, because an extension is what the agent named it and is right nearly
-always.
+`internal/kind` maps a path and its first bytes to one of: text, markdown, page,
+image, audio, video, PDF, or other. That decides which view opens first, per the
+table in [product.md](product.md). The extension decides first, from a fixed
+table, because an extension is what the agent named it and is right nearly
+always. A file whose extension is not in the table is text if diff's binary test
+passes it and other if not, so the two packages agree on what is text. The same
+table gives the content type a file's bytes are served with.
+`mime.TypeByExtension` reads the host's `/etc/mime.types`, so the same binary
+would answer differently on two machines.
 
-**SVG is classified as a page, not an image.** It carries script. Shown through
-an `<img>` element it cannot execute, and that is how a thumbnail renders it,
-but opening it as a document goes through the preview origin like any other
-page.
+**Page is HTML and SVG**, the two formats with a rendering that can carry
+script. HTML renders in the sandboxed frame. SVG renders through an `<img>`
+element, where it cannot execute, so it shows before and after like any other
+image. An SVG that animates by script stands still there, and one opened
+directly is served under the same sandbox as a page.
+
+**A file past 20 MB is not sent to a phone until asked.** At ten megabits a
+second it takes sixteen seconds. The number is a guess written down so it can be
+corrected. Load anyway opens the file's page with `?load=1`, and the raw route
+answers past the limit only with that query. A blob seeks on disk, and a base
+file past the limit is copied from `git cat-file` to a temporary file first, so
+a range is answered either way and nothing that size is held in memory.
 
 Syntax highlighting is `alecthomas/chroma/v2`, server side, into the five roles
 the stylesheet defines. Client-side highlighting would ship a second parser to a
@@ -388,6 +421,7 @@ Routes, with the spec that builds each:
 | `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
 | `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round   | 007  |
 | `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round          | 007  |
+| `GET /reviews/{review}/raw/{round}/{path...}`          | a file's bytes as of a round, 0 the base      | 010  |
 | `GET /projects/{project}`                              | the project view and its working copy         | 007  |
 | `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                   | 008  |

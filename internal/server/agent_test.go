@@ -676,6 +676,61 @@ func TestServer_status(t *testing.T) {
 	g.Expect(all.Next).To(ContainSubstring(`--agent "agent-2"`), "a suggestion for another agent's review names that agent")
 }
 
+func TestServer_views(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "site/page.html", "<p>page</p>\n")
+	write(g, repo, "site/icon.png", "\x89PNG\r\n\x1a\n")
+	me := api.Caller{Dir: filepath.Join(repo, "site")}
+
+	refusals := []struct {
+		name  string
+		views map[string]string
+		says  string
+	}{
+		{name: "a path the round does not hold", views: map[string]string{"nope.html": "rendered"}, says: "site/nope.html is not a file this round holds"},
+		{name: "a source view of an image", views: map[string]string{"icon.png": "source"}, says: `site/icon.png has no "source" view`},
+		{name: "a rendering of code", views: map[string]string{"../a.txt": "rendered"}, says: `a.txt has no "rendered" view`},
+		{name: "a choice that is not one", views: map[string]string{"page.html": "page"}, says: `site/page.html has no "page" view`},
+		{name: "a path leaving the project", views: map[string]string{"../../x.html": "rendered"}},
+	}
+	for _, c := range refusals {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			_, e := f.refused(g, t, http.MethodPost, "/agent/requests", api.RequestBody{Caller: me, Paths: []string{"."}, Note: "first", Views: c.views})
+			if c.says == "" {
+				g.Expect(e.Code).To(Equal(api.CodeOutsideProject))
+				return
+			}
+			g.Expect(e.Code).To(Equal(api.CodeBadView))
+			g.Expect(e.Message).To(ContainSubstring(c.says))
+			_, err := f.store.Review(t.Context(), 1)
+			g.Expect(err).To(MatchError(store.ErrNotFound), "a refused view stores nothing")
+		})
+	}
+
+	// The view is stored per round, keyed by the path from the project root,
+	// and the next round does not carry it.
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"."}, Note: "first", Views: map[string]string{"page.html": "rendered"}}).Review.ID
+	views := func(round int64) map[string]string {
+		files, err := f.store.RoundFiles(t.Context(), round)
+		g.Expect(err).NotTo(HaveOccurred())
+		out := map[string]string{}
+		for _, file := range files {
+			out[file.Path] = file.View
+		}
+		return out
+	}
+	g.Expect(views(f.latestRound(g, t, id))).To(Equal(map[string]string{"a.txt": "", "site/icon.png": "", "site/page.html": "page"}))
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	write(g, repo, "site/page.html", "<p>page, again</p>\n")
+	_, e := f.refused(g, t, http.MethodPost, "/agent/requests", api.RequestBody{Caller: me, Review: id, Note: "second", Views: map[string]string{"icon.png": "source"}})
+	g.Expect(e.Code).To(Equal(api.CodeBadView), "a next round checks its views too")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+	g.Expect(views(f.latestRound(g, t, id))).To(HaveKeyWithValue("site/page.html", ""))
+}
+
 func TestServer_waitAnswersWhenStopping(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

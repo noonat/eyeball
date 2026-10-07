@@ -13,6 +13,7 @@ import (
 
 	"github.com/noonat/eyeball/internal/api"
 	"github.com/noonat/eyeball/internal/diff"
+	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/store"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
@@ -434,14 +435,14 @@ func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
 	got := map[string]string{}
 	for _, file := range findAll(doc, hasClass("file")) {
-		got[text(find(file, "path"))] = text(find(file, "toobig")) + " " + attr(find(file, "fileopen"), "aria-label")
+		got[text(find(file, "path"))] = text(find(file, "toobig")) + text(find(file, "filefacts")) + " " + attr(find(file, "fileopen"), "aria-label")
 		g.Expect(find(file, "code")).To(BeNil())
 		g.Expect(find(file, "prose")).To(BeNil())
 	}
 	g.Expect(got).To(Equal(map[string]string{
-		"a.bin":     "Binary file, not shown as a diff. Whole file",
+		"a.bin":     "Binary file8 B Whole file",
 		"a.txt":     "Too large to show as a diff. Whole file",
-		"binary.md": "Binary file, not shown as a diff. Whole file",
+		"binary.md": "Binary file11 B Whole file",
 		"huge.md":   "Too large to show as a diff. Whole file",
 		"long.md":   "Too large to show as a diff. Whole file",
 	}))
@@ -657,6 +658,67 @@ func TestServer_Surface_reviewOpensUpToItsLimits(t *testing.T) {
 			res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt")
 			g.Expect(res.Code).To(Equal(http.StatusNotFound))
 		})
+	}
+}
+
+func TestServer_Surface_reviewRendered(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	commitFile(g, repo, "icon.png", pngOf(g, 2, 3))
+	commitFile(g, repo, "site/index.html", "<p>before</p>\n")
+	write(g, repo, "icon.png", pngOf(g, 4, 5))
+	write(g, repo, "site/index.html", "<p>after</p>\n")
+	write(g, repo, "clip.mp4", "not really a video")
+	write(g, repo, "paper.pdf", "%PDF-1.4\n")
+	write(g, repo, "big.png", strings.Repeat("x", kind.MaxSend+1))
+	write(g, repo, "data.zip", "PK\x03\x04")
+	paths := []string{"icon.png", "site", "clip.mp4", "paper.pdf", "big.png", "data.zip"}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: paths, Note: "first", Views: map[string]string{"site/index.html": "rendered"}}).Review.ID
+	raw := "/reviews/" + itoa(id) + "/raw/"
+
+	// card is each rendered card as what it shows, by path.
+	cards := func(doc *html.Node) map[string]string {
+		out := map[string]string{}
+		for _, file := range findAll(doc, hasClass("file")) {
+			var parts []string
+			if find(file, "counts") != nil {
+				parts = append(parts, "counts "+text(find(file, "counts")))
+			}
+			for _, n := range findAll(file, func(n *html.Node) bool {
+				return n.Data == "img" || n.Data == "video" || n.Data == "audio" || n.Data == "iframe"
+			}) {
+				parts = append(parts, n.Data+" "+attr(n, "src")+" "+attr(n, "sandbox"))
+			}
+			if facts := find(file, "filefacts"); facts != nil {
+				parts = append(parts, "facts "+text(facts))
+			}
+			if find(file, "code") != nil {
+				parts = append(parts, "code")
+			}
+			out[text(find(file, "path"))] = strings.Join(parts, " | ")
+		}
+		return out
+	}
+	want := map[string]string{
+		"icon.png":        "img " + raw + "0/icon.png  | img " + raw + "1/icon.png ",
+		"site/index.html": "counts +1 −1 | iframe " + raw + "1/site/index.html allow-scripts",
+		"clip.mp4":        "video " + raw + "1/clip.mp4 ",
+		"paper.pdf":       "iframe " + raw + "1/paper.pdf ",
+		"big.png":         "facts PNG image20.0 MB" + pastSendLimit + "Load anyway",
+		"data.zip":        "facts ZIP archive4 B",
+	}
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	g.Expect(cards(doc)).To(Equal(want))
+	g.Expect(find(find(doc, "rendered"), "beforeafter")).NotTo(BeNil(), "a rendered card sits in from the card's edge")
+
+	// A deferred card's body, fetched on its first open, shows the same.
+	for p, body := range want {
+		res := serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/"+p)
+		g.Expect(res.Code).To(Equal(http.StatusOK), p)
+		frag := parse(g, `<details class="file"><summary><span class="path">`+p+`</span></summary>`+res.Body.String()+`</details>`)
+		got := cards(frag)[p]
+		g.Expect(got).To(Equal(strings.TrimPrefix(body, "counts +1 −1 | ")), p)
 	}
 }
 
