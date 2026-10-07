@@ -24,6 +24,7 @@ var manualSections = map[string]any{
 	"show":          api.ShowResult{},
 	"reply":         api.ReplyResult{},
 	"abandon":       api.AbandonResult{},
+	"check":         api.CheckResult{},
 	"start":         api.Daemon{},
 	"stop":          api.StopResult{},
 	"tailnet login": api.LoginResult{},

@@ -33,6 +33,9 @@ type Entry struct {
 	// Symlink is whether the path is a symbolic link, whose content is the
 	// target it names rather than the bytes at the other end.
 	Symlink bool
+	// Executable is whether a regular file has its owner's execute bit, which
+	// is the bit git records as mode 100755.
+	Executable bool
 }
 
 // describe fills in what only the filesystem knows about a present path, and
@@ -62,6 +65,7 @@ func describe(root string, e Entry) (Entry, bool, error) {
 		e.Symlink = true
 		return e, true, nil
 	}
+	e.Executable = mode&0o100 != 0
 	return e, mode.IsRegular(), nil
 }
 

@@ -151,6 +151,10 @@ type File struct {
 	Digest string
 	// Size is the content's length in bytes, and zero for a deleted file.
 	Size int64
+	// Mode is the git mode the file was captured with: 100644, 100755 or
+	// 120000. It is empty for a deleted file and for a round taken before
+	// modes were kept.
+	Mode string
 }
 
 // Change is one path that moved between the previous round and this one, with
@@ -493,9 +497,9 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 		if err != nil {
 			return err
 		}
-		add := "INSERT INTO round_files (round_id, path, digest, size, in_scope, view) VALUES (?, ?, ?, ?, ?, ?)"
+		add := "INSERT INTO round_files (round_id, path, digest, size, in_scope, view, mode) VALUES (?, ?, ?, ?, ?, ?, ?)"
 		inScope := Covers(paths, p)
-		if _, err := tx.ExecContext(ctx, add, round.ID, p, f.Digest, f.Size, inScope, req.views[p]); err != nil {
+		if _, err := tx.ExecContext(ctx, add, round.ID, p, f.Digest, f.Size, inScope, req.views[p], f.Mode); err != nil {
 			return errors.Wrapf(err, "capture file %s", p)
 		}
 	}

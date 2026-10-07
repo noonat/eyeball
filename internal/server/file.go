@@ -42,6 +42,9 @@ type filePage struct {
 	// naming a file the surface does not show, and nil for rows or a
 	// document.
 	Rendered *rendering
+	// Mode is the line saying the file's mode changed, or that an added file
+	// is not a regular one, and empty otherwise.
+	Mode string
 }
 
 // fileToolbar is the toolbar above a file that a comparison covers.
@@ -237,6 +240,11 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		if at.file.Shown() || at.rendering() == kind.ViewImage {
 			before := sideReader{reader: st.Reader(s.blobs, previous), number: at.previousNumber()}
 			changed := st.Measurable() && capture.Differs(previous, files, at.path)
+			if changed {
+				if view.Mode, err = modeLine(ctx, before.reader, now, at.path); err != nil {
+					return err
+				}
+			}
 			if view.Rendered, err = s.renderShown(ctx, at, before, sideReader{reader: now, number: round.Number}, changed); err != nil {
 				return err
 			}
@@ -474,6 +482,13 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 	}
 
 	before := st.Reader(s.blobs, previous)
+	if capture.Differs(previous, current, at.path) {
+		line, err := modeLine(ctx, before, now, at.path)
+		if err != nil {
+			return err
+		}
+		view.Mode = line
+	}
 	old, tooLarge, err := before.Side(ctx, at.path)
 	if err != nil {
 		return err

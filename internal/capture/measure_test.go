@@ -146,12 +146,18 @@ func TestDiffers(t *testing.T) {
 		{Path: "edited.txt", Digest: "aa"},
 		{Path: "reverted.txt", Digest: "aa"},
 		{Path: "deleted.txt", Digest: ""},
+		{Path: "chmod.sh", Digest: "aa", Mode: "100644"},
+		{Path: "unrecorded.txt", Digest: "aa"},
+		{Path: "unrecorded.sh", Digest: "aa"},
 	}
 	current := []store.File{
 		{Path: "same.txt", Digest: "aa"},
 		{Path: "edited.txt", Digest: "bb"},
 		{Path: "added.txt", Digest: "aa"},
 		{Path: "deleted.txt", Digest: ""},
+		{Path: "chmod.sh", Digest: "aa", Mode: "100755"},
+		{Path: "unrecorded.txt", Digest: "aa", Mode: "100644"},
+		{Path: "unrecorded.sh", Digest: "aa", Mode: "100755"},
 	}
 	cases := []struct {
 		path string
@@ -163,6 +169,9 @@ func TestDiffers(t *testing.T) {
 		{path: "added.txt", want: true},
 		{path: "deleted.txt", want: false},
 		{path: "neither.txt", want: false},
+		{path: "chmod.sh", want: true},
+		{path: "unrecorded.txt", want: false},
+		{path: "unrecorded.sh", want: true},
 	}
 	for _, c := range cases {
 		t.Run(c.path, func(t *testing.T) {

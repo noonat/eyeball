@@ -195,6 +195,7 @@ func (a *app) command() *ucli.Command {
 		a.statusCommand(),
 		a.replyCommand(),
 		a.abandonCommand(),
+		a.checkCommand(),
 		a.startCommand(),
 		a.stopCommand(),
 		a.serveCommand(),
@@ -435,6 +436,36 @@ func (a *app) requestCommand() *ucli.Command {
 				_, _ = fmt.Fprintf(w, "project %s, agent %s\n", r.Review.Project.Name, r.Review.Agent)
 				_, _ = fmt.Fprintf(w, "size: %s\n", sizeText(r.Size))
 				printNext(w, r.Next)
+			})
+		},
+	}
+}
+
+// checkCommand says whether an approved review matches a tree, for a git hook
+// deciding whether a default branch may move.
+func (a *app) checkCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:      "check",
+		Usage:     "exit 0 only if an approved review, measured from --base, captured exactly <new>'s tree",
+		ArgsUsage: "<new>",
+		Flags: []ucli.Flag{
+			&ucli.StringFlag{Name: "base", Usage: "the commit the branch moves from, which the review's rounds are measured from"},
+		},
+		Action: func(ctx context.Context, cmd *ucli.Command) error {
+			if cmd.Args().Len() != 1 || cmd.String("base") == "" {
+				return &usageError{message: "eyeball check takes --base and one commit", fix: "run eyeball check --base <old> <new>"}
+			}
+			v := url.Values{}
+			v.Set("base", cmd.String("base"))
+			v.Set("new", cmd.Args().First())
+			raw, err := a.do(ctx, http.MethodGet, "/agent/check?"+a.callerQuery()+"&"+v.Encode(), nil)
+			if err != nil {
+				return err
+			}
+			return a.out.emit(raw, func(w io.Writer) {
+				var r api.CheckResult
+				_ = json.Unmarshal(raw, &r)
+				_, _ = fmt.Fprintf(w, "approved: review %d round %d, %s (%s)\n", r.Review, r.Round, r.Title, r.Agent)
 			})
 		},
 	}

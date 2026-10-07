@@ -123,7 +123,7 @@ func moved(previous, current []store.File) []string {
 
 // Differs reports whether p's state differs between two captures, by the rule
 // Compare uses to choose what it diffs: present in one and not the other, or
-// held by both with different content.
+// held by both with different content or a different mode.
 //
 // It is how a page asks whether one path moved without diffing every path
 // that did, so a file's page and the review page agree on what moved.
@@ -138,12 +138,24 @@ func differs(was, is map[string]string, p string) bool {
 	return hadOld != hasNew || oldDigest != newDigest
 }
 
-// states maps each captured path to its digest, which is empty for a path the
-// capture names as deleted.
+// states maps each captured path to its digest and mode, which are empty for a
+// path the capture names as deleted. The mode counts because eyeball check
+// compares it: with digests alone, a chmod between rounds read as nothing
+// moved while the round carried it, found by the review of 012. A file
+// captured before modes were kept is a regular file, so those rounds do not
+// all read as moved.
 func states(files []store.File) map[string]string {
 	out := make(map[string]string, len(files))
 	for _, f := range files {
-		out[f.Path] = f.Digest
+		if f.Digest == "" {
+			out[f.Path] = ""
+			continue
+		}
+		mode := f.Mode
+		if mode == "" {
+			mode = modeRegular
+		}
+		out[f.Path] = f.Digest + " " + mode
 	}
 	return out
 }
