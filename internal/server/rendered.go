@@ -241,3 +241,57 @@ func bytesText(n int64) string {
 	}
 	return fmt.Sprintf("%.1f GB", float64(n)/(1000*1000*1000))
 }
+
+// modeLine says how a path's mode differs between two readers: a file whose
+// mode changed, with each side's permissions, or an added file that is not a
+// regular one. It is empty where the mode did not change. A file can change
+// mode without a byte moving, and eyeball check compares the mode, so the page
+// has to say what the round carries.
+func modeLine(ctx context.Context, before, after *capture.Reader, p string) (string, error) {
+	was, err := before.Mode(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	is, err := after.Mode(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case is == "" || was == is:
+		return "", nil
+	case was == "" && is == modeRegular:
+		return "", nil
+	case was == "":
+		return "new " + modeWords(is), nil
+	}
+	return modeWords(was) + modePermissions(was) + " → " + modeWords(is) + modePermissions(is), nil
+}
+
+// The git modes the page names.
+const (
+	modeRegular    = "100644"
+	modeExecutable = "100755"
+	modeSymlink    = "120000"
+)
+
+// modeWords is a git mode as a reader names it.
+func modeWords(mode string) string {
+	switch mode {
+	case modeRegular:
+		return "regular file"
+	case modeExecutable:
+		return "executable file"
+	case modeSymlink:
+		return "symlink"
+	}
+	return "mode " + mode
+}
+
+// modePermissions is a file's permissions in parentheses, as the owner asked
+// for over git's six digits, and nothing for a symlink, which has none.
+func modePermissions(mode string) string {
+	if mode == modeSymlink || len(mode) != 6 {
+		return ""
+	}
+	return " (" + mode[3:] + ")"
+}

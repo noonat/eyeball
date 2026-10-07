@@ -52,7 +52,7 @@
 {{if .Deferred}}<div data-body></div>
 {{else}}{{template "filebody" .}}{{end}}</details>
 {{end}}
-{{define "filebody"}}{{if and .Deleted (not .Rendered)}}<div class="toobig">Deleted as of this round.</div>
+{{define "filebody"}}{{with .Mode}}{{template "modeline" .}}{{end}}{{if and .Deleted (not .Rendered)}}<div class="toobig">Deleted as of this round.</div>
 {{else if .Rendered}}{{if .Rendered.Facts}}{{template "rendered" .Rendered}}{{else}}<div class="rendered">{{template "rendered" .Rendered}}</div>
 {{end}}{{else if .IsDocument}}<div class="filebody"><div class="prose">{{.Document}}</div></div>
 {{else if .Diff.Binary}}<div class="toobig">Binary file, not shown as a diff.</div>

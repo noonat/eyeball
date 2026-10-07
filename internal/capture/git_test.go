@@ -107,11 +107,12 @@ func Test_isGitProjectSkipsADirectoryWithNoGitOnPath(t *testing.T) {
 func Test_runArgsCarriesTheFlagsEveryCallNeeds(t *testing.T) {
 	g := NewWithT(t)
 
-	// Neither flag changes anything a test can watch, so the list is what is
-	// asserted. --no-optional-locks matters only when another git holds
-	// index.lock, which is the agent's own git during a capture.
+	// --no-optional-locks changes nothing a test can watch, so the list is
+	// what is asserted. It matters only when another git holds index.lock,
+	// which is the agent's own git during a capture. TestMatch_replaceRefs
+	// watches --no-replace-objects.
 	args := runArgs("/root", []string{"rev-parse", "HEAD"})
-	g.Expect(args).To(Equal([]string{"-C", "/root", "--no-optional-locks", "rev-parse", "HEAD"}))
+	g.Expect(args).To(Equal([]string{"-C", "/root", "--no-optional-locks", "--no-replace-objects", "rev-parse", "HEAD"}))
 }
 
 func Test_runReportsWhatGitSaid(t *testing.T) {
