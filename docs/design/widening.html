@@ -400,6 +400,57 @@
 
 <hr class="rule">
 
+<section class="spec" id="modes">
+  <h2>A file that changed mode, opened <span class="tag">the same line, on its page</span></h2>
+  <p>The file page carries the card's mode line at the top of the file, so the
+  change is stated wherever the file is read.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html#modes"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>sync</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>bin/</bdi></span><span class="name">sync</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#modes" aria-current="true">Marked</a><a href="#modes">Plain</a></span>
+          </div>
+          <div class="file">
+            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file &rarr; executable file</span></div>
+            <div class="code"><table><tr><td class="ln">1</td><td class="sign"></td><td class="src">#!/bin/sh</td></tr><tr class="del"><td class="ln">2</td><td class="sign">&minus;</td><td class="src">exec ./sync --once</td></tr><tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src">set -eu</td></tr><tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src">exec ./sync --once --quiet</td></tr></table></div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html#modes"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a>
+          <h1>sync</h1>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>bin/</bdi></span><span class="name">sync</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#modes" aria-current="true">Marked</a><a href="#modes">Plain</a></span>
+          </div>
+          <div class="file">
+            <div class="modeline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>regular file &rarr; executable file</span></div>
+            <div class="code"><table><tr><td class="ln">1</td><td class="sign"></td><td class="src">#!/bin/sh</td></tr><tr class="del"><td class="ln">2</td><td class="sign">&minus;</td><td class="src">exec ./sync --once</td></tr><tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src">set -eu</td></tr><tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src">exec ./sync --once --quiet</td></tr></table></div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+</section>
+
+<hr class="rule">
+
 <section class="spec" id="media">
   <h2>Images, recordings and documents <span class="tag">new, deleted, played, framed</span></h2>
   <p>The rest of what a browser displays, each in the frame the page and the
