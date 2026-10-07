@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-07T00:00:00Z
-updated: 2026-10-07T04:03:47.978833185Z
+updated: 2026-10-07T04:09:54.187952295Z
 required_acks:
   - reviewed
 required_commands:
@@ -120,21 +120,44 @@ match rule, in the change that adds them.
 
 ## Iteration 2: The command
 
-- [ ] `GET /agent/check` taking the caller's directory, `base` and `new`,
+- [x] `GET /agent/check` taking the caller's directory, `base` and `new`,
       finding approved reviews whose latest round's base is `<old>`, and passing
       if any matches
-- [ ] `eyeball check --base <old> <new>`: exit 0 and one line naming the review,
+- [x] `eyeball check --base <old> <new>`: exit 0 and one line naming the review,
       or exit 1 and one line saying why, with codes `not_approved` and
       `tree_differs` under `--json`. `not_approved` names the project root and
       the base it looked for, since a review opened from a worktree is another
       project and will not match a merge made in the main clone
-- [ ] The manual's command list, codes and exit statuses, and architecture.md's
+- [x] The manual's command list, codes and exit statuses, and architecture.md's
       routes table and agent section
-- [ ] Breaks planted by hand and seen refused: a wrong base, one differing file,
+- [x] Breaks planted by hand and seen refused: a wrong base, one differing file,
       an open review with the same tree, and a stopped daemon under
       `EYEBALL_NO_START`. A real match accepted, also from a daemon started with
       `GIT_DIR` pointing at another repository
-- [ ] Installed to `~/.local/bin`, and the daemon restarted
+- [x] Installed to `~/.local/bin`, and the daemon restarted
+
+**What iteration 2's breaks showed, on 2026-10-07**, with a built binary and a
+daemon on its own state directory, approving through its loopback surface:
+
+| Case                                            | Result                       |
+| ----------------------------------------------- | ---------------------------- |
+| The approved tree, fast-forward                 | exit 0, names review 1       |
+| The approved tree, as a `--no-ff` merge commit  | exit 0, names review 2       |
+| A base no review is measured from               | exit 1, `not_approved`       |
+| One file changed after approval                 | exit 1, `tree_differs`       |
+| An open review with the same tree               | exit 1, `not_approved`       |
+| A stopped daemon under `EYEBALL_NO_START=1`     | exit 1, and no daemon starts |
+| A daemon started with `GIT_DIR` at another repo | exit 0, names review 2       |
+
+The handler's approved-state test, its base test and its match test were each
+broken by hand, and `TestServer_check` failed each time, as it did with the
+environment scrub in `internal/capture/git.go` removed.
+
+> **Completed** 2026-10-07 04:09 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.1s
+> - `go test -race ./...` — 33.8s
 
 ## Out of scope
 

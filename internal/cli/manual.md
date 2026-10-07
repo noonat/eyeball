@@ -130,6 +130,31 @@ the agent has received. A second reply replaces the first.
 `eyeball abandon <id>` withdraws a review whose question no longer needs an
 answer, whether or not a verdict is pending. A `wait` on it returns `abandoned`.
 
+### `eyeball check`
+
+`eyeball check --base <old> <new>`, run in a repository, exits 0 only when an
+approved review in that project, opened by any agent, has a latest round
+measured from `<old>` whose capture matches `<new>`'s tree file by file. A git
+hook runs it before letting a default branch move from `<old>` to `<new>`. It
+compares trees, so a fast-forward and a merge commit are treated alike.
+
+| Flag     | Meaning                                    |
+| -------- | ------------------------------------------ |
+| `--base` | The commit the branch moves from. Required |
+
+They match when every path `<new>` changes from `<old>` was captured inside the
+review's paths with `<new>`'s bytes, or as a deletion where `<new>` lacks it,
+and every path captured inside the review's paths is one `<new>` changes. A file
+captured outside the review's paths that `<new>` leaves alone is ignored. So a
+stray file inside a claimed path that `<new>` does not hold refuses the check:
+delete it or ignore it before asking for review.
+
+It prints one line naming the review, or refuses with one line naming the first
+path that differs. It reads and records nothing, and acknowledges nothing. It
+starts a daemon like any command; with `EYEBALL_NO_START` set, a stopped daemon
+is a refusal. A worktree is a project of its own, so a review opened from one
+does not match a merge made in the main clone.
+
 ### `eyeball start`, `eyeball stop` and `eyeball serve`
 
 Any command starts the daemon when none is running, so these are rarely needed.
@@ -205,44 +230,46 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 { "error": { "code": "path_claimed", "message": "...", "fix": "..." } }
 ```
 
-| Code                   | Meaning                                                        |
-| ---------------------- | -------------------------------------------------------------- |
-| `already_decided`      | the round already has a verdict                                |
-| `awaiting_verdict`     | a next round was asked for while the last one waits            |
-| `bad_base`             | `--base` does not name a commit                                |
-| `bad_commit`           | `check` was given a ref that names no commit                   |
-| `bad_request`          | the daemon could not read the request                          |
-| `bad_view`             | `--view` names a file the round lacks, or a view it has not    |
-| `base_gained`          | the repository gained its first commit after the review opened |
-| `base_moved`           | a round was measured from a base other than the review's       |
-| `connection_lost`      | the daemon closed the connection before answering              |
-| `daemon_running`       | a tailnet login found a daemon or another login running        |
-| `daemon_stopping`      | the daemon stopped while the command waited                    |
-| `daemon_unavailable`   | no daemon could be reached or started                          |
-| `empty_change_request` | a change request with no comment and no note                   |
-| `internal`             | a failure inside the daemon; its log says more                 |
-| `invalid_path`         | a path that is empty or names the project root                 |
-| `login_failed`         | a tailnet login did not finish, or the tailnet cannot serve    |
-| `missing`              | a required value was not given                                 |
-| `no_git`               | the project is a git repository and git is not on PATH         |
-| `no_project`           | no `.git` or `.eyeball` above the working directory            |
-| `no_such_path`         | outside git, a path the project does not have                  |
-| `not_found`            | an id that names nothing                                       |
-| `not_open`             | the review was approved or abandoned                           |
-| `not_released`         | a reply to a comment the agent has not received                |
-| `not_top_level`        | the project root is below its repository's top level           |
-| `nothing_captured`     | nothing differs from the base                                  |
-| `nothing_in_scope`     | nothing under the review's paths differs from the base         |
-| `outside_project`      | a path outside the project                                     |
-| `owner_only`           | a command only the owner runs, at a terminal                   |
-| `path_claimed`         | another open review in the project covers the path             |
-| `path_unmatched`       | a path that is neither on disk nor among the captured changes  |
-| `round_closed`         | an edit to a comment whose round has a verdict                 |
-| `too_many_files`       | outside git, the paths hold more than a thousand files         |
-| `usage`                | the command line could not be read                             |
-| `vanished`             | a file disappeared while it was being captured; run it again   |
-| `wrong_agent`          | the review was opened under another agent name                 |
-| `wrong_project`        | the review belongs to another project                          |
+| Code                   | Meaning                                                                   |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `already_decided`      | the round already has a verdict                                           |
+| `awaiting_verdict`     | a next round was asked for while the last one waits                       |
+| `bad_base`             | `--base` does not name a commit                                           |
+| `bad_commit`           | `check` was given a ref that names no commit                              |
+| `bad_request`          | the daemon could not read the request                                     |
+| `bad_view`             | `--view` names a file the round lacks, or a view it has not               |
+| `base_gained`          | the repository gained its first commit after the review opened            |
+| `base_moved`           | a round was measured from a base other than the review's                  |
+| `connection_lost`      | the daemon closed the connection before answering                         |
+| `daemon_running`       | a tailnet login found a daemon or another login running                   |
+| `daemon_stopping`      | the daemon stopped while the command waited                               |
+| `daemon_unavailable`   | no daemon could be reached or started                                     |
+| `empty_change_request` | a change request with no comment and no note                              |
+| `internal`             | a failure inside the daemon; its log says more                            |
+| `invalid_path`         | a path that is empty or names the project root                            |
+| `login_failed`         | a tailnet login did not finish, or the tailnet cannot serve               |
+| `missing`              | a required value was not given                                            |
+| `no_git`               | the project is a git repository and git is not on PATH                    |
+| `no_project`           | no `.git` or `.eyeball` above the working directory                       |
+| `no_such_path`         | outside git, a path the project does not have                             |
+| `not_approved`         | `check` found no approved review in the project measured from `--base`    |
+| `not_found`            | an id that names nothing                                                  |
+| `not_open`             | the review was approved or abandoned                                      |
+| `not_released`         | a reply to a comment the agent has not received                           |
+| `not_top_level`        | the project root is below its repository's top level                      |
+| `nothing_captured`     | nothing differs from the base                                             |
+| `nothing_in_scope`     | nothing under the review's paths differs from the base                    |
+| `outside_project`      | a path outside the project                                                |
+| `owner_only`           | a command only the owner runs, at a terminal                              |
+| `path_claimed`         | another open review in the project covers the path                        |
+| `path_unmatched`       | a path that is neither on disk nor among the captured changes             |
+| `round_closed`         | an edit to a comment whose round has a verdict                            |
+| `too_many_files`       | outside git, the paths hold more than a thousand files                    |
+| `tree_differs`         | `check` found approved reviews from `--base`, and none captured that tree |
+| `usage`                | the command line could not be read                                        |
+| `vanished`             | a file disappeared while it was being captured; run it again              |
+| `wrong_agent`          | the review was opened under another agent name                            |
+| `wrong_project`        | the review belongs to another project                                     |
 
 ## Environment
 
@@ -329,6 +356,10 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 - `review.id`, `review.title`, `review.agent`, `review.state`, `review.round`,
   `review.paths`, `review.project.name`, `review.project.root`
 - `next`
+
+### check
+
+- `review`, `round`, `title`, `agent`
 
 ### start
 
