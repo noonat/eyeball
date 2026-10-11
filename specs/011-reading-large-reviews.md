@@ -24,6 +24,10 @@ Approved by the owner as review 35, round 1, on 2026-10-11, after a rebase onto
 master past 012. The owner approved iteration 1's tearout on the phone the same
 day.
 
+The front matter's `reviewed` ack predates review of the whole branch in
+eyeball. As in 012, it is given at each iteration's close and stands for that
+end-of-branch review, which every iteration's work is in.
+
 ## Design
 
 ### Why the list existed, and what replaces each reason
@@ -54,6 +58,18 @@ it scrolls in. That is assumed from the specification and confirmed by a browser
 test in iteration 2. The cost: on a slow connection a card can show its header
 before its body. A small review, at or under the threshold, still sends every
 body with the page, since a few hundred lines cost less than a round trip each.
+
+> **Departure, iteration 2.** The premise above was half wrong, and the
+> mechanism changed. The scroller's clipping does count, which is the problem: a
+> card below `.scroll`'s visible box never intersects, and a root margin widens
+> only the viewport. In headless Chromium only the cards already on screen
+> loaded. htmx's `intersect` also has no margin, and skipping a folded card
+> needs a trigger filter, which `allowEval: false` turns off. So
+> `web/ts/bodies.ts` runs its own IntersectionObserver with `.scroll` as root
+> and a margin of one screen, and sends `eyeball:near` to an open card in that
+> range, or to a folded one when it is unfolded. The template triggers on
+> `eyeball:near once`. A body now starts loading a screen before its card
+> appears.
 
 **A list of files tops a review past ten files**: each path with its counts,
 linking to its card by an id. Ten files is the threshold the old rule used; the
@@ -90,6 +106,14 @@ under the reader's thumb as bodies arrive above where they are reading. Bodies
 arrive below the reader on a downward scroll, so it is expected to read as
 smooth; iteration 5 measures it on the phone.
 
+Found in iteration 2: a jump does move the page. Scrolling straight to the last
+of sixty cards in headless Chromium loaded the cards on screen above it, and the
+one nearest grew by its forty lines and pushed the target about 1,000 pixels
+down. Iteration 3's links jump, so they will hit this. One fix is an empty body
+that reserves the height its rows will take, from the row count the server
+already has. That changes how an unloaded card looks in the approved tearout, so
+it is the owner's decision, not built here.
+
 ## Iteration 1: The tearout for a large review
 
 ```backlog
@@ -110,17 +134,23 @@ required_acks:
 > - `make check` — 5.4s
 > - `go test -race ./...` — 34.3s
 
-
 ## Iteration 2: Every card open, bodies as they near the screen
 
-- [ ] Cards render open at any size, a large review's bodies empty and fetched
+- [x] Cards render open at any size, a large review's bodies empty and fetched
       with `intersect once` from the cards route
-- [ ] The place stored as folded paths, and an earlier entry of open paths read
+- [x] The place stored as folded paths, and an earlier entry of open paths read
       once and discarded
-- [ ] product.md's expand-or-list paragraph and open question, and
+- [x] product.md's expand-or-list paragraph and open question, and
       architecture.md's cards route row, saying what replaced the list
-- [ ] Tests: every card open past the threshold, and a browser test that a card
+- [x] Tests: every card open past the threshold, and a browser test that a card
       scrolled to inside `.scroll` loads its body and one far below does not
+
+> **Completed** 2026-10-11 22:47 UTC
+>
+> - acks: reviewed
+> - `make check` — 16.6s
+> - `go test -race ./...` — 34.2s
+
 
 ## Iteration 3: The list of files
 
