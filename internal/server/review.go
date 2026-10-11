@@ -27,6 +27,11 @@ const (
 	maxSentLines = 300
 )
 
+// A round past this many files gets a list of them above the cards, each a
+// link to its card. It is for finding a file, so lines do not count. Ten is
+// product.md's guess.
+const maxUnlistedFiles = 10
+
 // reviewPage is what the review template prints for one round.
 type reviewPage struct {
 	// Title, Project and Agent say what the review is and where it came from.
@@ -52,6 +57,9 @@ type reviewPage struct {
 	Against *againstControl
 	// Shown is every in-scope file that moved, in path order.
 	Shown []fileView
+	// Listed says a list of the files, linking to their cards, comes before
+	// them.
+	Listed bool
 	// Fresh is the one file shown, rendered on the page rather than in a
 	// card, where the round shows one markdown file whose old side has no
 	// blocks. It is nil otherwise.
@@ -182,6 +190,41 @@ type fileView struct {
 	// send every body with the page.
 	Deferred bool
 	BodyHref string
+}
+
+// CardID is the element id of the file's card, which the list of files links
+// to.
+func (f fileView) CardID() string {
+	return "file-" + pathKey(f.Path)
+}
+
+// SkeletonHunks is how many hunk headers a deferred card's body will hold,
+// which with SkeletonLines sizes the skeleton it shows until then. Both are 0
+// for a body that is not rows: a document, a rendered file, or a file with
+// none. Those keep the skeleton's default height.
+func (f fileView) SkeletonHunks() int {
+	hunks, _ := f.skeleton()
+	return hunks
+}
+
+// SkeletonLines is how many lines a deferred card's body will hold.
+func (f fileView) SkeletonLines() int {
+	_, lines := f.skeleton()
+	return lines
+}
+
+func (f fileView) skeleton() (hunks, lines int) {
+	if f.IsDocument || f.Rendered != nil || f.Deleted {
+		return 0, 0
+	}
+	for _, r := range f.Diff.Rows {
+		if r.Header != "" {
+			hunks++
+		} else {
+			lines++
+		}
+	}
+	return hunks, lines
 }
 
 // threadView is the row under a line holding its comments, and the composer
@@ -460,6 +503,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
 		view.Fresh = &view.Shown[0]
 	}
+	view.Listed = len(view.Shown) > maxUnlistedFiles
 
 	if renderErr != nil {
 		return reviewPage{}, renderErr

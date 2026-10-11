@@ -562,9 +562,12 @@ the marked-and-plain switch and the page-and-source switch stay plain links to
 different URLs. Past ten files or 300 lines, a card arrives open with an empty
 body, and the page asks for each body once its card is open and within a screen
 of view in the page's scroller. A change of forty files sends only the bodies a
-reader scrolls to. The script that watches for this is a dozen lines, because
-htmx's own `intersect` trigger has no margin and cannot skip a folded card under
-`allowEval: false`.
+reader scrolls to. Until its body comes, a card holds a skeleton as tall as the
+body will be, from the hunk and line counts the server sends and row heights the
+page measures once on the device, so a body arriving above a jump from the list
+of files moves nothing. The script that watches for this is a dozen lines,
+because htmx's own `intersect` trigger has no margin and cannot skip a folded
+card under `allowEval: false`.
 
 ## Notification
 

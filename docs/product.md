@@ -257,7 +257,9 @@ What the list did is now done separately:
   and a link to its card. It is for finding a file. Reading is the scroll below
   it.
 - **A large change sends its files' bodies as they near the screen**, not with
-  the page, so four thousand lines do not arrive at once on a phone.
+  the page, so four thousand lines do not arrive at once on a phone. Until a
+  body comes, its card holds the space the body will take, so a jump from the
+  list lands on its file and stays there.
 - **A file past 500 changed lines waits behind a link** naming its size. A lock
   file or a generated file is usually skimmed, and loading one by accident means
   scrolling past all of it to reach the next file.
