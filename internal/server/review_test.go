@@ -558,6 +558,41 @@ func TestServer_Surface_reviewFreshConditions(t *testing.T) {
 	}
 }
 
+// A review past ten files lists them above the cards, each linking to its
+// card, so a reader can jump to one. At ten files there is no list.
+func TestServer_Surface_reviewListsFilesPastTen(t *testing.T) {
+	counts := []int{10, 11}
+	for _, n := range counts {
+		t.Run(itoa(int64(n))+" files", func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+			write(g, repo, "a.txt", "one\n")
+			for i := range n {
+				write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", i+1))
+			}
+			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+
+			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+			list := find(doc, "filelist")
+			if n <= 10 {
+				g.Expect(list).To(BeNil())
+				return
+			}
+			g.Expect(list).NotTo(BeNil())
+			links := findAll(list, hasClass("treerow"))
+			g.Expect(links).To(HaveLen(n))
+			cards := findAll(doc, hasClass("file"))
+			for i, link := range links {
+				g.Expect(text(find(link, "nm"))).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
+				g.Expect(text(find(link, "plus"))).To(Equal("+" + itoa(int64(i+1))))
+				g.Expect(attr(link, "href")).To(Equal("#"+attr(cards[i], "id")), "a link names a card that is not its file's")
+				g.Expect(attr(cards[i], "data-path")).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
+			}
+		})
+	}
+}
+
 // A repository moved or deleted after the round leaves nothing to compare
 // against, and the round's capture still holds every file the agent changed.
 // The page shows those as captured, and the review can still be decided.
@@ -749,6 +784,13 @@ func TestServer_Surface_reviewSendsBodiesUpToItsLimits(t *testing.T) {
 			}
 			if c.sent {
 				return
+			}
+			// The skeleton holds the body's rows, one hunk header and each
+			// line, so the body arriving moves nothing below it.
+			for _, file := range files {
+				skeleton := find(file, "skeleton")
+				g.Expect(attr(skeleton, "data-hunks")).To(Equal("1"))
+				g.Expect(attr(skeleton, "data-lines")).To(Equal(itoa(int64(c.lines))))
 			}
 			body := attr(files[0], "hx-get")
 			g.Expect(attr(files[0], "hx-trigger")).To(Equal("eyeball:near once"))

@@ -112,7 +112,17 @@ one nearest grew by its forty lines and pushed the target about 1,000 pixels
 down. Iteration 3's links jump, so they will hit this. One fix is an empty body
 that reserves the height its rows will take, from the row count the server
 already has. That changes how an unloaded card looks in the approved tearout, so
-it is the owner's decision, not built here.
+it went to the owner.
+
+> **Departure, decided 2026-10-11.** The owner chose the skeleton: "we should
+> skeleton out the page appropriately." A deferred card's empty body carries its
+> row count as `data-rows`, and the page sets `--rows` on it, which sizes
+> `.skeleton` in `app.css` to that many code rows with one faint bar per row.
+> The page sets it because the CSP refuses a `style` attribute. With no script a
+> skeleton is six rows. A document or a rendered file has no row count, so it
+> keeps the six-row default; a jump past one can still move. Iteration 3 gains
+> the skeleton, its tearout change and the owner's phone approval of it, since
+> its links are the jumps the skeleton is for.
 
 ## Iteration 1: The tearout for a large review
 
@@ -151,12 +161,25 @@ required_acks:
 > - `make check` — 16.6s
 > - `go test -race ./...` — 34.2s
 
-
 ## Iteration 3: The list of files
 
-- [ ] A list of files above the cards of a review past ten files, each path with
+```backlog
+required_acks:
+  - reviewed
+  - phone-approved
+```
+
+`phone-approved` is the owner's, for the skeleton's tearout change.
+
+- [x] review.html's cards not yet loaded drawn as skeletons, one bar per row,
+      with the note saying why
+- [x] A deferred card's empty body carrying its row count, sized by the page as
+      a skeleton of that many rows
+- [x] Tests: the row count on a deferred body, and a browser test that a body
+      loading above a jump's target leaves the target where it was
+- [x] A list of files above the cards of a review past ten files, each path with
       its counts, linking to its card's id
-- [ ] Tests: the list present past ten files and absent at ten, and each link
+- [x] Tests: the list present past ten files and absent at ten, and each link
       naming a card on the page
 
 ## Iteration 4: A very large file, deferred

@@ -161,6 +161,8 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	rows := func(path string) string {
 		return `document.querySelector("details.file[data-path='` + path + `']").querySelectorAll(".src").length`
 	}
+	// The list of files tops the page, so the first card starts below it.
+	b.eval(g, `document.querySelector("details.file").scrollIntoView()`)
 	b.waitFor(g, rows("d/00.txt")+` === 40`)
 	g.Expect(b.eval(g, `[...document.querySelectorAll("details.file")].every((d) => d.open)`)).To(BeTrue())
 	time.Sleep(300 * time.Millisecond)
@@ -324,6 +326,52 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(subs).To(HaveLen(1))
 	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
+}
+
+// A tap in the list of files jumps to that file's card, and the bodies that
+// load around it on arrival leave it where it landed, because each card holds
+// its rows' height until its body comes.
+func TestServer_Surface_browserJump(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	// Each file is committed and then changed at lines 2 and 14, so its body
+	// holds two hunks and the skeleton has to count both.
+	var base, changed []string
+	for n := 1; n <= 20; n++ {
+		base = append(base, fmt.Sprintf("line %d", n))
+		changed = append(changed, fmt.Sprintf("line %d", n))
+	}
+	changed[1], changed[13] = "line two", "line fourteen"
+	for i := range 60 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Join(base, "\n")+"\n")
+	}
+	git(g, repo, "add", "-A")
+	git(g, repo, "update-ref", "refs/heads/main", git(g, repo, "commit-tree", git(g, repo, "write-tree"), "-p", "main", "-m", "files"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 60 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Join(changed, "\n")+"\n")
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	// Chromium's scroll anchoring would hold the target in place by itself,
+	// and Safari, where the phone reads, has none, so it is turned off here.
+	b.eval(g, `document.querySelector(".scroll").style.overflowAnchor = "none"`)
+	target := `document.querySelector("details.file[data-path='d/40.txt']")`
+	top := target + `.getBoundingClientRect().top - document.querySelector(".scroll").getBoundingClientRect().top`
+	b.eval(g, `document.querySelector(".filelist a[href='#" + `+target+`.id + "']").click()`)
+	b.waitFor(g, `Math.abs(`+top+`) < 2`)
+	// The card above the target is within a screen of view, so its body loads
+	// above the target.
+	g.Expect(b.eval(g, `document.querySelector("details.file[data-path='d/39.txt'] .skeleton").dataset.hunks`)).To(Equal("2"))
+	b.waitFor(g, `["d/39.txt", "d/40.txt"].every((p) => document.querySelector("details.file[data-path='" + p + "']").querySelectorAll(".hunkhead").length === 2)`)
+	// Math.abs first: Math.round gives -0 for a small negative offset, which
+	// the DevTools protocol sends as a value with no number.
+	g.Expect(b.eval(g, `Math.round(Math.abs(`+top+`))`)).To(BeNumerically("<=", 4), "the target moved as bodies loaded around it")
 }
 
 // A passage takes a comment under it, in a document card and in the layout a
@@ -504,6 +552,9 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 
 	card := `document.querySelector("details.file[data-path='d/05.txt']")`
 	folded := `document.querySelector("details.file[data-path='d/07.txt']")`
+	// Each skeleton holds its forty lines, so d/05.txt starts far below the
+	// screen.
+	b.eval(g, card+`.scrollIntoView()`)
 	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
 	b.eval(g, folded+`.querySelector("summary").click()`)
 	b.waitFor(g, `!`+folded+`.open`)
