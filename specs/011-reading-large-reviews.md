@@ -1,6 +1,7 @@
 ---
-status: draft
+status: active
 created: 2026-10-07T00:00:00Z
+updated: 2026-10-11T22:18:53.189426876Z
 required_acks:
   - reviewed
 required_commands:
@@ -18,6 +19,10 @@ This spec opens every file, loads bodies as they near the screen, adds a list of
 files at the top of a large review, defers a single very large file behind a
 link, and makes folding the reviewer's own mark. It was not on specs/TODO.md's
 Next list, which was empty. It corrects product.md's expand-or-list rule.
+
+Approved by the owner as review 35, round 1, on 2026-10-11, after a rebase onto
+master past 012. The owner approved iteration 1's tearout on the phone the same
+day.
 
 ## Design
 
@@ -93,11 +98,18 @@ required_acks:
   - phone-approved
 ```
 
-- [ ] review.html's #large section redrawn: the list of files at the top, every
+- [x] review.html's #large section redrawn: the list of files at the top, every
       card open, one card folded, and one file past 500 lines with its body
       deferred behind Load
-- [ ] Its notes saying why, replacing the collapsed list's
-- [ ] README's review.html row naming the change
+- [x] Its notes saying why, replacing the collapsed list's
+- [x] README's review.html row naming the change
+
+> **Completed** 2026-10-11 22:26 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 5.4s
+> - `go test -race ./...` — 34.3s
+
 
 ## Iteration 2: Every card open, bodies as they near the screen
 
