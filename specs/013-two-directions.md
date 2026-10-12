@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-11T00:00:00Z
-updated: 2026-10-12T00:16:04.703998275Z
+updated: 2026-10-12T02:30:29.072466776Z
 required_commands:
   - cmd: make check
 ---
@@ -260,6 +260,14 @@ from which, or neither.
 > same file and `letters.css` keeps only its violet tokens and its Approve
 > moment. The choice is now between the desk and the desk with the letter.
 
+> **Departure, decided 2026-10-11.** The owner chose `mix.html`, the desk with
+> the letter, and confirmed the fonts load in iOS Safari. The removal todo said
+> both sheets stay on a mix, written when a mix would still have to be drawn. It
+> was drawn, so `desk.html`, `letters.html` and `letters.css` went, and
+> `mix.html` stays with every stylesheet and font it links. The TODO todo moved
+> the apply entry to Next and folded two Unscheduled entries into it, serving
+> the fonts and the queue's note line, since the choice needs both.
+
 > **Departure, before iteration 1.** Two todos changed from the approved spec.
 > The removal todo now says what happens on a mix, which it did not. The TODO
 > todo moves the Unscheduled entry this spec added, where the approved wording
@@ -267,9 +275,14 @@ from which, or neither.
 > README's rule that every tearout links two shared stylesheets, which these
 > sheets break and no todo corrected.
 
-- [ ] The fonts confirmed loading in iOS Safari, or the failure recorded here
-- [ ] The choice and its reason recorded in docs/design/README.md
-- [ ] The sheet, stylesheet and fonts of each direction not chosen removed. On a
+- [x] The fonts confirmed loading in iOS Safari, or the failure recorded here
+- [x] The choice and its reason recorded in docs/design/README.md
+- [x] The sheet, stylesheet and fonts of each direction not chosen removed. On a
       mix, both sheets stay until the spec that applies the choice
-- [ ] specs/TODO.md's Unscheduled entry for applying the choice moved to Next,
+- [x] specs/TODO.md's Unscheduled entry for applying the choice moved to Next,
       naming what was chosen
+
+> **Completed** 2026-10-12 02:30 UTC
+>
+> - acks: chosen
+> - `make check` — 5.5s

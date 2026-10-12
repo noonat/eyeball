@@ -1,10 +1,10 @@
-/* The fixes both directions make, for the sheets that try them out.
+/* Fixes to habits of the current design, which every direction in spec 013
+ * shared.
  *
- * desk.html and letters.html link this after app.css and before their own
- * stylesheet. Each rule removes a habit of the current design that reads as a
- * template rather than as this product. Both sheets take them from this one
- * file, so the two differ only in type, color and what leads. Nothing here
- * ships. */
+ * mix.html links this after app.css and before desk.css and letter.css. Each
+ * rule removes a habit that reads as a template rather than as this product.
+ * They were kept in one file while two directions were compared, so the two
+ * sheets differed only in type, color and what leads. Nothing here ships. */
 
 /* Section heads in sentence case, at the size of a heading. Tracked capitals
  * at 11px are the commonest label in generated pages, and they read as chrome

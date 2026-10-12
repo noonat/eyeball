@@ -43,12 +43,30 @@ holds and the back button closes it.
 | [`review.html`](./review.html)           | The review page: a second round of a document, a large change as a file list with a comment being written, a first round against an empty base, a refused verdict, a round already decided, a passage selected for a comment, the review box and the verdict note, a verdict that could not be sent, rendered files in their cards, files that changed mode, and an earlier round with the agent's replies |
 | [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, a file too big to render, a page in its sandboxed frame, a changed image before over after, a file that changed mode, and new and deleted images, SVG, video, audio and a PDF                                                                                                   |
 | [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                                                                                     |
-| [`desk.html`](./desk.html)               | Exploratory, for spec 013: the reading desk, one of two directions for how the surface looks. The queue, the empty queue, a second round, a large change with the composer open, and the Approve moment, in Atkinson Hyperlegible with a highlighter yellow and an eye in the top bar                                                                                                                      |
-| [`letters.html`](./letters.html)         | Exploratory, for spec 013: letters from agents, the other direction. The same frames, with the agent's note leading as a letter set in Literata, ink on a cool paper and a violet accent                                                                                                                                                                                                                   |
-| [`mix.html`](./mix.html)                 | Exploratory, for spec 013: the reading desk with the letter from the other direction on it. The same frames, in the desk's ink, highlighter and eye, with the agent's note set as a signed letter in Literata                                                                                                                                                                                              |
+| [`mix.html`](./mix.html)                 | Chosen in spec 013, not yet applied: the reading desk, with the agent's note as a letter. The queue, the empty queue, a second round, a large change with the composer open, and the Approve moment, in Atkinson Hyperlegible and Literata, with a highlighter yellow and an eye in the top bar                                                                                                            |
 
 That is the whole surface the product document describes. A new screen gets a
 tearout before it gets code.
+
+## The visual direction
+
+Spec 013 drew two directions for the visual language against these fixtures, and
+the owner chose between them on the phone on 2026-10-11. The choice is
+`mix.html`: the reading desk, with the agent's note set as a letter.
+
+The reading desk won over letters from agents for the reasons the owner gave.
+Less color on the screen was less distracting. The highlight was a great idea.
+The eye in the top bar was excellent, especially closing when nothing waits and
+blinking on Approve. Letters kept the current design's state hues and spent its
+one new color, a violet, on links and selection.
+
+Seen on the desk's paper, the letter was preferred to the desk alone. So the
+note leads the review page in Literata, signed, and its first line is on the
+queue row. Letters' violet tokens and its reply on Approve were dropped, and git
+holds both sheets as they were judged.
+
+The other sheets here still draw the current visual language. A later spec
+applies the chosen one to `app.css`, the templates and every sheet.
 
 ## How to work on these
 
@@ -58,10 +76,11 @@ tearout before it gets code.
   dark pairing, expand-to-full-size. A tearout's own `<style>` block holds
   nothing, and a page-local style is a sign the vocabulary belongs in `app.css`.
 
-  A sheet trying out a direction for the visual language links two more after
-  them: `directions.css`, the fixes every direction shares, and its own, such as
-  `desk.css`. The letter is `letter.css`, which letters and the mix both link.
-  Neither ships. Its fonts sit in `fonts/` with their licenses.
+  `mix.html`, the direction spec 013 chose, links three more after them:
+  `directions.css`, the fixes to the current design's template habits,
+  `desk.css`, the highlighter and the eye, and `letter.css`, the agent's note as
+  a letter. None ships until a later spec applies them to `app.css`. Their fonts
+  sit in `fonts/` with their licenses.
 
 - **Both themes, side by side.** Tokens are defined on `[data-theme="light"]`
   and `[data-theme="dark"]`, so a tearout stamps the attribute on each frame and

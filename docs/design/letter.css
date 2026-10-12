@@ -1,9 +1,8 @@
 /* The agent's note as a letter, for the sheets that try it.
  *
- * letters.html links this with letters.css, its own tokens and Approve
- * moment. mix.html links it after desk.css, to show the letter on the
- * reading desk's paper. It sets type and layout only and names no color of
- * its own, so it takes whichever direction's tokens come before it. Nothing
+ * mix.html links it after desk.css, which puts the letter on the reading
+ * desk's paper. It sets type and layout only and names no color of its own,
+ * so it takes the desk's tokens. Nothing
  * here ships.
  *
  * product.md calls the note the reviewer's brief. Here it leads: first on the
@@ -16,9 +15,8 @@
 /* Literata, TypeTogether's text face for reading on screens, OFL-1.1.
  * Fontsource 5.3.0's Latin subsets, variable over 200 to 900. These are the
  * weight files, 52 and 54 KB, with the optical size fixed at 14. The files
- * that also vary optical size are 110 and 113 KB, twice the weight of the
- * other direction's fonts, for a difference at reading sizes this sheet does
- * not need to show. */
+ * that also vary optical size are 110 and 113 KB, twice these, for a
+ * difference at reading sizes the sheet does not need to show. */
 @font-face {
   font-family: "Literata";
   font-style: normal;
