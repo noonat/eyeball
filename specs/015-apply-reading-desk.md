@@ -232,12 +232,29 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] The mark set when an Approve request starts, cleared when it fails, and
+> **Measured, 2026-10-12.** The design's open premise was where htmx handles
+> `HX-Refresh`. It reloads and returns before it marks the request successful,
+> so the `htmx:afterRequest` it still raises reads as a failed request. Clearing
+> the mark on that cleared it before the reload could read it, and the browser
+> test caught it. The mark is cleared on `htmx:responseError`, `htmx:sendError`
+> and `htmx:timeout` instead, the events htmx raises only for a failure. The
+> test also plants a mark for a review still open, as a tab closed mid-request
+> would leave, and expects no blink.
+
+- [x] The mark set when an Approve request starts, cleared when it fails, and
       read once on the next load
-- [ ] The blink played only on the approved review the mark names, by adding
+- [x] The blink played only on the approved review the mark names, by adding
       `classes.blink` to the eye, and never under reduced motion
-- [ ] A browser test: approving blinks once, a reload after it does not, and a
+- [x] A browser test: approving blinks once, a reload after it does not, and a
       failed approve leaves no mark
+
+> **Completed** 2026-10-12 03:40 UTC
+>
+> - `make check` — 5.5s
+> - `go test -race ./...` — 3.8s
+> - `go test -tags browser ./internal/server/...` — 1.8s
+> - `go vet -tags browser ./internal/server/...` — 73ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 175ms
 
 ## Iteration 5: On the phone
 

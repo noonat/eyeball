@@ -141,6 +141,83 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
+// Approving blinks the eye once, on the page the approval reloads to, and a
+// reload after it does not. A failed approval leaves no mark, and under
+// reduced motion the eye does not move.
+func TestServer_Surface_browserBlink(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "b.txt", "b\n")
+	write(g, repo, "c.txt", "c\n")
+	me := api.Caller{Dir: repo}
+	first := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	second := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "second"}).Review.ID
+	third := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"c.txt"}, Note: "third"}).Review.ID
+	var failing sync.Mutex
+	fail := false
+	surface := f.s.Surface()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		failing.Lock()
+		refuse := fail && r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/decision")
+		failing.Unlock()
+		if refuse {
+			http.Error(w, "the store is gone", http.StatusInternalServerError)
+			return
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	approve := func(id int64) {
+		b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+		b.eval(g, `window.__before = true`)
+		b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+		b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	}
+	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
+
+	// The reloaded page is decided, at the new count, and blinks once.
+	approve(first)
+	g.Expect(b.eval(g, `!!document.querySelector(".brief .pill.approved")`)).To(BeTrue())
+	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("2 waiting"))
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("eye-blink"))
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil(), "the mark is read once")
+
+	// The same page loaded again is only a decided round.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(first))
+	g.Expect(b.eval(g, blinking)).To(BeFalse())
+
+	// An approval the server refuses leaves no mark for a later load.
+	failing.Lock()
+	fail = true
+	failing.Unlock()
+	b.navigate(g, srv.URL+"/reviews/"+itoa(second))
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	b.waitFor(g, `!!document.querySelector("#bar .failed, .failed")`)
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
+	failing.Lock()
+	fail = false
+	failing.Unlock()
+
+	// A mark left by a request whose answer never arrived, as when a tab is
+	// closed mid-request, names a review that is still open. It does not blink.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(third))
+	b.eval(g, `sessionStorage.setItem("eyeball:blink", "`+itoa(third)+`")`)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(third))
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeTrue(), "the review is still open")
+	g.Expect(b.eval(g, blinking)).To(BeFalse())
+
+	// Under reduced motion the eye takes the class and does not move.
+	b.call(g, "Emulation.setEmulatedMedia", map[string]any{
+		"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "reduce"}},
+	})
+	approve(third)
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("none"))
+}
+
 // A large review's cards all open with empty bodies, and each asks for its
 // body as it nears the screen inside the page's own scroller. One far below
 // stays empty, and a folded card loads only once it is unfolded.
