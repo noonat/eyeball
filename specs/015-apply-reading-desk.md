@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-12T00:00:00Z
-updated: 2026-10-12T03:02:46.828652223Z
+updated: 2026-10-12T04:04:43.229317301Z
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -292,6 +292,12 @@ first.
 > from before 016 moved the scrolling to the document. Nothing in the branch
 > changed for it.
 
-- [ ] The fonts loading in the installed page
-- [ ] The eye's count, the highlighted rows, the letter and the blink on real
+- [x] The fonts loading in the installed page
+- [x] The eye's count, the highlighted rows, the letter and the blink on real
       reviews, with anything found recorded here or in specs/TODO.md
+
+> **Completed** 2026-10-12 04:04 UTC
+>
+> - acks: checked-on-phone
+> - `make check` — 5.5s
+> - `go test -race ./...` — 3.8s
