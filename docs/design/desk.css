@@ -1,6 +1,7 @@
 /* Direction A, the reading desk: identity from reading and marking up text.
  *
- * Linked by desk.html after app.css and directions.css. It overrides tokens
+ * Linked by mix.html after app.css and directions.css, with letter.css after
+ * it. It overrides tokens
  * and adds the rules the direction needs. Nothing here ships until a later
  * spec applies the chosen direction to app.css.
  *
