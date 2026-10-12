@@ -917,11 +917,14 @@ a.bit .project {
 
 /* ------------------------------------------------------------- the diff */
 
+/* clip, not hidden: hidden makes the card a scroll container, and its sticky
+ * header would then stick inside the card, which never scrolls, and so scroll
+ * away with it. clip trims to the corners the same way without one. */
 .file {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--panel);
-  overflow: hidden;
+  overflow: clip;
 }
 
 .file + .file {
@@ -939,6 +942,18 @@ a.bit .project {
   cursor: default;
   list-style: none;
   min-width: 0;
+}
+
+/* A card's header stays at the top of the screen while its file scrolls under
+ * it, so a long diff keeps saying which file it is. It sticks under the page's
+ * own sticky header, whose height a script keeps in --head-height, and at the
+ * top of a tearout frame's .scroll, where the property is unset. It sits over
+ * the code, a thread's pinned body among it, and under the page header and the
+ * decision bar. */
+.file > summary {
+  position: sticky;
+  top: var(--head-height, 0px);
+  z-index: 2;
 }
 
 .file > summary::-webkit-details-marker {
