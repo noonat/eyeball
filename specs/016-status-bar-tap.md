@@ -163,4 +163,3 @@ is approved.
 > - `make check` — 6.1s
 > - `go test -race ./...` — 4.0s
 > - `go test -count=1 -tags browser ./internal/server` — 29.9s
-
