@@ -36,37 +36,34 @@ holds and the back button closes it.
 
 ## The tearouts
 
-| Tearout                                  | Covers                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`foundations.html`](./foundations.html) | The shell, type scale, palette in both themes, and every reused primitive: state pills and row stripes, the unified diff with word marks and its five syntax roles, rendered prose with changed-passage rules, comment cards and the composer, level chips, buttons, the decision bar, notices, empty state, first-run steps, the icon badge                                                                                                                        |
-| [`queue.html`](./queue.html)             | The home screen: populated across three projects, nothing waiting, not installed yet, installed with notifications not yet allowed, a lapsed subscription, and the awkward week that breaks it                                                                                                                                                                                                                                                                      |
-| [`review.html`](./review.html)           | The review page: a second round of a document, a large change with every file open under a list of them, one folded and one deferred, with a comment being written, a first round against an empty base, a refused verdict, a round already decided, a passage selected for a comment, the review box and the verdict note, a verdict that could not be sent, rendered files in their cards, files that changed mode, and an earlier round with the agent's replies |
-| [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, a file too big to render, a page in its sandboxed frame, a changed image before over after, a file that changed mode, and new and deleted images, SVG, video, audio and a PDF                                                                                                                                                            |
-| [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                                                                                                                                              |
-| [`mix.html`](./mix.html)                 | Chosen in spec 013, not yet applied: the reading desk, with the agent's note as a letter. The queue, the empty queue, a second round, a large change with the composer open, and the Approve moment, in Atkinson Hyperlegible and Literata, with a highlighter yellow and an eye in the top bar                                                                                                                                                                     |
+| Tearout                                  | Covers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`foundations.html`](./foundations.html) | The shell, type scale, palette in both themes, and every reused primitive: state pills and rows, the eye, the highlighter and the letter, the unified diff with word marks and its five syntax roles, rendered prose with changed-passage rules, comment cards and the composer, level chips, buttons, the decision bar, notices, empty state, first-run steps, the icon badge                                                                                                                                   |
+| [`queue.html`](./queue.html)             | The home screen: populated across three projects, nothing waiting, not installed yet, installed with notifications not yet allowed, a lapsed subscription, and the awkward week that breaks it                                                                                                                                                                                                                                                                                                                   |
+| [`review.html`](./review.html)           | The review page: a second round of a document, a large change with every file open under a list of them, one folded and one deferred, with a comment being written, a first round against an empty base, a refused verdict, a round already decided, Approve and the decided round it reloads to, a passage selected for a comment, the review box and the verdict note, a verdict that could not be sent, rendered files in their cards, files that changed mode, and an earlier round with the agent's replies |
+| [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, a file too big to render, a page in its sandboxed frame, a changed image before over after, a file that changed mode, and new and deleted images, SVG, video, audio and a PDF                                                                                                                                                                                                         |
+| [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 That is the whole surface the product document describes. A new screen gets a
 tearout before it gets code.
 
 ## The visual direction
 
-Spec 013 drew two directions for the visual language against these fixtures, and
-the owner chose between them on the phone on 2026-10-11. The choice is
-`mix.html`: the reading desk, with the agent's note set as a letter.
+The visual language is the reading desk, with the agent's note as a letter. Spec
+013 drew two directions against these fixtures, and the owner chose between them
+on the phone on 2026-10-11. Spec 015 applied the choice to `app.css`, these
+sheets and the templates.
 
 The reading desk won over letters from agents for the reasons the owner gave.
 Less color on the screen was less distracting. The highlight was a great idea.
 The eye in the top bar was excellent, especially closing when nothing waits and
-blinking on Approve. Letters kept the current design's state hues and spent its
+blinking on Approve. Letters kept the earlier design's state hues and spent its
 one new color, a violet, on links and selection.
 
 Seen on the desk's paper, the letter was preferred to the desk alone. So the
-note leads the review page in Literata, signed, and its first line is on the
-queue row. Letters' violet tokens and its reply on Approve were dropped, and git
-holds both sheets as they were judged.
-
-The other sheets here still draw the current visual language. A later spec
-applies the chosen one to `app.css`, the templates and every sheet.
+note leads the review page in Literata, signed, and its first paragraph is on
+the queue row. Letters' violet tokens and its reply on Approve were dropped. Git
+holds every sheet as it was judged, under spec 013's commits.
 
 ## How to work on these
 
@@ -76,11 +73,9 @@ applies the chosen one to `app.css`, the templates and every sheet.
   dark pairing, expand-to-full-size. A tearout's own `<style>` block holds
   nothing, and a page-local style is a sign the vocabulary belongs in `app.css`.
 
-  `mix.html`, the direction spec 013 chose, links three more after them:
-  `directions.css`, the fixes to the current design's template habits,
-  `desk.css`, the highlighter and the eye, and `letter.css`, the agent's note as
-  a letter. None ships until a later spec applies them to `app.css`. Their fonts
-  sit in `fonts/` with their licenses.
+  `app.css` names its fonts by paths relative to itself, so `fonts/` beside it
+  serves both these sheets and the surface, which serves the same files at
+  `/static/fonts/`. Each family's license sits beside its files.
 
 - **Both themes, side by side.** Tokens are defined on `[data-theme="light"]`
   and `[data-theme="dark"]`, so a tearout stamps the attribute on each frame and
@@ -90,8 +85,8 @@ applies the chosen one to `app.css`, the templates and every sheet.
 
 - **Two tones per semantic hue.** `--ok` and `--ok-vivid`, `--warn` and
   `--warn-vivid`, and so on: the text tone for labels and copy, the vivid tone
-  for dots, rules, borders and tints. One value cannot do both in light mode,
-  because an amber dark enough to read as text is brown.
+  for rules, borders and tints. One value cannot do both in light mode, because
+  an amber dark enough to read as text is brown.
 
 - **Hue is never the only signal.** Additions are teal and removals are clay,
   which separate on the blue-yellow axis and survive both common forms of
@@ -121,6 +116,10 @@ applies the chosen one to `app.css`, the templates and every sheet.
   stylesheet, with no font file, no second request and no load state. The names
   in `icons.txt` are the names on lucide.dev, and the class at a use site is
   `i-<that name>`.
+
+  The eye in the top bar is drawn the same way, as two masks in `app.css`, and
+  is not in `icons.txt`: Lucide has no shut eye with lashes, and the open one
+  has to hold the waiting count.
 
   **A mask rather than a font, deliberately.** A Lucide webfont would have to
   ship a thousand icons or add a subsetting step, and there is no server-side

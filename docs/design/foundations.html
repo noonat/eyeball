@@ -22,7 +22,6 @@
     <a href="review.html">Review</a>
     <a href="widening.html">Widening</a>
     <a href="project.html">Project</a>
-    <a href="mix.html">Reading desk</a>
     <a href="README.md">Readme</a>
   </nav>
 </header>
@@ -30,8 +29,10 @@
 <!-- ============================================================ palette -->
 <section class="spec" id="palette">
   <h2>Palette <span class="tag">tokens</span></h2>
-  <p>Two tones per semantic hue. The plain tone reads as text, the
-  <code>-vivid</code> tone fills dots, rules and borders. One value cannot do
+  <p>Ink on paper, and one highlighter. The accent is the ink itself, so a link
+  and a button read as ink, and <code>--hl</code> is the only color that asks
+  for attention. Two tones per semantic hue. The plain tone reads as text, the
+  <code>-vivid</code> tone fills rules and borders. One value cannot do
   both in light mode, because an amber dark enough to read as text is brown.
   Additions are teal and removals are clay, never red against green, which is
   the one pair some readers cannot separate at all.</p>
@@ -49,6 +50,9 @@
           <div class="sw"><div class="chipbox" style="background:var(--ink-dim)"></div><div class="lbl">--ink-dim</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--ink-faint)"></div><div class="lbl">--ink-faint</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--accent-vivid)"></div><div class="lbl">--accent-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--hl)"></div><div class="lbl">--hl</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--hl-line)"></div><div class="lbl">--hl-line</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--syntax-keyword)"></div><div class="lbl">--syntax-keyword</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--ok-vivid)"></div><div class="lbl">--ok-vivid</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--warn-vivid)"></div><div class="lbl">--warn-vivid</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--danger-vivid)"></div><div class="lbl">--danger-vivid</div></div>
@@ -74,6 +78,9 @@
           <div class="sw"><div class="chipbox" style="background:var(--ink-dim)"></div><div class="lbl">--ink-dim</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--ink-faint)"></div><div class="lbl">--ink-faint</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--accent-vivid)"></div><div class="lbl">--accent-vivid</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--hl)"></div><div class="lbl">--hl</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--hl-line)"></div><div class="lbl">--hl-line</div></div>
+          <div class="sw"><div class="chipbox" style="background:var(--syntax-keyword)"></div><div class="lbl">--syntax-keyword</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--ok-vivid)"></div><div class="lbl">--ok-vivid</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--warn-vivid)"></div><div class="lbl">--warn-vivid</div></div>
           <div class="sw"><div class="chipbox" style="background:var(--danger-vivid)"></div><div class="lbl">--danger-vivid</div></div>
@@ -92,9 +99,17 @@
     <li><b>Teal and clay separate on the blue-yellow axis</b>, which survives
     both common forms of red-green color blindness. Hue is still never the only
     signal: a changed row carries a sign in the gutter and a tinted background.</li>
-    <li><b>The light background is warm off-white, not pure white.</b> Reviews
-    happen outdoors on a phone at full brightness, where white panels on a white
-    page lose their edges.</li>
+    <li><b>The light background is a paper with a trace of green, not pure
+    white and never cream.</b> Reviews happen outdoors on a phone at full
+    brightness, where white panels on a white page lose their edges. Both themes
+    take one neutral family at one temperature.</li>
+    <li><b>Text on the highlighter is a fixed ink.</b> <code>--on-hl</code>
+    does not change with the theme, because light text on yellow cannot be
+    read. The dark highlighter leans toward lemon, away from the amber that
+    marks a passage showing what it replaced.</li>
+    <li><b>Every text tone holds 4.5 to 1 on the grounds it sits on</b>, in both
+    themes. The light Approve green is <code>#15805a</code>, because white on
+    the earlier <code>#1a9b6c</code> was 3.53.</li>
   </ul>
 </section>
 
@@ -103,33 +118,37 @@
 <!-- =============================================================== type -->
 <section class="spec" id="type">
   <h2>Type <span class="tag">scale</span></h2>
-  <p>Two families and no more: the system sans for everything a person reads as
-  language, and the system mono for anything with a column position that
-  matters. No web fonts, so nothing waits on a network and nothing reflows
-  after paint.</p>
+  <p>Two families, each in one role. Atkinson Hyperlegible Next and its Mono set
+  the chrome, code and addresses: the Braille Institute drew them for
+  low-vision legibility, and they keep l, I and 1, and 0 and O, apart. Literata
+  sets what an agent wrote and a rendered document. The fonts are 215 KB,
+  served beside the stylesheet, so a first load shows the system faces until
+  they arrive.</p>
 
   <div class="pair">
     <figure class="frame">
       <figcaption>light</figcaption>
       <div class="slab" data-theme="light"><div class="app"><div class="page">
-        <div class="typerow"><span class="meta">xl / 21</span><span style="font-size:var(--t-xl);font-weight:640;letter-spacing:-.02em">Product doc, second pass</span></div>
-        <div class="typerow"><span class="meta">lg / 17</span><span style="font-size:var(--t-lg);font-weight:620">Reading the change</span></div>
-        <div class="typerow"><span class="meta">md / 15</span><span style="font-size:var(--t-md)">A round is frozen at request time.</span></div>
-        <div class="typerow"><span class="meta">sm / 13</span><span style="font-size:var(--t-sm)">Rewrote the widening section; the compare control is new.</span></div>
-        <div class="typerow"><span class="meta">xs / 11</span><span style="font-size:var(--t-xs);color:var(--ink-faint)">eyeball &middot; docs &middot; round 2</span></div>
-        <div class="typerow"><span class="meta">mono / 13</span><span style="font-family:var(--mono);font-size:var(--t-code)">docs/product.md:214</span></div>
+        <div class="typerow"><span class="meta">xl / 26</span><span style="font-size:var(--t-xl);font-weight:700;letter-spacing:-.02em">Product doc, second pass</span></div>
+        <div class="typerow"><span class="meta">lg / 20</span><span style="font-size:var(--t-lg);font-weight:650">Waiting on you</span></div>
+        <div class="typerow"><span class="meta">md / 16</span><span style="font-size:var(--t-md)">A round is frozen at request time.</span></div>
+        <div class="typerow"><span class="meta">sm / 14</span><span style="font-size:var(--t-sm)">Rewrote the widening section, and the compare control is new.</span></div>
+        <div class="typerow"><span class="meta">xs / 12</span><span style="font-size:var(--t-xs);color:var(--ink-faint)">Round 2, 1 file</span></div>
+        <div class="typerow"><span class="meta">mono / 13</span><span style="font-family:var(--mono);font-size:var(--t-code)">docs/product.md:214 0O 1lI</span></div>
+        <div class="typerow"><span class="meta">letter / 17</span><span style="font:400 17px/1.6 var(--letter)">Both comments from round 1 are done.</span></div>
       </div></div></div>
     </figure>
 
     <figure class="frame">
       <figcaption>dark</figcaption>
       <div class="slab" data-theme="dark"><div class="app"><div class="page">
-        <div class="typerow"><span class="meta">xl / 21</span><span style="font-size:var(--t-xl);font-weight:640;letter-spacing:-.02em">Product doc, second pass</span></div>
-        <div class="typerow"><span class="meta">lg / 17</span><span style="font-size:var(--t-lg);font-weight:620">Reading the change</span></div>
-        <div class="typerow"><span class="meta">md / 15</span><span style="font-size:var(--t-md)">A round is frozen at request time.</span></div>
-        <div class="typerow"><span class="meta">sm / 13</span><span style="font-size:var(--t-sm)">Rewrote the widening section; the compare control is new.</span></div>
-        <div class="typerow"><span class="meta">xs / 11</span><span style="font-size:var(--t-xs);color:var(--ink-faint)">eyeball &middot; docs &middot; round 2</span></div>
-        <div class="typerow"><span class="meta">mono / 13</span><span style="font-family:var(--mono);font-size:var(--t-code)">docs/product.md:214</span></div>
+        <div class="typerow"><span class="meta">xl / 26</span><span style="font-size:var(--t-xl);font-weight:700;letter-spacing:-.02em">Product doc, second pass</span></div>
+        <div class="typerow"><span class="meta">lg / 20</span><span style="font-size:var(--t-lg);font-weight:650">Waiting on you</span></div>
+        <div class="typerow"><span class="meta">md / 16</span><span style="font-size:var(--t-md)">A round is frozen at request time.</span></div>
+        <div class="typerow"><span class="meta">sm / 14</span><span style="font-size:var(--t-sm)">Rewrote the widening section, and the compare control is new.</span></div>
+        <div class="typerow"><span class="meta">xs / 12</span><span style="font-size:var(--t-xs);color:var(--ink-faint)">Round 2, 1 file</span></div>
+        <div class="typerow"><span class="meta">mono / 13</span><span style="font-family:var(--mono);font-size:var(--t-code)">docs/product.md:214 0O 1lI</span></div>
+        <div class="typerow"><span class="meta">letter / 17</span><span style="font:400 17px/1.6 var(--letter)">Both comments from round 1 are done.</span></div>
       </div></div></div>
     </figure>
   </div>
@@ -253,10 +272,12 @@
 
 <!-- ============================================================== state -->
 <section class="spec" id="state">
-  <h2>State <span class="tag">pills, stripes, rows</span></h2>
-  <p>Four states, each with a pill and a stripe down the left edge of its row.
-  Two signals rather than one, because the pill is small and the stripe reads
-  at arm's length. The row below shows the awkward content on purpose: a long
+  <h2>State <span class="tag">pills, rows</span></h2>
+  <p>Four states, each with a pill. Work waiting on the reviewer is the one card
+  on the screen and its title is marked with the highlighter, which reads at
+  arm's length as the stripe it replaced did. Working and settled rows are
+  lines between hairlines. A waiting row carries the first paragraph of its
+  note, clamped to two lines. The row below shows the awkward content on purpose: a long
   title that wraps, and an agent name long enough to need truncating.</p>
 
   <div class="pair">
@@ -274,14 +295,14 @@
           <a class="row waiting" href="#state">
             <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
             <span class="age">12m</span>
-            <span class="title">Product doc, second pass</span>
-            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+            <span class="title"><mark>Product doc, second pass</mark></span><span class="gist">Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 2</span><span>1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
           </a>
           <a class="row waiting" href="#state">
             <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/026-index-migration</span></span></span>
             <span class="age">3h</span>
-            <span class="title">Spec 018: bulk import for the tag index, additive and idempotent</span>
-            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 3</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+            <span class="title"><mark>Spec 018: bulk import for the tag index, additive and idempotent</mark></span><span class="gist">The importer now refuses a file with duplicate tags instead of merging them.</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 3</span><span>6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
           </a>
           <a class="row working" href="#state">
             <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
@@ -313,14 +334,14 @@
           <a class="row waiting" href="#state">
             <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
             <span class="age">12m</span>
-            <span class="title">Product doc, second pass</span>
-            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+            <span class="title"><mark>Product doc, second pass</mark></span><span class="gist">Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 2</span><span>1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
           </a>
           <a class="row waiting" href="#state">
             <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/026-index-migration</span></span></span>
             <span class="age">3h</span>
-            <span class="title">Spec 018: bulk import for the tag index, additive and idempotent</span>
-            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 3</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+            <span class="title"><mark>Spec 018: bulk import for the tag index, additive and idempotent</mark></span><span class="gist">The importer now refuses a file with duplicate tags instead of merging them.</span>
+            <span class="meta"><span class="pill waiting">Waiting</span><span>Round 3</span><span>6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
           </a>
           <a class="row working" href="#state">
             <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
@@ -338,6 +359,110 @@
       </div></div></div>
     </figure>
   </div>
+</section>
+
+<hr class="rule">
+
+<!-- ========================================================== attention -->
+<section class="spec" id="attention">
+  <h2>Attention <span class="tag">the eye, the highlighter, the letter</span></h2>
+  <p>The eye is in the top bar of every screen: open with the waiting count as
+  its iris while anything waits, shut when nothing does, and large and shut as
+  the empty queue. The highlighter marks a waiting title and a line chosen for
+  a comment. The agent's note is a letter, signed, and the reviewer's verdict
+  note stays a plain note.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="slab" data-theme="light"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="topbar"><a class="back" href="#attention"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="12 waiting"><span class="iris">12</span></span></div>
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye shut" role="img" aria-label="Nothing waiting"></span></div>
+        <div class="page">
+          <div class="empty">
+            <span class="eye lg shut" aria-hidden="true"></span>
+            <span class="headline">Nothing waiting</span>
+          </div>
+          <div class="rows">
+            <a class="row waiting" href="#attention">
+              <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+              <span class="age">1h</span>
+              <span class="title"><mark>Upload worker and its retry ladder, with the backoff measured against staging</mark></span><span class="gist">The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s.</span>
+              <span class="meta"><span>Round 1</span><span>6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+            </a>
+          </div>
+          <div class="code narrow">
+            <table>
+              <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+              <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+              <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+            </table>
+          </div>
+          <div class="note letter">
+            <p>The worker retries three times with backoff, then gives up and
+            records the failure on the job.</p>
+            <span class="sig"><span class="agent">feat/upload-retry</span></span>
+          </div>
+          <div class="note">
+            <span class="from">Verdict note</span>
+            <p>Close. Make the first wait a constant with the measurement beside it.</p>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="slab" data-theme="dark"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="topbar"><a class="back" href="#attention"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="12 waiting"><span class="iris">12</span></span></div>
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye shut" role="img" aria-label="Nothing waiting"></span></div>
+        <div class="page">
+          <div class="empty">
+            <span class="eye lg shut" aria-hidden="true"></span>
+            <span class="headline">Nothing waiting</span>
+          </div>
+          <div class="rows">
+            <a class="row waiting" href="#attention">
+              <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+              <span class="age">1h</span>
+              <span class="title"><mark>Upload worker and its retry ladder, with the backoff measured against staging</mark></span><span class="gist">The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s.</span>
+              <span class="meta"><span>Round 1</span><span>6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+            </a>
+          </div>
+          <div class="code narrow">
+            <table>
+              <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+              <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+              <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+            </table>
+          </div>
+          <div class="note letter">
+            <p>The worker retries three times with backoff, then gives up and
+            records the failure on the job.</p>
+            <span class="sig"><span class="agent">feat/upload-retry</span></span>
+          </div>
+          <div class="note">
+            <span class="from">Verdict note</span>
+            <p>Close. Make the first wait a constant with the measurement beside it.</p>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The mark follows the words, not the row.</b> A title that wraps is
+    marked as two strokes, as a pen would, which a filled card cannot do.</li>
+    <li><b>A chosen line is a lighter fill than a marked title</b>, so the code
+    on it still reads.</li>
+    <li><b>Two digits fit the iris.</b> A queue of a hundred is not a case this
+    surface is drawn for.</li>
+    <li><b>The eye is drawn in app.css rather than listed in icons.txt.</b>
+    Lucide has no shut eye with lashes, and the open one has to hold a
+    count.</li>
+  </ul>
 </section>
 
 <hr class="rule">
@@ -708,6 +833,7 @@
         </div>
 
         <div class="empty">
+          <span class="eye lg shut" aria-hidden="true"></span>
           <span class="headline">Nothing waiting</span>
           <p>Three agents are working across eyeball, harbor and field-notes.</p>
         </div>
@@ -741,6 +867,7 @@
         </div>
 
         <div class="empty">
+          <span class="eye lg shut" aria-hidden="true"></span>
           <span class="headline">Nothing waiting</span>
           <p>Three agents are working across eyeball, harbor and field-notes.</p>
         </div>
@@ -780,7 +907,7 @@
       <div class="phone md" data-theme="light"><div class="app">
         <div class="topbar">
           <span class="wordmark">eyeball</span>
-          <span class="pill waiting">3 waiting</span>
+          <span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
         </div>
         <div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" href="#connection">Retry</a></div>
         <div class="scroll"><div class="page">
@@ -790,14 +917,14 @@
               <a class="row waiting" href="#connection">
                 <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
                 <span class="age">12m</span>
-                <span class="title">Product doc, second pass</span>
-                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span></span>
+                <span class="title"><mark>Product doc, second pass</mark></span><span class="gist">Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</span>
+                <span class="meta"><span>Round 2</span><span>1 file</span></span>
               </a>
               <a class="row waiting" href="#connection">
                 <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
                 <span class="age">1h</span>
-                <span class="title">Upload worker and its retry ladder</span>
-                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span></span>
+                <span class="title"><mark>Upload worker and its retry ladder</mark></span><span class="gist">The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s.</span>
+                <span class="meta"><span>Round 1</span><span>6 files</span></span>
               </a>
             </div>
           </div>
@@ -810,7 +937,7 @@
       <div class="phone lg" data-theme="dark"><div class="app">
         <div class="topbar">
           <a class="back" href="#connection"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
-          <h1>Product doc</h1>
+          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
         </div>
         <div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" href="#connection">Retry</a></div>
         <div class="scroll"><div class="page">

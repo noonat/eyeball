@@ -24,7 +24,7 @@
 </div>
 {{end}}</div></div>
 {{end}}
-{{define "waitingrow"}}<a class="row waiting" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Round {{.Round}}</span><span class="dot-sep">{{.Files}}</span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></span></a>
+{{define "waitingrow"}}<a class="row waiting" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Round {{.Round}}</span><span>{{.Files}}</span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></span></a>
 {{end}}
 {{define "workingrow"}}<a class="row working" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Changes requested, round {{.Round}}</span></span></a>
 {{end}}
