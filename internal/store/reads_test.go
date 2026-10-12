@@ -211,6 +211,7 @@ func TestStore_Queue(t *testing.T) {
 	g.Expect(row.ProjectName).To(Equal("project"))
 	g.Expect(row.Agent).To(Equal("agent-1"))
 	g.Expect(row.Title).To(Equal("still waiting"))
+	g.Expect(row.Note).To(Equal("look at this"))
 	g.Expect(row.State).To(Equal(StateOpen))
 	g.Expect(row.Round).To(Equal(waitingRound.Number))
 	// Makefile moved too, and it is outside the review's paths, so it counts
@@ -228,6 +229,12 @@ func TestStore_Queue(t *testing.T) {
 	for _, id := range append(append(ids(queue.Waiting), ids(queue.Working)...), ids(queue.Settled)...) {
 		g.Expect(id).NotTo(Equal(gone.ID))
 	}
+
+	// The top bar's count is the Waiting section's length, with a working, a
+	// settled and an abandoned review beside it to be left out.
+	n, err := s.Waiting(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(n).To(Equal(len(queue.Waiting)))
 }
 
 func TestStore_Queue_afterASecondRound(t *testing.T) {
@@ -267,6 +274,13 @@ func TestStore_Queue_afterASecondRound(t *testing.T) {
 	g.Expect(ids(queue.Waiting)).To(Equal([]int64{review.ID}))
 	g.Expect(queue.Working).To(BeEmpty())
 	g.Expect(queue.Waiting[0].Round).To(Equal(second.Number))
+	g.Expect(queue.Waiting[0].Note).To(Equal("did what the last round asked"), "the latest round's note")
+
+	// Two rounds, one review: the count joins the latest round as the queue
+	// does, so it counts the review once.
+	n, err := s.Waiting(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(n).To(Equal(1))
 
 	// The size is what moved since round 1, not what the capture holds. A
 	// header saying two files above a diff of one file describes something

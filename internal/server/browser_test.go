@@ -328,6 +328,32 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
 }
 
+// The stylesheet's three faces and the eye load under the surface's own
+// policy. A font the policy blocks falls back to the system face and a mask it
+// blocks draws nothing, and both look close enough to right that nobody
+// reports them.
+func TestServer_Surface_browserFonts(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo, Agent: "spec/012-surface"}, Paths: []string{"a.txt"}, Note: "A letter."}).Review.ID
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+
+	// Installed before the page loads, so a violation during load is heard.
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{
+		"source": `window.__blocked = []; addEventListener("securitypolicyviolation", (e) => window.__blocked.push(e.violatedDirective + " " + e.blockedURI));`,
+	})
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `document.fonts.ready.then(() => true)`)
+	loaded := b.eval(g, `document.fonts.ready.then(() => [...new Set([...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replaceAll('"', "")))].sort().join(", "))`)
+	g.Expect(loaded).To(Equal("Atkinson Hyperlegible Mono, Atkinson Hyperlegible Next, Literata"), "the chrome, the agent's name and the letter each drew its own face")
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".eye"), "::before").maskImage.startsWith("url(\"data:image/svg+xml")`)).To(BeTrue())
+	g.Expect(b.eval(g, `window.__blocked.join("; ")`)).To(BeEmpty())
+}
+
 // Load anyway on a held card fills the card with its body, and the card
 // stays open.
 func TestServer_Surface_browserHeld(t *testing.T) {

@@ -194,24 +194,32 @@ required_commands:
   - cmd: go tool staticcheck -tags browser ./internal/server/...
 ```
 
-- [ ] The layout's topbar drawing the eye on every page from a waiting count
+- [x] The layout's topbar drawing the eye on every page from a waiting count
       read when the page renders, shut when nothing waits, absent when the count
       cannot be read
-- [ ] A test holding the waiting count to the queue's Waiting section
-- [ ] Waiting titles marked, and each waiting row carrying the first paragraph
+- [x] A test holding the waiting count to the queue's Waiting section
+- [x] Waiting titles marked, and each waiting row carrying the first paragraph
       of its latest round's note, split by `paragraphs`
-- [ ] The review page's note as the signed letter before the brief, with the
+- [x] The review page's note as the signed letter before the brief, with the
       verdict note after it as a plain note
-- [ ] The empty queue's shut eye, and the layout's theme-color matching the new
+- [x] The empty queue's shut eye, and the layout's theme-color matching the new
       paper
-- [ ] Tests: the note's first paragraph on a row, the letter's order and
+- [x] Tests: the note's first paragraph on a row, the letter's order and
       signature, and the eye open, shut, and absent on a count error
-- [ ] A browser test loading a page with the fonts and the eye under the
+- [x] A browser test loading a page with the fonts and the eye under the
       surface's own policy, with no violation reported
-- [ ] specs/TODO.md entry for the count following the stream off the queue
-- [ ] `tool/appicon` drawing the eye from `.badgeicon`'s three fixed colors, the
+- [x] specs/TODO.md entry for the count following the stream off the queue
+- [x] `tool/appicon` drawing the eye from `.badgeicon`'s three fixed colors, the
       PNGs under `web/static/icons` regenerated, and the TODO entry for the icon
       removed
+
+> **Completed** 2026-10-12 03:34 UTC
+>
+> - `make check` — 6.6s
+> - `go test -race ./...` — 3.2s
+> - `go test -tags browser ./internal/server/...` — 1.9s
+> - `go vet -tags browser ./internal/server/...` — 80ms
+> - `go tool staticcheck -tags browser ./internal/server/...` — 192ms
 
 ## Iteration 4: The blink after Approve
 

@@ -103,7 +103,7 @@ func TestServer_Surface_tree(t *testing.T) {
 		addresses := []string{"/files/internal/", "/files/internal"}
 		for _, p := range addresses {
 			doc := f.page(g, base+p, http.StatusOK)
-			g.Expect(text(find(doc, "topbar"))).To(Equal("FilesFiles"), p)
+			g.Expect(barText(doc)).To(Equal("FilesFiles"), p)
 			g.Expect(attr(find(doc, "back"), "href")).To(Equal(base+"/files/"), p)
 			g.Expect(text(find(doc, "crumb"))).To(Equal("harbor / internal"), p)
 			g.Expect(notices(doc)).To(Equal([]string{frozen}), p)
@@ -122,7 +122,7 @@ func TestServer_Surface_tree(t *testing.T) {
 		g.Expect(res.Code).To(Equal(http.StatusTemporaryRedirect))
 		g.Expect(res.Header().Get("Location")).To(Equal(base + "/files/"))
 		doc = f.page(g, base+"/files/", http.StatusOK)
-		g.Expect(text(find(doc, "topbar"))).To(Equal("ReviewFiles"))
+		g.Expect(barText(doc)).To(Equal("ReviewFiles"))
 		g.Expect(attr(find(doc, "back"), "href")).To(Equal(base))
 		g.Expect(text(find(doc, "crumb"))).To(Equal("harbor"))
 		g.Expect(find(find(doc, "crumb"), "dir")).To(BeNil())
