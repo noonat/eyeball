@@ -1,0 +1,191 @@
+/* Direction B, letters from agents: identity from the agent's note.
+ *
+ * Linked by letters.html after app.css and directions.css. It overrides tokens
+ * and adds the rules the direction needs. Nothing here ships until a later
+ * spec applies the chosen direction to app.css.
+ *
+ * product.md calls the note the reviewer's brief. Here it leads: first on the
+ * review page, at reading size, in a text serif, signed with the agent's name,
+ * and its first line is on the agent's queue row. The serif marks speech and
+ * reading and nothing else, so the chrome keeps the system sans. */
+
+/* --------------------------------------------------------------- fonts */
+
+/* Literata, TypeTogether's text face for reading on screens, OFL-1.1.
+ * Fontsource 5.3.0's Latin subsets, variable over 200 to 900. These are the
+ * weight files, 52 and 54 KB, with the optical size fixed at 14. The files
+ * that also vary optical size are 110 and 113 KB, twice the weight of the
+ * other direction's fonts, for a difference at reading sizes this sheet does
+ * not need to show. */
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("fonts/literata/latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Literata";
+  font-style: italic;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("fonts/literata/latin-wght-italic.woff2") format("woff2");
+}
+
+/* ---------------------------------------------------------------- tokens */
+
+/* Ink on a cool paper, mostly monochrome. The accent is an iron-gall violet,
+ * the color of ink as it dries, and not blue: blue is the current design's
+ * accent, and keeping it would blur the comparison this sheet is for. The
+ * paper is cool because a serif on warm paper is one of the commonest
+ * generated looks, and the removal clay sits next to its usual accent. */
+[data-theme="light"] {
+  --bg: #eef1f4;
+  --bg-sunk: #e3e7ec;
+  --panel: #ffffff;
+  --panel-2: #f6f8fa;
+  --line: #d8dee5;
+  --line-strong: #bec6d0;
+
+  --ink: #1d2430;
+  --ink-dim: #4a5361;
+  --ink-faint: #5d6674;
+
+  --accent: #4a3aa8;
+  --accent-vivid: #5847c0;
+  --accent-wash: #ecebfa;
+  --on-accent: #ffffff;
+
+  /* app.css's #1a9b6c puts white Approve text at 3.53 to 1. */
+  --ok-vivid: #15805a;
+}
+
+[data-theme="dark"] {
+  --bg: #161a20;
+  --bg-sunk: #11141a;
+  --panel: #1d2229;
+  --panel-2: #232932;
+  --line: #2d343e;
+  --line-strong: #3f4752;
+
+  --ink: #dfe4ea;
+  --ink-dim: #a8b0bb;
+  --ink-faint: #87909c;
+
+  --accent: #b6abf6;
+  --accent-vivid: #9d8ff0;
+  --accent-wash: #27233f;
+  --on-accent: #161a20;
+}
+
+.app {
+  --letter: "Literata", Georgia, "Times New Roman", serif;
+}
+
+/* ---------------------------------------------------------------- letter */
+
+/* The note as a letter: no rule beside it, the agent's words at reading
+ * size, and the agent's name under them where a letter is signed. It comes
+ * before the title on the review page, because on a second round it says
+ * what was done about the first, which is the question the reviewer opens
+ * with. */
+.note.letter {
+  border-left: 0;
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--line);
+  padding: 18px 20px 14px;
+  gap: 10px;
+}
+
+.note.letter p {
+  font: 400 17px / 1.6 var(--letter);
+  color: var(--ink);
+}
+
+.note.letter p + p {
+  margin-top: 4px;
+}
+
+.sig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.sig::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.sig .agent {
+  font-size: var(--t-sm);
+  color: var(--ink-dim);
+}
+
+/* The note's first line on its queue row, under the title: what the agent
+ * wants as well as what it changed. Italic, because it is quoted. */
+.row .gist {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  font: italic 400 15px / 1.45 var(--letter);
+  color: var(--ink-dim);
+}
+
+/* A rendered document is reading, so it is set in the same face as the
+ * agent's words. Code inside it stays monospace. */
+.prose {
+  font-family: var(--letter);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* --------------------------------------------------------------- moment */
+
+/* Approving writes a reply under the letter. It rises into place once, as
+ * the answer to the tap. The reply and the settled bar come from
+ * directions.css whatever the motion setting; the rise is the only motion. */
+.reply {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: -6px 0 0 20px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  background: var(--ok-wash);
+  font: italic 400 16px / 1.5 var(--letter);
+  color: var(--ink);
+}
+
+.reply .i {
+  color: var(--ok-vivid);
+  align-self: center;
+}
+
+@keyframes letters-reply {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.moment:target .reply {
+  animation: letters-reply 360ms ease-out 150ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment:target .reply {
+    animation: none;
+  }
+}
