@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-11T00:00:00Z
-updated: 2026-10-12T03:50:13.15717558Z
+updated: 2026-10-12T04:15:10.138682814Z
 required_acks:
   - reviewed
 required_commands:
@@ -63,10 +63,10 @@ result either way.
 page header only. A link to a comment, `#comment-N`, and the composer's
 `scrollIntoView` after a tap would land a target under the stuck file header. A
 target inside an open card gets a `scroll-margin-top` of the summary's height,
-added to the page header's padding. The summary's height is one line of the
-path and its padding, set in app.css, so it is a CSS value rather than a
-measurement. A jump from the list of files lands on a card's own top, where its
-header is not yet stuck, and needs nothing.
+added to the page header's padding. The summary's height is one line of the path
+and its padding, set in app.css, so it is a CSS value rather than a measurement.
+A jump from the list of files lands on a card's own top, where its header is not
+yet stuck, and needs nothing.
 
 ## Overlap with 015
 
@@ -97,13 +97,25 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] `.file` clipping with `overflow: clip`, and its summary sticky with a
+- [x] `.file` clipping with `overflow: clip`, and its summary sticky with a
       z-index under `.head` and `.decide`, in `docs/design/app.css`
-- [ ] A frame in `docs/design/review.html` scrolled partway into a long file,
+- [x] A frame in `docs/design/review.html` scrolled partway into a long file,
       its header stuck at the top of the frame
-- [ ] Every frame and expanded view that shows a card screenshotted headless
-      and looked at, for a card the change draws differently
+- [x] Every frame and expanded view that shows a card screenshotted headless and
+      looked at, for a card the change draws differently
 - [ ] The owner has looked at the tearout on the phone and approved it
+
+**Departures, iteration 1.**
+
+- The new frames open at the top of the long file rather than partway into it. A
+  tearout has no script, and nothing in CSS sets where a scroller starts. The
+  header sticks as either frame is scrolled, in a section of its own, "A long
+  file".
+- 015 merged before this branch started, and the branch was rebased onto it, so
+  the overlap section above no longer applies.
+- Headless at 390 pixels, every other sheet renders as it did before the change,
+  with no pixel differing past a 2% color tolerance. The long file frames were
+  shot scrolled 600 and 980 pixels in, with the header stuck under the top bar.
 
 ## Iteration 2: The review page
 
