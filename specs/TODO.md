@@ -220,13 +220,6 @@ which of it matters.
       under that root would be a 500. Reasoned in 007, not tested. A HEAD naming
       a commit that does not exist is handled on the project view, which says
       the working copy cannot be listed.
-- [ ] product: who may write on the tailnet listener, decided in notification
-      (009). 008 requires a token on the loopback listener only. When this
-      machine runs Tailscale on the same tailnet, its own processes reach the
-      node's `:443`, and `curl` passes the cross-origin check, so an agent here
-      could decide a review through it. The owner chose on 2026-10-06 to settle
-      it in 009 with tsnet's `WhoIs` in hand, for example by refusing writes
-      from this machine's own node.
 - [ ] design: commenting from a file page: the whole file, the tree's file and
       the project's live file. 008 puts the composer on the review page only,
       where the bar and the tally are.
