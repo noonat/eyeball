@@ -558,6 +558,80 @@ func TestServer_Surface_reviewFreshConditions(t *testing.T) {
 	}
 }
 
+// A file that moved more than 500 lines holds its body behind a line naming
+// its size and Load anyway, which fetches the body the cards route serves. At
+// 500 the card is deferred as any other in a large review.
+func TestServer_Surface_reviewHoldsAFilePastFiveHundred(t *testing.T) {
+	counts := []int{500, 501}
+	for _, n := range counts {
+		t.Run(itoa(int64(n))+" lines", func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+			write(g, repo, "a.txt", "one\n")
+			write(g, repo, "d/lock.json", strings.Repeat("line\n", n))
+			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "lock"}).Review.ID
+
+			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+			card := find(doc, "file")
+			g.Expect(card).NotTo(BeNil())
+			g.Expect(hasAttr(card, "open")).To(BeTrue())
+			if n <= 500 {
+				g.Expect(find(card, "skeleton")).NotTo(BeNil())
+				g.Expect(find(card, "load")).To(BeNil())
+				return
+			}
+			// A held card waits for the tap, so it never asks on its own.
+			g.Expect(hasAttr(card, "hx-trigger")).To(BeFalse())
+			g.Expect(find(card, "skeleton")).To(BeNil())
+			g.Expect(text(find(card, "kind"))).To(Equal("501 changed lines"))
+			g.Expect(text(find(card, "hint"))).To(Equal("Past the 500 a card shows on its own."))
+			load := find(card, "load")
+			g.Expect(attr(load, "href")).To(Equal(attr(find(card, "fileopen"), "href")), "with no script, Load anyway opens the whole file")
+			res := serveSurface(f.s.Surface(), http.MethodGet, attr(load, "hx-get"))
+			g.Expect(res.Code).To(Equal(http.StatusOK))
+			body := parse(g, res.Body.String())
+			g.Expect(findAll(body, hasClass("src"))).To(HaveLen(n))
+			g.Expect(find(body, "load")).To(BeNil(), "the loaded body held itself again")
+		})
+	}
+}
+
+// A review past ten files lists them above the cards, each linking to its
+// card, so a reader can jump to one. At ten files there is no list.
+func TestServer_Surface_reviewListsFilesPastTen(t *testing.T) {
+	counts := []int{10, 11}
+	for _, n := range counts {
+		t.Run(itoa(int64(n))+" files", func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+			write(g, repo, "a.txt", "one\n")
+			for i := range n {
+				write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", i+1))
+			}
+			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+
+			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+			list := find(doc, "filelist")
+			if n <= 10 {
+				g.Expect(list).To(BeNil())
+				return
+			}
+			g.Expect(list).NotTo(BeNil())
+			links := findAll(list, hasClass("treerow"))
+			g.Expect(links).To(HaveLen(n))
+			cards := findAll(doc, hasClass("file"))
+			for i, link := range links {
+				g.Expect(text(find(link, "nm"))).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
+				g.Expect(text(find(link, "plus"))).To(Equal("+" + itoa(int64(i+1))))
+				g.Expect(attr(link, "href")).To(Equal("#"+attr(cards[i], "id")), "a link names a card that is not its file's")
+				g.Expect(attr(cards[i], "data-path")).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
+			}
+		})
+	}
+}
+
 // A repository moved or deleted after the round leaves nothing to compare
 // against, and the round's capture still holds every file the agent changed.
 // The page shows those as captured, and the review can still be decided.
@@ -652,55 +726,6 @@ func TestServer_Surface_reviewNotFound(t *testing.T) {
 	}
 }
 
-func TestServer_Surface_reviewOpensUpToItsLimits(t *testing.T) {
-	cases := []struct {
-		name  string
-		files int
-		lines int
-		open  bool
-	}{
-		{name: "ten files", files: 10, lines: 1, open: true},
-		{name: "eleven files", files: 11, lines: 1, open: false},
-		{name: "three hundred lines", files: 1, lines: 300, open: true},
-		{name: "three hundred and one lines", files: 1, lines: 301, open: false},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			g := NewWithT(t)
-			f := newFixture(g, t)
-			repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
-			// gitRepo's own edit to a.txt is undone, so only these files move.
-			write(g, repo, "a.txt", "one\n")
-			for i := range c.files {
-				write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", c.lines))
-			}
-			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
-
-			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-			files := findAll(doc, hasClass("file"))
-			g.Expect(files).To(HaveLen(c.files))
-			for _, file := range files {
-				g.Expect(hasAttr(file, "open")).To(Equal(c.open), text(find(file, "path")))
-				// A card past the thresholds sends no body with the page,
-				// and loads it from its own address on the first open.
-				g.Expect(find(file, "code") == nil).To(Equal(!c.open))
-				g.Expect(hasAttr(file, "hx-get")).To(Equal(!c.open))
-			}
-			if c.open {
-				return
-			}
-			body := attr(files[0], "hx-get")
-			g.Expect(attr(files[0], "hx-trigger")).To(Equal("toggle once"))
-			res := serveSurface(f.s.Surface(), http.MethodGet, body)
-			g.Expect(res.Code).To(Equal(http.StatusOK))
-			rows := findAll(parse(g, res.Body.String()), hasClass("src"))
-			g.Expect(rows).To(HaveLen(c.lines))
-			res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt")
-			g.Expect(res.Code).To(Equal(http.StatusNotFound))
-		})
-	}
-}
-
 func TestServer_Surface_reviewRendered(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -759,6 +784,62 @@ func TestServer_Surface_reviewRendered(t *testing.T) {
 		frag := parse(g, `<details class="file"><summary><span class="path">`+p+`</span></summary>`+res.Body.String()+`</details>`)
 		got := cards(frag)[p]
 		g.Expect(got).To(Equal(strings.TrimPrefix(body, "counts +1 −1 | ")), p)
+	}
+}
+func TestServer_Surface_reviewSendsBodiesUpToItsLimits(t *testing.T) {
+	cases := []struct {
+		name  string
+		files int
+		lines int
+		sent  bool
+	}{
+		{name: "ten files", files: 10, lines: 1, sent: true},
+		{name: "eleven files", files: 11, lines: 1, sent: false},
+		{name: "three hundred lines", files: 1, lines: 300, sent: true},
+		{name: "three hundred and one lines", files: 1, lines: 301, sent: false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+			// gitRepo's own edit to a.txt is undone, so only these files move.
+			write(g, repo, "a.txt", "one\n")
+			for i := range c.files {
+				write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", c.lines))
+			}
+			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+
+			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+			files := findAll(doc, hasClass("file"))
+			g.Expect(files).To(HaveLen(c.files))
+			for _, file := range files {
+				// Every card opens at any size. Past the thresholds it sends
+				// no body with the page, and loads it from its own address
+				// once it nears the screen.
+				g.Expect(hasAttr(file, "open")).To(BeTrue(), text(find(file, "path")))
+				g.Expect(find(file, "code") == nil).To(Equal(!c.sent))
+				g.Expect(hasAttr(file, "hx-get")).To(Equal(!c.sent))
+			}
+			if c.sent {
+				return
+			}
+			// The skeleton holds the body's rows, one hunk header and each
+			// line, so the body arriving moves nothing below it.
+			for _, file := range files {
+				skeleton := find(file, "skeleton")
+				g.Expect(attr(skeleton, "data-hunks")).To(Equal("1"))
+				g.Expect(attr(skeleton, "data-lines")).To(Equal(itoa(int64(c.lines))))
+			}
+			body := attr(files[0], "hx-get")
+			g.Expect(attr(files[0], "hx-trigger")).To(Equal("eyeball:near once"))
+			res := serveSurface(f.s.Surface(), http.MethodGet, body)
+			g.Expect(res.Code).To(Equal(http.StatusOK))
+			rows := findAll(parse(g, res.Body.String()), hasClass("src"))
+			g.Expect(rows).To(HaveLen(c.lines))
+			res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt")
+			g.Expect(res.Code).To(Equal(http.StatusNotFound))
+		})
 	}
 }
 
