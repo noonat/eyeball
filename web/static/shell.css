@@ -13,3 +13,20 @@ body {
 body {
   background: var(--bg);
 }
+
+/* A real page scrolls the document. .app grows with its content, so .scroll
+ * has nothing to overflow, where a tearout's phone frame has a fixed height and
+ * .scroll scrolls inside it. iOS sends its status bar tap to the
+ * document's scroller and never to an element scrolling inside it, so with
+ * .scroll scrolling the tap did nothing.
+ *
+ * A jump to a card lands below the sticky header. Its height changes with the
+ * safe area and the notices, so a script measures it into --head-height. */
+html {
+  scroll-padding-top: var(--head-height, 0px);
+}
+
+.app {
+  height: auto;
+  min-height: 100%;
+}
