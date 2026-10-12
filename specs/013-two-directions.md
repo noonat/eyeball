@@ -224,17 +224,21 @@ reads both sheets on the phone before the branch is reviewed.
 
 ## Iteration 3: Letters from agents
 
-- [ ] Literata under `docs/design/fonts/` as Latin woff2 with its `OFL.txt`, and
+- [x] Literata under `docs/design/fonts/` as Latin woff2 with its `OFL.txt`, and
       its size written in the sheet's notes
-- [ ] `letters.css` holding the same shared fixes as `desk.css`, the tokens in
+- [x] `letters.css` holding the same shared fixes as `desk.css`, the tokens in
       both themes, and the note as the lead
-- [ ] `letters.html` drawing the same five frames in both themes, with the same
+- [x] `letters.html` drawing the same five frames in both themes, with the same
       fixture content, Expand, and notes
-- [ ] Contrast measured as in iteration 2, and every frame and expanded view
+- [x] Contrast measured as in iteration 2, and every frame and expanded view
       screenshotted and looked at
-- [ ] README's table of tearouts and every sheet's navigation naming both
+- [x] README's table of tearouts and every sheet's navigation naming both
       directions as exploratory, and its two-shared-stylesheets rule naming the
       direction stylesheets
+
+> **Completed** 2026-10-12 00:35 UTC
+>
+> - `make check` — 5.4s
 
 ## Iteration 4: On the phone
 

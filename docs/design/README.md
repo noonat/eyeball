@@ -10,9 +10,8 @@ tearout, before any plumbing. This is an ordering, not a preference: find a
 design worth building, then build it. A change to a surface that already exists
 starts by changing the tearout it was approved against.
 
-Open any file straight from the filesystem. Two shared stylesheets, fixture
-content, no network, no build step, and no JavaScript. Nothing here talks to a
-server.
+Open any file straight from the filesystem. Shared stylesheets, fixture content,
+no network, no build step, and no JavaScript. Nothing here talks to a server.
 
 ## Judge it on the phone
 
@@ -44,6 +43,8 @@ holds and the back button closes it.
 | [`review.html`](./review.html)           | The review page: a second round of a document, a large change as a file list with a comment being written, a first round against an empty base, a refused verdict, a round already decided, a passage selected for a comment, the review box and the verdict note, a verdict that could not be sent, rendered files in their cards, files that changed mode, and an earlier round with the agent's replies |
 | [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, any file in the project at that round, the tree, a file too big to render, a page in its sandboxed frame, a changed image before over after, a file that changed mode, and new and deleted images, SVG, video, audio and a PDF                                                                                                   |
 | [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                                                                                     |
+| [`desk.html`](./desk.html)               | Exploratory, for spec 013: the reading desk, one of two directions for how the surface looks. The queue, the empty queue, a second round, a large change with the composer open, and the Approve moment, in Atkinson Hyperlegible with a highlighter yellow and an eye in the top bar                                                                                                                      |
+| [`letters.html`](./letters.html)         | Exploratory, for spec 013: letters from agents, the other direction. The same frames, with the agent's note leading as a letter set in Literata, ink on a cool paper and a violet accent                                                                                                                                                                                                                   |
 
 That is the whole surface the product document describes. A new screen gets a
 tearout before it gets code.
@@ -55,6 +56,10 @@ tearout before it gets code.
   for these pages only: the specimen panels, the phone frames, the light and
   dark pairing, expand-to-full-size. A tearout's own `<style>` block holds
   nothing, and a page-local style is a sign the vocabulary belongs in `app.css`.
+
+  A sheet trying out a direction for the visual language links two more after
+  them: `directions.css`, the fixes every direction shares, and its own, such as
+  `desk.css`. Neither ships. Its fonts sit in `fonts/` with their licenses.
 
 - **Both themes, side by side.** Tokens are defined on `[data-theme="light"]`
   and `[data-theme="dark"]`, so a tearout stamps the attribute on each frame and
