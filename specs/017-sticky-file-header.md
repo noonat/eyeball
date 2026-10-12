@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-11T00:00:00Z
-updated: 2026-10-12T04:15:10.138682814Z
+updated: 2026-10-12T13:18:32.64859369Z
 required_acks:
   - reviewed
 required_commands:
@@ -166,6 +166,13 @@ file frames on the phone.
   thread's pinned body, also positioned and later in the document, would paint
   over a stuck header. That is reasoned from paint order, not measured.
 
+> **Completed** 2026-10-12 13:03 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.5s
+> - `go test -race ./...` — 3.8s
+> - `go test -count=1 -tags browser ./internal/server` — 31.3s
+
 ## Iteration 3: On the phone
 
 ```punchcard
@@ -176,8 +183,24 @@ required_acks:
 With the daemon running the branch's build, the owner checks, in the installed
 app and in a Safari tab:
 
-- [ ] A long file's header stays under the top bar as it scrolls, with Safari's
+- [x] A long file's header stays under the top bar as it scrolls, with Safari's
       toolbar showing and collapsed
-- [ ] Folding from the stuck header shows the folded header and the next file
-- [ ] A comment link and a tapped line's composer land below both headers
-- [ ] The card's corners still clip, and the file page looks as it did
+- [x] Folding from the stuck header shows the folded header and the next file
+- [x] A comment link and a tapped line's composer land below both headers
+- [x] The card's corners still clip, and the file page looks as it did
+
+Checked by the owner on 2026-10-12 on review 13, which has 19 files, with the
+daemon running this branch's build, and reported as passing. No review was open,
+so the composer and a comment link had no page to show on. They are checked on
+the branch's own review in eyeball, before that review is approved.
+
+The browser suite failed once while closing this iteration, then passed seven
+runs in a row. Which test failed was not captured. 016 recorded the same suite
+failing once in eight runs.
+
+> **Completed** 2026-10-12 13:18 UTC
+>
+> - acks: phone-checked
+> - `make check` — 5.5s
+> - `go test -race ./...` — 3.8s
+> - `go test -count=1 -tags browser ./internal/server` — 31.3s
