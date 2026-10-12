@@ -1,0 +1,106 @@
+/* The agent's note as a letter, for the sheets that try it.
+ *
+ * mix.html links it after desk.css, which puts the letter on the reading
+ * desk's paper. It sets type and layout only and names no color of its own,
+ * so it takes the desk's tokens. Nothing
+ * here ships.
+ *
+ * product.md calls the note the reviewer's brief. Here it leads: first on the
+ * review page, at reading size, in a text serif, signed with the agent's name,
+ * and its first line is on the agent's queue row. The serif marks speech and
+ * reading and nothing else. */
+
+/* --------------------------------------------------------------- fonts */
+
+/* Literata, TypeTogether's text face for reading on screens, OFL-1.1.
+ * Fontsource 5.3.0's Latin subsets, variable over 200 to 900. These are the
+ * weight files, 52 and 54 KB, with the optical size fixed at 14. The files
+ * that also vary optical size are 110 and 113 KB, twice these, for a
+ * difference at reading sizes the sheet does not need to show. */
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("fonts/literata/latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Literata";
+  font-style: italic;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("fonts/literata/latin-wght-italic.woff2") format("woff2");
+}
+
+.app {
+  --letter: "Literata", Georgia, "Times New Roman", serif;
+}
+
+/* ---------------------------------------------------------------- letter */
+
+/* The note as a letter: no rule beside it, the agent's words at reading
+ * size, and the agent's name under them where a letter is signed. It comes
+ * before the title on the review page, because on a second round it says
+ * what was done about the first, which is the question the reviewer opens
+ * with. */
+.note.letter {
+  border-left: 0;
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--line);
+  padding: 18px 20px 14px;
+  gap: 10px;
+}
+
+.note.letter p {
+  font: 400 17px / 1.6 var(--letter);
+  color: var(--ink);
+}
+
+.note.letter p + p {
+  margin-top: 4px;
+}
+
+.sig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.sig::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.sig .agent {
+  font-size: var(--t-sm);
+  color: var(--ink-dim);
+}
+
+/* The note's first line on its queue row, under the title: what the agent
+ * wants as well as what it changed. Italic, because it is quoted. */
+.row .gist {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  font: italic 400 15px / 1.45 var(--letter);
+  color: var(--ink-dim);
+}
+
+/* A rendered document is reading, so it is set in the same face as the
+ * agent's words. Code inside it stays monospace. */
+.prose {
+  font-family: var(--letter);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
