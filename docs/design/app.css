@@ -2283,7 +2283,8 @@ button.chip {
 /* ------------------------------------------------------------ app icon */
 
 /* The installed page's icon: the eye on the paper, its iris the highlighter
- * with no count in it, because the system's badge carries the count. A home
+ * with a zero in it. The icon cannot change with the queue, so it holds the
+ * eye's shape and leaves the count to the system's badge. A home
  * screen icon does not follow the page's theme, so its three colors are fixed
  * here rather than read from a theme. tool/appicon renders the installed PNGs
  * from these same three values. */
@@ -2312,12 +2313,15 @@ button.chip {
 }
 
 .badgeicon::after {
-  content: "";
+  content: "0";
   position: relative;
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   background: var(--icon-hl);
+  color: var(--icon-ink);
+  font: 750 10.5px / 17px var(--prose);
+  text-align: center;
 }
 
 .badgeicon .badge {
