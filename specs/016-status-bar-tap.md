@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-11T00:00:00Z
-updated: 2026-10-12T03:24:33.777925357Z
+updated: 2026-10-12T03:38:31.124924547Z
 required_acks:
   - reviewed
 required_commands:
@@ -135,7 +135,6 @@ the same reason, and because the owner reads the branch in eyeball.
 > - `go test -race ./...` — 3.8s
 > - `go test -count=1 -tags browser ./internal/server` — 28.9s
 
-
 ## Iteration 2: On the phone
 
 ```punchcard
@@ -146,9 +145,22 @@ required_acks:
 With the daemon running the branch's build, the owner checks, in the installed
 app and in a Safari tab:
 
-- [ ] The status bar tap scrolls a long review to its top
-- [ ] The top bar and the decision bar stay in place, with Safari's toolbar
+- [x] The status bar tap scrolls a long review to its top
+- [x] The top bar and the decision bar stay in place, with Safari's toolbar
       showing and collapsed
-- [ ] A jump from the list of files lands below the header, and the card stays
+- [x] A jump from the list of files lands below the header, and the card stays
       there as bodies above it load
-- [ ] A review closed partway through reopens at the same place
+- [x] A review closed partway through reopens at the same place
+
+Checked by the owner on 2026-10-11 on review 13, which has 19 files, and
+reported as passing. No review was waiting, so the decision bar had no page to
+show on. It is checked on the branch's own review in eyeball, before that review
+is approved.
+
+> **Completed** 2026-10-12 03:38 UTC
+>
+> - acks: reviewed, phone-checked
+> - `make check` — 6.1s
+> - `go test -race ./...` — 4.0s
+> - `go test -count=1 -tags browser ./internal/server` — 29.9s
+
