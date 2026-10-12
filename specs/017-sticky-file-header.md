@@ -1,6 +1,7 @@
 ---
-status: draft
+status: ready
 created: 2026-10-11T00:00:00Z
+updated: 2026-10-12T03:50:13.15717558Z
 required_acks:
   - reviewed
 required_commands:
