@@ -227,13 +227,14 @@ which of it matters.
 - [ ] design: a decided round gives no sign that its lines take no tap. The
       owner spent a while tapping lines on approved reviews before finding that
       only open rounds open a composer.
+- [ ] design: the top bar's eye on a page other than the queue counts what
+      waited when the page loaded, and does not follow the stream. 015 left it:
+      a reviewer reads the count on arrival, and the queue corrects it.
 - [ ] design: a manual theme override. docs/design/README.md says one wins over
       the device in both directions, and no tearout draws a control for it.
 - [ ] design: a comment added on a second device shows on the first only after a
       reload. 008's stamps leave comment counts out, so a reviewer's own comment
       does not reload the page that wrote it.
-- [ ] design: redraw the installed page's icon, through `tool/appicon`, to match
-      the direction 013 chooses.
 
 ## Open questions
 

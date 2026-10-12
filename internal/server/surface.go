@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -132,8 +133,10 @@ type page struct {
 	Back string
 	// BackLabel is the back link's text.
 	BackLabel string
-	// Pill is the waiting count beside the wordmark, and empty for none.
-	Pill string
+	// Eye is the waiting count the top bar's eye shows, on every page. Nil
+	// draws no eye, which is what a page gets when the count cannot be read: a
+	// shut eye would say nothing waits.
+	Eye *eye
 	// Body is the page template's data.
 	Body any
 	// VAPID is the public key a device subscribes to push with, and empty
@@ -143,6 +146,17 @@ type page struct {
 	// running when it connects, so a page served by an older daemon says so.
 	Build string
 }
+
+// eye is the top bar's count of reviews waiting on the reviewer. Zero shuts it.
+type eye struct {
+	// Count is how many reviews are in the queue's Waiting section.
+	Count int
+}
+
+// eyeTimeout bounds the count's query on a page that did not read it already.
+// A failure page is often the store failing, and its answer should not wait
+// on the store a second time.
+const eyeTimeout = time.Second
 
 // message is a page that says one thing.
 type message struct {
@@ -183,6 +197,18 @@ func (s *Server) errorPage(w http.ResponseWriter, status int) {
 func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
 	data.VAPID = s.vapidPublic()
 	data.Build = s.daemon.Build
+	if data.Eye == nil {
+		// renderPage has no request of its own, and the count is a read of
+		// the local store, so it gets a context of its own with a bound.
+		ctx, cancel := context.WithTimeout(context.Background(), eyeTimeout)
+		n, err := s.db.s.Waiting(ctx)
+		cancel()
+		if err != nil {
+			s.log.Error("count waiting", "page", name, "err", err)
+		} else {
+			data.Eye = &eye{Count: n}
+		}
+	}
 	// The clone's own copy of the page's tree, never s.pages's: executing a
 	// template escapes its tree in place, so adding the shared tree let every
 	// request write to it while others cloned it, which the race detector
@@ -333,15 +359,16 @@ func (s *Server) handleFont(w http.ResponseWriter, r *http.Request) error {
 }
 
 // manifest is what makes the page installable: its name, where it opens, and
-// its icons. The colors are app.css's light background and accent.
+// its icons. Both colors are app.css's light paper, which the installed page
+// shows before its stylesheet arrives.
 const manifest = `{
   "name": "Eyeball",
   "short_name": "Eyeball",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#fbfaf8",
-  "theme_color": "#fbfaf8",
+  "background_color": "#f3f4f1",
+  "theme_color": "#f3f4f1",
   "icons": [
     {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
     {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}

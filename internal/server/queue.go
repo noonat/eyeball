@@ -42,6 +42,10 @@ type queueRow struct {
 	// Removed the lines each way. A waiting row is the only one that prints
 	// them.
 	Files, Added, Removed string
+	// Gist is the first paragraph of the latest round's note, which a waiting
+	// row quotes under its title. It is split as the review page splits the
+	// letter, so a note reads the same in both places.
+	Gist string
 }
 
 // emptyQueue is the queue with nothing waiting.
@@ -82,23 +86,27 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 	for _, row := range q.Settled {
 		body.Settled = append(body.Settled, s.queueRow(row, render.Age(now, row.DecidedAt)))
 	}
-	pill := ""
-	if n := len(body.Waiting); n > 0 {
-		pill = fmt.Sprintf("%d waiting", n)
-	} else {
+	if len(body.Waiting) == 0 {
 		projects, err := s.db.s.Projects(r.Context())
 		if err != nil {
 			return err
 		}
 		body.Empty = s.emptyQueue(projects)
 	}
-	s.renderPage(w, http.StatusOK, "queue", page{Title: "Queue", Pill: pill, Body: body})
+	// The queue's own Waiting section is the count, read in the same snapshot
+	// as the rows, so the eye cannot disagree with the list under it.
+	s.renderPage(w, http.StatusOK, "queue", page{Title: "Queue", Eye: &eye{Count: len(body.Waiting)}, Body: body})
 	return nil
 }
 
 // queueRow is a store row as the queue prints it.
 func (s *Server) queueRow(row store.ReviewRow, age string) queueRow {
+	gist := ""
+	if p := paragraphs(row.Note); len(p) > 0 {
+		gist = p[0]
+	}
 	return queueRow{
+		Gist:    gist,
 		ID:      row.ReviewID,
 		Project: row.ProjectName,
 		Agent:   row.Agent,

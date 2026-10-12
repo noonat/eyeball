@@ -5,12 +5,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/noonat/eyeball"
+	"github.com/noonat/eyeball/internal/api"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -212,6 +214,31 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	// 404 page rather than anything an agent route would answer.
 	res = serveSurface(surface, http.MethodGet, "/agent/daemon")
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+}
+
+// The top bar's eye counts what waits on every page, not only the queue, and
+// draws nothing where the count cannot be read, because a shut eye would say
+// that nothing waits.
+func TestServer_Surface_eye(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "look"}).Review.ID
+
+	pages := []string{"/reviews/" + itoa(id), "/nope"}
+	for _, target := range pages {
+		res := serveSurface(f.s.Surface(), http.MethodGet, target)
+		eye := find(parse(g, res.Body.String()), "eye")
+		g.Expect(attr(eye, "class")).To(Equal("eye"), target)
+		g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"), target)
+	}
+
+	g.Expect(f.store.Close()).To(Succeed())
+	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+	doc := parse(g, res.Body.String())
+	g.Expect(find(doc, "topbar")).NotTo(BeNil(), "the page still renders")
+	g.Expect(find(doc, "eye")).To(BeNil(), "no count, so no eye")
 }
 
 func TestServer_Surface_failureIsAPage(t *testing.T) {

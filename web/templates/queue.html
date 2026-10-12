@@ -1,5 +1,5 @@
 {{define "queue"}}<div class="scroll"><div class="page" data-stream="/events?queue=1" data-stamp="{{.Stamp}}">
-{{template "firstrun"}}{{with .Empty}}<div class="empty"><span class="headline">Nothing waiting</span><p>{{.Sentence}}</p></div>
+{{template "firstrun"}}{{with .Empty}}<div class="empty"><span class="eye lg shut" aria-hidden="true"></span><span class="headline">Nothing waiting</span><p>{{.Sentence}}</p></div>
 {{if .Projects}}<div class="section">
 <h2>Projects <span class="count">{{len .Projects}}</span></h2>
 <div class="rows">
@@ -24,7 +24,7 @@
 </div>
 {{end}}</div></div>
 {{end}}
-{{define "waitingrow"}}<a class="row waiting" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Round {{.Round}}</span><span>{{.Files}}</span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></span></a>
+{{define "waitingrow"}}<a class="row waiting" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title"><mark>{{.Title}}</mark></span>{{with .Gist}}<span class="gist">{{.}}</span>{{end}}<span class="meta"><span>Round {{.Round}}</span><span>{{.Files}}</span><span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span></span></a>
 {{end}}
 {{define "workingrow"}}<a class="row working" href="/reviews/{{.ID}}">{{template "where" .}}<span class="age">{{.Age}}</span><span class="title">{{.Title}}</span><span class="meta"><span>Changes requested, round {{.Round}}</span></span></a>
 {{end}}
