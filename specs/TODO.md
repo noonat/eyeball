@@ -30,6 +30,10 @@ which of it matters.
 - [ ] design: show that the page is refreshing when the installed app comes back
       to the foreground. Today nothing shows activity, and then new content
       appears all at once.
+- [ ] design: render a markdown file's YAML front matter as a code block. Today
+      goldmark reads the opening `---` as a rule and the closing one as a
+      heading underline, so `status: draft` above it renders as a heading. Every
+      spec in this repository opens with front matter.
 - [ ] design: a rendered file in a round whose repository is gone. That page
       shows captured files through a path of its own, which still shows a binary
       file as the binary line, and rendering there needs the raw route, which
@@ -42,9 +46,16 @@ which of it matters.
 - [ ] design: a tearout for the comment composer's line-range selection on a
       touch screen. The open question in product.md is whether ranges are worth
       the interaction cost at all.
-- [ ] design: settle the expand-or-list threshold against real reviews. Ten
-      files and a few hundred lines is a guess written down so it can be
-      corrected.
+- [ ] design: settle 011's two numbers against real reviews: a list of files
+      past ten files, and a file's body deferred past 500 changed lines. Both
+      are guesses written down so they can be corrected.
+- [ ] design: keep a reader's place as the card at the top of the screen and its
+      offset, not as a scroll position. A document's skeleton is six lines
+      whatever its length, so a review reopened with a long document above the
+      saved place opens below it. Reasoned in 011, not seen on the phone.
+- [ ] product: marking a file reviewed beyond folding its card, such as a count
+      of files read or a mark that survives a new round. 011 kept folding alone,
+      at the owner's word, and more behavior would be its own spec.
 - [ ] design: where an insertion should attach when a run of identical lines
       makes several placements equally minimal. 004 pins one tie-break and GNU
       diff shifts boundaries with heuristics of its own, so the two differ on

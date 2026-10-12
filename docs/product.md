@@ -248,13 +248,26 @@ The note is third rather than buried because it is the reviewer's brief. On a
 second round it says what was done about the last one, which is the question the
 reviewer opens with.
 
-**A small change opens expanded, a large one opens as a list of files.** Under
-roughly ten files and a few hundred lines the whole thing is on the page and
-scrolling is reading. Past that, a list of files with their line counts comes
-first and each file expands on a tap. Both failures are real: scrolling through
-four thousand lines to find the interesting one, and tapping through forty
-collapsed files to find the same. The threshold is a starting point to be tuned
-against real reviews, not a considered number.
+**Every file opens, at any size.** Reviewing means reading every file, so
+scrolling is reading however long the change is. A large change once opened as a
+list of collapsed files, which turned reading nineteen files into nineteen taps.
+What the list did is now done separately:
+
+- **A list of files tops a change past ten files**, each path with its counts
+  and a link to its card. It is for finding a file. Reading is the scroll below
+  it.
+- **A large change sends its files' bodies as they near the screen**, not with
+  the page, so four thousand lines do not arrive at once on a phone. Until a
+  body comes, its card holds the space the body will take, so a jump from the
+  list lands on its file and stays there.
+- **A file past 500 changed lines waits behind a link** naming its size. A lock
+  file or a generated file is usually skimmed, and loading one by accident means
+  scrolling past all of it to reach the next file.
+- **Folding a file marks it read**, as GitHub's Viewed does. The fold is
+  remembered on the device. Nothing else is kept, and the agent sees none of it.
+
+Ten files and 500 lines are guesses, written down to be corrected against real
+reviews.
 
 ### Reading the change
 
@@ -655,9 +668,9 @@ Named, because each is a plausible next step and none is in the first version.
   and a range is not obviously anything. The fallback is that a comment on one
   line of a hunk is usually enough, which would make ranges a desktop
   convenience rather than a feature.
-- **Where the expand-or-list threshold sits.** Ten files and a few hundred lines
-  is a guess written down so it can be corrected, and the correction needs real
-  reviews rather than reasoning.
+- **Where the list of files and a deferred file start.** Ten files and 500
+  changed lines are guesses written down so they can be corrected, and the
+  correction needs real reviews rather than reasoning.
 - **How long a decided review is kept**, and whether captures are pruned with
   it. Comments are ephemeral by design. The record of what was approved may not
   want to be.

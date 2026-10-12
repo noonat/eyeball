@@ -473,7 +473,7 @@ Routes, with the spec that builds each:
 | `GET /reviews/{review}/comments/{comment}`             | a comment's card, or its edit form            | 008  |
 | `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
 | `GET /reviews/{review}/composer`                       | a composer anchored where the query says      | 008  |
-| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a collapsed file card's body, on first open   | 008  |
+| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a file card's body, as the card nears view    | 008  |
 | `GET /events`                                          | the live stream, and therefore the connection | 008  |
 | `GET /static/htmx.js`                                  | the vendored htmx, from the binary            | 008  |
 | `GET /manifest.webmanifest`                            | what makes the page installable               | 009  |
@@ -557,10 +557,20 @@ device and drained later, the offline write path had no server to ask, so one
 action needed two implementations and the hand-written one carried the data
 nobody may lose. With a live connection assumed, that objection is gone.
 
-`<details>` still handles expand and collapse with no JavaScript, and the
-compare control, the marked-and-plain switch and the page-and-source switch stay
-plain links to different URLs. A file's body loads when its disclosure opens, so
-a change of eleven files does not send eleven files.
+`<details>` still handles folding with no JavaScript, and the compare control,
+the marked-and-plain switch and the page-and-source switch stay plain links to
+different URLs. Past ten files or 300 lines, a card arrives open with an empty
+body, and the page asks for each body once its card is open and within a screen
+of view in the page's scroller. A change of forty files sends only the bodies a
+reader scrolls to. Until its body comes, a card holds a skeleton as tall as the
+body will be, from the hunk and line counts the server sends and row heights the
+page measures once on the device, so a body arriving above a jump from the list
+of files moves nothing. A document or a rendered file sends no counts, so the
+page also scrolls by the growth of any card above the one at the top of the
+screen, as Chromium's scroll anchoring would and Safari has none to do. The
+script that watches for cards nearing view is a dozen lines, because htmx's own
+`intersect` trigger has no margin and cannot skip a folded card under
+`allowEval: false`.
 
 ## Notification
 
