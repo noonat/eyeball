@@ -327,7 +327,7 @@ func plainText(source []byte, n ast.Node) string {
 				writer.RawWrite(w, c.ClosureLine.Value(source))
 			}
 			return ast.WalkSkipChildren, nil
-		case *ast.CodeBlock, *ast.FencedCodeBlock:
+		case *ast.CodeBlock, *ast.FencedCodeBlock, *frontMatter:
 			writeLines(w, source, c.Lines())
 			return ast.WalkSkipChildren, nil
 		}
