@@ -209,6 +209,17 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeTrue(), "the review is still open")
 	g.Expect(b.eval(g, blinking)).To(BeFalse())
 
+	// The current round has a second address, its round's, and an approval
+	// made there reloads there and blinks too.
+	write(g, repo, "d.txt", "d\n")
+	fourth := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"d.txt"}, Note: "fourth"}).Review.ID
+	b.navigate(g, srv.URL+"/reviews/"+itoa(fourth)+"/rounds/1")
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/reviews/" + itoa(fourth) + "/rounds/1"))
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+
 	// Under reduced motion the eye takes the class and does not move.
 	b.call(g, "Emulation.setEmulatedMedia", map[string]any{
 		"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "reduce"}},
@@ -453,6 +464,9 @@ func TestServer_Surface_browserFonts(t *testing.T) {
 	b.waitFor(g, `document.fonts.ready.then(() => true)`)
 	loaded := b.eval(g, `document.fonts.ready.then(() => [...new Set([...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replaceAll('"', "")))].sort().join(", "))`)
 	g.Expect(loaded).To(Equal("Atkinson Hyperlegible Mono, Atkinson Hyperlegible Next, Literata"), "the chrome, the agent's name and the letter each drew its own face")
+	// The computed mask stays the data URL even when the policy blocks it, so
+	// this only shows the rule names the mask. The policy is what __blocked
+	// checks.
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".eye"), "::before").maskImage.startsWith("url(\"data:image/svg+xml")`)).To(BeTrue())
 	g.Expect(b.eval(g, `window.__blocked.join("; ")`)).To(BeEmpty())
 }

@@ -69,6 +69,15 @@ func Test_queueRowGist(t *testing.T) {
 	g.Expect(row.Gist).To(Equal("First paragraph,\non two lines."))
 	g.Expect(paragraphs("\n\n  First paragraph,\non two lines.\r\n\r\nSecond paragraph.\n")[0]).To(Equal(row.Gist))
 	g.Expect(s.queueRow(store.ReviewRow{}, "1m").Gist).To(BeEmpty(), "a row with no note quotes nothing")
+
+	// A review opened without a title is titled with its note's first line,
+	// so the row quotes from the line after it rather than repeat the title.
+	note := "Upload worker and its retry ladder\n\nThe second paragraph says what to look at."
+	g.Expect(s.queueRow(store.ReviewRow{Note: note, Title: defaultTitle(note)}, "1m").Gist).To(Equal("The second paragraph says what to look at."))
+	two := "Upload worker\nand its retry ladder\n\nMore."
+	g.Expect(s.queueRow(store.ReviewRow{Note: two, Title: defaultTitle(two)}, "1m").Gist).To(Equal("and its retry ladder"))
+	g.Expect(s.queueRow(store.ReviewRow{Note: "Upload worker", Title: "Upload worker"}, "1m").Gist).To(BeEmpty(), "a note that is only its title quotes nothing")
+	g.Expect(s.queueRow(store.ReviewRow{Note: note, Title: "Retry ladder"}, "1m").Gist).To(Equal("Upload worker and its retry ladder"), "a title of its own leaves the note whole")
 }
 
 func Test_tilde(t *testing.T) {

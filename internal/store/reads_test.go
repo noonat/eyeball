@@ -231,7 +231,9 @@ func TestStore_Queue(t *testing.T) {
 	}
 
 	// The top bar's count is the Waiting section's length, with a working, a
-	// settled and an abandoned review beside it to be left out.
+	// settled and an abandoned review beside it to be left out. The count
+	// reads rowFrom and waitingWhere as the queue does, so this holds by
+	// construction, and fails only if the count is rewritten apart from them.
 	n, err := s.Waiting(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(n).To(Equal(len(queue.Waiting)))

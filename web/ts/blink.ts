@@ -64,7 +64,11 @@ export function blinkOnLoad(): void {
     return;
   }
   write(null);
-  const here = /^\/reviews\/(\d+)$/.exec(location.pathname)?.[1];
+  // The current round has two addresses, the review's own and its round's,
+  // and an approval reloads whichever it was made on.
+  const here = /^\/reviews\/(\d+)(?:\/rounds\/\d+)?$/.exec(
+    location.pathname,
+  )?.[1];
   const approved = document.querySelector(".brief .pill.approved") !== null;
   if (here === marked && approved) {
     document.querySelector(".topbar .eye")?.classList.add(classes.blink);
