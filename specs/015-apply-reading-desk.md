@@ -113,7 +113,6 @@ renders as something plausible on a screen no test looks at.
 
 ## Out of scope
 
-- The installed page's icon redrawn as the eye. specs/TODO.md holds it.
 - Content-hashed addresses under `/static/`. specs/TODO.md holds it.
 - The eye's count following the stream on pages other than the queue. Added to
   specs/TODO.md in iteration 3.
@@ -136,6 +135,15 @@ required_acks:
 > box. One queue frame, not installed yet, showed no waiting pill although a
 > review waited below it. The live layout shows the count whenever anything
 > waits, so that frame's eye is open.
+
+> **Departure, from the owner's look on the phone, 2026-10-12.** The first-run
+> section still drew the installed icon as the letter e on the accent, which the
+> fold had turned into an ink square. The owner asked for it to take the new
+> language, so the specimen is the eye on the paper with a highlighter iris, in
+> three fixed colors, since a home screen icon does not follow the theme. That
+> moves the installed icon's redraw, out of scope in the approved spec, into
+> iteration 3: `tool/appicon` reads the accent tokens, and run now it would draw
+> an ink square.
 
 - [x] app.css holding the direction, each override folded into the rule it
       replaced, and the light Approve green at `#15805a`
@@ -190,6 +198,9 @@ required_commands:
 - [ ] A browser test loading a page with the fonts and the eye under the
       surface's own policy, with no violation reported
 - [ ] specs/TODO.md entry for the count following the stream off the queue
+- [ ] `tool/appicon` drawing the eye from `.badgeicon`'s three fixed colors, the
+      PNGs under `web/static/icons` regenerated, and the TODO entry for the icon
+      removed
 
 ## Iteration 4: The blink after Approve
 
