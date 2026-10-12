@@ -294,6 +294,12 @@ to read a paragraph. Code is read as a change because the change is the unit.
 Either can be flipped to the other, since sometimes the exact edit to a document
 is the question and sometimes the whole file is what a code change needs.
 
+**Front matter reads as the YAML it is.** A document that opens with YAML
+between `---` lines shows it as a code block at the top. Read as markdown, its
+delimiters become rules or a heading underline, and its keys run together into a
+paragraph, a list or a heading. A spec's status and acks are part of what is
+reviewed.
+
 **A changed passage in a rendered document is marked, and can show what it
 replaced** without leaving the rendered view. The marking is a rule beside the
 passage rather than a color wash through it, so a heavily edited document stays
