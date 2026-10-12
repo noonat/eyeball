@@ -1,11 +1,13 @@
 ---
-status: draft
+status: active
 created: 2026-10-11T00:00:00Z
+updated: 2026-10-12T03:24:33.777925357Z
 required_acks:
   - reviewed
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
+  - cmd: go test -count=1 -tags browser ./internal/server
 ---
 
 # 016 The status bar tap
@@ -13,6 +15,8 @@ required_commands:
 On an iPhone, a tap on the status bar scrolls a page to its top. In eyeball it
 does nothing. The owner hit this in the installed app. It was on specs/TODO.md's
 Unscheduled list.
+
+Approved by the owner as review 49, round 1, on 2026-10-11.
 
 The cause is the layout. Every page is `.app`, a flex column the height of the
 window, holding the top bar and a `.scroll` element that scrolls with
@@ -92,18 +96,45 @@ the same reason, and because the owner reads the branch in eyeball.
 
 ## Iteration 1: The document scrolls
 
-- [ ] shell.css letting `.app` grow with its content and `.scroll` not scroll,
+- [x] shell.css letting `.app` grow with its content and `.scroll` not scroll,
       with a comment saying why a real page differs from a tearout's frame
-- [ ] `.head` in app.css and `web/templates/layout.html` holding the top bar,
+- [x] `.head` in app.css and `web/templates/layout.html` holding the top bar,
       `#update` and `#offline`, sticky at the top of a real page
-- [ ] The header's height kept on the root as a custom property, and read by
+- [x] The header's height kept on the root as a custom property, and read by
       `scroll-padding-top` and by `holdPlace` as the top of the screen
-- [ ] `loadBodies`, `holdPlace` and `keepPlace` working on the document, with
+- [x] `loadBodies`, `holdPlace` and `keepPlace` working on the document, with
       Chromium's scroll anchoring off on the root
-- [ ] The browser tests that use `.scroll` changed to the document, and still
+- [x] The browser tests that use `.scroll` changed to the document, and still
       failing with `holdPlace` disabled, checked by disabling it
-- [ ] A browser test that on a long review the document scrolls and `.scroll`
+- [x] A browser test that on a long review the document scrolls and `.scroll`
       does not, and that a jump lands the card's top at the header's bottom
+
+**Departures, iteration 1.**
+
+- The browser tests build only under the `browser` tag, which neither of the
+  spec's commands set, so as approved nothing would have run them.
+  `go test -count=1 -tags browser ./internal/server` is now a required command.
+  The suite failed once in eight runs here, and passed the other seven. Which
+  test failed was not captured.
+- shell.css does not stop `.scroll` scrolling. Once `.app` grows with its
+  content, `.scroll` has nothing to overflow, and a rule setting its overflow
+  changed no test's result. The `.app` rule is the one a test catches.
+- `holdPlace` reads the header's bottom from the header itself, not from the
+  custom property. The two agree while the header sits at the top, and the
+  element's own box needs no parsing.
+- Each piece was checked by breaking it. With `holdPlace` off and Chromium's
+  anchoring off on the root, the jump test failed. With `holdPlace` off and
+  Chromium's anchoring left on, it passed, which is why the anchoring is turned
+  off. Without `scroll-padding-top` the jump test failed, and without the `.app`
+  rule the document scroll test failed.
+
+> **Completed** 2026-10-12 03:25 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.6s
+> - `go test -race ./...` — 3.8s
+> - `go test -count=1 -tags browser ./internal/server` — 28.9s
+
 
 ## Iteration 2: On the phone
 

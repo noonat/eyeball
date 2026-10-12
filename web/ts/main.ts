@@ -6,6 +6,7 @@ import {
 } from "./composer";
 import { holdPlace, loadBodies } from "./bodies";
 import { keepDrafts } from "./drafts";
+import { trackHead } from "./head";
 import { reportFailures } from "./failures";
 import { keepPlace } from "./place";
 import { prune } from "./storage";
@@ -34,6 +35,7 @@ catchFailedSaves();
 // in the head before the body is parsed.
 document.addEventListener("DOMContentLoaded", () => {
   registerWorker();
+  trackHead();
   refreshOnTap();
   followStream();
   followPush();
