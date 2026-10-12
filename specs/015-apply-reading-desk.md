@@ -1,8 +1,7 @@
 ---
-status: draft
+status: ready
 created: 2026-10-12T00:00:00Z
-updated: 2026-10-12T00:00:00Z
-required_acks: []
+updated: 2026-10-12T02:48:39.460475943Z
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
