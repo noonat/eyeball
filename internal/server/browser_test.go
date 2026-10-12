@@ -187,6 +187,32 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	b.waitFor(g, rows("d/58.txt")+` === 40`)
 }
 
+// The document scrolls, not .scroll, since iOS sends its status bar tap only to
+// the document's scroller. The header stays at the top as it does.
+func TestServer_Surface_browserDocumentScrolls(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 11 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	scroller := `document.querySelector(".scroll")`
+	g.Expect(b.eval(g, `document.scrollingElement.scrollHeight > window.innerHeight * 2`)).To(BeTrue(), "the review is not long enough to scroll")
+	g.Expect(b.eval(g, scroller+`.scrollHeight === `+scroller+`.clientHeight`)).To(BeTrue(), ".scroll has content to scroll")
+	b.eval(g, `window.scrollTo(0, 500)`)
+	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(BeEquivalentTo(500))
+	g.Expect(b.eval(g, scroller+`.scrollTop`)).To(BeEquivalentTo(0))
+	g.Expect(b.eval(g, `Math.round(document.querySelector(".head").getBoundingClientRect().top)`)).To(BeEquivalentTo(0), "the header scrolled away")
+	g.Expect(b.eval(g, `document.documentElement.style.getPropertyValue("--head-height") === document.querySelector(".head").getBoundingClientRect().height + "px"`)).To(BeTrue())
+}
+
 // A comment that cannot be saved becomes an unsent card in its list, Retry
 // stores it once the server is back, Delete drops it, and the verdict waits
 // while any card remains. A verdict that cannot be sent says so in the bar and
@@ -391,9 +417,9 @@ func TestServer_Surface_browserJump(t *testing.T) {
 	// The page turns Chromium's scroll anchoring off for its own, which
 	// Safari needs. It is turned off here too, so a page that stopped doing so
 	// could not pass on Chromium's alone.
-	b.eval(g, `document.querySelector(".scroll").style.overflowAnchor = "none"`)
+	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
 	target := `document.querySelector("details.file[data-path='d/40.txt']")`
-	top := target + `.getBoundingClientRect().top - document.querySelector(".scroll").getBoundingClientRect().top`
+	top := target + `.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom`
 	b.eval(g, `document.querySelector(".filelist a[href='#" + `+target+`.id + "']").click()`)
 	b.waitFor(g, `Math.abs(`+top+`) < 2`)
 	// The document above the target is within a screen of view, so its body
@@ -409,9 +435,9 @@ func TestServer_Surface_browserJump(t *testing.T) {
 	// again as bodies arrive. A tap in the list straight away is not pulled
 	// back by it.
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
-	b.eval(g, `document.querySelector(".scroll").style.overflowAnchor = "none"`)
+	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
 	other := `document.querySelector("details.file[data-path='d/10.txt']")`
-	otherTop := other + `.getBoundingClientRect().top - document.querySelector(".scroll").getBoundingClientRect().top`
+	otherTop := other + `.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom`
 	b.eval(g, `document.querySelector(".filelist a[href='#" + `+other+`.id + "']").click()`)
 	b.waitFor(g, other+`.querySelectorAll(".hunkhead").length === 2`)
 	time.Sleep(300 * time.Millisecond)
@@ -602,8 +628,7 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
 	b.eval(g, folded+`.querySelector("summary").click()`)
 	b.waitFor(g, `!`+folded+`.open`)
-	b.eval(g, `document.querySelector(".scroll").scrollTop = 600`)
-	b.eval(g, `document.querySelector(".scroll").dispatchEvent(new Event("scroll"))`)
+	b.eval(g, `window.scrollTo(0, 600)`)
 	time.Sleep(400 * time.Millisecond)
 
 	b.typeInto(g, ".page > form.composer textarea", "Half a review comment")
@@ -613,13 +638,13 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 	b.typeInto(g, "tr.thread form.composer textarea", "About line three")
 	// Every card is open, so d/05.txt sits below 600 and focusing its composer
 	// scrolled the page to it. The place is wherever the page was left.
-	scroll := b.eval(g, `Math.round(document.querySelector(".scroll").scrollTop)`)
+	scroll := b.eval(g, `Math.round(window.scrollY)`)
 	g.Expect(scroll).NotTo(BeEquivalentTo(0))
 
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
 	b.waitFor(g, card+`.open && `+card+`.querySelectorAll(".src").length === 40`)
 	g.Expect(b.eval(g, folded+`.open`)).To(BeFalse(), "a folded card opened again after a reload")
-	b.waitFor(g, fmt.Sprintf(`Math.abs(document.querySelector(".scroll").scrollTop - %v) < 2`, scroll))
+	b.waitFor(g, fmt.Sprintf(`Math.abs(window.scrollY - %v) < 2`, scroll))
 	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal("Half a review comment"))
 	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("A note in progress"))
 	b.waitFor(g, `document.querySelector("tr.thread form.composer textarea")?.value === "About line three"`)
@@ -639,7 +664,7 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 	b.navigate(g, srv.URL+"/reviews/999")
 	b.eval(g, fmt.Sprintf(`localStorage.setItem("eyeball:place:%v", JSON.stringify({ at: Date.now(), value: { scroll: 300, open: ["d/05.txt"] } }))`, key))
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
-	b.waitFor(g, `Math.abs(document.querySelector(".scroll").scrollTop - 300) < 2`)
+	b.waitFor(g, `Math.abs(window.scrollY - 300) < 2`)
 	g.Expect(b.eval(g, `[...document.querySelectorAll("details.file")].every((d) => d.open)`)).To(BeTrue())
 }
 
