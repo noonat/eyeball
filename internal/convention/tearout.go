@@ -37,7 +37,7 @@ type TearoutPage struct {
 type Tearout struct {
 	// Pages are the tearouts, in name order.
 	Pages []TearoutPage
-	// CSS is every stylesheet joined, with comments removed.
+	// CSS is every stylesheet in the directory joined, with comments removed.
 	CSS string
 	// Icons are the names listed in icons.txt.
 	Icons []string
@@ -129,15 +129,22 @@ func ReadTearout(dir string, label string) (Tearout, error) {
 		name := filepath.ToSlash(filepath.Join(label, filepath.Base(path)))
 		out.Pages = append(out.Pages, TearoutPage{Name: name, Body: string(body)})
 	}
-	sheets := []string{"app.css", "tearout.css"}
-	for _, sheet := range sheets {
-		body, err := os.ReadFile(filepath.Join(dir, sheet))
+	// Every stylesheet counts towards CSS, because a sheet trying out a
+	// direction links its own beside app.css. AppCSS stays app.css alone, since
+	// it is the only one that ships.
+	sheets, err := filepath.Glob(filepath.Join(dir, "*.css"))
+	if err != nil {
+		return out, errors.Wrapf(err, "list %s", dir)
+	}
+	sort.Strings(sheets)
+	for _, path := range sheets {
+		body, err := os.ReadFile(path)
 		if err != nil {
-			continue
+			return out, errors.Wrapf(err, "read %s", path)
 		}
 		css := cssComment.ReplaceAllString(string(body), "")
 		out.CSS += css
-		if sheet == "app.css" {
+		if filepath.Base(path) == "app.css" {
 			out.AppCSS = css
 		}
 	}

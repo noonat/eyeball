@@ -26,10 +26,13 @@ var requiredDecls = []string{
 }
 
 // cssDeclarations reports a required declaration app.css has lost.
+//
+// It reads app.css alone. A stylesheet trying out a direction redeclares the
+// tokens, and would hide the loss from a check over every stylesheet.
 func cssDeclarations(t Tearout) []Finding {
 	var out []Finding
 	for _, decl := range requiredDecls {
-		if regexp.MustCompile(`(?m)^\s*` + decl).MatchString(t.CSS) {
+		if regexp.MustCompile(`(?m)^\s*` + decl).MatchString(t.AppCSS) {
 			continue
 		}
 		out = append(out, Finding{
@@ -51,7 +54,7 @@ func iconsListed(t Tearout) []Finding {
 		listed[name] = struct{}{}
 	}
 	mapped := map[string]struct{}{}
-	for _, m := range cssMask.FindAllStringSubmatch(t.CSS, -1) {
+	for _, m := range cssMask.FindAllStringSubmatch(t.AppCSS, -1) {
 		mapped[m[1]] = struct{}{}
 	}
 	var out []Finding

@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 created: 2026-10-11T00:00:00Z
 updated: 2026-10-12T00:16:04.703998275Z
 required_commands:
@@ -173,12 +173,22 @@ reads both sheets on the phone before the branch is reviewed.
 
 ## Iteration 1: Stylesheets beside app.css
 
-- [ ] `ReadTearout` joins every `*.css` in the tearout directory, with `AppCSS`
-  still `app.css` alone
-- [ ] A `tearout-classes` fixture whose class is defined only in a third
-  stylesheet, passing, beside its existing failing case
-- [ ] docs/conventions.md's `tearout-classes` entry naming every stylesheet in
-  the directory
+> **Departure.** `css-declarations` and `icons-listed` also read the joined
+> stylesheets, and the spec did not name them. Both describe `app.css`, and a
+> direction's stylesheet redeclares `--ink:` and the other tokens, so a joined
+> read would hide `app.css` losing one. Both now read `AppCSS`, with a test
+> each.
+
+- [x] `ReadTearout` joins every `*.css` in the tearout directory, with `AppCSS`
+      still `app.css` alone
+- [x] A `tearout-classes` fixture whose class is defined only in a third
+      stylesheet, passing, beside its existing failing case
+- [x] docs/conventions.md's `tearout-classes` entry naming every stylesheet in
+      the directory
+
+> **Completed** 2026-10-12 00:19 UTC
+>
+> - `make check` — 5.3s
 
 ## Iteration 2: The reading desk
 

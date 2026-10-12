@@ -442,14 +442,16 @@ which is why none of them can be left to a reading.
 
 - `css-declarations`: `app.css` keeps the declarations that have no fallback, so
   a generator deleting more than its own block fails the build rather than the
-  page.
-- `icons-listed`: `icons.txt` and the generated mask table name the same set. A
-  class with no mask leaves a gap that reads as a spacing bug.
+  page. It reads `app.css` alone, since a stylesheet trying out a direction
+  redeclares the same tokens.
+- `icons-listed`: `icons.txt` and the generated mask table in `app.css` name the
+  same set. A class with no mask leaves a gap that reads as a spacing bug.
 - `tearout-agents`: an agent name never appears in prose on a page that also
   displays it. The displayed copy comes from an `.agent` span, and a second copy
   in a sentence is not kept in step with it.
-- `tearout-classes`: a class used in markup is defined by a stylesheet. An
-  undefined class still renders its text, unstyled.
+- `tearout-classes`: a class used in markup is defined by a stylesheet in
+  `docs/design/`, any of them, since a sheet trying out a direction links its
+  own beside `app.css`. An undefined class still renders its text, unstyled.
 - `tearout-fragments`: a fragment link points at an id on the page. The tearouts
   expand with `:target`, so a dead link is a control that does nothing at all.
 - `tearout-icons`: an icon span carries an `i-<name>` class and holds no text of
