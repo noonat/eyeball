@@ -23,4 +23,9 @@
 // an unequal run's replaced text goes on its last new block, and a removal
 // with nothing in its place is a block of its own. Nothing is marked when the
 // old side has no blocks.
+//
+// Front matter is one block, shown as YAML in a code block with both of its
+// delimiters. It is front matter only when the document's first line is ---
+// and a later line is ---. Otherwise the first --- is the rule goldmark makes
+// of it.
 package render

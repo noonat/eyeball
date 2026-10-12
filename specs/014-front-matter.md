@@ -1,6 +1,7 @@
 ---
-status: draft
+status: active
 created: 2026-10-11T00:00:00Z
+updated: 2026-10-12T02:42:18.884218061Z
 required_acks:
   - reviewed
 required_commands:
@@ -19,6 +20,8 @@ a two-item list made from `- reviewed` and `- cmd: make check`, and a rule.
 Every spec in this repository opens with front matter, so every spec reviewed on
 the phone opens with this. It was on specs/TODO.md's Unscheduled list, and was
 picked from there because the Next list is empty.
+
+Approved by the owner as review 45, round 1, on 2026-10-11.
 
 ## Design
 
@@ -76,17 +79,33 @@ eyeball.
 
 ## Iteration 1: Front matter as a code block
 
-- [ ] A block parser in `internal/render` opening only on a document's first
+- [x] A block parser in `internal/render` opening only on a document's first
       line when it is `---` and a later line is `---`, registered in
       `extensions()` ahead of the thematic break
-- [ ] The block rendered by the shown renderer as `<pre><code>` with both
+- [x] The block rendered by the shown renderer as `<pre><code>` with both
       delimiter lines, highlighted by chroma's YAML lexer, and by the key
       renderer as its source lines
-- [ ] Tests that render front matter: one code block followed by the heading, a
+- [x] Tests that render front matter: one code block followed by the heading, a
       changed `status` marked with what it replaced, a range from the first line
       to the closing one, an empty front matter, and CRLF endings
-- [ ] Tests that keep today's rendering: an unclosed opening `---`, `---` first
+- [x] Tests that keep today's rendering: an unclosed opening `---`, `---` first
       appearing below line 1, a `...` closing line, and a byte order mark before
       `---`
-- [ ] The package comment in `internal/render/doc.go` saying front matter is one
+- [x] The package comment in `internal/render/doc.go` saying front matter is one
       block and what counts as front matter
+
+**Departures, iteration 1.**
+
+- Highlighted as YAML, a front matter shows few colors. The highlighter maps
+  five token kinds to the roles app.css defines: keyword, string, comment,
+  number and function. chroma's YAML lexer gives a key as a tag and a plain
+  value as a literal, which match none, so `status: draft` is plain and the `2`
+  of `rounds: 2` is a number. A `.yaml` file in a diff shows the same. Coloring
+  keys would be a new role, which is a design change and not made here.
+- The replaced text of a changed front matter needed a case in `plainText`,
+  which no todo named. Without it, a changed `status` was marked with nothing
+  under it.
+- Every new test was checked by planting a defect: no scan ahead, no key
+  renderer, no replaced-text case, no extension, opening on any line, and the
+  opening delimiter left out of the block's lines. Each made at least one test
+  fail.
