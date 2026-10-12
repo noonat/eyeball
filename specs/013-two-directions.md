@@ -1,8 +1,7 @@
 ---
-status: draft
+status: ready
 created: 2026-10-11T00:00:00Z
-updated: 2026-10-11T00:00:00Z
-required_acks: []
+updated: 2026-10-12T00:16:04.703998275Z
 required_commands:
   - cmd: make check
 ---
@@ -54,9 +53,15 @@ under each sheet say so.
 - Radius and weight by importance: waiting rows are cards, working and settled
   rows are lines between hairlines.
 - One neutral family per direction, at one temperature in both themes.
-- One moment on Approve, answering the tap, and still under
-  `prefers-reduced-motion`. A tearout has no script, so the moment is a
-  `:target` frame that plays when its link is followed, as Expand already works.
+- One moment on Approve, answering the tap, which becomes an instant change of
+  state under `prefers-reduced-motion`. A tearout has no script, so the moment
+  is a `:target` frame that plays when its link is followed, as Expand already
+  works.
+
+  > **Departure, before iteration 1.** The approved line read "and still under
+  > `prefers-reduced-motion`", which says the motion plays when a reader has
+  > asked for none. The intent was the reverse.
+
 - Everything that is already right stays: teal and clay for add and remove, two
   tones per hue, hue never the only signal, the phone layout as the design, and
   the code block owning its overflow.
@@ -109,6 +114,12 @@ loaded after it, holding token overrides and the rules the direction adds. Each
 has a sheet, `desk.html` and `letters.html`, linking `tearout.css`, `app.css`
 and its own stylesheet. The fonts live under `docs/design/fonts/` with their
 `OFL.txt`, as Latin-subset woff2.
+
+> **Departure, before iteration 1.** The approved spec missed that Expand and
+> the Approve moment both use `:target`, and a page has one target at a time.
+> Following Approve inside an expanded view would close the view. So
+> `tearout.css` shows `.full` under `:has(:target)` as well as `:target`, and an
+> Approve link inside an expanded view targets an id inside it.
 
 The rejected alternative was editing `app.css` and judging on the live surface.
 `app.css` is embedded in the binary, so an exploratory edit reaches the surface
@@ -163,11 +174,11 @@ reads both sheets on the phone before the branch is reviewed.
 ## Iteration 1: Stylesheets beside app.css
 
 - [ ] `ReadTearout` joins every `*.css` in the tearout directory, with `AppCSS`
-      still `app.css` alone
+  still `app.css` alone
 - [ ] A `tearout-classes` fixture whose class is defined only in a third
-      stylesheet, passing, beside its existing failing case
+  stylesheet, passing, beside its existing failing case
 - [ ] docs/conventions.md's `tearout-classes` entry naming every stylesheet in
-      the directory
+  the directory
 
 ## Iteration 2: The reading desk
 
@@ -193,11 +204,12 @@ reads both sheets on the phone before the branch is reviewed.
 - [ ] Contrast measured as in iteration 2, and every frame and expanded view
       screenshotted and looked at
 - [ ] README's table of tearouts and every sheet's navigation naming both
-      directions as exploratory
+      directions as exploratory, and its two-shared-stylesheets rule naming the
+      direction stylesheets
 
 ## Iteration 4: On the phone
 
-```backlog
+```punchcard
 required_acks:
   - chosen
 ```
@@ -206,8 +218,16 @@ The owner opens queue.html, review.html, desk.html and letters.html through
 `go run ./tool/tearout` and chooses: one direction, a mix with which parts come
 from which, or neither.
 
+> **Departure, before iteration 1.** Two todos changed from the approved spec.
+> The removal todo now says what happens on a mix, which it did not. The TODO
+> todo moves the Unscheduled entry this spec added, where the approved wording
+> would have written a second copy. Iteration 3's README todo also gained the
+> README's rule that every tearout links two shared stylesheets, which these
+> sheets break and no todo corrected.
+
 - [ ] The fonts confirmed loading in iOS Safari, or the failure recorded here
 - [ ] The choice and its reason recorded in docs/design/README.md
-- [ ] The sheet and stylesheet of each direction not chosen removed, with its
-      fonts
-- [ ] specs/TODO.md's Next naming the spec that applies the choice
+- [ ] The sheet, stylesheet and fonts of each direction not chosen removed. On a
+      mix, both sheets stay until the spec that applies the choice
+- [ ] specs/TODO.md's Unscheduled entry for applying the choice moved to Next,
+      naming what was chosen
