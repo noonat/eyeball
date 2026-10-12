@@ -4,6 +4,7 @@ import {
   openComposers,
   settleComposers,
 } from "./composer";
+import { blinkOnLoad, keepBlink } from "./blink";
 import { holdPlace, loadBodies } from "./bodies";
 import { keepDrafts } from "./drafts";
 import { reportFailures } from "./failures";
@@ -29,6 +30,7 @@ keyComments();
 openComposers();
 settleComposers();
 guardVerdicts();
+keepBlink();
 catchFailedSaves();
 // The stream reads the page's stamp, which is in the body, and the bundle runs
 // in the head before the body is parsed.
@@ -42,4 +44,5 @@ document.addEventListener("DOMContentLoaded", () => {
   loadBodies();
   holdPlace();
   keepDrafts();
+  blinkOnLoad();
 });
