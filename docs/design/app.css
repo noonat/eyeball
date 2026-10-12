@@ -10,30 +10,48 @@
  * Additions are teal and removals are clay. Red against green is the one pair
  * some readers cannot separate at all, and hue is never the only signal: the
  * gutter carries a sign and the row carries a border.
+ *
+ * The direction is the reading desk, chosen on the phone in spec 013: ink on a
+ * paper with a trace of green, never cream. The accent is the ink itself, and
+ * one highlighter yellow is the only color that asks for attention, as a fill
+ * behind ink: a waiting title, the waiting count, a line chosen for a comment.
+ * The eye in the top bar shows whether anything waits. Atkinson Hyperlegible
+ * sets the chrome, code and addresses, and Literata sets what an agent wrote
+ * and a rendered document.
  */
 
 /* ---------------------------------------------------------------- tokens */
 
 :root,
 [data-theme="light"] {
-  --bg: #fbfaf8;
-  --bg-sunk: #f2efea;
+  --bg: #f3f4f1;
+  --bg-sunk: #e8eae5;
   --panel: #ffffff;
-  --panel-2: #f7f5f2;
-  --line: #e4e0d9;
-  --line-strong: #cfc9c0;
+  --panel-2: #f8f9f6;
+  --line: #dcdfd8;
+  --line-strong: #c2c6bd;
 
-  --ink: #1b1917;
-  --ink-dim: #5d574f;
-  --ink-faint: #8b8478;
+  --ink: #1a1c22;
+  --ink-dim: #4b4f57;
+  --ink-faint: #656972;
 
-  --accent: #2b52c9;
-  --accent-vivid: #3a68ee;
-  --accent-wash: #eaefff;
+  --accent: #1a1c22;
+  --accent-vivid: #1a1c22;
+  --accent-wash: #e6e8e3;
   --on-accent: #ffffff;
 
+  /* The highlighter. --hl is the marker on a title and the waiting count,
+   * --hl-line the lighter fill behind a line chosen for a comment, so the code
+   * on it still reads. Ink on it does not change with the theme, because light
+   * text on yellow cannot be read. */
+  --hl: #ffe14d;
+  --hl-line: #fff1a8;
+  --on-hl: #1a1c22;
+
   --ok: #12654a;
-  --ok-vivid: #1a9b6c;
+  /* #1a9b6c put white Approve text at 3.53 to 1, under the 4.5 a 14px label
+   * needs. Measured in spec 013. */
+  --ok-vivid: #15805a;
   --ok-wash: #e6f6ef;
 
   --warn: #8a5600;
@@ -49,31 +67,41 @@
   --add-wash: #e8f6f3;
   --add-word: #b4e7de;
 
+  /* Keywords are the one syntax role the ink accent cannot carry: ink
+   * keywords would leave four of five roles looking alike. */
+  --syntax-keyword: #39478c;
+
   --del: #98402a;
   --del-vivid: #cf6440;
   --del-wash: #fcefe9;
   --del-word: #f6d3c3;
 
-  --shadow-bar: 0 -1px 0 var(--line), 0 -8px 24px rgb(27 25 23 / 6%);
-  --shadow-pop: 0 8px 28px rgb(27 25 23 / 12%);
+  --shadow-bar: 0 -1px 0 var(--line), 0 -8px 24px rgb(26 28 34 / 6%);
+  --shadow-pop: 0 8px 28px rgb(26 28 34 / 12%);
 }
 
 [data-theme="dark"] {
-  --bg: #131519;
-  --bg-sunk: #0f1114;
-  --panel: #1a1d23;
-  --panel-2: #21252c;
-  --line: #2b303a;
-  --line-strong: #3a4150;
+  --bg: #17181c;
+  --bg-sunk: #121316;
+  --panel: #1e2025;
+  --panel-2: #24262c;
+  --line: #2f323a;
+  --line-strong: #41454e;
 
-  --ink: #e7e9ee;
-  --ink-dim: #a2a8b4;
-  --ink-faint: #757c88;
+  --ink: #e8e9e5;
+  --ink-dim: #b0b3ba;
+  --ink-faint: #8f939c;
 
-  --accent: #8aabff;
-  --accent-vivid: #6f97ff;
-  --accent-wash: #1b2440;
-  --on-accent: #0f1320;
+  --accent: #e8e9e5;
+  --accent-vivid: #e8e9e5;
+  --accent-wash: #2b2d33;
+  --on-accent: #17181c;
+
+  /* Toward lemon, away from the amber that marks a passage showing what it
+   * replaced. At #e8c93a the two read as one color. */
+  --hl: #ecd64b;
+  --hl-line: #403a17;
+  --on-hl: #17181c;
 
   --ok: #56cd90;
   --ok-vivid: #3fbb7e;
@@ -91,6 +119,8 @@
   --add-vivid: #2bbfab;
   --add-wash: #10302d;
   --add-word: #1d5850;
+
+  --syntax-keyword: #a7b5f2;
 
   --del: #f2977a;
   --del-vivid: #dd6f4c;
@@ -113,19 +143,25 @@
   color-scheme: dark;
 }
 
+/* Atkinson Hyperlegible was drawn by the Braille Institute for low-vision
+ * legibility, and separates l, I and 1, and 0 and O, which an agent name or a
+ * path needs. Literata is TypeTogether's text face for reading on screens. The
+ * scale is wider than the 11 to 21 it replaced, so a heading leads its section,
+ * and 16 is the body of a document. */
 :root {
   --prose:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+    "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
   --mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
+  --letter: "Literata", Georgia, "Times New Roman", serif;
 
-  --t-xs: 11px;
-  --t-sm: 13px;
-  --t-md: 15px;
-  --t-lg: 17px;
-  --t-xl: 21px;
+  --t-xs: 12px;
+  --t-sm: 14px;
+  --t-md: 16px;
+  --t-lg: 20px;
+  --t-xl: 26px;
   --t-code: 13px;
 
   --r-sm: 6px;
@@ -137,6 +173,67 @@
 
   /* The reading column on a wide screen. The page and both bars align to it. */
   --col: 860px;
+}
+
+/* ---------------------------------------------------------------- fonts */
+
+/* Fontsource 5.3.0's Latin subsets, OFL-1.1, with each family's license beside
+ * its files in fonts/. Each is variable over its weights, so the in-between
+ * weights this file asks for, such as 580 and 620, are drawn rather than
+ * snapped to a static face. The paths are relative to this file: beside the
+ * tearouts that is docs/design/fonts, and served at /static/app.css it is
+ * /static/fonts. Literata's files that also vary optical size are 110 and 113
+ * KB, twice these, for a difference at reading sizes nothing here shows. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-next/latin-wght-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-next/latin-wght-italic.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-mono/latin-wght-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-mono/latin-wght-italic.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("fonts/literata/latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Literata";
+  font-style: italic;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("fonts/literata/latin-wght-italic.woff2") format("woff2");
 }
 
 /* ---------------------------------------------------------------- icons */
@@ -306,13 +403,14 @@
   color: var(--accent);
   text-decoration: none;
   font-size: var(--t-sm);
+  font-weight: 600;
   margin-left: -4px;
 }
 
 .topbar h1 {
   margin: 0;
   font-size: var(--t-lg);
-  font-weight: 620;
+  font-weight: 700;
   letter-spacing: -0.01em;
   flex: 1;
   min-width: 0;
@@ -322,7 +420,7 @@
 }
 
 .topbar .wordmark {
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: -0.02em;
   font-size: var(--t-lg);
   flex: 1;
@@ -350,22 +448,25 @@
   gap: 8px;
 }
 
+/* Sentence case, at the size of a heading. Tracked capitals at 11px are the
+ * commonest label in generated pages, and they read as chrome rather than as
+ * the thing the reviewer came to find. */
 .section > h2 {
   margin: 0;
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: var(--t-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+  font-size: var(--t-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .section > h2 .count {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
-  color: var(--ink-dim);
+  font-weight: 500;
+  color: var(--ink-faint);
 }
 
 /* --------------------------------------------------------------- pills */
@@ -374,7 +475,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 8px 2px 6px;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: var(--t-xs);
   font-weight: 620;
@@ -383,24 +484,17 @@
   border: 1px solid transparent;
 }
 
-.pill::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex: none;
-}
-
+/* No dot in a pill: its word says the state and its tone repeats it. Waiting
+ * is the highlighter, as on the queue's row, so arriving from a notification
+ * lands on the same yellow. */
 .pill.waiting {
-  color: var(--warn);
-  background: var(--warn-wash);
-  border-color: color-mix(in srgb, var(--warn-vivid) 30%, transparent);
+  color: var(--on-hl);
+  background: var(--hl);
 }
 .pill.working {
-  color: var(--accent);
-  background: var(--accent-wash);
-  border-color: color-mix(in srgb, var(--accent-vivid) 30%, transparent);
+  color: var(--ink-dim);
+  background: var(--panel-2);
+  border-color: var(--line);
 }
 .pill.approved {
   color: var(--ok);
@@ -417,8 +511,108 @@
   background: var(--panel-2);
   border-color: var(--line);
 }
-.pill.plain::before {
+/* ------------------------------------------------------- highlighter */
+
+/* A marker stroke over the words, not a box around the row. It follows the
+ * text across a wrap, which needs an inline element and box-decoration-break
+ * clone, since a grid item such as .title is drawn as one block. */
+.app mark {
+  color: var(--on-hl);
+  background: linear-gradient(
+    transparent 0.12em,
+    var(--hl) 0.12em,
+    var(--hl) calc(100% - 0.06em),
+    transparent calc(100% - 0.06em)
+  );
+  padding: 0 0.18em;
+  margin: 0 -0.18em;
+  border-radius: 0.2em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* ------------------------------------------------------------------ eye */
+
+/* The queue's state, in the top bar of every screen: open with the waiting
+ * count as its iris while anything waits, shut when nothing does. The lids are
+ * a mask painted in ink, as an icon is, and the iris is a highlighter disc.
+ * It is drawn here rather than listed in icons.txt, because Lucide has no shut
+ * eye with lashes, and the open one has to hold a count. */
+:root {
+  --eye-open: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 48 30'><path d='M2 15C12-2 36-2 46 15 36 32 12 32 2 15Z'/></svg>");
+  --eye-shut: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 48 30'><path d='M3 12C13 22 35 22 45 12'/><path d='M12.4 17.6 10 22.5'/><path d='M24 19.5V25'/><path d='M35.6 17.6 38 22.5'/></svg>");
+}
+
+.eye {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 28px;
+}
+
+.eye::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--ink);
+  -webkit-mask: var(--eye-open) center / contain no-repeat;
+  mask: var(--eye-open) center / contain no-repeat;
+}
+
+.eye .iris {
+  position: relative;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--hl);
+  color: var(--on-hl);
+  font: 750 11.5px / 19px var(--prose);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.eye.shut::before {
+  -webkit-mask-image: var(--eye-shut);
+  mask-image: var(--eye-shut);
+}
+
+.eye.shut .iris {
   display: none;
+}
+
+.eye.lg {
+  width: 88px;
+  height: 55px;
+}
+
+.eye.lg::before {
+  background-color: var(--ink-faint);
+}
+
+/* Approving blinks the eye once, on the page the approval reloads to, which
+ * already shows the new count. The client adds .blink. The blink is the only
+ * motion on the surface, and under reduced motion there is none. */
+@keyframes eye-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45%,
+  60% {
+    transform: scaleY(0.08);
+  }
+}
+
+.eye.blink {
+  animation: eye-blink 420ms ease-in-out 200ms 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eye.blink {
+    animation: none;
+  }
 }
 
 /* ----------------------------------------------------------- queue rows */
@@ -426,44 +620,37 @@
 .rows {
   display: flex;
   flex-direction: column;
+}
+
+/* Weight by importance. Work waiting on the reviewer is the screen's one card;
+ * working and settled rows, and a project, are lines between hairlines. The
+ * state stripe this replaced was the second signal beside the pill. The
+ * highlighted title is that signal now, and survives daylight as a block of
+ * yellow. */
+.rows:has(> .row.waiting) {
   gap: 8px;
 }
 
 .row {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 12px 14px;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 2px 10px;
-  position: relative;
-  overflow: hidden;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
 }
 
-/* The state stripe is the second signal beside the pill, so a row's state
- * survives being read at arm's length in daylight. */
-.row::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--line-strong);
+.row:not(.waiting):last-child {
+  border-bottom: 1px solid var(--line);
 }
-.row.waiting::before {
-  background: var(--warn-vivid);
-}
-.row.working::before {
-  background: var(--accent-vivid);
-}
-.row.approved::before {
-  background: var(--ok-vivid);
-}
-.row.changes::before {
-  background: var(--danger-vivid);
+
+.row.waiting {
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
 }
 
 .row .where {
@@ -506,11 +693,19 @@ a.bit .project,
   text-decoration: none;
 }
 
+/* Links are ink, so the project's link is underlined to be told from the text
+ * beside it. */
+a.bit .project {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 /* The agent is the working copy it runs in, so it is set as an identifier and
  * truncates from the tail, which is the half that repeats across worktrees. */
 .agent {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--t-xs);
   color: var(--ink-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -528,31 +723,47 @@ a.bit .project,
 
 .row .title {
   grid-column: 1 / -1;
-  font-size: var(--t-md);
-  font-weight: 580;
+  font-size: 17px;
+  font-weight: 650;
   line-height: 1.35;
   letter-spacing: -0.005em;
   margin: 1px 0 3px;
+  /* A title or a path with no space in it wraps rather than widening the row,
+   * which would scroll the whole page sideways now that the document is what
+   * scrolls. The row no longer clips, since the stripe it clipped is gone. */
+  overflow-wrap: anywhere;
 }
 
+/* The first paragraph of the agent's note, under a waiting row's title: what
+ * the agent wants as well as what it changed. Italic, because it is quoted,
+ * and clamped, because a real note's first paragraph can run long. */
+.row .gist {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  font: italic 400 15px / 1.45 var(--letter);
+  color: var(--ink-dim);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* No separators: spacing parts the facts. */
 .row .meta {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
   font-size: var(--t-xs);
   color: var(--ink-dim);
 }
 
-.row .meta .dot-sep::before {
-  content: "·";
-  margin-right: 8px;
-  color: var(--ink-faint);
-}
-
+/* A count is not code, so it is not monospace. Its figures stay tabular so a
+ * column of counts aligns. */
 .counts {
-  font-family: var(--mono);
+  font-family: var(--prose);
   font-size: var(--t-xs);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -596,7 +807,7 @@ a.bit .project,
   margin: 0;
   font-size: var(--t-xl);
   line-height: 1.25;
-  font-weight: 640;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -615,7 +826,6 @@ a.bit .project,
 .note .from {
   font-size: var(--t-xs);
   color: var(--ink-faint);
-  font-family: var(--mono);
 }
 
 .note p {
@@ -623,10 +833,51 @@ a.bit .project,
   font-size: var(--t-sm);
   line-height: 1.55;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .note p + p {
   margin-top: 6px;
+}
+
+/* The agent's note as a letter: no rule beside it, the agent's words at
+ * reading size, and the agent's name under them where a letter is signed. It
+ * comes before the title, because on a second round it says what was done
+ * about the first, which is the question the reviewer opens with. A verdict
+ * note is the reviewer's own words and stays a plain note. */
+.note.letter {
+  border-left: 0;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 1px var(--line);
+  padding: 18px 20px 14px;
+  gap: 10px;
+}
+
+.note.letter p {
+  font: 400 17px / 1.6 var(--letter);
+}
+
+.note.letter p + p {
+  margin-top: 4px;
+}
+
+.sig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.sig::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.sig .agent {
+  font-size: var(--t-sm);
+  color: var(--ink-dim);
 }
 
 /* ------------------------------------------------------- compare control */
@@ -884,22 +1135,23 @@ tr.del .w {
   cursor: pointer;
 }
 
-tr.sel {
-  outline: 2px solid var(--accent-vivid);
-  outline-offset: -2px;
+/* A line chosen for a comment is highlighted rather than outlined, as a reader
+ * marks a line on paper, and a passage the same way, so a tap reads the same on
+ * prose and on code. */
+tr.sel,
+tr.add.sel,
+tr.del.sel {
+  background: var(--hl-line);
 }
 
-/* A selected passage is outlined as a selected row is, so a tap reads the same
- * on prose and on code. The offset keeps the outline clear of the rule. */
 .blk.sel {
-  outline: 2px solid var(--accent-vivid);
-  outline-offset: 2px;
+  background: var(--hl-line);
   border-radius: var(--r-sm);
 }
 
 /* syntax, kept to five roles: more colors than that on a phone reads as noise */
 .k {
-  color: var(--accent);
+  color: var(--syntax-keyword);
 }
 .s {
   color: var(--ok);
@@ -918,9 +1170,12 @@ tr.sel {
 
 /* --------------------------------------------------------------- prose */
 
+/* A rendered document is reading, so it is set in the letter's face. Code
+ * inside it stays monospace. */
 .prose {
-  font-size: var(--t-md);
-  line-height: 1.62;
+  font-family: var(--letter);
+  font-size: 17px;
+  line-height: 1.65;
   max-width: 68ch;
 }
 
@@ -948,6 +1203,13 @@ tr.sel {
 .prose h3 {
   font-size: var(--t-md);
   margin-top: 1.2em;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .prose code {
@@ -1941,6 +2203,21 @@ button.chip {
   color: var(--ink);
 }
 
+/* The empty queue is the state the reviewer works toward, so it is a large
+ * shut eye and a heading, not a placeholder waiting to be filled. Any other
+ * empty state is a box that says what is not there. */
+.empty:has(> .eye) {
+  border: 0;
+  padding: 36px var(--pad) 24px;
+  gap: 10px;
+}
+
+.empty:has(> .eye) .headline {
+  font-size: var(--t-xl);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
 .empty p {
   margin: 0;
   font-size: var(--t-sm);
@@ -2012,18 +2289,46 @@ button.chip {
 
 /* ------------------------------------------------------------ app icon */
 
+/* The installed page's icon: the eye on the paper, its iris the highlighter
+ * with a zero in it. The icon cannot change with the queue, so it holds the
+ * eye's shape and leaves the count to the system's badge. A home
+ * screen icon does not follow the page's theme, so its three colors are fixed
+ * here rather than read from a theme. tool/appicon renders the installed PNGs
+ * from these same three values. */
 .badgeicon {
+  --icon-paper: #f3f4f1;
+  --icon-ink: #1a1c22;
+  --icon-hl: #ffe14d;
   position: relative;
+  flex: none;
   width: 56px;
   height: 56px;
   border-radius: 13px;
-  background: linear-gradient(160deg, var(--accent-vivid), var(--accent));
+  background: var(--icon-paper);
+  box-shadow: 0 0 0 1px var(--line);
   display: grid;
   place-items: center;
-  color: var(--on-accent);
-  font-weight: 700;
-  font-size: 22px;
-  letter-spacing: -0.03em;
+}
+
+.badgeicon::before {
+  content: "";
+  position: absolute;
+  inset: 15px 8px;
+  background-color: var(--icon-ink);
+  -webkit-mask: var(--eye-open) center / contain no-repeat;
+  mask: var(--eye-open) center / contain no-repeat;
+}
+
+.badgeicon::after {
+  content: "0";
+  position: relative;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--icon-hl);
+  color: var(--icon-ink);
+  font: 750 10.5px / 17px var(--prose);
+  text-align: center;
 }
 
 .badgeicon .badge {

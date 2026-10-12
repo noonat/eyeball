@@ -15,6 +15,13 @@ import "embed"
 //go:embed docs/design/app.css
 var Stylesheet []byte
 
+// Fonts is docs/design/fonts: the faces app.css names by paths relative to
+// itself, so the tearouts beside it and the surface's /static/ resolve them the
+// same way. Each family's license sits beside its files.
+//
+//go:embed docs/design/fonts
+var Fonts embed.FS
+
 // Templates is web/templates, the surface's pages, seeded from the tearouts.
 //
 //go:embed web/templates

@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
-<meta name="theme-color" content="#fbfaf8">
+<meta name="theme-color" content="#f3f4f1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Eyeball">
 {{with .VAPID}}<meta name="vapid-key" content="{{.}}">
@@ -21,7 +21,7 @@
 <body>
 <div class="app">
 <div class="head">
-<div class="topbar">{{if .Back}}<a class="back" href="{{.Back}}"><span class="i i-chevron-left" aria-hidden="true"></span>{{.BackLabel}}</a><h1>{{.Title}}</h1>{{else}}<span class="wordmark">eyeball</span>{{with .Pill}}<span class="pill waiting">{{.}}</span>{{end}}{{end}}</div>
+<div class="topbar">{{if .Back}}<a class="back" href="{{.Back}}"><span class="i i-chevron-left" aria-hidden="true"></span>{{.BackLabel}}</a><h1>{{.Title}}</h1>{{else}}<span class="wordmark">eyeball</span>{{end}}{{with .Eye}}{{if .Count}}<span class="eye" role="img" aria-label="{{.Count}} waiting"><span class="iris">{{.Count}}</span></span>{{else}}<span class="eye shut" role="img" aria-label="Nothing waiting"></span>{{end}}{{end}}</div>
 <div id="update" hidden><div class="update"><span class="i i-refresh-cw" aria-hidden="true"></span><span>Update ready.</span><a class="refresh" role="button" tabindex="0">Refresh</a></div></div>
 <div id="offline" hidden><div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" role="button" tabindex="0">Retry</a></div></div>
 </div>
