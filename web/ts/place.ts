@@ -72,8 +72,19 @@ export function keepPlace(): void {
     scroller.scrollTop = saved.scroll;
   };
   restore();
-  document.addEventListener("htmx:afterSettle", restore);
-  window.setTimeout(() => {
+  // Setting the place again as bodies arrive stops at the reader's first tap,
+  // scroll or key. Until then it would undo what they did: a tap in the list
+  // of files during those seconds was pulled back to the saved place.
+  const events = ["pointerdown", "click", "wheel", "touchmove", "keydown"];
+  const stop = (): void => {
     document.removeEventListener("htmx:afterSettle", restore);
-  }, 3000);
+    for (const e of events) {
+      document.removeEventListener(e, stop, true);
+    }
+  };
+  document.addEventListener("htmx:afterSettle", restore);
+  for (const e of events) {
+    document.addEventListener(e, stop, true);
+  }
+  window.setTimeout(stop, 3000);
 }

@@ -565,9 +565,12 @@ of view in the page's scroller. A change of forty files sends only the bodies a
 reader scrolls to. Until its body comes, a card holds a skeleton as tall as the
 body will be, from the hunk and line counts the server sends and row heights the
 page measures once on the device, so a body arriving above a jump from the list
-of files moves nothing. The script that watches for this is a dozen lines,
-because htmx's own `intersect` trigger has no margin and cannot skip a folded
-card under `allowEval: false`.
+of files moves nothing. A document or a rendered file sends no counts, so the
+page also scrolls by the growth of any card above the one at the top of the
+screen, as Chromium's scroll anchoring would and Safari has none to do. The
+script that watches for cards nearing view is a dozen lines, because htmx's own
+`intersect` trigger has no margin and cannot skip a folded card under
+`allowEval: false`.
 
 ## Notification
 

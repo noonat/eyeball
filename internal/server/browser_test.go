@@ -374,26 +374,48 @@ func TestServer_Surface_browserJump(t *testing.T) {
 	for i := range 60 {
 		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Join(changed, "\n")+"\n")
 	}
+	// A long document, d/39z.md, sorts just above the target. Its skeleton is six lines
+	// whatever its length, since a document sends no counts, so its body
+	// arriving grows the card by far more than that.
+	var paragraphs []string
+	for n := range 80 {
+		paragraphs = append(paragraphs, fmt.Sprintf("Paragraph %d of the manual.", n))
+	}
+	write(g, repo, "d/39z.md", strings.Join(paragraphs, "\n\n")+"\n")
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
 	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
 
-	// Chromium's scroll anchoring would hold the target in place by itself,
-	// and Safari, where the phone reads, has none, so it is turned off here.
+	// The page turns Chromium's scroll anchoring off for its own, which
+	// Safari needs. It is turned off here too, so a page that stopped doing so
+	// could not pass on Chromium's alone.
 	b.eval(g, `document.querySelector(".scroll").style.overflowAnchor = "none"`)
 	target := `document.querySelector("details.file[data-path='d/40.txt']")`
 	top := target + `.getBoundingClientRect().top - document.querySelector(".scroll").getBoundingClientRect().top`
 	b.eval(g, `document.querySelector(".filelist a[href='#" + `+target+`.id + "']").click()`)
 	b.waitFor(g, `Math.abs(`+top+`) < 2`)
-	// The card above the target is within a screen of view, so its body loads
-	// above the target.
-	g.Expect(b.eval(g, `document.querySelector("details.file[data-path='d/39.txt'] .skeleton").dataset.hunks`)).To(Equal("2"))
-	b.waitFor(g, `["d/39.txt", "d/40.txt"].every((p) => document.querySelector("details.file[data-path='" + p + "']").querySelectorAll(".hunkhead").length === 2)`)
+	// The document above the target is within a screen of view, so its body
+	// loads above the target, and so does the target's own.
+	g.Expect(b.eval(g, `document.querySelector("details.file[data-path='d/40.txt'] .skeleton").dataset.hunks`)).To(Equal("2"))
+	b.waitFor(g, `document.querySelector("details.file[data-path='d/40.txt']").querySelectorAll(".hunkhead").length === 2`)
+	b.waitFor(g, `!document.querySelector("details.file[data-path='d/39z.md'] .skeleton")`)
 	// Math.abs first: Math.round gives -0 for a small negative offset, which
 	// the DevTools protocol sends as a value with no number.
 	g.Expect(b.eval(g, `Math.round(Math.abs(`+top+`))`)).To(BeNumerically("<=", 4), "the target moved as bodies loaded around it")
+
+	// Reopened, the page goes back to where it was left and sets that place
+	// again as bodies arrive. A tap in the list straight away is not pulled
+	// back by it.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.eval(g, `document.querySelector(".scroll").style.overflowAnchor = "none"`)
+	other := `document.querySelector("details.file[data-path='d/10.txt']")`
+	otherTop := other + `.getBoundingClientRect().top - document.querySelector(".scroll").getBoundingClientRect().top`
+	b.eval(g, `document.querySelector(".filelist a[href='#" + `+other+`.id + "']").click()`)
+	b.waitFor(g, other+`.querySelectorAll(".hunkhead").length === 2`)
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, `Math.round(Math.abs(`+otherTop+`))`)).To(BeNumerically("<=", 4), "the saved place pulled the jump back")
 }
 
 // A passage takes a comment under it, in a document card and in the layout a

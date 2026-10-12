@@ -53,6 +53,66 @@ export function loadBodies(): void {
   }
 }
 
+// holdPlace keeps what is at the top of the screen there when a card above it
+// changes height: a body arriving, a document taller than its skeleton, an
+// image loading late. It records the card holding the top of the scroller and
+// how far that card sits from it, and after any card resizes it scrolls by
+// however far that card moved. A card that grows below the top, or the top
+// card's own body, moves nothing above it, so only growth above is corrected.
+// This is the browser's scroll anchoring done per card: Safari, where the phone
+// reads, has none, and a document's six-line skeleton loading above a jump
+// pushed the target off screen there. Chromium's own is turned off, so every
+// browser takes this one path and a browser test exercises the code Safari
+// runs.
+export function holdPlace(): void {
+  const cards = [
+    ...document.querySelectorAll<HTMLDetailsElement>("details.file"),
+  ];
+  const root = cards[0]?.closest<HTMLElement>(".scroll");
+  if (root === null || root === undefined) {
+    return;
+  }
+  root.style.overflowAnchor = "none";
+  let anchor: Element | undefined;
+  let offset = 0;
+  const record = (): void => {
+    const top = root.getBoundingClientRect().top;
+    anchor = cards.find((c) => c.getBoundingClientRect().bottom > top);
+    offset = (anchor?.getBoundingClientRect().top ?? top) - top;
+  };
+  let pending = 0;
+  root.addEventListener(
+    "scroll",
+    () => {
+      if (pending === 0) {
+        pending = window.requestAnimationFrame(() => {
+          pending = 0;
+          record();
+        });
+      }
+    },
+    { passive: true },
+  );
+  const resized = new ResizeObserver(() => {
+    if (anchor === undefined) {
+      record();
+      return;
+    }
+    const moved =
+      anchor.getBoundingClientRect().top -
+      root.getBoundingClientRect().top -
+      offset;
+    if (Math.abs(moved) >= 1) {
+      root.scrollTop += moved;
+    }
+    record();
+  });
+  for (const card of cards) {
+    resized.observe(card);
+  }
+  record();
+}
+
 // measureRows renders a hidden code table in a card, where a body's table
 // sits, and sets on the scroller the heights a skeleton is built from: a hunk
 // header, a line, and what the code block adds around its table, such as a

@@ -4,7 +4,7 @@ import {
   openComposers,
   settleComposers,
 } from "./composer";
-import { loadBodies } from "./bodies";
+import { holdPlace, loadBodies } from "./bodies";
 import { keepDrafts } from "./drafts";
 import { reportFailures } from "./failures";
 import { keepPlace } from "./place";
@@ -40,5 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
   prune();
   keepPlace();
   loadBodies();
+  holdPlace();
   keepDrafts();
 });
