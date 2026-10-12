@@ -40,6 +40,9 @@ which of it matters.
       renders YAML front matter only, and nothing in this repository uses TOML.
 - [ ] design: `...` as front matter's closing line, which YAML allows and Jekyll
       does not. 014 accepts `---` alone.
+- [ ] design: a role for YAML keys. The highlighter's five roles leave a key and
+      a plain value uncolored, so 014's front matter and a `.yaml` file show
+      only numbers, strings and comments in color.
 - [ ] design: a byte order mark before a document's first line. goldmark keeps
       it as text, so a file opening with one has no front matter to 014's
       parser, and its first line renders with the mark in it.

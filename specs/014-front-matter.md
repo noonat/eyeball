@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-11T00:00:00Z
-updated: 2026-10-12T02:42:18.884218061Z
+updated: 2026-10-12T02:48:03.756200104Z
 required_acks:
   - reviewed
 required_commands:
@@ -105,7 +105,18 @@ eyeball.
 - The replaced text of a changed front matter needed a case in `plainText`,
   which no todo named. Without it, a changed `status` was marked with nothing
   under it.
+- The design's reason for requiring a closing line holds only in part. A
+  document that opens with a rule and has another `---` line further down, such
+  as a second rule, becomes one code block up to that line, since the rule here
+  is any later `---`. Front matter cannot be told from that by its delimiters
+  alone.
 - Every new test was checked by planting a defect: no scan ahead, no key
   renderer, no replaced-text case, no extension, opening on any line, and the
   opening delimiter left out of the block's lines. Each made at least one test
   fail.
+
+> **Completed** 2026-10-12 02:48 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.5s
+> - `go test -race ./...` — 3.0s
