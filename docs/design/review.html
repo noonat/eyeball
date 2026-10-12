@@ -14,7 +14,7 @@
   <h1>Review</h1>
   <p>The page a notification opens. The brief before the work, the change
   itself, and a pinned decision bar. Shown as a second round of a document, as a
-  large change with every file open under a list of them, as a first round with an empty base, with a
+  large change with every file open under a list of them, as a long file whose header stays at the top, as a first round with an empty base, with a
   comment being written, and after the verdict.</p>
   <nav>
     <a href="foundations.html">Foundations</a>
@@ -619,6 +619,215 @@
     <li><b>The refusal appears on the bar, above the buttons.</b> Both buttons
     stay live: approving with no comment is a valid verdict, and only requesting
     changes needs something to act on.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ========================================================== long file -->
+<section class="spec" id="long">
+  <h2>A long file <span class="tag">its header stays at the top</span></h2>
+  <p>Scroll either frame. A card&rsquo;s header stays at the top of the screen
+  while its file scrolls under it, so a long diff keeps saying which file it is.
+  The next card&rsquo;s header pushes it away as that file arrives.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; scroll it</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Retry ladder</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <details class="file" id="long-l-1" open><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+48</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 38,6 +38,54 @@ func (w *Worker) Start</td></tr>
+                <tr><td class="ln">37</td><td class="sign"></td><td class="src">}</td></tr>
+                <tr><td class="ln">38</td><td class="sign"></td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">39</td><td class="sign">+</td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">run</span>(ctx context.Context, job *jobs.Job) error {</td></tr>
+                <tr class="add"><td class="ln">40</td><td class="sign">+</td><td class="src">	<span class="k">var</span> last error</td></tr>
+                <tr class="add"><td class="ln">41</td><td class="sign">+</td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; w.MaxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := w.<span class="f">backoff</span>(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr class="add"><td class="ln">48</td><td class="sign">+</td><td class="src">		err := w.<span class="f">upload</span>(ctx, job)</td></tr>
+                <tr class="add"><td class="ln">49</td><td class="sign">+</td><td class="src">		<span class="k">if</span> err == nil {</td></tr>
+                <tr class="add"><td class="ln">50</td><td class="sign">+</td><td class="src">			<span class="k">return</span> w.store.<span class="f">MarkDone</span>(ctx, job.ID)</td></tr>
+                <tr class="add"><td class="ln">51</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr class="add"><td class="ln">52</td><td class="sign">+</td><td class="src">		last = err</td></tr>
+                <tr class="add"><td class="ln">53</td><td class="sign">+</td><td class="src">		<span class="k">if</span> !<span class="f">retryable</span>(err) {</td></tr>
+                <tr class="add"><td class="ln">54</td><td class="sign">+</td><td class="src">			<span class="k">break</span></td></tr>
+                <tr class="add"><td class="ln">55</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr class="add"><td class="ln">56</td><td class="sign">+</td><td class="src">		w.log.<span class="f">Warn</span>(<span class="s">&quot;upload failed, retrying&quot;</span>,</td></tr>
+                <tr class="add"><td class="ln">57</td><td class="sign">+</td><td class="src">			<span class="s">&quot;job&quot;</span>, job.ID,</td></tr>
+                <tr class="add"><td class="ln">58</td><td class="sign">+</td><td class="src">			<span class="s">&quot;attempt&quot;</span>, attempt+<span class="n">1</span>,</td></tr>
+                <tr class="add"><td class="ln">59</td><td class="sign">+</td><td class="src">			<span class="s">&quot;wait&quot;</span>, wait,</td></tr>
+                <tr class="add"><td class="ln">60</td><td class="sign">+</td><td class="src">			<span class="s">&quot;err&quot;</span>, err)</td></tr>
+                <tr class="add"><td class="ln">61</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">62</td><td class="sign">+</td><td class="src">	<span class="k">return</span> w.store.<span class="f">MarkFailed</span>(ctx, job.ID, last)</td></tr>
+                <tr class="add"><td class="ln">63</td><td class="sign">+</td><td class="src">}</td></tr>
+                <tr class="add"><td class="ln">64</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">65</td><td class="sign">+</td><td class="src"><span class="c">// backoff is the wait before an attempt. The first is long because a cold</span></td></tr>
+                <tr class="add"><td class="ln">66</td><td class="sign">+</td><td class="src"><span class="c">// connection to the bucket takes 40s, measured against staging, and a</span></td></tr>
+                <tr class="add"><td class="ln">67</td><td class="sign">+</td><td class="src"><span class="c">// shorter first wait only spends an attempt on it.</span></td></tr>
+                <tr class="add"><td class="ln">68</td><td class="sign">+</td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">backoff</span>(attempt int) time.Duration {</td></tr>
+                <tr class="add"><td class="ln">69</td><td class="sign">+</td><td class="src">	<span class="k">if</span> attempt == <span class="n">0</span> {</td></tr>
+                <tr class="add"><td class="ln">70</td><td class="sign">+</td><td class="src">		<span class="k">return</span> <span class="n">0</span></td></tr>
+                <tr class="add"><td class="ln">71</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">72</td><td class="sign">+</td><td class="src">	d := w.FirstWait &lt;&lt; (attempt - <span class="n">1</span>)</td></tr>
+                <tr class="add"><td class="ln">73</td><td class="sign">+</td><td class="src">	<span class="k">if</span> d &gt; w.MaxWait {</td></tr>
+                <tr class="add"><td class="ln">74</td><td class="sign">+</td><td class="src">		d = w.MaxWait</td></tr>
+                <tr class="add"><td class="ln">75</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">76</td><td class="sign">+</td><td class="src">	<span class="k">return</span> d</td></tr>
+                <tr class="add"><td class="ln">77</td><td class="sign">+</td><td class="src">}</td></tr>
+                <tr class="add"><td class="ln">78</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">79</td><td class="sign">+</td><td class="src"><span class="c">// retryable reports whether an error is worth another attempt. A refused</span></td></tr>
+                <tr class="add"><td class="ln">80</td><td class="sign">+</td><td class="src"><span class="c">// credential or a missing bucket fails the same way every time.</span></td></tr>
+                <tr class="add"><td class="ln">81</td><td class="sign">+</td><td class="src"><span class="k">func</span> <span class="f">retryable</span>(err error) bool {</td></tr>
+                <tr class="add"><td class="ln">82</td><td class="sign">+</td><td class="src">	<span class="k">var</span> re *RequestError</td></tr>
+                <tr class="add"><td class="ln">83</td><td class="sign">+</td><td class="src">	<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;re) {</td></tr>
+                <tr class="add"><td class="ln">84</td><td class="sign">+</td><td class="src">		<span class="k">return</span> re.Status &gt;= <span class="n">500</span> || re.Status == <span class="n">429</span></td></tr>
+                <tr class="add"><td class="ln">85</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">86</td><td class="sign">+</td><td class="src">	<span class="k">return</span> !errors.<span class="f">Is</span>(err, ErrNoBucket)</td></tr>
+                <tr class="add"><td class="ln">87</td><td class="sign">+</td><td class="src">}</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="long-l-2" open><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 30,6 +30,14 @@ func TestWorkerRetries</td></tr>
+                <tr><td class="ln">30</td><td class="sign"></td><td class="src">	w := <span class="f">newTestWorker</span>(t, <span class="f">flaky</span>(<span class="n">2</span>))</td></tr>
+                <tr class="del"><td class="ln">31</td><td class="sign">&minus;</td><td class="src">	w.MaxTries = <span class="n">5</span></td></tr>
+                <tr class="add"><td class="ln">31</td><td class="sign">+</td><td class="src">	w.MaxTries = <span class="n">3</span></td></tr>
+                <tr class="add"><td class="ln">32</td><td class="sign">+</td><td class="src">	w.FirstWait = time.Millisecond</td></tr>
+              </table>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#long">Request changes</a><a class="btn primary" href="#long">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark &mdash; scroll it</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>Retry ladder</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <details class="file" id="long-d-1" open><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+48</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 38,6 +38,54 @@ func (w *Worker) Start</td></tr>
+                <tr><td class="ln">37</td><td class="sign"></td><td class="src">}</td></tr>
+                <tr><td class="ln">38</td><td class="sign"></td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">39</td><td class="sign">+</td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">run</span>(ctx context.Context, job *jobs.Job) error {</td></tr>
+                <tr class="add"><td class="ln">40</td><td class="sign">+</td><td class="src">	<span class="k">var</span> last error</td></tr>
+                <tr class="add"><td class="ln">41</td><td class="sign">+</td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; w.MaxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := w.<span class="f">backoff</span>(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr class="add"><td class="ln">48</td><td class="sign">+</td><td class="src">		err := w.<span class="f">upload</span>(ctx, job)</td></tr>
+                <tr class="add"><td class="ln">49</td><td class="sign">+</td><td class="src">		<span class="k">if</span> err == nil {</td></tr>
+                <tr class="add"><td class="ln">50</td><td class="sign">+</td><td class="src">			<span class="k">return</span> w.store.<span class="f">MarkDone</span>(ctx, job.ID)</td></tr>
+                <tr class="add"><td class="ln">51</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr class="add"><td class="ln">52</td><td class="sign">+</td><td class="src">		last = err</td></tr>
+                <tr class="add"><td class="ln">53</td><td class="sign">+</td><td class="src">		<span class="k">if</span> !<span class="f">retryable</span>(err) {</td></tr>
+                <tr class="add"><td class="ln">54</td><td class="sign">+</td><td class="src">			<span class="k">break</span></td></tr>
+                <tr class="add"><td class="ln">55</td><td class="sign">+</td><td class="src">		}</td></tr>
+                <tr class="add"><td class="ln">56</td><td class="sign">+</td><td class="src">		w.log.<span class="f">Warn</span>(<span class="s">&quot;upload failed, retrying&quot;</span>,</td></tr>
+                <tr class="add"><td class="ln">57</td><td class="sign">+</td><td class="src">			<span class="s">&quot;job&quot;</span>, job.ID,</td></tr>
+                <tr class="add"><td class="ln">58</td><td class="sign">+</td><td class="src">			<span class="s">&quot;attempt&quot;</span>, attempt+<span class="n">1</span>,</td></tr>
+                <tr class="add"><td class="ln">59</td><td class="sign">+</td><td class="src">			<span class="s">&quot;wait&quot;</span>, wait,</td></tr>
+                <tr class="add"><td class="ln">60</td><td class="sign">+</td><td class="src">			<span class="s">&quot;err&quot;</span>, err)</td></tr>
+                <tr class="add"><td class="ln">61</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">62</td><td class="sign">+</td><td class="src">	<span class="k">return</span> w.store.<span class="f">MarkFailed</span>(ctx, job.ID, last)</td></tr>
+                <tr class="add"><td class="ln">63</td><td class="sign">+</td><td class="src">}</td></tr>
+                <tr class="add"><td class="ln">64</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">65</td><td class="sign">+</td><td class="src"><span class="c">// backoff is the wait before an attempt. The first is long because a cold</span></td></tr>
+                <tr class="add"><td class="ln">66</td><td class="sign">+</td><td class="src"><span class="c">// connection to the bucket takes 40s, measured against staging, and a</span></td></tr>
+                <tr class="add"><td class="ln">67</td><td class="sign">+</td><td class="src"><span class="c">// shorter first wait only spends an attempt on it.</span></td></tr>
+                <tr class="add"><td class="ln">68</td><td class="sign">+</td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">backoff</span>(attempt int) time.Duration {</td></tr>
+                <tr class="add"><td class="ln">69</td><td class="sign">+</td><td class="src">	<span class="k">if</span> attempt == <span class="n">0</span> {</td></tr>
+                <tr class="add"><td class="ln">70</td><td class="sign">+</td><td class="src">		<span class="k">return</span> <span class="n">0</span></td></tr>
+                <tr class="add"><td class="ln">71</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">72</td><td class="sign">+</td><td class="src">	d := w.FirstWait &lt;&lt; (attempt - <span class="n">1</span>)</td></tr>
+                <tr class="add"><td class="ln">73</td><td class="sign">+</td><td class="src">	<span class="k">if</span> d &gt; w.MaxWait {</td></tr>
+                <tr class="add"><td class="ln">74</td><td class="sign">+</td><td class="src">		d = w.MaxWait</td></tr>
+                <tr class="add"><td class="ln">75</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">76</td><td class="sign">+</td><td class="src">	<span class="k">return</span> d</td></tr>
+                <tr class="add"><td class="ln">77</td><td class="sign">+</td><td class="src">}</td></tr>
+                <tr class="add"><td class="ln">78</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">79</td><td class="sign">+</td><td class="src"><span class="c">// retryable reports whether an error is worth another attempt. A refused</span></td></tr>
+                <tr class="add"><td class="ln">80</td><td class="sign">+</td><td class="src"><span class="c">// credential or a missing bucket fails the same way every time.</span></td></tr>
+                <tr class="add"><td class="ln">81</td><td class="sign">+</td><td class="src"><span class="k">func</span> <span class="f">retryable</span>(err error) bool {</td></tr>
+                <tr class="add"><td class="ln">82</td><td class="sign">+</td><td class="src">	<span class="k">var</span> re *RequestError</td></tr>
+                <tr class="add"><td class="ln">83</td><td class="sign">+</td><td class="src">	<span class="k">if</span> errors.<span class="f">As</span>(err, &amp;re) {</td></tr>
+                <tr class="add"><td class="ln">84</td><td class="sign">+</td><td class="src">		<span class="k">return</span> re.Status &gt;= <span class="n">500</span> || re.Status == <span class="n">429</span></td></tr>
+                <tr class="add"><td class="ln">85</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr class="add"><td class="ln">86</td><td class="sign">+</td><td class="src">	<span class="k">return</span> !errors.<span class="f">Is</span>(err, ErrNoBucket)</td></tr>
+                <tr class="add"><td class="ln">87</td><td class="sign">+</td><td class="src">}</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="long-d-2" open><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 30,6 +30,14 @@ func TestWorkerRetries</td></tr>
+                <tr><td class="ln">30</td><td class="sign"></td><td class="src">	w := <span class="f">newTestWorker</span>(t, <span class="f">flaky</span>(<span class="n">2</span>))</td></tr>
+                <tr class="del"><td class="ln">31</td><td class="sign">&minus;</td><td class="src">	w.MaxTries = <span class="n">5</span></td></tr>
+                <tr class="add"><td class="ln">31</td><td class="sign">+</td><td class="src">	w.MaxTries = <span class="n">3</span></td></tr>
+                <tr class="add"><td class="ln">32</td><td class="sign">+</td><td class="src">	w.FirstWait = time.Millisecond</td></tr>
+              </table>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide">
+          <div class="tally"><span>No comments yet</span></div>
+          <div class="buttons"><a class="btn danger" href="#long">Request changes</a><a class="btn primary" href="#long">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The header stays where it is.</b> Its fold control and its Whole file
+    link work while it is stuck, so a long file folds from wherever the reader
+    is in it. Folding keeps that header at the top, with the next file under
+    it.</li>
+    <li><b>It covers the top of the code</b>, a header&rsquo;s height under the
+    top bar. The bar naming the file in the top bar instead was rejected: it
+    copies the path and the controls into a second place, and needs a script to
+    know which file is under it.</li>
   </ul>
 </section>
 
