@@ -275,6 +275,37 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	b.waitFor(g, rows("d/58.txt")+` === 40`)
 }
 
+// A jump to a comment inside a card lands below the card's stuck header, not
+// under it.
+func TestServer_Surface_browserCommentJump(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := longFileReview(g, t, f)
+	review, err := f.store.Review(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	round, err := f.store.Round(t.Context(), id, review.LatestRound)
+	g.Expect(err).NotTo(HaveOccurred())
+	c, err := f.s.db.AddComment(t.Context(), store.NewComment{RoundID: round.ID, Level: store.LevelLine, Path: "d/long.txt", StartLine: 200, EndLine: 200, Quoted: "line 200", Body: "Why here?"})
+	g.Expect(err).NotTo(HaveOccurred())
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	comment := `document.getElementById("comment-` + itoa(c.ID) + `")`
+	summary := `document.querySelector("details.file[data-path='d/long.txt'] > summary")`
+	b.waitFor(g, `!!`+comment)
+	b.eval(g, `location.hash = "comment-`+itoa(c.ID)+`"`)
+	b.waitFor(g, `window.scrollY > 0`)
+	time.Sleep(100 * time.Millisecond)
+	g.Expect(b.eval(g, `Math.round(Math.abs(`+summary+`.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom))`)).To(BeEquivalentTo(0), "the card's header is not stuck")
+	// Adding zero turns the -0 a small negative rounds to into 0, which the
+	// DevTools protocol sends as a number.
+	below := `Math.round(` + comment + `.getBoundingClientRect().top - ` + summary + `.getBoundingClientRect().bottom) + 0`
+	g.Expect(b.eval(g, below)).To(BeNumerically(">=", 0), "the comment landed under the card's header")
+	g.Expect(b.eval(g, below)).To(BeNumerically("<", 40), "the comment landed far below the card's header")
+}
+
 // The document scrolls, not .scroll, since iOS sends its status bar tap only to
 // the document's scroller. The header stays at the top as it does.
 func TestServer_Surface_browserDocumentScrolls(t *testing.T) {
@@ -814,6 +845,49 @@ func TestServer_Surface_browserRenderedCard(t *testing.T) {
 	b.waitFor(g, `!!document.querySelector("details.file[data-path='data.zip'] form.composer textarea")`)
 }
 
+// A card's header stays under the page header while its file scrolls, and a
+// fold from there keeps it at the top of the screen with the next file under
+// it, rather than leaving the reader deep inside the next file.
+func TestServer_Surface_browserStickyHeader(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := longFileReview(g, t, f)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
+
+	long := `document.querySelector("details.file[data-path='d/long.txt']")`
+	next := `document.querySelector("details.file[data-path='d/next.txt']")`
+	head := `document.querySelector(".head").getBoundingClientRect().bottom`
+	fromHead := func(card string) string {
+		return `Math.round(Math.abs(` + card + `.querySelector("summary").getBoundingClientRect().top - ` + head + `))`
+	}
+	b.eval(g, `window.scrollTo(0, window.scrollY + `+long+`.getBoundingClientRect().top - `+head+` + 2000)`)
+	g.Expect(b.eval(g, long+`.getBoundingClientRect().top < `+head+` - 1000`)).To(BeTrue(), "the card's top did not scroll far above the screen")
+	g.Expect(b.eval(g, fromHead(long))).To(BeEquivalentTo(0), "the header scrolled away with its file")
+
+	b.eval(g, long+`.querySelector("summary").click()`)
+	b.waitFor(g, `!`+long+`.open`)
+	time.Sleep(100 * time.Millisecond)
+	// The folded card's top border sits at the header's bottom, a pixel above
+	// its summary.
+	g.Expect(b.eval(g, fromHead(long))).To(BeNumerically("<=", 1), "the folded header left the top of the screen")
+	g.Expect(b.eval(g, next+`.getBoundingClientRect().top < window.innerHeight / 2`)).To(BeTrue(), "the next file is not under the folded header")
+
+	// A fold the page makes, as keepPlace does on load, is not one the reader
+	// made, and leaves the scroll where it is.
+	b.eval(g, long+`.open = true`)
+	b.waitFor(g, long+`.open`)
+	b.eval(g, `window.scrollTo(0, window.scrollY + `+long+`.getBoundingClientRect().top - `+head+` + 2000)`)
+	time.Sleep(100 * time.Millisecond)
+	at := b.eval(g, `Math.round(window.scrollY)`)
+	b.eval(g, long+`.open = false`)
+	time.Sleep(100 * time.Millisecond)
+	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(Equal(at), "a fold the page made moved the page")
+}
+
 // The live stream: a verdict recorded elsewhere reloads an open review page,
 // but not while something typed is unsaved; a page with no stamp stays put;
 // and a dropped connection shows the notice, holds the verdicts back, and
@@ -921,6 +995,21 @@ func TestServer_Surface_browserWorker(t *testing.T) {
 	b.navigate(g, srv.URL+"/")
 	b.waitFor(g, `navigator.serviceWorker.getRegistration().then(r => !!r && !!r.active)`)
 	g.Expect(b.eval(g, `navigator.serviceWorker.getRegistration().then(r => r.scope)`)).To(Equal(srv.URL + "/"))
+}
+
+// longFileReview opens a review of two files of 300 changed lines each,
+// d/long.txt and d/next.txt. Each is several screens long, so the page can
+// scroll far into either, and still far once d/long.txt is folded.
+func longFileReview(g *WithT, t *testing.T, f *fixture) int64 {
+	t.Helper()
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	var lines []string
+	for n := 1; n <= 300; n++ {
+		lines = append(lines, fmt.Sprintf("line %d", n))
+	}
+	write(g, repo, "d/long.txt", strings.Join(lines, "\n")+"\n")
+	write(g, repo, "d/next.txt", strings.Repeat("next\n", 300))
+	return f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "long"}).Review.ID
 }
 
 // comments reads a round's comments.

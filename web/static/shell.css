@@ -30,3 +30,10 @@ html {
   height: auto;
   min-height: 100%;
 }
+
+/* .scroll has nothing to overflow here, but overflow-y: auto still makes it a
+ * scroll container, and a card's sticky header sticks inside its nearest one.
+ * Inside .scroll, which never scrolls, the header scrolled away with its card. */
+.scroll {
+  overflow: visible;
+}

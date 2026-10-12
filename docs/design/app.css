@@ -927,6 +927,14 @@ a.bit .project {
   overflow: clip;
 }
 
+/* What a jump lands on inside a card, a comment or the composer a tap opens,
+ * lands below the card's stuck header as well as the page's. The header is
+ * its padding, one line of the path and its border: 42px. */
+.file > summary ~ *,
+.file > summary ~ * * {
+  scroll-margin-top: calc(2 * 10px + 1.5 * var(--t-sm) + 1px);
+}
+
 .file + .file {
   margin-top: 10px;
 }
