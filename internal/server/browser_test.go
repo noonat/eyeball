@@ -328,6 +328,28 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
 }
 
+// Load anyway on a held card fills the card with its body, and the card
+// stays open.
+func TestServer_Surface_browserHeld(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	write(g, repo, "d/lock.json", strings.Repeat("line\n", 600))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "lock"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	card := `document.querySelector("details.file[data-path='d/lock.json']")`
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, card+`.querySelectorAll(".src").length`)).To(BeEquivalentTo(0), "a held card loaded on its own")
+	b.eval(g, card+`.querySelector("a.load").click()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 600`)
+	g.Expect(b.eval(g, card+`.open && !`+card+`.querySelector(".filefacts")`)).To(BeTrue())
+}
+
 // A tap in the list of files jumps to that file's card, and the bodies that
 // load around it on arrival leave it where it landed, because each card holds
 // its rows' height until its body comes.
