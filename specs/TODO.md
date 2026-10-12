@@ -14,13 +14,10 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-- [ ] design, 017: a card's file header that stays at the top of the screen
-      while its file scrolls under it, so a long diff keeps saying which file it
-      is.
-
-Beyond that, as of 015 the reading desk is applied, and every requirement
-product.md and architecture.md describe is built as of 010. The next work comes
-from Unscheduled below, once real reviews say which of it matters.
+Nothing. As of 015 the reading desk is applied, as of 017 a card's file header
+stays at the top of the screen, and every requirement product.md and
+architecture.md describe is built as of 010. The next work comes from
+Unscheduled below, once real reviews say which of it matters.
 
 ## Unscheduled
 
