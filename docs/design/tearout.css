@@ -234,7 +234,11 @@ body {
 
 /* :target only. The no-JavaScript property holds and the back button closes
  * it. Expanding restores the wide layout, which is the thing a 390px frame
- * cannot show. */
+ * cannot show.
+ *
+ * A page has one target at a time, so a link inside an expanded view that
+ * targets something of its own, as an Approve moment does, would close the
+ * view. :has(:target) keeps it open while anything inside it is the target. */
 .full {
   display: none;
   position: fixed;
@@ -243,7 +247,8 @@ body {
   background: #23211f;
 }
 
-.full:target {
+.full:target,
+.full:has(:target) {
   display: flex;
   flex-direction: column;
 }
