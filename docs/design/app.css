@@ -277,12 +277,18 @@
   box-sizing: border-box;
 }
 
+/* The top bar and the notices under it, held together at the top of a page
+ * whose document scrolls. Sticky does nothing in a tearout's frame, where the
+ * column never scrolls and .scroll does. */
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+}
+
 /* The bar carries the safe-area inset itself. A wrapper that adds padding
  * around it leaves a strip of page background under the notch. */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   display: flex;
   align-items: center;
   gap: var(--gap);
@@ -1800,9 +1806,6 @@ button.chip {
  * within a day and stops being read, which leaves the reviewer with no signal
  * at the moment one matters. */
 .offline {
-  position: sticky;
-  top: 0;
-  z-index: 7;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1832,9 +1835,6 @@ button.chip {
  * owner asked for on 2026-10-06 after sweetpea's sticky, to know on the phone
  * that the code running is the latest. */
 .update {
-  position: sticky;
-  top: 0;
-  z-index: 7;
   display: flex;
   align-items: center;
   gap: 8px;
