@@ -251,6 +251,15 @@ The owner opens queue.html, review.html, desk.html and letters.html through
 `go run ./tool/tearout` and chooses: one direction, a mix with which parts come
 from which, or neither.
 
+> **Departure, 2026-10-11.** The owner preferred the reading desk on the phone,
+> saying its reduced color noise was less distracting, the highlight was a great
+> idea, and the eye marks were excellent, especially the closing and the blink.
+> Before choosing, the owner asked to see the letters styling on the desk. That
+> is a third sheet, `mix.html`: `desk.css` with the letter rules after it. Those
+> rules moved out of `letters.css` into `letter.css`, so both sheets link the
+> same file and `letters.css` keeps only its violet tokens and its Approve
+> moment. The choice is now between the desk and the desk with the letter.
+
 > **Departure, before iteration 1.** Two todos changed from the approved spec.
 > The removal todo now says what happens on a mix, which it did not. The TODO
 > todo moves the Unscheduled entry this spec added, where the approved wording
