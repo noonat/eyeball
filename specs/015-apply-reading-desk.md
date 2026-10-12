@@ -162,15 +162,26 @@ required_acks:
       and every text tone measured at 4.5 to 1 or better
 - [x] specs/TODO.md's Approve contrast entry removed
 
+> **Completed** 2026-10-12 03:17 UTC
+>
+> - acks: approved-on-phone
+> - `make check` — 19.6s
+> - `go test -race ./...` — 38.9s
+
 ## Iteration 2: The fonts from the binary
 
-- [ ] `docs/design/fonts` embedded, and `GET /static/fonts/{path...}` serving
+- [x] `docs/design/fonts` embedded, and `GET /static/fonts/{path...}` serving
       each `.woff2` as `font/woff2` with a strong ETag and `no-cache`
-- [ ] A request with a matching `If-None-Match` answered 304 with no body
-- [ ] Tests through `SurfaceHandler`, so the surface's own headers apply: each
+- [x] A request with a matching `If-None-Match` answered 304 with no body
+- [x] Tests through `SurfaceHandler`, so the surface's own headers apply: each
       font with its cache headers, the 304, `OFL.txt` and an unknown path a 404,
       and every `url()` in app.css naming a file the route serves
-- [ ] architecture.md's route table and its caching paragraph corrected
+- [x] architecture.md's route table and its caching paragraph corrected
+
+> **Completed** 2026-10-12 03:22 UTC
+>
+> - `make check` — 17.6s
+> - `go test -race ./...` — 38.0s
 
 ## Iteration 3: The templates
 

@@ -2,10 +2,15 @@ package server
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"io/fs"
 	"net/http"
 	"path"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/noonat/eyeball"
 )
@@ -275,6 +280,55 @@ func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) error {
 	}
 	w.Header().Set("Content-Type", "image/png")
 	_, _ = w.Write(data)
+	return nil
+}
+
+// fontTags is a strong ETag for each font file app.css can name, keyed by its
+// path under docs/design/fonts, hashed once from the embedded bytes. Only a
+// .woff2 has one, so a license or any other path is not served.
+var fontTags = sync.OnceValue(func() map[string]string {
+	tags := map[string]string{}
+	_ = fs.WalkDir(eyeball.Fonts, fontRoot, func(name string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || path.Ext(name) != ".woff2" {
+			return err
+		}
+		data, err := fs.ReadFile(eyeball.Fonts, name)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(data)
+		tags[strings.TrimPrefix(name, fontRoot+"/")] = `"` + hex.EncodeToString(sum[:16]) + `"`
+		return nil
+	})
+	return tags
+})
+
+// fontRoot is where the fonts sit in the embedded files.
+const fontRoot = "docs/design/fonts"
+
+// handleFont serves a font app.css names.
+//
+// It is the one surface response a browser may keep. The fonts are 215 KB, and
+// under the surface's no-store they would be sent with every page. no-cache
+// keeps a copy and asks each time, which costs a request and a 304 rather than
+// the bytes. A name that changes with the content would let the browser skip
+// the request too, at the cost of changing how every static file is addressed.
+func (s *Server) handleFont(w http.ResponseWriter, r *http.Request) error {
+	name := r.PathValue("path")
+	tag, ok := fontTags()[name]
+	if !ok {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
+	}
+	data, err := fs.ReadFile(eyeball.Fonts, fontRoot+"/"+name)
+	if err != nil {
+		return err
+	}
+	h := w.Header()
+	h.Set("Content-Type", "font/woff2")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("ETag", tag)
+	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(data))
 	return nil
 }
 
