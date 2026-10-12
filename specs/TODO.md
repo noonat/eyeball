@@ -28,9 +28,6 @@ which of it matters.
 
 - [ ] design: a card's file header that stays at the top of the screen while its
       file scrolls under it, so a long diff keeps saying which file it is.
-- [ ] design: a tap on the top of the window scrolls the page to the top, as
-      Safari does. The page scrolls inside its own element, which iOS's
-      status-bar tap does not reach.
 - [ ] design: markdown rendered as a diff, the owner's words. What form is open:
       today a changed document renders with changed passages marked.
 - [ ] design: show that the page is refreshing when the installed app comes back
