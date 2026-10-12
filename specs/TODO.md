@@ -215,6 +215,14 @@ which of it matters.
 - [ ] design: a comment added on a second device shows on the first only after a
       reload. 008's stamps leave comment counts out, so a reviewer's own comment
       does not reload the page that wrote it.
+- [ ] design: apply the visual direction 013 chooses to app.css, every tearout
+      and the templates. Its size depends on the choice, so it is specced after.
+- [ ] tooling: serve the fonts a chosen direction needs from the binary, under
+      `/static/`, with caching. 013 keeps them beside the tearouts only.
+- [ ] design: redraw the installed page's icon, through `tool/appicon`, to match
+      the direction 013 chooses.
+- [ ] product: a queue row carrying the first line of the agent's note, if 013's
+      letters direction is chosen. Its sheet draws the line from fixture only.
 
 ## Open questions
 
