@@ -103,7 +103,7 @@ required_acks:
       its header stuck at the top of the frame
 - [x] Every frame and expanded view that shows a card screenshotted headless and
       looked at, for a card the change draws differently
-- [ ] The owner has looked at the tearout on the phone and approved it
+- [x] The owner has looked at the tearout on the phone and approved it
 
 **Departures, iteration 1.**
 
@@ -117,18 +117,54 @@ required_acks:
   with no pixel differing past a 2% color tolerance. The long file frames were
   shot scrolled 600 and 980 pixels in, with the header stuck under the top bar.
 
+> **Completed** 2026-10-12 06:40 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 5.5s
+> - `go test -race ./...` — 37.0s
+> - `go test -count=1 -tags browser ./internal/server` — 30.4s
+
+Approved by the owner in conversation on 2026-10-11, after looking at the long
+file frames on the phone.
+
 ## Iteration 2: The review page
 
-- [ ] The summary sticking at `--head-height` on a real page, and a browser test
+- [x] The summary sticking at `--head-height` on a real page, and a browser test
       that it sits at the page header's bottom partway down a long card
-- [ ] Folding a card whose top is above the page header's bottom scrolls its top
+- [x] Folding a card whose top is above the page header's bottom scrolls its top
       to the header's bottom, with `holdPlace` recording its anchor after
-- [ ] A browser test that folding from a stuck header leaves that header at the
+- [x] A browser test that folding from a stuck header leaves that header at the
       page header's bottom, and the next card under it
-- [ ] `scroll-margin-top` of the summary's height on targets inside an open
+- [x] `scroll-margin-top` of the summary's height on targets inside an open
       card, and a browser test that a comment jump lands below both headers
-- [ ] Each of the three tests failing with its rule or handler removed, checked
+- [x] Each of the three tests failing with its rule or handler removed, checked
       by removing it
+
+**Departures, iteration 2.**
+
+- shell.css sets `.scroll` to `overflow: visible` on a real page. This corrects
+  016's departure that a rule stopping `.scroll` scrolling changed nothing. It
+  changed nothing then. `overflow-y: auto` still makes `.scroll` a scroll
+  container, and a sticky header sticks inside its nearest one, so the header
+  scrolled away with its card until this rule was added.
+- The comment test adds a line comment through the store and jumps to it by
+  setting `location.hash`. The composer's `scrollIntoView` lands under the same
+  `scroll-margin-top`, and has no test of its own.
+- The fold test also folds the card by script, as keepPlace does on load, and
+  checks that the scroll stays put. Folding during load fires a toggle event in
+  Chromium, measured with a static page, so a fold the page makes reaches the
+  handler, and only a fold from a tap on the header moves the page. A reload
+  could not show it, since a later restore of the saved place covered the wrong
+  scroll.
+- Measured in Chromium: the resize observer in `holdPlace` runs before the
+  toggle event. The handler's own `record()` after its scroll survived its
+  mutation, because the scroll event records again. It is kept, since in a
+  browser that runs the two the other way the observer would undo the scroll.
+- Each of the six rules and branches was removed in turn: the sticky rule,
+  `clip`, shell.css's `.scroll`, the scroll margin, the fold's scroll, and the
+  guard on taps. Each failed a test. The z-index is not tested. Without it, a
+  thread's pinned body, also positioned and later in the document, would paint
+  over a stuck header. That is reasoned from paint order, not measured.
 
 ## Iteration 3: On the phone
 
