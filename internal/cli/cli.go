@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -196,6 +198,7 @@ func (a *app) command() *ucli.Command {
 		a.replyCommand(),
 		a.abandonCommand(),
 		a.checkCommand(),
+		a.catCommand(),
 		a.startCommand(),
 		a.stopCommand(),
 		a.serveCommand(),
@@ -466,6 +469,49 @@ func (a *app) checkCommand() *ucli.Command {
 				var r api.CheckResult
 				_ = json.Unmarshal(raw, &r)
 				_, _ = fmt.Fprintf(w, "approved: review %d round %d, %s (%s)\n", r.Review, r.Round, r.Title, r.Agent)
+			})
+		},
+	}
+}
+
+// catCommand prints a file's bytes from the approved review a merge is
+// checked against, for a gate that compares what merged with what was approved.
+func (a *app) catCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:      "cat",
+		Usage:     "print a file's bytes from the approved review measured from --base",
+		ArgsUsage: "<path>",
+		Flags: []ucli.Flag{
+			&ucli.StringFlag{Name: "base", Usage: "the commit the review's rounds are measured from"},
+		},
+		Action: func(ctx context.Context, cmd *ucli.Command) error {
+			if cmd.Args().Len() != 1 || cmd.String("base") == "" {
+				return &usageError{message: "eyeball cat takes --base and one path", fix: "run eyeball cat --base <commit> <path>"}
+			}
+			v := url.Values{}
+			v.Set("base", cmd.String("base"))
+			v.Set("path", cmd.Args().First())
+			raw, err := a.do(ctx, http.MethodGet, "/agent/cat?"+a.callerQuery()+"&"+v.Encode(), nil)
+			if err != nil {
+				return err
+			}
+			// The digest is what the daemon stored the bytes under. A mismatch
+			// means the answer is not the file, and printing it would hand a gate
+			// wrong bytes as the approved ones, so it fails before anything prints
+			// whatever the output mode.
+			var r api.CatResult
+			if err := json.Unmarshal(raw, &r); err != nil {
+				return errors.Wrap(err, "read the daemon's answer")
+			}
+			if sum := sha256.Sum256(r.Content); hex.EncodeToString(sum[:]) != r.Digest {
+				return &failure{
+					code:    api.CodeInternal,
+					message: fmt.Sprintf("the content of %s does not match its digest %s", r.Path, r.Digest),
+					fix:     "the daemon's blob store is damaged: read its log in the state directory, and ask for a new round of the review so the file is stored again",
+				}
+			}
+			return a.out.emit(raw, func(w io.Writer) {
+				_, _ = w.Write(r.Content)
 			})
 		},
 	}

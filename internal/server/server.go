@@ -192,6 +192,11 @@ var routes = []route{
 	},
 	{
 		side:    sideAgent,
+		pattern: "GET /agent/cat",
+		handle:  (*Server).handleCat,
+	},
+	{
+		side:    sideAgent,
 		pattern: "GET /agent/status",
 		handle:  (*Server).handleStatus,
 	},

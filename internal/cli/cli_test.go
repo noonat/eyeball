@@ -79,6 +79,84 @@ func TestRun_buildMismatch(t *testing.T) {
 	g.Expect(res.stderr).To(BeEmpty(), "the same build is not warned about")
 }
 
+func TestRun_cat(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	head, err := exec.Command("git", "-C", f.repo, "rev-parse", "main").Output()
+	g.Expect(err).NotTo(HaveOccurred())
+	base := strings.TrimSpace(string(head))
+	res := f.run(t, "request", "a.txt", "-m", "first", "--json")
+	g.Expect(res.code).To(BeZero(), res.stderr)
+	f.decide(g, t, 1, store.VerdictApprove, "")
+
+	// Plainly the command prints the bytes and nothing else. --json and --format
+	// address the JSON answer, as they do for every command.
+	res = f.run(t, "cat", "--base", base, "a.txt")
+	g.Expect(res.code).To(BeZero(), res.stderr)
+	g.Expect(res.stdout).To(Equal("one\ntwo\n"))
+	res = f.run(t, "cat", "--base", base, "a.txt", "--format", "{{.size}} {{.path}}")
+	g.Expect(res.stdout).To(Equal("8 a.txt\n"))
+	res = f.run(t, "cat", "--base", base, "a.txt", "--json")
+	var answer api.CatResult
+	g.Expect(json.Unmarshal([]byte(res.stdout), &answer)).To(Succeed(), res.stdout)
+	g.Expect(string(answer.Content)).To(Equal("one\ntwo\n"))
+
+	res = f.run(t, "cat", "--base", base, "keep.txt")
+	g.Expect(res.code).To(Equal(1))
+	g.Expect(res.stderr).To(ContainSubstring("captured keep.txt"))
+	g.Expect(res.stderr).To(ContainSubstring("fix: "))
+	g.Expect(res.stdout).To(BeEmpty())
+
+	res = f.run(t, "cat", "--base", base, "keep.txt", "--json")
+	g.Expect(res.code).To(Equal(1))
+	g.Expect(res.stdout).To(ContainSubstring(`"code": "not_captured"`), "a refusal is still JSON under --json")
+
+	usage := func(args ...string) {
+		res := f.run(t, args...)
+		g.Expect(res.code).To(Equal(1), strings.Join(args, " "))
+		g.Expect(res.stderr).To(ContainSubstring("eyeball cat takes --base and one path"))
+	}
+	usage("cat", "a.txt")
+	usage("cat", "--base", base)
+	usage("cat", "--base", base, "a.txt", "b.txt")
+}
+
+func TestRun_catRefusesContentThatIsNotTheDigest(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	head, err := exec.Command("git", "-C", f.repo, "rev-parse", "main").Output()
+	g.Expect(err).NotTo(HaveOccurred())
+	base := strings.TrimSpace(string(head))
+	g.Expect(f.run(t, "request", "a.txt", "-m", "first").code).To(BeZero())
+	f.decide(g, t, 1, store.VerdictApprove, "")
+
+	// The blob on disk stops being what its name says, as a damaged disk or
+	// another process writing there would leave it.
+	var damaged int
+	g.Expect(filepath.WalkDir(f.paths.Blobs, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		content, err := os.ReadFile(path)
+		if err == nil && string(content) == "one\ntwo\n" {
+			damaged++
+			return os.WriteFile(path, []byte("tampered\n"), 0o600)
+		}
+		return err
+	})).To(Succeed())
+	g.Expect(damaged).To(Equal(1), "the case damages the blob it means to")
+
+	res := f.run(t, "cat", "--base", base, "a.txt")
+	g.Expect(res.code).To(Equal(1))
+	g.Expect(res.stderr).To(ContainSubstring("does not match its digest"))
+	g.Expect(res.stdout).To(BeEmpty(), "no bytes reach a gate")
+
+	res = f.run(t, "cat", "--base", base, "a.txt", "--json")
+	g.Expect(res.code).To(Equal(1))
+	g.Expect(res.stdout).To(ContainSubstring("does not match its digest"))
+	g.Expect(res.stdout).NotTo(ContainSubstring(`"content"`), "the refusal carries no file")
+}
+
 func TestRun_dashedPath(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

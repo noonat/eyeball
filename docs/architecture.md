@@ -406,6 +406,43 @@ repository eyeball has not seen is refused. A worktree is a project of its own,
 so a review opened from one does not match a merge made in the main clone, and
 the refusal names the project root and the base so that is visible.
 
+## Reading the approved bytes
+
+**`eyeball cat --base <old> <path>` is `GET /agent/cat` on the agent socket.** A
+gate that lets a merge differ from the approved tree by a change it can verify
+needs the approved bytes to verify against. In the first such gate, a spec file
+changes state after its approval, and the gate replays that change on the
+approved text and compares. Without a command, the gate would open the blob
+store itself, and the gate's trust would rest on a file on disk and on the
+store's layout instead of on eyeball's answer. That was rejected. Extending
+`show` was rejected too: it reads any review in any project with no project
+check, which is right for printing digests and wrong for printing content.
+
+**The answer is the file from the one approved round that holds it.** The
+candidates are the approved reviews in the caller's project, opened by any
+agent, whose latest round is measured from `<old>` and captured the path inside
+the review's paths and with content. A deletion does not answer. Reviews that
+hold the same bytes are one answer. Reviews that hold different bytes are
+refused as `ambiguous`, because picking one would let a gate approve or refuse
+by whichever review the query listed first. None is refused as `not_captured`.
+Like `check`, it reads and records nothing, and a repository eyeball has not
+seen is refused.
+
+**The body is JSON, with the content as base64 and its SHA-256, and the command
+recomputes the digest.** The client already treats a 200 whose body is not JSON
+as a dropped connection, so that a wait cut short never reads as a verdict. A
+raw file would lose that protection. It would also let a truncated or damaged
+file reach a gate as the approved content. Base64 costs a third more bytes and
+the daemon holds the whole file in memory, so the command suits a document and
+not a build artifact. Nothing caps the size, because the one caller reads a
+spec.
+
+**It rests on one property of `check`**, measured in
+`TestServer_checkAcceptsAnUnreferencedCommit`: `check` reads commits and not
+refs, so a commit no ref names, whose tree is the merged tree with one blob put
+back to the approved bytes, matches the approved review where the merged commit
+does not.
+
 ## What a file is
 
 `internal/kind` maps a path and its first bytes to one of: text, markdown, page,
