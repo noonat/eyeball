@@ -232,9 +232,6 @@ which of it matters.
 - [ ] design: a comment added on a second device shows on the first only after a
       reload. 008's stamps leave comment counts out, so a reviewer's own comment
       does not reload the page that wrote it.
-- [ ] design, 015: the Approve button's white text on `--ok-vivid`, `#1a9b6c`,
-      is 3.53 to 1 in the light theme, under the 4.5 a 14px label needs.
-      Measured in 013, whose reading desk darkens it to `#15805a` at 4.92.
 - [ ] design: redraw the installed page's icon, through `tool/appicon`, to match
       the direction 013 chooses.
 

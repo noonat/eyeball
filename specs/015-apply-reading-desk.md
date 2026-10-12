@@ -1,7 +1,7 @@
 ---
-status: ready
+status: active
 created: 2026-10-12T00:00:00Z
-updated: 2026-10-12T02:48:39.460475943Z
+updated: 2026-10-12T03:02:46.828652223Z
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -126,22 +126,33 @@ required_acks:
   - approved-on-phone
 ```
 
-- [ ] app.css holding the direction, each override folded into the rule it
+> **Departures.** The fold removed the middle dot, so the `dot-sep` class had no
+> rule left, and the template class check refused `web/templates/queue.html` for
+> using it. The class went from that template and the sheets here rather than
+> staying as an empty rule, which touched one template ahead of iteration 3. The
+> empty state's large heading, a shared fix in 013, now applies only to an empty
+> state holding the eye. The project view's "Nothing changed on disk" took the
+> 26px heading and read as a headline, so ordinary empty states keep the dashed
+> box. One queue frame, not installed yet, showed no waiting pill although a
+> review waited below it. The live layout shows the count whenever anything
+> waits, so that frame's eye is open.
+
+- [x] app.css holding the direction, each override folded into the rule it
       replaced, and the light Approve green at `#15805a`
-- [ ] The `:target` moment's rules in tearout.css, and `.eye.blink` in app.css
-- [ ] mix.html, directions.css, desk.css and letter.css removed, and nothing
+- [x] The `:target` moment's rules in tearout.css, and `.eye.blink` in app.css
+- [x] mix.html, directions.css, desk.css and letter.css removed, and nothing
       linking them
-- [ ] queue.html, review.html, widening.html and project.html redrawn: the eye
+- [x] queue.html, review.html, widening.html and project.html redrawn: the eye
       in every topbar, marked waiting titles, note lines and letters
-- [ ] review.html drawing a decided round's verdict note and notice, earlier
+- [x] review.html drawing a decided round's verdict note and notice, earlier
       rounds under a letter, and Approve as the reloaded decided round blinking
-- [ ] foundations.html's specimens redrawn: palette, type scale, both faces,
+- [x] foundations.html's specimens redrawn: palette, type scale, both faces,
       pills, rows, the highlighter, the eye open and shut, the letter
-- [ ] docs/design/README.md's rules, table and direction section describing the
+- [x] docs/design/README.md's rules, table and direction section describing the
       language as shipped, with every rule the change made false corrected
-- [ ] Every frame and every expanded view screenshotted headless and looked at,
+- [x] Every frame and every expanded view screenshotted headless and looked at,
       and every text tone measured at 4.5 to 1 or better
-- [ ] specs/TODO.md's Approve contrast entry removed
+- [x] specs/TODO.md's Approve contrast entry removed
 
 ## Iteration 2: The fonts from the binary
 
