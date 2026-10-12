@@ -49,6 +49,10 @@ which of it matters.
 - [ ] design: settle 011's two numbers against real reviews: a list of files
       past ten files, and a file's body deferred past 500 changed lines. Both
       are guesses written down so they can be corrected.
+- [ ] design: keep a reader's place as the card at the top of the screen and its
+      offset, not as a scroll position. A document's skeleton is six lines
+      whatever its length, so a review reopened with a long document above the
+      saved place opens below it. Reasoned in 011, not seen on the phone.
 - [ ] product: marking a file reviewed beyond folding its card, such as a count
       of files read or a mark that survives a new round. 011 kept folding alone,
       at the owner's word, and more behavior would be its own spec.

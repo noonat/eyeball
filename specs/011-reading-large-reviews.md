@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-07T00:00:00Z
-updated: 2026-10-11T22:18:53.189426876Z
+updated: 2026-10-12T00:16:30.623648774Z
 required_acks:
   - reviewed
 required_commands:
@@ -226,6 +226,10 @@ This iteration is the owner's. `phone-checked` is given only by the owner.
 > of any card wholly above the screen's top, and the saved place stops being set
 > once the reader taps, scrolls or types.
 
+> **Checked again on the phone, 2026-10-11**, after the fix: a tap in the list
+> landed on its file, right after opening and after scrolling. The owner
+> approved the iteration.
+
 - [x] A card wholly above the top of the scroller that grows scrolls the page by
       its growth, with the browser's own scroll anchoring off
 - [x] The saved place set again as bodies arrive only until the reader first
@@ -233,7 +237,13 @@ This iteration is the owner's. `phone-checked` is given only by the owner.
 - [x] Tests: a jump past a long document above its target lands, and a tap in
       the list during the restore window is not pulled back
 
-- [/] Review 13, or a seeded review past ten files, read top to bottom on the
-  phone, with bodies arriving as cards scroll in, and what was found recorded in
-  this spec
-- [/] A folded card staying folded after a reload
+- [x] Review 13, or a seeded review past ten files, read top to bottom on the
+      phone, with bodies arriving as cards scroll in, and what was found
+      recorded in this spec
+- [x] A folded card staying folded after a reload
+
+> **Completed** 2026-10-12 00:16 UTC
+>
+> - acks: reviewed, phone-checked
+> - `make check` — 17.1s
+> - `go test -race ./...` — 35.4s
