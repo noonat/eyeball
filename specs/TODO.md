@@ -14,15 +14,9 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-- [ ] design, 015: apply the visual direction 013 chose, `docs/design/mix.html`,
-      to app.css, every tearout and the templates. It needs the fonts served
-      from the binary under `/static/` with caching, where 013 keeps them beside
-      the tearouts only, and a queue row carrying the first line of the agent's
-      note, which the queue does not have today.
-
-Beyond that, every requirement product.md and architecture.md describe is built
-as of 010, and the next work comes from Unscheduled below, once real reviews say
-which of it matters.
+Nothing. As of 015 the reading desk is applied, and every requirement product.md
+and architecture.md describe is built as of 010. The next work comes from
+Unscheduled below, once real reviews say which of it matters.
 
 ## Unscheduled
 

@@ -464,6 +464,7 @@
 
 .section > h2 .count {
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
   font-weight: 500;
   color: var(--ink-faint);
 }
@@ -727,6 +728,10 @@ a.bit .project {
   line-height: 1.35;
   letter-spacing: -0.005em;
   margin: 1px 0 3px;
+  /* A title or a path with no space in it wraps rather than widening the row,
+   * which would scroll the whole page sideways now that the document is what
+   * scrolls. The row no longer clips, since the stripe it clipped is gone. */
+  overflow-wrap: anywhere;
 }
 
 /* The first paragraph of the agent's note, under a waiting row's title: what
@@ -828,6 +833,7 @@ a.bit .project {
   font-size: var(--t-sm);
   line-height: 1.55;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .note p + p {
@@ -1203,6 +1209,7 @@ tr.del.sel {
 .prose h2,
 .prose h3 {
   font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .prose code {

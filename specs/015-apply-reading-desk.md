@@ -111,6 +111,21 @@ End-of-branch review pass: requested, because folding three stylesheets into
 `app.css` touches every rule the surface ships, and a rule lost in the fold
 renders as something plausible on a screen no test looks at.
 
+> **The end-of-branch pass, 2026-10-12**, diffed every element's computed style
+> under the old stack and the folded `app.css`, in both themes. It found four
+> defects, each fixed. `.row` lost its clip with the stripe, so a long unbroken
+> title widened the row and scrolled the page sideways; titles and notes now
+> wrap anywhere. A review titled by default repeated its note's first line under
+> the title; the row now quotes from the line after it. The blink missed an
+> approval made at the current round's own address, `/reviews/N/rounds/N`; it
+> matches both now. Two letter-spacing values were lost in the fold, on prose
+> headings and the section count. It also found two assertions that pass by
+> construction, now said so in their comments, and an icon tool that read only
+> the eye's path from `app.css`; it takes the whole drawing now and renders the
+> same icons. Left as drawn: a list that mixes waiting and working rows, as the
+> project view's does, ends in a hairline that `mix.html` did not draw, and the
+> owner approved the project sheet with it.
+
 ## Out of scope
 
 - Content-hashed addresses under `/static/`. specs/TODO.md holds it.
@@ -268,7 +283,15 @@ from this branch. One daemon serves every project, so restarting it holds up
 every agent waiting on a review, and the restart is confirmed with the owner
 first.
 
-- [ ] The daemon rebuilt from this branch and restarted, once the owner agrees
+- [x] The daemon rebuilt from this branch and restarted, once the owner agrees
+
+> **On the phone, 2026-10-12.** The owner read real reviews on the branch build
+> and found it looked right. The top bar did not stick in the home screen app
+> while it did in Safari, so the blink scrolled out of sight; deleting the app
+> and adding it again fixed it, which reads as the installed app holding a copy
+> from before 016 moved the scrolling to the document. Nothing in the branch
+> changed for it.
+
 - [ ] The fonts loading in the installed page
 - [ ] The eye's count, the highlighted rows, the letter and the blink on real
       reviews, with anything found recorded here or in specs/TODO.md

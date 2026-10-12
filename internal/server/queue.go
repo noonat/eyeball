@@ -101,12 +101,8 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 
 // queueRow is a store row as the queue prints it.
 func (s *Server) queueRow(row store.ReviewRow, age string) queueRow {
-	gist := ""
-	if p := paragraphs(row.Note); len(p) > 0 {
-		gist = p[0]
-	}
 	return queueRow{
-		Gist:    gist,
+		Gist:    gist(row.Note, row.Title),
 		ID:      row.ReviewID,
 		Project: row.ProjectName,
 		Agent:   row.Agent,
@@ -117,6 +113,21 @@ func (s *Server) queueRow(row store.ReviewRow, age string) queueRow {
 		Added:   thousands(row.Added),
 		Removed: thousands(row.Removed),
 	}
+}
+
+// gist is what a waiting row quotes from its note: the first paragraph, split
+// as the review page splits the letter. A review opened without a title is
+// titled with its note's first line, by defaultTitle, and quoting that line
+// again under the title prints the same sentence twice, so such a note is
+// quoted from the line after it.
+func gist(note, title string) string {
+	if title != "" && title == defaultTitle(note) {
+		_, note, _ = strings.Cut(strings.TrimSpace(note), "\n")
+	}
+	if p := paragraphs(note); len(p) > 0 {
+		return p[0]
+	}
+	return ""
 }
 
 // emptyQueue builds the empty state from every project.

@@ -13,19 +13,21 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // sizes are the manifest's two icons and iOS's apple-touch-icon.
 var sizes = []int{180, 192, 512}
 
-// eyePath finds the open eye's outline in app.css's --eye-open mask, so the
-// icon and the top bar's eye are drawn from one path.
-var eyePath = regexp.MustCompile(`--eye-open:\s*url\("data:image/svg\+xml,<svg[^>]*><path d='([^']+)'/></svg>"\)`)
+// eyeSVG finds the open eye in app.css's --eye-open mask: the whole SVG, its
+// view box, stroke and path, so the icon and the top bar's eye are one drawing.
+// The mask paints its stroke in black, which the icon recolors to its ink.
+var eyeSVG = regexp.MustCompile(`--eye-open:\s*url\("data:image/svg\+xml,(<svg[^"]*</svg>)"\)`)
 
 // iconPage is one icon at full bleed, with no rounded corners, because iOS and
 // Android mask the icon to their own shape. Its arguments are the size, the
 // font file, the paper, the ink, the highlighter, the digit's size and line
-// height, and the eye's path. The proportions are .badgeicon's: the eye 40 of
+// height, and the eye's SVG. The proportions are .badgeicon's: the eye 40 of
 // 56 wide and 26 high, the iris 17, its digit 10.5.
 const iconPage = `<!doctype html><html><head><style>
 @font-face{font-family:Atkinson;src:url("file://%[2]s") format("woff2");font-weight:200 800}
@@ -33,7 +35,7 @@ body{margin:0}
 .tile{position:relative;width:%[1]dpx;height:%[1]dpx;background:%[3]s;display:grid;place-items:center}
 .tile svg{position:absolute;left:14.29%%;top:26.79%%;width:71.43%%;height:46.43%%}
 .iris{position:relative;width:30.36%%;height:30.36%%;border-radius:50%%;background:%[5]s;color:%[4]s;font:750 %.2[6]fpx/%.2[7]fpx Atkinson,sans-serif;text-align:center}
-</style></head><body><div class="tile"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="%[4]s" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 48 30"><path d="%[8]s"/></svg><div class="iris">0</div></div>
+</style></head><body><div class="tile">%[8]s<div class="iris">0</div></div>
 </body></html>`
 
 func main() {
@@ -57,9 +59,13 @@ func run() error {
 			return err
 		}
 	}
-	m := eyePath.FindSubmatch(css)
+	m := eyeSVG.FindSubmatch(css)
 	if m == nil {
-		return fmt.Errorf("app.css has no --eye-open path")
+		return fmt.Errorf("app.css has no --eye-open mask")
+	}
+	eye := strings.Replace(string(m[1]), "stroke='black'", "stroke='"+colors["--icon-ink"]+"'", 1)
+	if eye == string(m[1]) {
+		return fmt.Errorf("the --eye-open mask has no black stroke to recolor")
 	}
 	font, err := filepath.Abs("docs/design/fonts/atkinson-hyperlegible-next/latin-wght-normal.woff2")
 	if err != nil {
@@ -80,7 +86,7 @@ func run() error {
 			colors["--icon-hl"],
 			float64(n)*10.5/56,
 			float64(n)*17/56,
-			m[1],
+			eye,
 		)
 		src := filepath.Join(dir, fmt.Sprintf("icon-%d.html", n))
 		if err := os.WriteFile(src, []byte(page), 0o600); err != nil {
