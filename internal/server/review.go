@@ -27,6 +27,16 @@ const (
 	maxSentLines = 300
 )
 
+// A file that moved more lines than this, added and removed together, holds
+// its body behind a line naming its size and Load anyway. A lock file or a
+// generated file is usually skimmed, and loading one by accident means
+// scrolling past all of it. Five hundred is the owner's guess, from
+// 2026-10-07, written down to be corrected.
+const maxCardLines = 500
+
+// heldHint says why a held card shows no body.
+var heldHint = fmt.Sprintf("Past the %d a card shows on its own.", maxCardLines)
+
 // A round past this many files gets a list of them above the cards, each a
 // link to its card. It is for finding a file, so lines do not count. Ten is
 // product.md's guess.
@@ -189,6 +199,12 @@ type fileView struct {
 	// answers once the card nears the screen. A large review would otherwise
 	// send every body with the page.
 	Deferred bool
+	// Held is the lines the file moved, written out, where that is past
+	// maxCardLines and the card shows Load anyway in place of its body, and
+	// empty otherwise. HeldHint says why.
+	Held, HeldHint string
+	// BodyHref is the card's body on its own, which a deferred card asks for
+	// and Load anyway fetches.
 	BodyHref string
 }
 
@@ -425,6 +441,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			Removed: thousands(m.Result.Removed),
 			Whole:   at.href(m.Path),
 		}
+		if moved := m.Result.Added + m.Result.Removed; moved > maxCardLines {
+			file.Held, file.HeldHint = thousands(moved), heldHint
+		}
 		// The result's flags cover the line limit as well as the byte limit,
 		// and a document past either shows the too-large line. Each block
 		// starts a line of its own, so that is also what keeps the block
@@ -487,12 +506,11 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		lastOld = old
 		view.Shown = append(view.Shown, file)
 	}
-	if files > maxSentFiles || added+removed > maxSentLines {
-		for i := range view.Shown {
-			view.Shown[i].Deferred = true
-			href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
-			view.Shown[i].BodyHref = withQuery(href, against)
-		}
+	deferred := files > maxSentFiles || added+removed > maxSentLines
+	for i := range view.Shown {
+		href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
+		view.Shown[i].BodyHref = withQuery(href, against)
+		view.Shown[i].Deferred = deferred && view.Shown[i].Held == ""
 	}
 	if view.Unmeasurable == "" {
 		view.Files = count(files, "file", "files")

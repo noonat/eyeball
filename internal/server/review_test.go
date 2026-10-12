@@ -558,6 +558,45 @@ func TestServer_Surface_reviewFreshConditions(t *testing.T) {
 	}
 }
 
+// A file that moved more than 500 lines holds its body behind a line naming
+// its size and Load anyway, which fetches the body the cards route serves. At
+// 500 the card is deferred as any other in a large review.
+func TestServer_Surface_reviewHoldsAFilePastFiveHundred(t *testing.T) {
+	counts := []int{500, 501}
+	for _, n := range counts {
+		t.Run(itoa(int64(n))+" lines", func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+			write(g, repo, "a.txt", "one\n")
+			write(g, repo, "d/lock.json", strings.Repeat("line\n", n))
+			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "lock"}).Review.ID
+
+			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+			card := find(doc, "file")
+			g.Expect(card).NotTo(BeNil())
+			g.Expect(hasAttr(card, "open")).To(BeTrue())
+			if n <= 500 {
+				g.Expect(find(card, "skeleton")).NotTo(BeNil())
+				g.Expect(find(card, "load")).To(BeNil())
+				return
+			}
+			// A held card waits for the tap, so it never asks on its own.
+			g.Expect(hasAttr(card, "hx-trigger")).To(BeFalse())
+			g.Expect(find(card, "skeleton")).To(BeNil())
+			g.Expect(text(find(card, "kind"))).To(Equal("501 changed lines"))
+			g.Expect(text(find(card, "hint"))).To(Equal("Past the 500 a card shows on its own."))
+			load := find(card, "load")
+			g.Expect(attr(load, "href")).To(Equal(attr(find(card, "fileopen"), "href")), "with no script, Load anyway opens the whole file")
+			res := serveSurface(f.s.Surface(), http.MethodGet, attr(load, "hx-get"))
+			g.Expect(res.Code).To(Equal(http.StatusOK))
+			body := parse(g, res.Body.String())
+			g.Expect(findAll(body, hasClass("src"))).To(HaveLen(n))
+			g.Expect(find(body, "load")).To(BeNil(), "the loaded body held itself again")
+		})
+	}
+}
+
 // A review past ten files lists them above the cards, each linking to its
 // card, so a reader can jump to one. At ten files there is no list.
 func TestServer_Surface_reviewListsFilesPastTen(t *testing.T) {

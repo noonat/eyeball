@@ -52,7 +52,8 @@
 {{end}}{{end}}
 {{define "file"}}<details class="file" id="{{.CardID}}" data-path="{{.Path}}" open{{if .Deferred}} hx-get="{{.BodyHref}}" hx-trigger="eyeball:near once" hx-target="find [data-body]" hx-swap="outerHTML"{{end}}>
 <summary><span class="path"><bdi>{{.Path}}</bdi></span>{{if not .Unmeasured}}<span class="counts"><span class="plus">+{{.Added}}</span> <span class="minus">&minus;{{.Removed}}</span></span>{{end}}{{if .IsDocument}}<a class="fileopen" href="{{.RawDiff}}" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a>{{else}}<a class="fileopen" href="{{.Whole}}" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a>{{end}}</summary>
-{{if .Deferred}}<div data-body class="skeleton"{{with .SkeletonLines}} data-hunks="{{$.SkeletonHunks}}" data-lines="{{.}}"{{end}}></div>
+{{if .Held}}<div data-body class="filefacts"><span class="kind">{{.Held}} changed lines</span><span class="hint">{{.HeldHint}}</span><a class="load" href="{{.Whole}}" hx-get="{{.BodyHref}}" hx-target="closest [data-body]" hx-swap="outerHTML">Load anyway</a></div>
+{{else if .Deferred}}<div data-body class="skeleton"{{with .SkeletonLines}} data-hunks="{{$.SkeletonHunks}}" data-lines="{{.}}"{{end}}></div>
 {{else}}{{template "filebody" .}}{{end}}</details>
 {{end}}
 {{define "filebody"}}{{with .Mode}}{{template "modeline" .}}{{end}}{{if and .Deleted (not .Rendered)}}<div class="toobig">Deleted as of this round.</div>

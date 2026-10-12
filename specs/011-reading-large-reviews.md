@@ -169,7 +169,8 @@ required_acks:
   - phone-approved
 ```
 
-`phone-approved` is the owner's, for the skeleton's tearout change.
+`phone-approved` is the owner's, for the skeleton's tearout change. The owner
+approved it on the phone on 2026-10-11.
 
 - [x] review.html's cards not yet loaded drawn as skeletons, one bar per row,
       with the note saying why
@@ -182,13 +183,26 @@ required_acks:
 - [x] Tests: the list present past ten files and absent at ten, and each link
       naming a card on the page
 
+> **Completed** 2026-10-11 23:56 UTC
+>
+> - acks: reviewed, phone-approved
+> - `make check` — 5.4s
+> - `go test -race ./...` — 34.8s
+
 ## Iteration 4: A very large file, deferred
 
-- [ ] A card whose file moved more than 500 lines rendering the line naming its
+- [x] A card whose file moved more than 500 lines rendering the line naming its
       size and a Load link, which fetches its body from the cards route
-- [ ] The limit as a named constant beside the threshold, with why
-- [ ] Tests: the line at 501 lines and a body at 500, and a browser test that
+- [x] The limit as a named constant beside the threshold, with why
+- [x] Tests: the line at 501 lines and a body at 500, and a browser test that
       Load fills the card
+
+> **Completed** 2026-10-12 00:00 UTC
+>
+> - acks: reviewed
+> - `make check` — 5.4s
+> - `go test -race ./...` — 35.3s
+
 
 ## Iteration 5: On the phone
 
