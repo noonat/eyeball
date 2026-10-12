@@ -45,6 +45,7 @@ holds and the back button closes it.
 | [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                                                                                     |
 | [`desk.html`](./desk.html)               | Exploratory, for spec 013: the reading desk, one of two directions for how the surface looks. The queue, the empty queue, a second round, a large change with the composer open, and the Approve moment, in Atkinson Hyperlegible with a highlighter yellow and an eye in the top bar                                                                                                                      |
 | [`letters.html`](./letters.html)         | Exploratory, for spec 013: letters from agents, the other direction. The same frames, with the agent's note leading as a letter set in Literata, ink on a cool paper and a violet accent                                                                                                                                                                                                                   |
+| [`mix.html`](./mix.html)                 | Exploratory, for spec 013: the reading desk with the letter from the other direction on it. The same frames, in the desk's ink, highlighter and eye, with the agent's note set as a signed letter in Literata                                                                                                                                                                                              |
 
 That is the whole surface the product document describes. A new screen gets a
 tearout before it gets code.
@@ -59,7 +60,8 @@ tearout before it gets code.
 
   A sheet trying out a direction for the visual language links two more after
   them: `directions.css`, the fixes every direction shares, and its own, such as
-  `desk.css`. Neither ships. Its fonts sit in `fonts/` with their licenses.
+  `desk.css`. The letter is `letter.css`, which letters and the mix both link.
+  Neither ships. Its fonts sit in `fonts/` with their licenses.
 
 - **Both themes, side by side.** Tokens are defined on `[data-theme="light"]`
   and `[data-theme="dark"]`, so a tearout stamps the attribute on each frame and
