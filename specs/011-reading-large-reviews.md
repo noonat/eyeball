@@ -203,7 +203,6 @@ approved it on the phone on 2026-10-11.
 > - `make check` — 5.4s
 > - `go test -race ./...` — 35.3s
 
-
 ## Iteration 5: On the phone
 
 ```backlog
@@ -214,7 +213,27 @@ required_acks:
 
 This iteration is the owner's. `phone-checked` is given only by the owner.
 
-- [ ] Review 13, or a seeded review past ten files, read top to bottom on the
-      phone, with bodies arriving as cards scroll in, and what was found
-      recorded in this spec
-- [ ] A folded card staying folded after a reload
+> **Found on the phone, 2026-10-11**, reading review 13 on the branch build:
+> scrolling top to bottom was smooth, and a folded card stayed folded after a
+> reload. A tap in the list of files did not land on its file, though the page
+> then held still. The owner's reading: the rendered markdown. Review 13 holds
+> `internal/cli/manual.md` near the top and two specs near the bottom, and a
+> document's skeleton is six lines whatever its length, so one loading above the
+> target pushes it down on Safari, which has no scroll anchoring. A second cause
+> fits the same report: for three seconds after load the saved place is set
+> again on every body that arrives, which can pull a jump back. Both are fixed
+> below without relying on a skeleton's height: the page scrolls by the growth
+> of any card wholly above the screen's top, and the saved place stops being set
+> once the reader taps, scrolls or types.
+
+- [x] A card wholly above the top of the scroller that grows scrolls the page by
+      its growth, with the browser's own scroll anchoring off
+- [x] The saved place set again as bodies arrive only until the reader first
+      taps, scrolls or types
+- [x] Tests: a jump past a long document above its target lands, and a tap in
+      the list during the restore window is not pulled back
+
+- [/] Review 13, or a seeded review past ten files, read top to bottom on the
+  phone, with bodies arriving as cards scroll in, and what was found recorded in
+  this spec
+- [/] A folded card staying folded after a reload
