@@ -20,9 +20,11 @@
 </head>
 <body>
 <div class="app">
+<div class="head">
 <div class="topbar">{{if .Back}}<a class="back" href="{{.Back}}"><span class="i i-chevron-left" aria-hidden="true"></span>{{.BackLabel}}</a><h1>{{.Title}}</h1>{{else}}<span class="wordmark">eyeball</span>{{end}}{{with .Eye}}{{if .Count}}<span class="eye" role="img" aria-label="{{.Count}} waiting"><span class="iris">{{.Count}}</span></span>{{else}}<span class="eye shut" role="img" aria-label="Nothing waiting"></span>{{end}}{{end}}</div>
 <div id="update" hidden><div class="update"><span class="i i-refresh-cw" aria-hidden="true"></span><span>Update ready.</span><a class="refresh" role="button" tabindex="0">Refresh</a></div></div>
 <div id="offline" hidden><div class="offline"><span class="i i-triangle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span><a class="retry" role="button" tabindex="0">Retry</a></div></div>
+</div>
 {{template "page" .Body}}
 </div>
 </body>

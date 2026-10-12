@@ -15,6 +15,7 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	ghtml "github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -47,14 +48,15 @@ type Page struct {
 }
 
 // extensions are GFM's, with a table cell's alignment written as an align
-// attribute. goldmark's default writes a style attribute, and the surface's
-// policy has no style-src, so Chromium ignored it.
+// attribute, and front matter. goldmark's default writes a style attribute, and
+// the surface's policy has no style-src, so Chromium ignored it.
 func extensions() goldmark.Option {
 	return goldmark.WithExtensions(
 		extension.NewTable(extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute)),
 		extension.Strikethrough,
 		extension.Linkify,
 		extension.TaskList,
+		frontMatterExtension{},
 	)
 }
 
@@ -82,12 +84,16 @@ func shownMarkdown(p Page) goldmark.Markdown {
 // source wrote it, where the rendering shown would write the same comment or
 // the same text for two different blocks.
 func keyMarkdown() goldmark.Markdown {
-	return goldmark.New(extensions(), goldmark.WithRendererOptions(ghtml.WithUnsafe()))
+	return goldmark.New(
+		extensions(),
+		goldmark.WithRendererOptions(ghtml.WithUnsafe(), renderer.WithNodeRenderers(util.Prioritized(keyFrontMatter{}, 100))),
+	)
 }
 
 // shownRenderer replaces goldmark's rendering of the nodes that leave the
 // document: links and images, which go through the allowlist, and raw HTML
-// blocks. It also highlights a fenced code block into the role classes.
+// blocks. It also highlights a fenced code block and front matter into the role
+// classes.
 type shownRenderer struct {
 	page Page
 }
@@ -99,6 +105,7 @@ func (r shownRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(ast.KindImage, r.image)
 	reg.Register(ast.KindFencedCodeBlock, r.fencedCode)
 	reg.Register(ast.KindHTMLBlock, r.htmlBlock)
+	reg.Register(kindFrontMatter, r.frontMatter)
 }
 
 // link writes an a element around a link's text where its destination passes
@@ -182,9 +189,23 @@ func (r shownRenderer) fencedCode(w util.BufWriter, source []byte, node ast.Node
 		return ast.WalkContinue, nil
 	}
 	n := node.(*ast.FencedCodeBlock)
-	h := highlighter{lexer: lexers.Get(string(n.Language(source)))}
+	writeCode(w, source, n.Lines(), highlighter{lexer: lexers.Get(string(n.Language(source)))})
+	return ast.WalkSkipChildren, nil
+}
+
+// frontMatter writes a document's front matter as the code block it is, both
+// delimiters included, highlighted as YAML. Read as markdown, the delimiters
+// would be rules or a heading's underline.
+func (r shownRenderer) frontMatter(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		writeCode(w, source, node.Lines(), highlighter{lexer: lexers.Get("yaml")})
+	}
+	return ast.WalkSkipChildren, nil
+}
+
+// writeCode writes lines as a code block, highlighted into the role classes.
+func writeCode(w util.BufWriter, source []byte, lines *text.Segments, h highlighter) {
 	w.WriteString("<pre><code>")
-	lines := n.Lines()
 	for i := range lines.Len() {
 		segment := lines.At(i)
 		line := strings.TrimSuffix(string(segment.Value(source)), "\n")
@@ -198,7 +219,6 @@ func (r shownRenderer) fencedCode(w util.BufWriter, source []byte, node ast.Node
 		w.WriteString("\n")
 	}
 	w.WriteString("</code></pre>\n")
-	return ast.WalkSkipChildren, nil
 }
 
 // htmlBlock writes the placeholder for a block of raw HTML. Raw HTML stays off,

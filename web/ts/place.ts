@@ -32,15 +32,8 @@ function readPlace(v: unknown): Place | null {
 // arrive, since each one moves what lies below it.
 export function keepPlace(): void {
   const page = document.querySelector<HTMLElement>(".page[data-place]");
-  const scroller = page?.closest<HTMLElement>(".scroll");
   const key = page?.dataset["place"];
-  if (
-    page === null ||
-    page === undefined ||
-    scroller === null ||
-    scroller === undefined ||
-    key === undefined
-  ) {
+  if (page === null || key === undefined) {
     return;
   }
   const save = (): void => {
@@ -49,10 +42,10 @@ export function keepPlace(): void {
     ]
       .filter((d) => !d.open)
       .map((d) => d.dataset["path"] ?? "");
-    remember(`place:${key}`, { scroll: scroller.scrollTop, folded });
+    remember(`place:${key}`, { scroll: window.scrollY, folded });
   };
   let pending: number | undefined;
-  scroller.addEventListener("scroll", () => {
+  window.addEventListener("scroll", () => {
     window.clearTimeout(pending);
     pending = window.setTimeout(save, 200);
   });
@@ -69,7 +62,7 @@ export function keepPlace(): void {
     card.open = !saved.folded.includes(card.dataset["path"] ?? "");
   }
   const restore = (): void => {
-    scroller.scrollTop = saved.scroll;
+    window.scrollTo(0, saved.scroll);
   };
   restore();
   // Setting the place again as bodies arrive stops at the reader's first tap,

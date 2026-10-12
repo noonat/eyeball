@@ -28,18 +28,21 @@ which of it matters.
 
 - [ ] design: a card's file header that stays at the top of the screen while its
       file scrolls under it, so a long diff keeps saying which file it is.
-- [ ] design: a tap on the top of the window scrolls the page to the top, as
-      Safari does. The page scrolls inside its own element, which iOS's
-      status-bar tap does not reach.
 - [ ] design: markdown rendered as a diff, the owner's words. What form is open:
       today a changed document renders with changed passages marked.
 - [ ] design: show that the page is refreshing when the installed app comes back
       to the foreground. Today nothing shows activity, and then new content
       appears all at once.
-- [ ] design: render a markdown file's YAML front matter as a code block. Today
-      goldmark reads the opening `---` as a rule and the closing one as a
-      heading underline, so `status: draft` above it renders as a heading. Every
-      spec in this repository opens with front matter.
+- [ ] design: TOML front matter between `+++` lines, as Hugo writes it. 014
+      renders YAML front matter only, and nothing in this repository uses TOML.
+- [ ] design: `...` as front matter's closing line, which YAML allows and Jekyll
+      does not. 014 accepts `---` alone.
+- [ ] design: a role for YAML keys. The highlighter's five roles leave a key and
+      a plain value uncolored, so 014's front matter and a `.yaml` file show
+      only numbers, strings and comments in color.
+- [ ] design: a byte order mark before a document's first line. goldmark keeps
+      it as text, so a file opening with one has no front matter to 014's
+      parser, and its first line renders with the mark in it.
 - [ ] design: a rendered file in a round whose repository is gone. That page
       shows captured files through a path of its own, which still shows a binary
       file as the binary line, and rendering there needs the raw route, which
@@ -214,13 +217,6 @@ which of it matters.
       under that root would be a 500. Reasoned in 007, not tested. A HEAD naming
       a commit that does not exist is handled on the project view, which says
       the working copy cannot be listed.
-- [ ] product: who may write on the tailnet listener, decided in notification
-      (009). 008 requires a token on the loopback listener only. When this
-      machine runs Tailscale on the same tailnet, its own processes reach the
-      node's `:443`, and `curl` passes the cross-origin check, so an agent here
-      could decide a review through it. The owner chose on 2026-10-06 to settle
-      it in 009 with tsnet's `WhoIs` in hand, for example by refusing writes
-      from this machine's own node.
 - [ ] design: commenting from a file page: the whole file, the tree's file and
       the project's live file. 008 puts the composer on the review page only,
       where the bar and the tally are.
