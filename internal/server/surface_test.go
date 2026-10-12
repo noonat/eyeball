@@ -234,6 +234,47 @@ func TestServer_Surface_failureIsAPage(t *testing.T) {
 	g.Expect(res.Body.String()).NotTo(ContainSubstring("base commit is gone"), "the error itself goes to the log")
 }
 
+// Every font app.css names is served from where its relative path resolves
+// under /static/app.css, with a cache the surface's own no-store would
+// otherwise forbid.
+func TestServer_Surface_fonts(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	surface := f.s.Surface()
+
+	urls := regexp.MustCompile(`url\("(fonts/[^"]+)"\)`).FindAllStringSubmatch(string(eyeball.Stylesheet), -1)
+	g.Expect(urls).To(HaveLen(6), "app.css names six font files")
+	for _, m := range urls {
+		target := "/static/" + m[1]
+		res := serveSurface(surface, http.MethodGet, target)
+		g.Expect(res.Code).To(Equal(http.StatusOK), target)
+		g.Expect(res.Header().Get("Content-Type")).To(Equal("font/woff2"))
+		g.Expect(res.Header().Get("Cache-Control")).To(Equal("no-cache"))
+		tag := res.Header().Get("ETag")
+		g.Expect(tag).To(MatchRegexp(`^"[0-9a-f]{32}"$`), "a strong ETag")
+		g.Expect(res.Body.Bytes()[:4]).To(Equal([]byte("wOF2")))
+
+		again := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://eyeball"+target, nil)
+		req.Header.Set("If-None-Match", tag)
+		surface.ServeHTTP(again, req)
+		g.Expect(again.Code).To(Equal(http.StatusNotModified), target)
+		g.Expect(again.Body.Len()).To(BeZero())
+	}
+
+	missing := []string{
+		"/static/fonts/literata/OFL.txt",
+		"/static/fonts/literata/nope.woff2",
+		"/static/fonts/literata",
+		// The mux cleans a literal .. with a redirect before any handler runs,
+		// so the escaped form is the one that reaches this route.
+		"/static/fonts/..%2fapp.css",
+	}
+	for _, target := range missing {
+		g.Expect(serveSurface(surface, http.MethodGet, target).Code).To(Equal(http.StatusNotFound), target)
+	}
+}
+
 func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
