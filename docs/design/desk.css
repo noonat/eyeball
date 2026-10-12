@@ -1,0 +1,316 @@
+/* Direction A, the reading desk: identity from reading and marking up text.
+ *
+ * Linked by desk.html after app.css and directions.css. It overrides tokens
+ * and adds the rules the direction needs. Nothing here ships until a later
+ * spec applies the chosen direction to app.css.
+ *
+ * One attention color, a highlighter yellow, used only as a fill behind ink:
+ * the titles of waiting rows, the waiting count, and a line chosen for a
+ * comment. Everything else is ink on paper. The one bold element is the eye in
+ * the top bar, which shows whether anything waits. */
+
+/* --------------------------------------------------------------- fonts */
+
+/* Atkinson Hyperlegible Next and its Mono, drawn by the Braille Institute for
+ * low-vision legibility, OFL-1.1. Fontsource 5.3.0's Latin subsets. Each is
+ * variable over 200 to 800, so the in-between weights app.css asks for, 580
+ * and 620, are drawn rather than snapped to the nearest static face. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-next/latin-wght-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-next/latin-wght-italic.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-mono/latin-wght-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("fonts/atkinson-hyperlegible-mono/latin-wght-italic.woff2")
+    format("woff2");
+}
+
+/* ---------------------------------------------------------------- tokens */
+
+/* One neutral family at one temperature in both themes: a paper with a trace
+ * of green, never cream, and an ink with a trace of blue. The accent is the
+ * ink itself, so a link, a back button and the Add button read as ink, and
+ * the highlighter is the only hue that asks for attention. */
+[data-theme="light"] {
+  --bg: #f3f4f1;
+  --bg-sunk: #e8eae5;
+  --panel: #ffffff;
+  --panel-2: #f8f9f6;
+  --line: #dcdfd8;
+  --line-strong: #c2c6bd;
+
+  --ink: #1a1c22;
+  --ink-dim: #4b4f57;
+  --ink-faint: #656972;
+
+  --accent: #1a1c22;
+  --accent-vivid: #1a1c22;
+  --accent-wash: #e6e8e3;
+  --on-accent: #ffffff;
+
+  --hl: #ffe14d;
+  --hl-line: #fff1a8;
+  --on-hl: #1a1c22;
+
+  /* app.css's #1a9b6c puts white Approve text at 3.53 to 1. */
+  --ok-vivid: #15805a;
+
+  --syntax-keyword: #39478c;
+}
+
+/* The dark highlighter leans toward lemon, away from the amber that marks a
+ * passage showing what it replaced. At #e8c93a the two read as one color. */
+[data-theme="dark"] {
+  --bg: #17181c;
+  --bg-sunk: #121316;
+  --panel: #1e2025;
+  --panel-2: #24262c;
+  --line: #2f323a;
+  --line-strong: #41454e;
+
+  --ink: #e8e9e5;
+  --ink-dim: #b0b3ba;
+  --ink-faint: #8f939c;
+
+  --accent: #e8e9e5;
+  --accent-vivid: #e8e9e5;
+  --accent-wash: #2b2d33;
+  --on-accent: #17181c;
+
+  --hl: #ecd64b;
+  --hl-line: #403a17;
+  --on-hl: #17181c;
+
+  --syntax-keyword: #a7b5f2;
+}
+
+/* ------------------------------------------------------------------ type */
+
+/* A wider scale than app.css's 11 to 21, so a heading leads its section. 16
+ * is the body of a document. */
+.app {
+  --prose:
+    "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --mono:
+    "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --t-xs: 12px;
+  --t-sm: 14px;
+  --t-md: 16px;
+  --t-lg: 20px;
+  --t-xl: 26px;
+  --t-code: 13px;
+}
+
+.topbar .wordmark {
+  font-size: var(--t-lg);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.topbar h1 {
+  font-weight: 700;
+}
+
+.row .title {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.brief h2.title {
+  font-weight: 700;
+}
+
+.agent {
+  font-size: var(--t-xs);
+}
+
+/* ----------------------------------------------------------- highlighter */
+
+/* A marker stroke over the words, not a box around the row. It follows the
+ * text across a wrap, which needs an inline element and box-decoration-break
+ * clone, since a grid item such as .title is drawn as one block. The ink on it
+ * does not change with the theme, because light text on yellow cannot be
+ * read. */
+.app mark {
+  color: var(--on-hl);
+  background: linear-gradient(
+    transparent 0.12em,
+    var(--hl) 0.12em,
+    var(--hl) calc(100% - 0.06em),
+    transparent calc(100% - 0.06em)
+  );
+  padding: 0 0.18em;
+  margin: 0 -0.18em;
+  border-radius: 0.2em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* A waiting row is a plain card. The highlighted title is its signal, in place
+ * of the amber stripe, and it survives daylight as a block of yellow. */
+.row.waiting {
+  border-color: var(--line-strong);
+}
+
+.row.waiting::before {
+  display: none;
+}
+
+.pill.waiting {
+  background: var(--hl);
+  border-color: transparent;
+  color: var(--on-hl);
+}
+
+.pill.working {
+  background: var(--panel-2);
+  border-color: var(--line);
+  color: var(--ink-dim);
+}
+
+/* A line chosen for a comment is highlighted rather than outlined, as a
+ * reader marks a line on paper. The fill is lighter than the marker on a
+ * title, so the code on it still reads. */
+tr.sel,
+tr.add.sel,
+tr.del.sel {
+  outline: 0;
+  background: var(--hl-line);
+}
+
+.blk.sel {
+  outline: 0;
+  background: var(--hl-line);
+}
+
+/* ---------------------------------------------------------- ink, not blue */
+
+.k {
+  color: var(--syntax-keyword);
+}
+
+.topbar .back {
+  font-weight: 600;
+}
+
+a.bit .project {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.note {
+  border-left-color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ eye */
+
+/* The queue's state, in the top bar of every screen: open with the waiting
+ * count as its iris while anything waits, shut when nothing does. The lids are
+ * a mask painted in ink, as an icon is, and the iris is a highlighter disc, so
+ * the count is the one yellow thing on a screen with nothing else to mark.
+ * Drawn here rather than as an i- icon so the shipped mask table is
+ * unchanged. */
+:root {
+  --eye-open: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 48 30'><path d='M2 15C12-2 36-2 46 15 36 32 12 32 2 15Z'/></svg>");
+  --eye-shut: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 48 30'><path d='M3 12C13 22 35 22 45 12'/><path d='M12.4 17.6 10 22.5'/><path d='M24 19.5V25'/><path d='M35.6 17.6 38 22.5'/></svg>");
+}
+
+.eye {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 28px;
+}
+
+.eye::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--ink);
+  -webkit-mask: var(--eye-open) center / contain no-repeat;
+  mask: var(--eye-open) center / contain no-repeat;
+}
+
+.eye .iris {
+  position: relative;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--hl);
+  color: var(--on-hl);
+  font: 750 11.5px / 19px var(--prose);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.eye.shut::before {
+  -webkit-mask-image: var(--eye-shut);
+  mask-image: var(--eye-shut);
+}
+
+.eye.shut .iris {
+  display: none;
+}
+
+.eye.lg {
+  width: 88px;
+  height: 55px;
+}
+
+.eye.lg::before {
+  background-color: var(--ink-faint);
+}
+
+/* Approving blinks the eye and takes one off its count. The count changes in
+ * directions.css whatever the motion setting; the blink is the only motion. */
+@keyframes desk-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45%,
+  60% {
+    transform: scaleY(0.08);
+  }
+}
+
+.moment:target .eye {
+  animation: desk-blink 420ms ease-in-out 200ms 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment:target .eye {
+    animation: none;
+  }
+}

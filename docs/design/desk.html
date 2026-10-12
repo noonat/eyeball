@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eyeball tearout: the reading desk</title>
+<link rel="stylesheet" href="tearout.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="directions.css">
+<link rel="stylesheet" href="desk.css">
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <h1>The reading desk</h1>
+  <p>Direction A of spec 013, for choosing on the phone beside the current
+  design. Identity from reading and marking up text: Atkinson Hyperlegible for
+  every word, one highlighter yellow as the only color that asks for attention,
+  and an eye in the top bar that shows whether anything waits. The fixtures are
+  the ones queue.html and review.html draw, so a row here compares with a row
+  there.</p>
+  <nav>
+    <a href="foundations.html">Foundations</a>
+    <a href="queue.html">Queue</a>
+    <a href="review.html">Review</a>
+    <a href="widening.html">Widening</a>
+    <a href="project.html">Project</a>
+    <a class="here" href="desk.html">Reading desk</a>
+    <a href="README.md">Readme</a>
+  </nav>
+</header>
+
+<section class="spec" id="about">
+  <h2>What this sheet is <span class="tag">read first</span></h2>
+  <ul class="note-list">
+    <li><b>Some of the change is not this direction.</b> Sentence-case
+    section heads, no middle dots, no monospace outside code and addresses, no dot
+    in a pill, and only waiting rows drawn as cards all come from
+    <code>directions.css</code>, which the other direction links too. Against
+    queue.html, this sheet shows both at once. Against the other direction, it
+    shows this one alone.</li>
+    <li><b>The fonts are about 109 KB.</b> Atkinson Hyperlegible Next is 34 KB
+    upright and 38 KB italic, its Mono 18 KB and 19 KB, each a variable Latin
+    subset from Fontsource 5.3.0. They load from <code>fonts/</code> beside this
+    sheet, so a first load shows the fallback until they arrive.</li>
+    <li><b>Every text tone holds 4.5 to 1 on the grounds it sits on</b>, in both
+    themes. The faintest is the secondary ink on a sunken ground, at 4.54 in
+    light. One fix was needed and is not about this direction: white Approve
+    text on app.css's green is 3.53, on the current design too, so the green here
+    is darker.</li>
+    <li><b>Atkinson draws its zero with a slash.</b> It is the trait that keeps
+    0 apart from O in an agent name or a path, and it shows in prose as well, as
+    in the 40s and 60s of the large change's note.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================ queue -->
+<section class="spec" id="queue">
+  <h2>The queue <span class="tag">three waiting, two working, two settled</span></h2>
+  <p>The same seven rows queue.html draws. Waiting work is the only card on the
+  screen and its title is marked, so the eye finds it before reading.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#full-queue"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="section">
+            <h2>Waiting on you <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title"><mark>Product doc, second pass</mark></span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+              </a>
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title"><mark>Upload worker and its retry ladder</mark></span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+                <span class="age">3h</span>
+                <span class="title"><mark>Spec 018: bulk import for the tag index</mark></span>
+                <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row working" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">4m</span>
+                <span class="title">Queue screen markup</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+              <a class="row working" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Settled <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row approved" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">2h</span>
+                <span class="title">Delta sync watermark</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+              </a>
+              <a class="row approved" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">Yesterday</span>
+                <span class="title">Voice, both kinds</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 1</span></span>
+              </a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="section">
+            <h2>Waiting on you <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title"><mark>Product doc, second pass</mark></span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+              </a>
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title"><mark>Upload worker and its retry ladder</mark></span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+                <span class="age">3h</span>
+                <span class="title"><mark>Spec 018: bulk import for the tag index</mark></span>
+                <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row working" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">4m</span>
+                <span class="title">Queue screen markup</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+              <a class="row working" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Settled <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row approved" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">2h</span>
+                <span class="title">Delta sync watermark</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+              </a>
+              <a class="row approved" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">Yesterday</span>
+                <span class="title">Voice, both kinds</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 1</span></span>
+              </a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The highlighter is the only hue asking for attention.</b> It marks the titles of waiting rows and nothing else on this screen. Working and settled rows are ink, because neither needs the reviewer.</li>
+    <li><b>The eye replaces the waiting pill.</b> Its iris is the count. It is in the top bar of every screen, so a reviewer arriving from a notification sees whether answering this review empties the queue.</li>
+    <li><b>The mark follows the words, not the row.</b> A two-line title is marked as two strokes, as a pen would, which a filled card cannot do.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================ empty -->
+<section class="spec" id="empty">
+  <h2>Nothing waiting <span class="tag">the state the reviewer works toward</span></h2>
+  <p>The empty queue, with the projects eyeball knows about.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#full-empty"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone md" data-theme="light"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye shut" role="img" aria-label="Nothing waiting"></span></div>
+        <div class="scroll"><div class="page">
+          <div class="empty">
+            <span class="eye lg shut" role="img" aria-label="Nothing waiting"></span>
+            <span class="headline">Nothing waiting</span>
+            <p>Four agents are working across eyeball, harbor and field-notes.</p>
+          </div>
+          <div class="section">
+            <h2>Projects <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/eyeball</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/harbor</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span></span><span class="age">Idle</span><span class="meta"><span class="agent">~/src/field-notes</span></span></a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone md" data-theme="dark"><div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye shut" role="img" aria-label="Nothing waiting"></span></div>
+        <div class="scroll"><div class="page">
+          <div class="empty">
+            <span class="eye lg shut" role="img" aria-label="Nothing waiting"></span>
+            <span class="headline">Nothing waiting</span>
+            <p>Four agents are working across eyeball, harbor and field-notes.</p>
+          </div>
+          <div class="section">
+            <h2>Projects <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/eyeball</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/harbor</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span></span><span class="age">Idle</span><span class="meta"><span class="agent">~/src/field-notes</span></span></a>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The eye is shut.</b> Nothing in the top bar asks for anything, and the large shut eye says the same thing at the size of a reward rather than of an error.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- =========================================================== round2 -->
+<section class="spec" id="round2">
+  <h2>A second round <span class="tag">document, small change</span></h2>
+  <p>The second round of a document, as review.html draws it.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#full-round2"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="#round2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#round2" aria-current="true">Since round 1</a><a href="#round2">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="#round2" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#round2">Request changes</a><a class="btn primary" href="#round2">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="#round2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#round2" aria-current="true">Since round 1</a><a href="#round2">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="#round2" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#round2">Request changes</a><a class="btn primary" href="#round2">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The waiting pill is the highlighter.</b> The brief repeats the row's mark, so arriving from a notification lands on the same yellow the queue showed.</li>
+    <li><b>Links are ink.</b> The project name is underlined, the back link is ink. Blue was the accent of the current design and carried no meaning of its own.</li>
+    <li><b>The note keeps its rule, in ink.</b> It is still the reviewer's brief and still never collapsed.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- ============================================================ large -->
+<section class="spec" id="large">
+  <h2>A large change <span class="tag">a line selected, the composer open</span></h2>
+  <p>Code, with line 42 chosen for a comment and a comment already on line 45.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; line selected <a class="exp" href="#full-large"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Retry ladder</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <form class="composer">
+                    <div class="anchor">internal/upload/worker.go:42</div>
+                    <textarea class="field" aria-label="Comment" placeholder="Comment on line 42&hellip;"></textarea>
+                    <div class="foot">
+                      <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
+                      <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
+                    </div>
+                  </form>
+                </div></td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/upload/worker.go:45</span></div>
+                    <p>Wrap this so the job records why it stopped.</p>
+                    <div class="acts"><a href="#large"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#large"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+                  </div>
+                </div></td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+              </table>
+            </div>
+          </details>
+
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="#large" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#large">Request changes</a><a class="btn primary" href="#large">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Retry ladder</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <form class="composer">
+                    <div class="anchor">internal/upload/worker.go:42</div>
+                    <textarea class="field" aria-label="Comment" placeholder="Comment on line 42&hellip;"></textarea>
+                    <div class="foot">
+                      <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
+                      <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
+                    </div>
+                  </form>
+                </div></td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/upload/worker.go:45</span></div>
+                    <p>Wrap this so the job records why it stopped.</p>
+                    <div class="acts"><a href="#large"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#large"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+                  </div>
+                </div></td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+              </table>
+            </div>
+          </details>
+
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="#large" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#large">Request changes</a><a class="btn primary" href="#large">Approve</a></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A chosen line is highlighted rather than outlined.</b> It is a lighter fill than the marker on a title, so the code on it reads, and it is the same gesture as marking a line on paper.</li>
+    <li><b>Code keeps its roles.</b> Keywords are a slate blue, because ink keywords would leave four of five syntax roles looking alike. Inside code, color is about the code.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<!-- =========================================================== moment -->
+<section class="spec" id="moment">
+  <h2>Approve <span class="tag">tap it</span></h2>
+  <p>Tap Approve in either frame to see what follows. Reset puts both back.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#moment">Reset</a> <a class="exp" href="#full-moment"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app moment" id="moment-light">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris"><span class="is-before">3</span><span class="is-after">2</span></span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting is-before">Waiting 12m</span><span class="pill approved is-after">Approved</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="#round2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#moment" aria-current="true">Since round 1</a><a href="#moment">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="#moment" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#moment">Request changes</a><a class="btn primary" href="#moment-light">Approve</a></div>
+        </div>
+        <div class="decide settled is-after">
+          <div class="verdict"><span class="i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> The verdict and 2 comments went out.</span></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app moment" id="moment-dark">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris"><span class="is-before">3</span><span class="is-after">2</span></span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting is-before">Waiting 12m</span><span class="pill approved is-after">Approved</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="#round2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#moment" aria-current="true">Since round 1</a><a href="#moment">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="#moment" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#moment">Request changes</a><a class="btn primary" href="#moment-dark">Approve</a></div>
+        </div>
+        <div class="decide settled is-after">
+          <div class="verdict"><span class="i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> The verdict and 2 comments went out.</span></div>
+        </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>The eye blinks and its count drops by one.</b> That is the only motion on the surface, and it answers the tap. Under reduced motion the count still drops and the bar still settles. Only the blink goes.</li>
+    <li><b>The bar settles into what was sent.</b> The same words a decided round shows, so the next visit reads the same as this moment.</li>
+  </ul>
+</section>
+
+<!-- ========================================================== expanded -->
+<div class="full" id="full-queue" data-theme="light">
+  <div class="closebar"><span>queue &mdash; wide layout, 860px column</span><a href="#queue">close</a></div>
+  <div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="section">
+            <h2>Waiting on you <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">12m</span>
+                <span class="title"><mark>Product doc, second pass</mark></span>
+                <span class="meta"><span>Round 2</span><span class="dot-sep">1 file</span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span></span>
+              </a>
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title"><mark>Upload worker and its retry ladder</mark></span>
+                <span class="meta"><span>Round 1</span><span class="dot-sep">6 files</span><span class="counts"><span class="plus">+341</span> <span class="minus">&minus;52</span></span></span>
+              </a>
+              <a class="row waiting" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/018-tag-import</span></span></span>
+                <span class="age">3h</span>
+                <span class="title"><mark>Spec 018: bulk import for the tag index</mark></span>
+                <span class="meta"><span>Round 3</span><span class="dot-sep">2 files</span><span class="counts"><span class="plus">+58</span> <span class="minus">&minus;11</span></span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Working <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row working" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/014-queue</span></span></span>
+                <span class="age">4m</span>
+                <span class="title">Queue screen markup</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+              <a class="row working" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Not requested yet</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Settled <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row approved" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span>
+                <span class="age">2h</span>
+                <span class="title">Delta sync watermark</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 2</span></span>
+              </a>
+              <a class="row approved" href="#round2">
+                <span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span>
+                <span class="age">Yesterday</span>
+                <span class="title">Voice, both kinds</span>
+                <span class="meta"><span class="pill approved">Approved</span><span>Round 1</span></span>
+              </a>
+            </div>
+          </div>
+
+        </div></div>
+      </div>
+</div>
+<div class="full" id="full-empty" data-theme="light">
+  <div class="closebar"><span>nothing waiting &mdash; wide layout</span><a href="#empty">close</a></div>
+  <div class="app">
+        <div class="topbar"><span class="wordmark">eyeball</span><span class="eye shut" role="img" aria-label="Nothing waiting"></span></div>
+        <div class="scroll"><div class="page">
+          <div class="empty">
+            <span class="eye lg shut" role="img" aria-label="Nothing waiting"></span>
+            <span class="headline">Nothing waiting</span>
+            <p>Four agents are working across eyeball, harbor and field-notes.</p>
+          </div>
+          <div class="section">
+            <h2>Projects <span class="count">3</span></h2>
+            <div class="rows">
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/eyeball</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span></span><span class="age">2 agents</span><span class="meta"><span class="agent">~/src/harbor</span></span></a>
+              <a class="row" href="#empty"><span class="where"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">field-notes</span></span></span><span class="age">Idle</span><span class="meta"><span class="agent">~/src/field-notes</span></span></a>
+            </div>
+          </div>
+        </div></div>
+      </div>
+</div>
+<div class="full" id="full-round2" data-theme="light">
+  <div class="closebar"><span>review &mdash; wide layout, 860px column</span><a href="#round2">close</a></div>
+  <div class="app">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="#round2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#round2" aria-current="true">Since round 1</a><a href="#round2">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="#round2" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#round2">Request changes</a><a class="btn primary" href="#round2">Approve</a></div>
+        </div>
+        </div>
+      </div>
+</div>
+<div class="full" id="full-large" data-theme="light">
+  <div class="closebar"><span>large change &mdash; wide layout</span><a href="#large">close</a></div>
+  <div class="app">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Retry ladder</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+            <h2 class="title">Upload worker and its retry ladder</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
+                <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <form class="composer">
+                    <div class="anchor">internal/upload/worker.go:42</div>
+                    <textarea class="field" aria-label="Comment" placeholder="Comment on line 42&hellip;"></textarea>
+                    <div class="foot">
+                      <span class="levels"><a class="chip" href="#large" aria-pressed="true">Line 42</a><a class="chip" href="#large">File</a><a class="chip" href="#large">Review</a></span>
+                      <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Add</button></span>
+                    </div>
+                  </form>
+                </div></td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/upload/worker.go:45</span></div>
+                    <p>Wrap this so the job records why it stopped.</p>
+                    <div class="acts"><a href="#large"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#large"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+                  </div>
+                </div></td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+              </table>
+            </div>
+          </details>
+
+          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="#large" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="#large" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#large">Request changes</a><a class="btn primary" href="#large">Approve</a></div>
+        </div>
+        </div>
+      </div>
+</div>
+<div class="full" id="full-moment" data-theme="light">
+  <div class="closebar"><span>approve &mdash; wide layout, tap it</span><a href="#moment">close</a></div>
+  <div class="app moment" id="full-moment-go">
+        <div class="topbar"><a class="back" href="#queue"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris"><span class="is-before">3</span><span class="is-after">2</span></span></span></div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="pill waiting is-before">Waiting 12m</span><span class="pill approved is-after">Approved</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="#round2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <h2 class="title">Product doc, second pass</h2>
+          </div>
+
+          <div class="note">
+            <span class="from">Note</span>
+            <p>Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen.</p>
+            <p>Still unsure the compare control needs two settings. It is the one thing worth arguing about here.</p>
+          </div>
+
+          <div class="toolbar">
+            <span class="counts"><b class="files">1 file</b> &nbsp;<span class="plus">+214</span> <span class="minus">&minus;38</span></span>
+            <span class="segmented"><a href="#full-moment" aria-current="true">Since round 1</a><a href="#full-moment">Whole review</a></span>
+          </div>
+
+          <details class="file" open>
+            <summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+214</span> <span class="minus">&minus;38</span></span><a class="fileopen" href="#full-moment" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+            <div class="filebody">
+              <div class="prose">
+                <div class="blk"><h2>Widening</h2></div>
+                <div class="blk changed"><p>Three steps out, each one control
+                rather than a navigation.</p></div>
+                <div class="blk changed"><p><strong>From a hunk to the whole
+                file</strong>, with the change still marked in place.</p></div>
+                <details class="blk changed" open><summary><p><strong>What the
+                change is measured against is one control with two
+                settings.</strong> The previous round is the default from round
+                two onward and answers what moved since the last reading.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">A control offers whatever bases exist.</span></details>
+                <div class="blk"><h2>Making a comment</h2></div>
+                <div class="blk"><p>A comment attaches at one of four levels. To
+                a line or a range of lines. To a passage, which is what a
+                rendered document offers instead of lines.</p></div>
+              </div>
+            </div>
+          </details>
+
+        </div>
+        <div class="decide is-before">
+          <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+          <div class="buttons"><a class="btn danger" href="#full-moment">Request changes</a><a class="btn primary" href="#full-moment-go">Approve</a></div>
+        </div>
+        <div class="decide settled is-after">
+          <div class="verdict"><span class="i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> The verdict and 2 comments went out.</span></div>
+        </div>
+        </div>
+      </div>
+</div>
+
+</div>
+</body>
+</html>

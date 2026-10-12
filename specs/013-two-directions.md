@@ -151,6 +151,11 @@ would change. The cost is that a direction's class used on queue.html passes.
   Confirmed from its `OFL.txt` on download. If it is not, IBM Plex Mono replaces
   it.
 - Not measured: the woff2 sizes. Recorded when the files are added.
+
+  > **Measured, iteration 2.** The Mono is OFL-1.1 and variable over 200 to 800,
+  > per its package's LICENSE and metadata. The desk's Latin woff2 files are 34,
+  > 38, 18 and 19 KB. Literata's are 52 KB upright and 54 KB italic.
+
 - Not measured: contrast of the highlighter tones. Measured in iteration 2.
 - The current sheets' headless screenshots render Linux fallback fonts rather
   than SF Pro, so a fair comparison with the current design is on the phone.
@@ -192,16 +197,30 @@ reads both sheets on the phone before the branch is reviewed.
 
 ## Iteration 2: The reading desk
 
-- [ ] Atkinson Hyperlegible Next and Mono under `docs/design/fonts/` as Latin
+> **Departure.** The shared fixes live in a third stylesheet, `directions.css`,
+> which both sheets link between `app.css` and their own, rather than in
+> `desk.css` and a copy in `letters.css`. One file makes the two sheets' shared
+> rules identical by construction. It stays until the spec that applies the
+> choice. The fonts came from Fontsource 5.3.0's npm packages, whose LICENSE
+> files are the OFL texts, and the desk's four files come to 109 KB. Contrast
+> found one shortfall that is not this direction's: `app.css`'s light Approve
+> green holds white text at 3.53 to 1. The desk darkens it, and specs/TODO.md
+> holds the fix for the shipped surface.
+
+- [x] Atkinson Hyperlegible Next and Mono under `docs/design/fonts/` as Latin
       woff2 with their `OFL.txt`, and their sizes written in the sheet's notes
-- [ ] `desk.css` holding the shared fixes, the tokens in both themes, the type
+- [x] `desk.css` holding the shared fixes, the tokens in both themes, the type
       scale and the eye
-- [ ] `desk.html` drawing the five frames in both themes, with Expand on each
+- [x] `desk.html` drawing the five frames in both themes, with Expand on each
       pair, and notes saying why under each
-- [ ] Contrast of every text tone against its background measured, and each
+- [x] Contrast of every text tone against its background measured, and each
       below 4.5 to 1 changed or named in the notes
-- [ ] Every frame and every expanded view screenshotted headless and looked at
+- [x] Every frame and every expanded view screenshotted headless and looked at
       before the iteration closes
+
+> **Completed** 2026-10-12 00:31 UTC
+>
+> - `make check` — 5.4s
 
 ## Iteration 3: Letters from agents
 
