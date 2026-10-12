@@ -17,14 +17,30 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 )
 
-// A round opens with every file expanded up to these sizes, and as a list of
-// collapsed files past either. Ten files is product.md's number. Three hundred
-// lines is this spec's reading of its "a few hundred", and both are an open
-// question in product.md.
+// A round sends every file's body with the page up to these sizes. Past
+// either, each card opens empty and asks for its body as it nears the screen,
+// since a few hundred lines cost less than a round trip each and four thousand
+// do not. Both numbers are product.md's old threshold for collapsing a review,
+// kept as the line between sending and deferring.
 const (
-	maxOpenFiles = 10
-	maxOpenLines = 300
+	maxSentFiles = 10
+	maxSentLines = 300
 )
+
+// A file that moved more lines than this, added and removed together, holds
+// its body behind a line naming its size and Load anyway. A lock file or a
+// generated file is usually skimmed, and loading one by accident means
+// scrolling past all of it. Five hundred is the owner's guess, from
+// 2026-10-07, written down to be corrected.
+const maxCardLines = 500
+
+// heldHint says why a held card shows no body.
+var heldHint = fmt.Sprintf("Past the %d a card shows on its own.", maxCardLines)
+
+// A round past this many files gets a list of them above the cards, each a
+// link to its card. It is for finding a file, so lines do not count. Ten is
+// product.md's guess.
+const maxUnlistedFiles = 10
 
 // reviewPage is what the review template prints for one round.
 type reviewPage struct {
@@ -51,6 +67,9 @@ type reviewPage struct {
 	Against *againstControl
 	// Shown is every in-scope file that moved, in path order.
 	Shown []fileView
+	// Listed says a list of the files, linking to their cards, comes before
+	// them.
+	Listed bool
 	// Fresh is the one file shown, rendered on the page rather than in a
 	// card, where the round shows one markdown file whose old side has no
 	// blocks. It is nil otherwise.
@@ -143,8 +162,6 @@ type fileView struct {
 	Path string
 	// Added and Removed are its lines each way.
 	Added, Removed string
-	// Open says the file starts expanded.
-	Open bool
 	// Diff is its rows, or the flag saying why it has none.
 	Diff render.File
 	// IsDocument says the file is shown as a document rather than as rows.
@@ -178,11 +195,52 @@ type fileView struct {
 	// Threads are the line comments on the current round, keyed by the new
 	// side's line number, each shown in a row under its line.
 	Threads map[int]*threadView
-	// Deferred says the card renders closed with an empty body, which
-	// BodyHref answers on its first open. A large review would otherwise send
-	// every body with the page.
+	// Deferred says the card renders with an empty body, which BodyHref
+	// answers once the card nears the screen. A large review would otherwise
+	// send every body with the page.
 	Deferred bool
+	// Held is the lines the file moved, written out, where that is past
+	// maxCardLines and the card shows Load anyway in place of its body, and
+	// empty otherwise. HeldHint says why.
+	Held, HeldHint string
+	// BodyHref is the card's body on its own, which a deferred card asks for
+	// and Load anyway fetches.
 	BodyHref string
+}
+
+// CardID is the element id of the file's card, which the list of files links
+// to.
+func (f fileView) CardID() string {
+	return "file-" + pathKey(f.Path)
+}
+
+// SkeletonHunks is how many hunk headers a deferred card's body will hold,
+// which with SkeletonLines sizes the skeleton it shows until then. Both are 0
+// for a body that is not rows: a document, a rendered file, or a file with
+// none. Those keep the skeleton's default height.
+func (f fileView) SkeletonHunks() int {
+	hunks, _ := f.skeleton()
+	return hunks
+}
+
+// SkeletonLines is how many lines a deferred card's body will hold.
+func (f fileView) SkeletonLines() int {
+	_, lines := f.skeleton()
+	return lines
+}
+
+func (f fileView) skeleton() (hunks, lines int) {
+	if f.IsDocument || f.Rendered != nil || f.Deleted {
+		return 0, 0
+	}
+	for _, r := range f.Diff.Rows {
+		if r.Header != "" {
+			hunks++
+		} else {
+			lines++
+		}
+	}
+	return hunks, lines
 }
 
 // threadView is the row under a line holding its comments, and the composer
@@ -383,6 +441,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			Removed: thousands(m.Result.Removed),
 			Whole:   at.href(m.Path),
 		}
+		if moved := m.Result.Added + m.Result.Removed; moved > maxCardLines {
+			file.Held, file.HeldHint = thousands(moved), heldHint
+		}
 		// The result's flags cover the line limit as well as the byte limit,
 		// and a document past either shows the too-large line. Each block
 		// starts a line of its own, so that is also what keeps the block
@@ -445,14 +506,11 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		lastOld = old
 		view.Shown = append(view.Shown, file)
 	}
-	expand := files <= maxOpenFiles && added+removed <= maxOpenLines
+	deferred := files > maxSentFiles || added+removed > maxSentLines
 	for i := range view.Shown {
-		view.Shown[i].Open = expand
-		if !expand {
-			view.Shown[i].Deferred = true
-			href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
-			view.Shown[i].BodyHref = withQuery(href, against)
-		}
+		href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
+		view.Shown[i].BodyHref = withQuery(href, against)
+		view.Shown[i].Deferred = deferred && view.Shown[i].Held == ""
 	}
 	if view.Unmeasurable == "" {
 		view.Files = count(files, "file", "files")
@@ -463,6 +521,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
 		view.Fresh = &view.Shown[0]
 	}
+	view.Listed = len(view.Shown) > maxUnlistedFiles
 
 	if renderErr != nil {
 		return reviewPage{}, renderErr
@@ -715,7 +774,7 @@ func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.Stat
 		}
 		shown++
 		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path, file: kind.ByName(f.Path)}
-		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true, Open: true}
+		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true}
 		if f.Digest == "" {
 			file.Deleted = true
 		} else {
@@ -743,7 +802,7 @@ func shows(f render.File, line int) bool {
 }
 
 // handleCardBody answers GET /reviews/{review}/rounds/{round}/cards/{path...}:
-// a collapsed file card's body, on its first open.
+// a deferred file card's body, once the card nears the screen.
 //
 // It builds the round's page and takes the one card from it, so the body is
 // the page's own markup and cannot drift from it. That costs comparing every
