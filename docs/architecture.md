@@ -44,12 +44,12 @@ whole access control story for it.
 ## The binary
 
 **Go, one statically linked binary, `CGO_ENABLED=0`.** Everything is embedded:
-the templates, the stylesheet, the TypeScript sources, the icon masks, the SQL
-migrations.
+the templates, the stylesheet and its fonts, the TypeScript sources, the icon
+masks, the SQL migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: app.css, shell.css, the templates, the TypeScript and htmx
+assets.go             the files the binary embeds: app.css and its fonts, shell.css, the templates, the TypeScript and htmx
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -494,33 +494,34 @@ tearout pages lay out.
 
 Routes, with the spec that builds each:
 
-| Pattern                                                | Answers                                       | Spec |
-| ------------------------------------------------------ | --------------------------------------------- | ---- |
-| `GET /{$}`                                             | the queue                                     | 006  |
-| `GET /reviews/{review}`                                | the current round                             | 006  |
-| `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed             | 006  |
-| `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round   | 007  |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round          | 007  |
-| `GET /reviews/{review}/raw/{round}/{path...}`          | a file's bytes as of a round, 0 the base      | 010  |
-| `GET /projects/{project}`                              | the project view and its working copy         | 007  |
-| `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live    | 007  |
-| `POST /reviews/{review}/comments`                      | one comment                                   | 008  |
-| `PUT /reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict      | 008  |
-| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                   | 008  |
-| `GET /reviews/{review}/comments/{comment}`             | a comment's card, or its edit form            | 008  |
-| `POST /reviews/{review}/decision`                      | the verdict, releasing the round              | 008  |
-| `GET /reviews/{review}/composer`                       | a composer anchored where the query says      | 008  |
-| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a file card's body, as the card nears view    | 008  |
-| `GET /events`                                          | the live stream, and therefore the connection | 008  |
-| `GET /static/htmx.js`                                  | the vendored htmx, from the binary            | 008  |
-| `GET /manifest.webmanifest`                            | what makes the page installable               | 009  |
-| `GET /sw.js`                                           | the service worker, scoped to the surface     | 009  |
-| `GET /static/icons/{name}`                             | the installed page's icons, from the binary   | 009  |
-| `GET /static/app.js`                                   | the TypeScript, bundled once from the binary  | 008  |
-| `POST /subscriptions`                                  | a device's push subscription                  | 009  |
-| `GET /static/app.css`                                  | the stylesheet, from the binary               | 006  |
-| `GET /static/shell.css`                                | the page around the app, from the binary      | 006  |
-| `GET /healthz`                                         | liveness, after touching the database         | 006  |
+| Pattern                                                | Answers                                             | Spec |
+| ------------------------------------------------------ | --------------------------------------------------- | ---- |
+| `GET /{$}`                                             | the queue                                           | 006  |
+| `GET /reviews/{review}`                                | the current round                                   | 006  |
+| `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed                   | 006  |
+| `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round         | 007  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round                | 007  |
+| `GET /reviews/{review}/raw/{round}/{path...}`          | a file's bytes as of a round, 0 the base            | 010  |
+| `GET /projects/{project}`                              | the project view and its working copy               | 007  |
+| `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live          | 007  |
+| `POST /reviews/{review}/comments`                      | one comment                                         | 008  |
+| `PUT /reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | 008  |
+| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                         | 008  |
+| `GET /reviews/{review}/comments/{comment}`             | a comment's card, or its edit form                  | 008  |
+| `POST /reviews/{review}/decision`                      | the verdict, releasing the round                    | 008  |
+| `GET /reviews/{review}/composer`                       | a composer anchored where the query says            | 008  |
+| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a file card's body, as the card nears view          | 008  |
+| `GET /events`                                          | the live stream, and therefore the connection       | 008  |
+| `GET /static/htmx.js`                                  | the vendored htmx, from the binary                  | 008  |
+| `GET /manifest.webmanifest`                            | what makes the page installable                     | 009  |
+| `GET /sw.js`                                           | the service worker, scoped to the surface           | 009  |
+| `GET /static/icons/{name}`                             | the installed page's icons, from the binary         | 009  |
+| `GET /static/app.js`                                   | the TypeScript, bundled once from the binary        | 008  |
+| `POST /subscriptions`                                  | a device's push subscription                        | 009  |
+| `GET /static/app.css`                                  | the stylesheet, from the binary                     | 006  |
+| `GET /static/shell.css`                                | the page around the app, from the binary            | 006  |
+| `GET /static/fonts/{path...}`                          | a font app.css names, from the binary, with an ETag | 015  |
+| `GET /healthz`                                         | liveness, after touching the database               | 006  |
 
 `GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
 every path, and would answer `/agent/daemon` on the surface's listener.
@@ -632,10 +633,15 @@ The surface assumes one, for the reason in [product.md](product.md): the agent
 is running now, on a machine the phone can reach, and the review is a
 conversation with it.
 
-**There is no cache and no offline store.** A round's content is immutable and
-could be cached forever, and caching it would buy a faster second open in
-exchange for a second copy that can be stale after a daemon restart. Nothing
-here is large enough to make that trade worth making.
+**There is no cache and no offline store, except for the fonts.** A round's
+content is immutable and could be cached forever, and caching it would buy a
+faster second open in exchange for a second copy that can be stale after a
+daemon restart. Nothing else here is large enough to make that trade worth
+making. The fonts are: 215 KB that would otherwise travel with every page. They
+are served with a strong ETag and `Cache-Control: no-cache`, so the browser
+keeps a copy and asks each time, and the answer is a 304 until the binary's
+fonts change. Asking costs a request per font on each load, which on the tailnet
+is assumed cheap and not measured.
 
 **The service worker exists for push and nothing else.** iOS delivers web push
 only to an installed page with a registered worker, so one is required whether

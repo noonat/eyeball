@@ -37,7 +37,7 @@ func TestServer_Surface_review(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: note}).Review.ID
 
 	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("QueueUpload worker and its retry ladder"), "the full title, which app.css truncates")
+	g.Expect(barText(doc)).To(Equal("QueueUpload worker and its retry ladder"), "the full title, which app.css truncates")
 	g.Expect(text(find(find(doc, "brief"), "where"))).To(Equal("Waiting nowRound 1harborspec/012-surface"))
 	// The brief's project is a link to its view.
 	project := find(find(doc, "who"), "bit")
@@ -53,6 +53,18 @@ func TestServer_Surface_review(t *testing.T) {
 		paragraphs = append(paragraphs, text(p))
 	}
 	g.Expect(paragraphs).To(Equal([]string{"Upload worker and its retry ladder", "The second paragraph says what to look at."}))
+	// The note is the letter: signed with the agent, and the page's first
+	// element, ahead of the brief.
+	letter := find(doc, "note")
+	g.Expect(attr(letter, "class")).To(Equal("note letter"))
+	g.Expect(text(find(find(letter, "sig"), "agent"))).To(Equal("spec/012-surface"))
+	g.Expect(find(letter, "from")).To(BeNil(), "a letter carries no label")
+	page := find(doc, "page")
+	first := page.FirstChild
+	for first != nil && first.Type != html.ElementNode {
+		first = first.NextSibling
+	}
+	g.Expect(first).To(Equal(letter), "the letter comes before the brief")
 	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file +1 −0"))
 	g.Expect(find(doc, "segmented")).To(BeNil(), "a first round has only its base")
 	bar := find(doc, "decide")
@@ -142,8 +154,12 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	g.Expect(text(find(doc, "notice"))).To(Equal("Approved. 3 comments and the verdict went out just now."), "the late comment went out on its own")
 	notes := findAll(doc, hasClass("note"))
 	g.Expect(notes).To(HaveLen(2))
-	g.Expect(text(notes[0])).To(Equal("Verdict note Good. Ship it."))
-	g.Expect(text(notes[1])).To(Equal("Note first"))
+	// The agent's letter first, then the reviewer's own verdict note as a
+	// plain note under the notice.
+	g.Expect(attr(notes[0], "class")).To(Equal("note letter"))
+	g.Expect(text(notes[0])).To(HavePrefix("first "), "the note's paragraph, then the signature")
+	g.Expect(attr(notes[1], "class")).To(Equal("note"))
+	g.Expect(text(notes[1])).To(Equal("Verdict note Good. Ship it."))
 	g.Expect(find(doc, "decide")).To(BeNil(), "a decided round has no decision bar")
 
 	// A file's comments follow its diff, in line order.
@@ -357,13 +373,14 @@ func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
 
 	// The earlier round is closed, and lists its comments and what was done.
 	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/1", http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("ReviewRound 1"))
+	g.Expect(barText(doc)).To(Equal("ReviewRound 1"))
 	g.Expect(attr(find(doc, "back"), "href")).To(Equal("/reviews/" + itoa(id)))
 	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requestedRound 1"))
 	g.Expect(text(find(doc, "notice"))).To(Equal("Closed just now. Round 2 is the current one."))
 	g.Expect(earlierRows(doc)).To(BeEmpty(), "an earlier round lists no earlier rounds")
-	// The tearout's sections come first, then the notes and the files.
-	g.Expect(classOrder(doc, "section", "note", "toolbar")).To(Equal([]string{"section", "section", "note", "note", "toolbar"}))
+	// The agent's letter leads, as review.html draws it, then the round's
+	// sections, the verdict note and the files.
+	g.Expect(classOrder(doc, "section", "note", "toolbar")).To(Equal([]string{"note", "section", "section", "note", "toolbar"}))
 	var sections []string
 	for _, sec := range findAll(doc, hasClass("section")) {
 		var cards []string
@@ -379,7 +396,7 @@ func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
 
 	// The latest round under the rounds address is the review's own page.
 	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/2", http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("Queuefirst"))
+	g.Expect(barText(doc)).To(Equal("Queuefirst"))
 	g.Expect(earlierRows(doc)).NotTo(BeEmpty())
 
 	missing := []string{"/reviews/" + itoa(id) + "/rounds/3", "/reviews/" + itoa(id) + "/rounds/0", "/reviews/" + itoa(id) + "/rounds/x", "/reviews/999/rounds/1"}

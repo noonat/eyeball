@@ -104,6 +104,32 @@ export function holdPlace(): void {
   for (const card of cards) {
     resized.observe(card);
   }
+  // A card folded from its stuck header keeps its top where it was, far above
+  // the screen, so the scroll would leave the reader deep inside the next file.
+  // Its header goes back to the top of the screen instead. Only a fold the
+  // reader made counts: keepPlace folds cards on load, and their toggle events
+  // arrive after it has restored the scroll.
+  let tapped: Element | undefined;
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    tapped =
+      target?.closest("details.file > summary") && !target.closest("a")
+        ? (target.closest("details.file") ?? undefined)
+        : undefined;
+  });
+  for (const card of cards) {
+    card.addEventListener("toggle", () => {
+      if (card !== tapped || card.open) {
+        return;
+      }
+      tapped = undefined;
+      const above = card.getBoundingClientRect().top - headBottom();
+      if (above < 0) {
+        window.scrollBy(0, above);
+      }
+      record();
+    });
+  }
   record();
 }
 

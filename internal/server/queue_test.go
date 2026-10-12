@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -58,6 +59,27 @@ func Test_emptyQueueSentence(t *testing.T) {
 	}
 }
 
+// A waiting row quotes the note's first paragraph, split as the review page
+// splits the letter, so a note with blank lines around its paragraphs reads the
+// same in both places.
+func Test_queueRowGist(t *testing.T) {
+	g := NewWithT(t)
+	s := &Server{}
+	row := s.queueRow(store.ReviewRow{Note: "\n\n  First paragraph,\non two lines.\r\n\r\nSecond paragraph.\n"}, "1m")
+	g.Expect(row.Gist).To(Equal("First paragraph,\non two lines."))
+	g.Expect(paragraphs("\n\n  First paragraph,\non two lines.\r\n\r\nSecond paragraph.\n")[0]).To(Equal(row.Gist))
+	g.Expect(s.queueRow(store.ReviewRow{}, "1m").Gist).To(BeEmpty(), "a row with no note quotes nothing")
+
+	// A review opened without a title is titled with its note's first line,
+	// so the row quotes from the line after it rather than repeat the title.
+	note := "Upload worker and its retry ladder\n\nThe second paragraph says what to look at."
+	g.Expect(s.queueRow(store.ReviewRow{Note: note, Title: defaultTitle(note)}, "1m").Gist).To(Equal("The second paragraph says what to look at."))
+	two := "Upload worker\nand its retry ladder\n\nMore."
+	g.Expect(s.queueRow(store.ReviewRow{Note: two, Title: defaultTitle(two)}, "1m").Gist).To(Equal("and its retry ladder"))
+	g.Expect(s.queueRow(store.ReviewRow{Note: "Upload worker", Title: "Upload worker"}, "1m").Gist).To(BeEmpty(), "a note that is only its title quotes nothing")
+	g.Expect(s.queueRow(store.ReviewRow{Note: note, Title: "Retry ladder"}, "1m").Gist).To(Equal("Upload worker and its retry ladder"), "a title of its own leaves the note whole")
+}
+
 func Test_tilde(t *testing.T) {
 	g := NewWithT(t)
 	s := &Server{home: "/home/a"}
@@ -86,7 +108,11 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	doc := parse(g, res.Body.String())
 
-	g.Expect(text(find(doc, "topbar"))).To(Equal("eyeball"), "no waiting count with nothing waiting")
+	g.Expect(barText(doc)).To(Equal("eyeball"))
+	shut := find(doc, "eye")
+	g.Expect(attr(shut, "class")).To(Equal("eye shut"), "nothing waits, so the eye is shut")
+	g.Expect(attr(shut, "aria-label")).To(Equal("Nothing waiting"))
+	g.Expect(find(find(doc, "empty"), "eye")).NotTo(BeNil(), "the empty queue's large shut eye")
 	empty := find(doc, "empty")
 	g.Expect(empty).NotTo(BeNil())
 	g.Expect(text(empty)).To(Equal("Nothing waitingThree agents are working across eyeball and harbor."))
@@ -139,7 +165,11 @@ func TestServer_Surface_queue(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	doc := parse(g, res.Body.String())
 
-	g.Expect(text(find(doc, "topbar"))).To(Equal("eyeball1 waiting"))
+	g.Expect(barText(doc)).To(Equal("eyeball"))
+	open := find(doc, "eye")
+	g.Expect(attr(open, "class")).To(Equal("eye"))
+	g.Expect(attr(open, "aria-label")).To(Equal("1 waiting"))
+	g.Expect(text(find(open, "iris"))).To(Equal("1"))
 	var headings []string
 	for _, h := range findAll(doc, func(n *html.Node) bool { return n.Data == "h2" }) {
 		headings = append(headings, text(h))
@@ -149,7 +179,7 @@ func TestServer_Surface_queue(t *testing.T) {
 	rows := findAll(doc, hasClass("row"))
 	g.Expect(rows).To(HaveLen(3))
 	type shape struct {
-		Class, Href, Project, Agent, Age, Title, Meta string
+		Class, Href, Project, Agent, Age, Title, Gist, Meta string
 	}
 	var got []shape
 	for _, r := range rows {
@@ -160,11 +190,12 @@ func TestServer_Surface_queue(t *testing.T) {
 			Agent:   text(find(r, "agent")),
 			Age:     text(find(r, "age")),
 			Title:   text(find(r, "title")),
+			Gist:    text(find(r, "gist")),
 			Meta:    text(find(r, "meta")),
 		})
 	}
 	g.Expect(got).To(Equal([]shape{
-		{Class: "row waiting", Href: "/reviews/3", Project: "eyeball", Agent: "spec/012-surface", Age: "12m", Title: "Product doc, second pass", Meta: "Round 11 file+1 −0"},
+		{Class: "row waiting", Href: "/reviews/3", Project: "eyeball", Agent: "spec/012-surface", Age: "12m", Title: "Product doc, second pass", Gist: "look", Meta: "Round 11 file+1 −0"},
 		{Class: "row working", Href: "/reviews/2", Project: "eyeball", Agent: "spec/014-queue", Age: "30m", Title: "Queue screen markup", Meta: "Changes requested, round 1"},
 		{Class: "row approved", Href: "/reviews/1", Project: "harbor", Agent: "agent-s", Age: "2h", Title: "Delta sync watermark", Meta: "ApprovedRound 1"},
 	}))
@@ -333,6 +364,30 @@ func attr(n *html.Node, name string) string {
 
 // text is the text under n with runs of whitespace closed up, or empty for
 // nil.
+// barText is the top bar's text without its eye, which is a count rather
+// than a label, so a test about the back link and the title reads only those.
+func barText(doc *html.Node) string {
+	bar := find(doc, "topbar")
+	if bar == nil {
+		return ""
+	}
+	var b strings.Builder
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && slices.Contains(strings.Fields(attr(n, "class")), "eye") {
+			return
+		}
+		if n.Type == html.TextNode {
+			b.WriteString(n.Data)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(bar)
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
 func text(n *html.Node) string {
 	if n == nil {
 		return ""

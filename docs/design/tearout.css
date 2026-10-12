@@ -284,6 +284,27 @@ body {
   min-height: 0;
 }
 
+/* --------------------------------------------------------------- moment */
+
+/* A frame that answers a tap, such as Approve, targets itself, because a
+ * tearout has no script. The frame then shows its after state. The live page
+ * reaches the same state by reloading, and blinks the eye by adding .blink,
+ * which app.css animates with the same keyframes. */
+.moment:not(:target) .is-after,
+.moment:target .is-before {
+  display: none;
+}
+
+.moment:target .eye {
+  animation: eye-blink 420ms ease-in-out 200ms 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment:target .eye {
+    animation: none;
+  }
+}
+
 /* ----------------------------------------------------------- annotation */
 
 .note-list {

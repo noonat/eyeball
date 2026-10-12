@@ -141,6 +141,94 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
+// Approving blinks the eye once, on the page the approval reloads to, and a
+// reload after it does not. A failed approval leaves no mark, and under
+// reduced motion the eye does not move.
+func TestServer_Surface_browserBlink(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "b.txt", "b\n")
+	write(g, repo, "c.txt", "c\n")
+	me := api.Caller{Dir: repo}
+	first := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	second := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "second"}).Review.ID
+	third := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"c.txt"}, Note: "third"}).Review.ID
+	var failing sync.Mutex
+	fail := false
+	surface := f.s.Surface()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		failing.Lock()
+		refuse := fail && r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/decision")
+		failing.Unlock()
+		if refuse {
+			http.Error(w, "the store is gone", http.StatusInternalServerError)
+			return
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	approve := func(id int64) {
+		b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+		b.eval(g, `window.__before = true`)
+		b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+		b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	}
+	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
+
+	// The reloaded page is decided, at the new count, and blinks once.
+	approve(first)
+	g.Expect(b.eval(g, `!!document.querySelector(".brief .pill.approved")`)).To(BeTrue())
+	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("2 waiting"))
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("eye-blink"))
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil(), "the mark is read once")
+
+	// The same page loaded again is only a decided round.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(first))
+	g.Expect(b.eval(g, blinking)).To(BeFalse())
+
+	// An approval the server refuses leaves no mark for a later load.
+	failing.Lock()
+	fail = true
+	failing.Unlock()
+	b.navigate(g, srv.URL+"/reviews/"+itoa(second))
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	b.waitFor(g, `!!document.querySelector("#bar .failed, .failed")`)
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
+	failing.Lock()
+	fail = false
+	failing.Unlock()
+
+	// A mark left by a request whose answer never arrived, as when a tab is
+	// closed mid-request, names a review that is still open. It does not blink.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(third))
+	b.eval(g, `sessionStorage.setItem("eyeball:blink", "`+itoa(third)+`")`)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(third))
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeTrue(), "the review is still open")
+	g.Expect(b.eval(g, blinking)).To(BeFalse())
+
+	// The current round has a second address, its round's, and an approval
+	// made there reloads there and blinks too.
+	write(g, repo, "d.txt", "d\n")
+	fourth := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"d.txt"}, Note: "fourth"}).Review.ID
+	b.navigate(g, srv.URL+"/reviews/"+itoa(fourth)+"/rounds/1")
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/reviews/" + itoa(fourth) + "/rounds/1"))
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+
+	// Under reduced motion the eye takes the class and does not move.
+	b.call(g, "Emulation.setEmulatedMedia", map[string]any{
+		"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "reduce"}},
+	})
+	approve(third)
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("none"))
+}
+
 // A large review's cards all open with empty bodies, and each asks for its
 // body as it nears the screen inside the page's own scroller. One far below
 // stays empty, and a folded card loads only once it is unfolded.
@@ -185,6 +273,37 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	g.Expect(b.eval(g, rows("d/58.txt"))).To(BeEquivalentTo(0), "a folded card on screen loaded its body")
 	b.eval(g, folded+`.querySelector("summary").click()`)
 	b.waitFor(g, rows("d/58.txt")+` === 40`)
+}
+
+// A jump to a comment inside a card lands below the card's stuck header, not
+// under it.
+func TestServer_Surface_browserCommentJump(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := longFileReview(g, t, f)
+	review, err := f.store.Review(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	round, err := f.store.Round(t.Context(), id, review.LatestRound)
+	g.Expect(err).NotTo(HaveOccurred())
+	c, err := f.s.db.AddComment(t.Context(), store.NewComment{RoundID: round.ID, Level: store.LevelLine, Path: "d/long.txt", StartLine: 200, EndLine: 200, Quoted: "line 200", Body: "Why here?"})
+	g.Expect(err).NotTo(HaveOccurred())
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	comment := `document.getElementById("comment-` + itoa(c.ID) + `")`
+	summary := `document.querySelector("details.file[data-path='d/long.txt'] > summary")`
+	b.waitFor(g, `!!`+comment)
+	b.eval(g, `location.hash = "comment-`+itoa(c.ID)+`"`)
+	b.waitFor(g, `window.scrollY > 0`)
+	time.Sleep(100 * time.Millisecond)
+	g.Expect(b.eval(g, `Math.round(Math.abs(`+summary+`.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom))`)).To(BeEquivalentTo(0), "the card's header is not stuck")
+	// Adding zero turns the -0 a small negative rounds to into 0, which the
+	// DevTools protocol sends as a number.
+	below := `Math.round(` + comment + `.getBoundingClientRect().top - ` + summary + `.getBoundingClientRect().bottom) + 0`
+	g.Expect(b.eval(g, below)).To(BeNumerically(">=", 0), "the comment landed under the card's header")
+	g.Expect(b.eval(g, below)).To(BeNumerically("<", 40), "the comment landed far below the card's header")
 }
 
 // The document scrolls, not .scroll, since iOS sends its status bar tap only to
@@ -352,6 +471,35 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(subs).To(HaveLen(1))
 	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
+}
+
+// The stylesheet's three faces and the eye load under the surface's own
+// policy. A font the policy blocks falls back to the system face and a mask it
+// blocks draws nothing, and both look close enough to right that nobody
+// reports them.
+func TestServer_Surface_browserFonts(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo, Agent: "spec/012-surface"}, Paths: []string{"a.txt"}, Note: "A letter."}).Review.ID
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+
+	// Installed before the page loads, so a violation during load is heard.
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{
+		"source": `window.__blocked = []; addEventListener("securitypolicyviolation", (e) => window.__blocked.push(e.violatedDirective + " " + e.blockedURI));`,
+	})
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `document.fonts.ready.then(() => true)`)
+	loaded := b.eval(g, `document.fonts.ready.then(() => [...new Set([...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replaceAll('"', "")))].sort().join(", "))`)
+	g.Expect(loaded).To(Equal("Atkinson Hyperlegible Mono, Atkinson Hyperlegible Next, Literata"), "the chrome, the agent's name and the letter each drew its own face")
+	// The computed mask stays the data URL even when the policy blocks it, so
+	// this only shows the rule names the mask. The policy is what __blocked
+	// checks.
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".eye"), "::before").maskImage.startsWith("url(\"data:image/svg+xml")`)).To(BeTrue())
+	g.Expect(b.eval(g, `window.__blocked.join("; ")`)).To(BeEmpty())
 }
 
 // Load anyway on a held card fills the card with its body, and the card
@@ -697,6 +845,49 @@ func TestServer_Surface_browserRenderedCard(t *testing.T) {
 	b.waitFor(g, `!!document.querySelector("details.file[data-path='data.zip'] form.composer textarea")`)
 }
 
+// A card's header stays under the page header while its file scrolls, and a
+// fold from there keeps it at the top of the screen with the next file under
+// it, rather than leaving the reader deep inside the next file.
+func TestServer_Surface_browserStickyHeader(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := longFileReview(g, t, f)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
+
+	long := `document.querySelector("details.file[data-path='d/long.txt']")`
+	next := `document.querySelector("details.file[data-path='d/next.txt']")`
+	head := `document.querySelector(".head").getBoundingClientRect().bottom`
+	fromHead := func(card string) string {
+		return `Math.round(Math.abs(` + card + `.querySelector("summary").getBoundingClientRect().top - ` + head + `))`
+	}
+	b.eval(g, `window.scrollTo(0, window.scrollY + `+long+`.getBoundingClientRect().top - `+head+` + 2000)`)
+	g.Expect(b.eval(g, long+`.getBoundingClientRect().top < `+head+` - 1000`)).To(BeTrue(), "the card's top did not scroll far above the screen")
+	g.Expect(b.eval(g, fromHead(long))).To(BeEquivalentTo(0), "the header scrolled away with its file")
+
+	b.eval(g, long+`.querySelector("summary").click()`)
+	b.waitFor(g, `!`+long+`.open`)
+	time.Sleep(100 * time.Millisecond)
+	// The folded card's top border sits at the header's bottom, a pixel above
+	// its summary.
+	g.Expect(b.eval(g, fromHead(long))).To(BeNumerically("<=", 1), "the folded header left the top of the screen")
+	g.Expect(b.eval(g, next+`.getBoundingClientRect().top < window.innerHeight / 2`)).To(BeTrue(), "the next file is not under the folded header")
+
+	// A fold the page makes, as keepPlace does on load, is not one the reader
+	// made, and leaves the scroll where it is.
+	b.eval(g, long+`.open = true`)
+	b.waitFor(g, long+`.open`)
+	b.eval(g, `window.scrollTo(0, window.scrollY + `+long+`.getBoundingClientRect().top - `+head+` + 2000)`)
+	time.Sleep(100 * time.Millisecond)
+	at := b.eval(g, `Math.round(window.scrollY)`)
+	b.eval(g, long+`.open = false`)
+	time.Sleep(100 * time.Millisecond)
+	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(Equal(at), "a fold the page made moved the page")
+}
+
 // The live stream: a verdict recorded elsewhere reloads an open review page,
 // but not while something typed is unsaved; a page with no stamp stays put;
 // and a dropped connection shows the notice, holds the verdicts back, and
@@ -804,6 +995,21 @@ func TestServer_Surface_browserWorker(t *testing.T) {
 	b.navigate(g, srv.URL+"/")
 	b.waitFor(g, `navigator.serviceWorker.getRegistration().then(r => !!r && !!r.active)`)
 	g.Expect(b.eval(g, `navigator.serviceWorker.getRegistration().then(r => r.scope)`)).To(Equal(srv.URL + "/"))
+}
+
+// longFileReview opens a review of two files of 300 changed lines each,
+// d/long.txt and d/next.txt. Each is several screens long, so the page can
+// scroll far into either, and still far once d/long.txt is folded.
+func longFileReview(g *WithT, t *testing.T, f *fixture) int64 {
+	t.Helper()
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	var lines []string
+	for n := 1; n <= 300; n++ {
+		lines = append(lines, fmt.Sprintf("line %d", n))
+	}
+	write(g, repo, "d/long.txt", strings.Join(lines, "\n")+"\n")
+	write(g, repo, "d/next.txt", strings.Repeat("next\n", 300))
+	return f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "long"}).Review.ID
 }
 
 // comments reads a round's comments.

@@ -23,7 +23,7 @@ func TestServer_Surface_project(t *testing.T) {
 	h := newHarbor(g, t, f)
 
 	doc := f.page(g, projectHref(h.project), http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("Queueharbor"))
+	g.Expect(barText(doc)).To(Equal("Queueharbor"))
 	g.Expect(attr(find(doc, "back"), "href")).To(Equal("/"))
 	g.Expect(text(find(find(doc, "brief"), "agent"))).To(Equal(h.root), "the root, written with ~ where it is under home")
 	g.Expect(text(find(find(doc, "brief"), "title"))).To(Equal("harbor"))
@@ -116,7 +116,7 @@ func TestServer_Surface_projectFile(t *testing.T) {
 	href := projectFileHref(h.project, "a.txt")
 
 	doc := f.page(g, href, http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("harbora.txt"))
+	g.Expect(barText(doc)).To(Equal("harbora.txt"))
 	g.Expect(attr(find(doc, "back"), "href")).To(Equal(projectHref(h.project)))
 	g.Expect(find(find(doc, "crumb"), "dir")).To(BeNil())
 	g.Expect(text(find(find(doc, "crumb"), "name"))).To(Equal("a.txt"))

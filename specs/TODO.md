@@ -14,20 +14,13 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-- [ ] design: apply the visual direction 013 chose, `docs/design/mix.html`, to
-      app.css, every tearout and the templates. It needs the fonts served from
-      the binary under `/static/` with caching, where 013 keeps them beside the
-      tearouts only, and a queue row carrying the first line of the agent's
-      note, which the queue does not have today.
-
-Beyond that, every requirement product.md and architecture.md describe is built
-as of 010, and the next work comes from Unscheduled below, once real reviews say
-which of it matters.
+Nothing. As of 015 the reading desk is applied, as of 017 a card's file header
+stays at the top of the screen, and every requirement product.md and
+architecture.md describe is built as of 010. The next work comes from
+Unscheduled below, once real reviews say which of it matters.
 
 ## Unscheduled
 
-- [ ] design: a card's file header that stays at the top of the screen while its
-      file scrolls under it, so a long diff keeps saying which file it is.
 - [ ] design: markdown rendered as a diff, the owner's words. What form is open:
       today a changed document renders with changed passages marked.
 - [ ] design: show that the page is refreshing when the installed app comes back
@@ -223,16 +216,14 @@ which of it matters.
 - [ ] design: a decided round gives no sign that its lines take no tap. The
       owner spent a while tapping lines on approved reviews before finding that
       only open rounds open a composer.
+- [ ] design: the top bar's eye on a page other than the queue counts what
+      waited when the page loaded, and does not follow the stream. 015 left it:
+      a reviewer reads the count on arrival, and the queue corrects it.
 - [ ] design: a manual theme override. docs/design/README.md says one wins over
       the device in both directions, and no tearout draws a control for it.
 - [ ] design: a comment added on a second device shows on the first only after a
       reload. 008's stamps leave comment counts out, so a reviewer's own comment
       does not reload the page that wrote it.
-- [ ] design: the Approve button's white text on `--ok-vivid`, `#1a9b6c`, is
-      3.53 to 1 in the light theme, under the 4.5 a 14px label needs. Measured
-      in 013, whose reading desk darkens it to `#15805a` at 4.92.
-- [ ] design: redraw the installed page's icon, through `tool/appicon`, to match
-      the direction 013 chooses.
 
 ## Open questions
 
