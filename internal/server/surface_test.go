@@ -5,12 +5,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/noonat/eyeball"
+	"github.com/noonat/eyeball/internal/api"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -214,6 +216,31 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 }
 
+// The top bar's eye counts what waits on every page, not only the queue, and
+// draws nothing where the count cannot be read, because a shut eye would say
+// that nothing waits.
+func TestServer_Surface_eye(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "look"}).Review.ID
+
+	pages := []string{"/reviews/" + itoa(id), "/nope"}
+	for _, target := range pages {
+		res := serveSurface(f.s.Surface(), http.MethodGet, target)
+		eye := find(parse(g, res.Body.String()), "eye")
+		g.Expect(attr(eye, "class")).To(Equal("eye"), target)
+		g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"), target)
+	}
+
+	g.Expect(f.store.Close()).To(Succeed())
+	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+	doc := parse(g, res.Body.String())
+	g.Expect(find(doc, "topbar")).NotTo(BeNil(), "the page still renders")
+	g.Expect(find(doc, "eye")).To(BeNil(), "no count, so no eye")
+}
+
 func TestServer_Surface_failureIsAPage(t *testing.T) {
 	g := NewWithT(t)
 	saved := routes
@@ -232,6 +259,47 @@ func TestServer_Surface_failureIsAPage(t *testing.T) {
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
 	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("This page could not be read"))
 	g.Expect(res.Body.String()).NotTo(ContainSubstring("base commit is gone"), "the error itself goes to the log")
+}
+
+// Every font app.css names is served from where its relative path resolves
+// under /static/app.css, with a cache the surface's own no-store would
+// otherwise forbid.
+func TestServer_Surface_fonts(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	surface := f.s.Surface()
+
+	urls := regexp.MustCompile(`url\("(fonts/[^"]+)"\)`).FindAllStringSubmatch(string(eyeball.Stylesheet), -1)
+	g.Expect(urls).To(HaveLen(6), "app.css names six font files")
+	for _, m := range urls {
+		target := "/static/" + m[1]
+		res := serveSurface(surface, http.MethodGet, target)
+		g.Expect(res.Code).To(Equal(http.StatusOK), target)
+		g.Expect(res.Header().Get("Content-Type")).To(Equal("font/woff2"))
+		g.Expect(res.Header().Get("Cache-Control")).To(Equal("no-cache"))
+		tag := res.Header().Get("ETag")
+		g.Expect(tag).To(MatchRegexp(`^"[0-9a-f]{32}"$`), "a strong ETag")
+		g.Expect(res.Body.Bytes()[:4]).To(Equal([]byte("wOF2")))
+
+		again := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "http://eyeball"+target, nil)
+		req.Header.Set("If-None-Match", tag)
+		surface.ServeHTTP(again, req)
+		g.Expect(again.Code).To(Equal(http.StatusNotModified), target)
+		g.Expect(again.Body.Len()).To(BeZero())
+	}
+
+	missing := []string{
+		"/static/fonts/literata/OFL.txt",
+		"/static/fonts/literata/nope.woff2",
+		"/static/fonts/literata",
+		// The mux cleans a literal .. with a redirect before any handler runs,
+		// so the escaped form is the one that reaches this route.
+		"/static/fonts/..%2fapp.css",
+	}
+	for _, target := range missing {
+		g.Expect(serveSurface(surface, http.MethodGet, target).Code).To(Equal(http.StatusNotFound), target)
+	}
 }
 
 func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {

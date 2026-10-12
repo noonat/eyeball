@@ -28,8 +28,15 @@ const rowSelect = `SELECT r.id, r.project_id, p.name, r.agent, r.title, r.state,
 		(SELECT count(*) FROM comments c
 			JOIN rounds o2 ON o2.id = c.round_id
 			LEFT JOIN decisions d ON d.round_id = o2.id
-			WHERE o2.review_id = r.id AND c.delivered = '' AND ` + releasedWhere + `)
-	FROM reviews r
+			WHERE o2.review_id = r.id AND c.delivered = '' AND ` + releasedWhere + `),
+		o.note
+	` + rowFrom
+
+// rowFrom is the join every listing reads: a review, its project, its latest
+// round, and the decision on that round if there is one. The waiting count
+// reads it too, so the count and the queue's Waiting section select the same
+// reviews.
+const rowFrom = `FROM reviews r
 	JOIN projects p ON p.id = r.project_id
 	JOIN rounds o
 		ON o.review_id = r.id
@@ -78,6 +85,8 @@ type ReviewRow struct {
 	VerdictUndelivered bool
 	// Undelivered counts the released comments the agent has not acknowledged.
 	Undelivered int
+	// Note is the latest round's note, which a waiting row quotes.
+	Note string
 }
 
 // Queue is what needs attention, in the three groups the surface shows.
@@ -110,7 +119,7 @@ type RoundFile struct {
 // there is nothing waiting, nothing being acted on, and nothing that was
 // decided.
 func (s *Store) Queue(ctx context.Context, settledLimit int) (Queue, error) {
-	waiting := rowSelect + " WHERE r.state = ? AND d.round_id IS NULL ORDER BY o.created, r.id"
+	waiting := rowSelect + " WHERE " + waitingWhere + " ORDER BY o.created, r.id"
 	working := rowSelect + " WHERE r.state = ? AND d.round_id IS NOT NULL ORDER BY d.decided DESC, r.id"
 	settled := rowSelect + " WHERE r.state = ? ORDER BY d.decided DESC, r.id LIMIT ?"
 
@@ -134,6 +143,18 @@ func (s *Store) Queue(ctx context.Context, settledLimit int) (Queue, error) {
 		return Queue{}, err
 	}
 	return out, nil
+}
+
+// waitingWhere is what puts a review in the queue's Waiting section: open, with
+// its latest round undecided. It takes the open state as its one argument.
+const waitingWhere = "r.state = ? AND d.round_id IS NULL"
+
+// Waiting counts the reviews in the queue's Waiting section, which every page
+// shows in its top bar.
+func (s *Store) Waiting(ctx context.Context) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, "SELECT count(*) "+rowFrom+" WHERE "+waitingWhere, StateOpen).Scan(&n)
+	return n, errors.Wrap(err, "count waiting")
 }
 
 // ReviewsFor lists one agent's reviews in one project, newest request first.
@@ -343,6 +364,7 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 			&decided,
 			&row.VerdictUndelivered,
 			&row.Undelivered,
+			&row.Note,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "scan review")

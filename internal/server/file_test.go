@@ -93,7 +93,7 @@ func TestServer_Surface_file(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"src"}, Note: "first"}).Review.ID
 
 	doc := f.page(g, "/reviews/"+itoa(id)+"/files/src/long.txt", http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("Reviewlong.txt"))
+	g.Expect(barText(doc)).To(Equal("Reviewlong.txt"))
 	g.Expect(attr(find(doc, "back"), "href")).To(Equal("/reviews/" + itoa(id)))
 	g.Expect(text(find(find(doc, "crumb"), "dir"))).To(Equal("src/"))
 	g.Expect(text(find(find(doc, "crumb"), "name"))).To(Equal("long.txt"))
@@ -188,7 +188,7 @@ func TestServer_Surface_fileAgainst(t *testing.T) {
 
 	// An earlier round's page stays on that round, and goes back to it.
 	doc = f.page(g, base+"/rounds/1/files/a.txt", http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("Round 1a.txt"))
+	g.Expect(barText(doc)).To(Equal("Round 1a.txt"))
 	g.Expect(attr(find(doc, "back"), "href")).To(Equal(base + "/rounds/1"))
 	g.Expect(segmentLinks(doc)[0]).To(Equal("Marked " + base + "/rounds/1/files/a.txt?view=marked current"))
 	g.Expect(tableRows(doc)).To(Equal([]string{"1one", "add 2+two"}))
@@ -197,7 +197,7 @@ func TestServer_Surface_fileAgainst(t *testing.T) {
 
 	// The current round answers under the round's address as well.
 	doc = f.page(g, base+"/rounds/2/files/a.txt", http.StatusOK)
-	g.Expect(text(find(doc, "topbar"))).To(Equal("Reviewa.txt"))
+	g.Expect(barText(doc)).To(Equal("Reviewa.txt"))
 }
 
 func TestServer_Surface_fileBanners(t *testing.T) {

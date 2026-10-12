@@ -252,6 +252,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /static/fonts/{path...}",
+		handle:  (*Server).handleFont,
+	},
+	{
+		side:    sideSurface,
 		pattern: "POST /reviews/{review}/comments",
 		handle:  (*Server).handleAddComment,
 	},
