@@ -14,7 +14,7 @@
   <h1>Review</h1>
   <p>The page a notification opens. The brief before the work, the change
   itself, and a pinned decision bar. Shown as a second round of a document, as a
-  large change that opens collapsed, as a first round with an empty base, with a
+  large change with every file open under a list of them, as a first round with an empty base, with a
   comment being written, and after the verdict.</p>
   <nav>
     <a href="foundations.html">Foundations</a>
@@ -188,11 +188,11 @@
 
 <!-- ========================================================= large, code -->
 <section class="spec" id="large">
-  <h2>A large change <span class="tag">file list, one open</span></h2>
-  <p>Past the threshold the files come first with their counts and each expands
-  on a tap. Both failures are real: scrolling through four thousand lines to
-  find the interesting one, and tapping through eleven collapsed files to find
-  the same. Selecting a line is what opens the composer.</p>
+  <h2>A large change <span class="tag">every file open, a list on top</span></h2>
+  <p>Past ten files a list of them tops the page, each a link to its card. Every
+  card is open, because reviewing means reading every file, and a collapsed list
+  made reading thirteen files thirteen taps. Scroll to read; use the list to
+  jump. Selecting a line is what opens the composer.</p>
 
   <div class="pair">
     <figure class="frame">
@@ -217,16 +217,122 @@
           </div>
 
           <div class="toolbar">
-            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+            <span class="counts"><b class="files">13 files</b> &nbsp;<span class="plus">+1,893</span> <span class="minus">&minus;448</span></span>
           </div>
 
-          <details class="file" open>
-            <summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+          <nav class="tree filelist" aria-label="Files">
+            <a class="treerow" href="#large-l-1"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>cmd/harbor/main.go</bdi></span><span class="counts"><span class="plus">+3</span> <span class="minus">&minus;1</span></span></a>
+            <a class="treerow" href="#large-l-2"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/jobs/job.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;2</span></span></a>
+            <a class="treerow" href="#large-l-3"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/jobs/store.go</bdi></span><span class="counts"><span class="plus">+31</span> <span class="minus">&minus;6</span></span></a>
+            <a class="treerow" href="#large-l-4"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-l-5"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-l-6"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/backoff_test.go</bdi></span><span class="counts"><span class="plus">+48</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-l-7"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span></a>
+            <a class="treerow" href="#large-l-8"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/errors.go</bdi></span><span class="counts"><span class="plus">+22</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-l-9"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></a>
+            <a class="treerow" href="#large-l-10"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span></a>
+            <a class="treerow" href="#large-l-11"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>web/package-lock.json</bdi></span><span class="counts"><span class="plus">+1,412</span> <span class="minus">&minus;388</span></span></a>
+            <a class="treerow" href="#large-l-12"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>web/package.json</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span></span></a>
+            <a class="treerow" href="#large-l-13"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>web/src/jobs/FailureBadge.tsx</bdi></span><span class="counts"><span class="plus">+27</span> <span class="minus">&minus;0</span></span></a>
+          </nav>
+
+          <details class="file" id="large-l-1" open><summary><span class="path"><bdi>cmd/harbor/main.go</bdi></span><span class="counts"><span class="plus">+3</span> <span class="minus">&minus;1</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 58,6 +58,8 @@ func main</td></tr>
+                <tr><td class="ln">58</td><td class="sign"></td><td class="src">	w := upload.<span class="f">NewWorker</span>(client, jobs)</td></tr>
+                <tr class="del"><td class="ln">59</td><td class="sign">&minus;</td><td class="src">	w.MaxTries = <span class="n">5</span></td></tr>
+                <tr class="add"><td class="ln">59</td><td class="sign">+</td><td class="src">	w.MaxTries = <span class="n">3</span></td></tr>
+                <tr class="add"><td class="ln">60</td><td class="sign">+</td><td class="src">	w.FirstWait = <span class="n">60</span> * time.Second</td></tr>
+                <tr class="add"><td class="ln">61</td><td class="sign">+</td><td class="src">	w.Recorder = jobs</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-2" open><summary><span class="path"><bdi>internal/jobs/job.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 12,8 +12,15 @@ type Job struct</td></tr>
+                <tr><td class="ln">12</td><td class="sign"></td><td class="src">	State    State</td></tr>
+                <tr class="del"><td class="ln">13</td><td class="sign">&minus;</td><td class="src">	Err      <span class="k">string</span></td></tr>
+                <tr class="add"><td class="ln">13</td><td class="sign">+</td><td class="src">	Failure  *Failure</td></tr>
+                <tr class="add"><td class="ln">14</td><td class="sign">+</td><td class="src">}</td></tr>
+                <tr class="add"><td class="ln">15</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">16</td><td class="sign">+</td><td class="src"><span class="c">// Failure is why a job stopped retrying, kept so the queue can say it.</span></td></tr>
+                <tr class="add"><td class="ln">17</td><td class="sign">+</td><td class="src"><span class="k">type</span> Failure <span class="k">struct</span> {</td></tr>
+                <tr class="add"><td class="ln">18</td><td class="sign">+</td><td class="src">	Attempts <span class="k">int</span></td></tr>
+                <tr class="add"><td class="ln">19</td><td class="sign">+</td><td class="src">	Last     <span class="k">string</span></td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-3" open><summary><span class="path"><bdi>internal/jobs/store.go</bdi></span><span class="counts"><span class="plus">+31</span> <span class="minus">&minus;6</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 88,7 +88,12 @@ func (s *Store) Finish</td></tr>
+                <tr><td class="ln">88</td><td class="sign"></td><td class="src"><span class="k">func</span> (s *Store) <span class="f">Fail</span>(ctx context.Context, id <span class="k">int64</span>, f Failure) <span class="k">error</span> {</td></tr>
+                <tr class="del"><td class="ln">89</td><td class="sign">&minus;</td><td class="src">	_, err := s.db.<span class="f">ExecContext</span>(ctx, <span class="s">`UPDATE jobs SET err = ? WHERE id = ?`</span>, f.Last, id)</td></tr>
+                <tr class="add"><td class="ln">89</td><td class="sign">+</td><td class="src">	_, err := s.db.<span class="f">ExecContext</span>(ctx,</td></tr>
+                <tr class="add"><td class="ln">90</td><td class="sign">+</td><td class="src">		<span class="s">`UPDATE jobs SET state = ?, attempts = ?, last_error = ? WHERE id = ?`</span>,</td></tr>
+                <tr class="add"><td class="ln">91</td><td class="sign">+</td><td class="src">		Failed, f.Attempts, f.Last, id)</td></tr>
+                <tr><td class="ln">92</td><td class="sign"></td><td class="src">	<span class="k">return</span> err</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-4" open><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,4 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">ALTER TABLE</span> jobs <span class="k">ADD COLUMN</span> attempts <span class="k">INTEGER NOT NULL DEFAULT</span> <span class="n">0</span>;</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"><span class="k">ALTER TABLE</span> jobs <span class="k">ADD COLUMN</span> last_error <span class="k">TEXT</span>;</td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">UPDATE</span> jobs <span class="k">SET</span> last_error = err <span class="k">WHERE</span> err != <span class="s">''</span>;</td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src"><span class="k">ALTER TABLE</span> jobs <span class="k">DROP COLUMN</span> err;</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-5" open><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,64 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="c">// backoff doubles from FirstWait. A cold connection to the bucket takes</span></td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src"><span class="c">// about 40s, so a first wait shorter than that only spends an attempt.</span></td></tr>
+                <tr class="add"><td class="ln">5</td><td class="sign">+</td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">backoff</span>(attempt <span class="k">int</span>) time.Duration {</td></tr>
+                <tr class="add"><td class="ln">6</td><td class="sign">+</td><td class="src">	<span class="k">return</span> w.FirstWait &lt;&lt; attempt</td></tr>
+                <tr class="add"><td class="ln">7</td><td class="sign">+</td><td class="src">}</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-6" open><summary><span class="path"><bdi>internal/upload/backoff_test.go</bdi></span><span class="counts"><span class="plus">+48</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,48 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">import</span> (</td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src">	<span class="s">&quot;testing&quot;</span></td></tr>
+                <tr class="add"><td class="ln">5</td><td class="sign">+</td><td class="src">	<span class="s">&quot;time&quot;</span></td></tr>
+                <tr class="add"><td class="ln">6</td><td class="sign">+</td><td class="src">)</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-7"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file" id="large-l-8" open><summary><span class="path"><bdi>internal/upload/errors.go</bdi></span><span class="counts"><span class="plus">+22</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,22 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="c">// ErrGaveUp wraps the last attempt&rsquo;s error once MaxTries is spent.</span></td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src"><span class="k">var</span> ErrGaveUp = errors.<span class="f">New</span>(<span class="s">&quot;upload: gave up&quot;</span>)</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-9" open><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
             <div class="code narrow">
               <table>
                 <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
-                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; maxTries; attempt++ {</td></tr>
-                <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := backoff(attempt)</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; w.MaxTries; attempt++ {</td></tr>
+                <tr class="add sel"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := w.<span class="f">backoff</span>(attempt)</td></tr>
                 <tr class="thread"><td colspan="3"><div class="thread-body">
                   <form class="composer">
                     <div class="anchor">internal/upload/worker.go:42</div>
@@ -252,12 +358,34 @@
               </table>
             </div>
           </details>
+          <details class="file" id="large-l-10" open><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 30,6 +30,14 @@ func TestWorkerRetries</td></tr>
+                <tr><td class="ln">30</td><td class="sign"></td><td class="src">	w := <span class="f">newTestWorker</span>(t, flaky(2))</td></tr>
+                <tr class="del"><td class="ln">31</td><td class="sign">&minus;</td><td class="src">	w.MaxTries = <span class="n">5</span></td></tr>
+                <tr class="add"><td class="ln">31</td><td class="sign">+</td><td class="src">	w.MaxTries = <span class="n">3</span></td></tr>
+                <tr class="add"><td class="ln">32</td><td class="sign">+</td><td class="src">	w.FirstWait = time.Millisecond</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-l-11" open><summary><span class="path"><bdi>web/package-lock.json</bdi></span><span class="counts"><span class="plus">+1,412</span> <span class="minus">&minus;388</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="filefacts">
+              <span class="kind">1,800 changed lines</span>
+              <span class="hint">Past the 500 a card shows on its own.</span>
+              <a class="load" href="#large-l-11">Load anyway</a>
+            </div>
+          </details>
+          <details class="file" id="large-l-12" open><summary><span class="path"><bdi>web/package.json</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="skeleton"></div>
+          </details>
+          <details class="file" id="large-l-13" open><summary><span class="path"><bdi>web/src/jobs/FailureBadge.tsx</bdi></span><span class="counts"><span class="plus">+27</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="skeleton"></div>
+          </details>
 
-          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
+          <div class="tree">
+            <a class="treerow" href="widening.html#tree"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+          </div>
 
         </div>
         <div class="decide">
@@ -290,15 +418,165 @@
           </div>
 
           <div class="toolbar">
-            <span class="counts"><b class="files">6 files</b> &nbsp;<span class="plus">+341</span> <span class="minus">&minus;52</span></span>
+            <span class="counts"><b class="files">13 files</b> &nbsp;<span class="plus">+1,893</span> <span class="minus">&minus;448</span></span>
           </div>
 
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
-          <details class="file"><summary><span class="path"><bdi>docs/architecture.md</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="widening.html#whole" aria-label="Raw diff" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary></details>
+          <nav class="tree filelist" aria-label="Files">
+            <a class="treerow" href="#large-d-1"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>cmd/harbor/main.go</bdi></span><span class="counts"><span class="plus">+3</span> <span class="minus">&minus;1</span></span></a>
+            <a class="treerow" href="#large-d-2"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/jobs/job.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;2</span></span></a>
+            <a class="treerow" href="#large-d-3"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/jobs/store.go</bdi></span><span class="counts"><span class="plus">+31</span> <span class="minus">&minus;6</span></span></a>
+            <a class="treerow" href="#large-d-4"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-d-5"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-d-6"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/backoff_test.go</bdi></span><span class="counts"><span class="plus">+48</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-d-7"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span></a>
+            <a class="treerow" href="#large-d-8"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/errors.go</bdi></span><span class="counts"><span class="plus">+22</span> <span class="minus">&minus;0</span></span></a>
+            <a class="treerow" href="#large-d-9"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span></a>
+            <a class="treerow" href="#large-d-10"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span></a>
+            <a class="treerow" href="#large-d-11"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>web/package-lock.json</bdi></span><span class="counts"><span class="plus">+1,412</span> <span class="minus">&minus;388</span></span></a>
+            <a class="treerow" href="#large-d-12"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>web/package.json</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span></span></a>
+            <a class="treerow" href="#large-d-13"><span class="i i-file-text" aria-hidden="true"></span><span class="nm"><bdi>web/src/jobs/FailureBadge.tsx</bdi></span><span class="counts"><span class="plus">+27</span> <span class="minus">&minus;0</span></span></a>
+          </nav>
+
+          <details class="file" id="large-d-1" open><summary><span class="path"><bdi>cmd/harbor/main.go</bdi></span><span class="counts"><span class="plus">+3</span> <span class="minus">&minus;1</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 58,6 +58,8 @@ func main</td></tr>
+                <tr><td class="ln">58</td><td class="sign"></td><td class="src">	w := upload.<span class="f">NewWorker</span>(client, jobs)</td></tr>
+                <tr class="del"><td class="ln">59</td><td class="sign">&minus;</td><td class="src">	w.MaxTries = <span class="n">5</span></td></tr>
+                <tr class="add"><td class="ln">59</td><td class="sign">+</td><td class="src">	w.MaxTries = <span class="n">3</span></td></tr>
+                <tr class="add"><td class="ln">60</td><td class="sign">+</td><td class="src">	w.FirstWait = <span class="n">60</span> * time.Second</td></tr>
+                <tr class="add"><td class="ln">61</td><td class="sign">+</td><td class="src">	w.Recorder = jobs</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-2" open><summary><span class="path"><bdi>internal/jobs/job.go</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;2</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 12,8 +12,15 @@ type Job struct</td></tr>
+                <tr><td class="ln">12</td><td class="sign"></td><td class="src">	State    State</td></tr>
+                <tr class="del"><td class="ln">13</td><td class="sign">&minus;</td><td class="src">	Err      <span class="k">string</span></td></tr>
+                <tr class="add"><td class="ln">13</td><td class="sign">+</td><td class="src">	Failure  *Failure</td></tr>
+                <tr class="add"><td class="ln">14</td><td class="sign">+</td><td class="src">}</td></tr>
+                <tr class="add"><td class="ln">15</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">16</td><td class="sign">+</td><td class="src"><span class="c">// Failure is why a job stopped retrying, kept so the queue can say it.</span></td></tr>
+                <tr class="add"><td class="ln">17</td><td class="sign">+</td><td class="src"><span class="k">type</span> Failure <span class="k">struct</span> {</td></tr>
+                <tr class="add"><td class="ln">18</td><td class="sign">+</td><td class="src">	Attempts <span class="k">int</span></td></tr>
+                <tr class="add"><td class="ln">19</td><td class="sign">+</td><td class="src">	Last     <span class="k">string</span></td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-3" open><summary><span class="path"><bdi>internal/jobs/store.go</bdi></span><span class="counts"><span class="plus">+31</span> <span class="minus">&minus;6</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 88,7 +88,12 @@ func (s *Store) Finish</td></tr>
+                <tr><td class="ln">88</td><td class="sign"></td><td class="src"><span class="k">func</span> (s *Store) <span class="f">Fail</span>(ctx context.Context, id <span class="k">int64</span>, f Failure) <span class="k">error</span> {</td></tr>
+                <tr class="del"><td class="ln">89</td><td class="sign">&minus;</td><td class="src">	_, err := s.db.<span class="f">ExecContext</span>(ctx, <span class="s">`UPDATE jobs SET err = ? WHERE id = ?`</span>, f.Last, id)</td></tr>
+                <tr class="add"><td class="ln">89</td><td class="sign">+</td><td class="src">	_, err := s.db.<span class="f">ExecContext</span>(ctx,</td></tr>
+                <tr class="add"><td class="ln">90</td><td class="sign">+</td><td class="src">		<span class="s">`UPDATE jobs SET state = ?, attempts = ?, last_error = ? WHERE id = ?`</span>,</td></tr>
+                <tr class="add"><td class="ln">91</td><td class="sign">+</td><td class="src">		Failed, f.Attempts, f.Last, id)</td></tr>
+                <tr><td class="ln">92</td><td class="sign"></td><td class="src">	<span class="k">return</span> err</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-4" open><summary><span class="path"><bdi>internal/storage/migrations/0007_job_failure.sql</bdi></span><span class="counts"><span class="plus">+4</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,4 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">ALTER TABLE</span> jobs <span class="k">ADD COLUMN</span> attempts <span class="k">INTEGER NOT NULL DEFAULT</span> <span class="n">0</span>;</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"><span class="k">ALTER TABLE</span> jobs <span class="k">ADD COLUMN</span> last_error <span class="k">TEXT</span>;</td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">UPDATE</span> jobs <span class="k">SET</span> last_error = err <span class="k">WHERE</span> err != <span class="s">''</span>;</td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src"><span class="k">ALTER TABLE</span> jobs <span class="k">DROP COLUMN</span> err;</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-5" open><summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+64</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,64 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="c">// backoff doubles from FirstWait. A cold connection to the bucket takes</span></td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src"><span class="c">// about 40s, so a first wait shorter than that only spends an attempt.</span></td></tr>
+                <tr class="add"><td class="ln">5</td><td class="sign">+</td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">backoff</span>(attempt <span class="k">int</span>) time.Duration {</td></tr>
+                <tr class="add"><td class="ln">6</td><td class="sign">+</td><td class="src">	<span class="k">return</span> w.FirstWait &lt;&lt; attempt</td></tr>
+                <tr class="add"><td class="ln">7</td><td class="sign">+</td><td class="src">}</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-6" open><summary><span class="path"><bdi>internal/upload/backoff_test.go</bdi></span><span class="counts"><span class="plus">+48</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,48 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">import</span> (</td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src">	<span class="s">&quot;testing&quot;</span></td></tr>
+                <tr class="add"><td class="ln">5</td><td class="sign">+</td><td class="src">	<span class="s">&quot;time&quot;</span></td></tr>
+                <tr class="add"><td class="ln">6</td><td class="sign">+</td><td class="src">)</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-7"><summary><span class="path"><bdi>internal/upload/client.go</bdi></span><span class="counts"><span class="plus">+12</span> <span class="minus">&minus;30</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary></details>
+          <details class="file" id="large-d-8" open><summary><span class="path"><bdi>internal/upload/errors.go</bdi></span><span class="counts"><span class="plus">+22</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 0,0 +1,22 @@</td></tr>
+                <tr class="add"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+                <tr class="add"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+                <tr class="add"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="c">// ErrGaveUp wraps the last attempt&rsquo;s error once MaxTries is spent.</span></td></tr>
+                <tr class="add"><td class="ln">4</td><td class="sign">+</td><td class="src"><span class="k">var</span> ErrGaveUp = errors.<span class="f">New</span>(<span class="s">&quot;upload: gave up&quot;</span>)</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-9" open><summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+188</span> <span class="minus">&minus;12</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 41,7 +41,14 @@ func (w *Worker) run</td></tr>
+                <tr><td class="ln">41</td><td class="sign"></td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; w.MaxTries; attempt++ {</td></tr>
+                <tr class="add"><td class="ln">42</td><td class="sign">+</td><td class="src">		wait := w.<span class="f">backoff</span>(attempt)</td></tr>
+                <tr class="add"><td class="ln">43</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+                <tr class="add"><td class="ln">44</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+                <tr class="add"><td class="ln">45</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/upload/worker.go:45</span></div>
+                    <p>Wrap this so the job records why it stopped.</p>
+                    <div class="acts"><a href="#large"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#large"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+                  </div>
+                </div></td></tr>
+                <tr class="add"><td class="ln">46</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(wait):</td></tr>
+                <tr class="add"><td class="ln">47</td><td class="sign">+</td><td class="src">		}</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-10" open><summary><span class="path"><bdi>internal/upload/worker_test.go</bdi></span><span class="counts"><span class="plus">+71</span> <span class="minus">&minus;8</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 30,6 +30,14 @@ func TestWorkerRetries</td></tr>
+                <tr><td class="ln">30</td><td class="sign"></td><td class="src">	w := <span class="f">newTestWorker</span>(t, flaky(2))</td></tr>
+                <tr class="del"><td class="ln">31</td><td class="sign">&minus;</td><td class="src">	w.MaxTries = <span class="n">5</span></td></tr>
+                <tr class="add"><td class="ln">31</td><td class="sign">+</td><td class="src">	w.MaxTries = <span class="n">3</span></td></tr>
+                <tr class="add"><td class="ln">32</td><td class="sign">+</td><td class="src">	w.FirstWait = time.Millisecond</td></tr>
+              </table>
+            </div>
+          </details>
+          <details class="file" id="large-d-11" open><summary><span class="path"><bdi>web/package-lock.json</bdi></span><span class="counts"><span class="plus">+1,412</span> <span class="minus">&minus;388</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="filefacts">
+              <span class="kind">1,800 changed lines</span>
+              <span class="hint">Past the 500 a card shows on its own.</span>
+              <a class="load" href="#large-d-11">Load anyway</a>
+            </div>
+          </details>
+          <details class="file" id="large-d-12" open><summary><span class="path"><bdi>web/package.json</bdi></span><span class="counts"><span class="plus">+2</span> <span class="minus">&minus;1</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="skeleton"></div>
+          </details>
+          <details class="file" id="large-d-13" open><summary><span class="path"><bdi>web/src/jobs/FailureBadge.tsx</bdi></span><span class="counts"><span class="plus">+27</span> <span class="minus">&minus;0</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="skeleton"></div>
+          </details>
+
+          <div class="tree">
+            <a class="treerow" href="widening.html#tree"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+          </div>
 
         </div>
         <div class="decide">
@@ -311,6 +589,28 @@
   </div>
 
   <ul class="note-list">
+    <li><b>Every card opens, at any size.</b> The collapsed list served two
+    reasons, finding a file and page weight, and taxed the reading the surface
+    exists for. The list on top answers the first. The second is answered by
+    loading a card&rsquo;s body as it nears the screen.</li>
+    <li><b>A card not loaded yet holds the space its rows will take</b>, one
+    faint bar per row, as the last two cards here do. A body arriving above the
+    reader then moves nothing, so a jump from the list lands on its file. A
+    body asks to load a screen before its card appears, so on a normal
+    connection this is what a slow one looks like, not what a reader is
+    expected to see. Here they show the height used with no script, six rows;
+    the page sizes each from its file&rsquo;s row count.</li>
+    <li><b>The list appears past ten files</b>, the old rule&rsquo;s file
+    count. The line count no longer matters, since the list is for finding a
+    file and every file is open regardless. Its rows truncate from the left, as
+    a card&rsquo;s path does, so the filename survives.</li>
+    <li><b>A file past 500 changed lines waits behind Load anyway</b>, added
+    and removed together, as a file past the 20 MB send limit does. A lock file
+    or a generated file is usually skimmed, and loading one by accident costs
+    the scroll past it.</li>
+    <li><b>Folding a card is the reviewer&rsquo;s mark that it was read</b>, as
+    GitHub&rsquo;s Viewed does. The fold is remembered on this device. Nothing
+    else is kept: no count, and nothing the agent sees.</li>
     <li><b>The composer opens under the line it is attached to</b>, and a
     line&rsquo;s comments stay there, so the code they are about is beside
     them however long the diff is. The row is pinned to the card&rsquo;s width
@@ -320,8 +620,6 @@
     <li><b>The refusal appears on the bar, above the buttons.</b> Both buttons
     stay live: approving with no comment is a valid verdict, and only requesting
     changes needs something to act on.</li>
-    <li><b>A collapsed file list keeps the counts and the full path.</b> The path
-    truncates from the left, so the filename is what survives.</li>
   </ul>
 </section>
 

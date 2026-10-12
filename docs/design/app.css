@@ -1379,6 +1379,19 @@ details.blk.changed[open] > summary > .cue-hide {
   font-weight: 600;
 }
 
+/* A large review's list of files, each row a link to its card. Its paths
+ * truncate from the left, as a card's path does, so the filename survives. */
+.filelist {
+  margin-bottom: 14px;
+}
+.filelist .nm {
+  direction: rtl;
+  text-align: left;
+}
+.filelist .nm bdi {
+  direction: ltr;
+}
+
 .treerow.indent {
   padding-left: 30px;
 }
@@ -1397,6 +1410,41 @@ details.blk.changed[open] > summary > .cue-hide {
   font-family: var(--mono);
   font-size: var(--t-xs);
   color: var(--warn);
+}
+
+/* A deferred card's body before it loads: one faint bar per row, as tall as
+ * the body will be, so a body arriving above the reader does not push the page
+ * down under a jump. The page sets --hunks and --lines from the counts the
+ * server sends, since the CSP refuses a style attribute, and --hunk-h, --row-h
+ * and --code-pad from a hidden code table it measures once, since they depend
+ * on the device's fonts and on whether it draws a scrollbar. The fallbacks are
+ * Chromium's measurements without a scrollbar, and six lines is the height with
+ * no script. The bars are one gradient tile repeated down, so a long file costs
+ * no markup. */
+.skeleton {
+  box-sizing: border-box;
+  height: calc(
+    var(--hunks, 1) * var(--hunk-h, 29px) + var(--lines, 6) *
+      var(--row-h, 20.15px) + var(--code-pad, 0px)
+  );
+  padding-top: var(--hunk-h, 29px);
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent 35%,
+      var(--line) 35% 65%,
+      transparent 65%
+    ),
+    linear-gradient(var(--bg-sunk), var(--bg-sunk));
+  background-size:
+    62% var(--row-h, 20.15px),
+    100% var(--hunk-h, 29px);
+  background-position:
+    54px 0,
+    0 0;
+  background-repeat: repeat-y, no-repeat;
+  background-origin: content-box, border-box;
+  background-clip: content-box, border-box;
 }
 
 /* A file too large or too binary to render. Saying so beats an empty panel,
