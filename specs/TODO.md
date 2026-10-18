@@ -142,6 +142,10 @@ Unscheduled below, once real reviews say which of it matters.
       decision about where it runs.
 - [ ] tooling: whether the tearout server survives once the real binary can
       serve `docs/design/` in a dev mode.
+- [ ] tooling: enforce conventions.md's rule for a long table row in
+      `internal/convention`, and reformat the rows that break it. 175 rows in 18
+      test files did as of 018, 51 of them in
+      `internal/render/document_test.go`.
 - [ ] tooling: whether the spec-reference rule can be checked. A three-digit
       spec number outside parentheses is mechanical to find. Whether a name sits
       beside it is not.

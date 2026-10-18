@@ -82,6 +82,10 @@ gate's together.
   digest and mode for the path. It confirmed by hand that
   `eyeball cat --base <old> -- <path>` works, the form a gate passes. No test in
   `cli_test.go` covers it.
+- The branch review in eyeball asked for the refusal rows in `cat_test.go` to
+  put one field per line. The rule went into docs/conventions.md as judgment.
+  Enforcing it, and reformatting the 175 rows elsewhere that break it, is a
+  tooling item in specs/TODO.md, so this branch stays about `eyeball cat`.
 
 > **Completed** 2026-10-12 03:58 UTC
 >

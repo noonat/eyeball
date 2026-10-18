@@ -79,9 +79,28 @@ func TestServer_cat(t *testing.T) {
 		code   api.Code
 		says   string
 	}{
-		{name: "a file the review did not capture", caller: me, base: base, path: "keep.txt", code: api.CodeNotCaptured, says: "captured keep.txt"},
-		{name: "a ref that names no commit", caller: me, base: "no-such-branch", path: "a.txt", code: api.CodeBadCommit},
-		{name: "a path outside the project", caller: me, base: base, path: "/etc/passwd", code: api.CodeOutsideProject},
+		{
+			name:   "a file the review did not capture",
+			caller: me,
+			base:   base,
+			path:   "keep.txt",
+			code:   api.CodeNotCaptured,
+			says:   "captured keep.txt",
+		},
+		{
+			name:   "a ref that names no commit",
+			caller: me,
+			base:   "no-such-branch",
+			path:   "a.txt",
+			code:   api.CodeBadCommit,
+		},
+		{
+			name:   "a path outside the project",
+			caller: me,
+			base:   base,
+			path:   "/etc/passwd",
+			code:   api.CodeOutsideProject,
+		},
 	}
 	for _, c := range refusals {
 		t.Run(c.name, func(t *testing.T) {
