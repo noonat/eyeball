@@ -503,18 +503,23 @@ Every message is drafted with the `dev-commit-message` skill and passes its
 gate. The rules below are the ones specific to this repository. The skill holds
 the rest, and the subject format here is the one it defers to.
 
-**Never commit or push without asking.** Approval of one commit is not approval
-of the next. A change to a drafted message is not approval either: redraft, then
-ask again.
+**Enforced by the review gate.** Work goes on a branch cut from `master`:
+`spec/NNN-name` for a spec, `chore/<name>` for anything smaller. A commit there
+needs only a message that passed the `dev-commit-message` gate, and git refuses
+one that did not. The reviewer reads the whole branch once, in eyeball, and
+`master` moves only to the tree that review approved. The merge is
+`git merge --no-ff --no-edit`, so the branch's commits stay together in the
+history.
 
-**Leave the work uncommitted until a human has reviewed it.** A commit records a
-change a person has already read. Asking is not review: a question answered
-before the diff was read approves nothing. Work up to one coherent change, run
-the checks, draft the message, and stop with the change still in the working
-tree, where `git diff` and `git status` show it whole.
+Reading every diff before its commit, with review subagents on top, cost about
+four times as much per spec as reading the branch once before it merges. The
+branch review sees the same changes, in the order they land.
 
-This bounds how large a change gets. A change too large to read in the working
-tree is too large to commit as one.
+This bounds how large a branch gets. A branch too large to read in one review is
+too large to merge as one.
+
+**Judgment.** Never push without asking. The gate sees only the local `master`,
+and a push leaves the machine.
 
 **Subject:** `type(scope): summary`, with a Conventional-Commits type (`feat`,
 `fix`, `refactor`, `chore`, `docs`, `test`, `perf`), imperative, under about 72
@@ -540,17 +545,14 @@ thing. Commits are permanent and those references rot.
 name the claim and say why it was wrong. A silent reversal leaves two
 contradictory statements in the history and no way to tell which one won.
 
-**Ask with a choice, not an open question.** Offer the options: commit it,
-commit the subject alone, do not commit, change something. An open question
-invites a yes that was meant as a comment.
+**Ask with a choice, not an open question.** When the reviewer has to decide
+something, offer the options. An open question invites a yes that was meant as a
+comment.
 
 **Amend only a commit nobody has seen.** Once a commit has been shown, or
 reported as done, it is fixed, and a correction is a new commit. An amend
 replaces the state that was read and leaves no diff between it and the
 correction, so the change cannot be reviewed at all.
-
-One branch per spec, `spec/NNN-name`, cut from the default branch and merged
-back with `--no-ff`.
 
 ## Specs
 
