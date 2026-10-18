@@ -269,9 +269,21 @@ func TestServer_Surface_fileBanners(t *testing.T) {
 			href  string
 		}{
 			{path: "/files/a.txt", label: "Review", href: base},
-			{path: "/rounds/1/files/a.txt?against=base", label: "Round 1", href: base + "/rounds/1?against=base"},
-			{path: "/rounds/1/files/lib.txt", label: "Files", href: base + "/rounds/1/files/"},
-			{path: "/files/other.txt?against=base", label: "Files", href: base + "/files/?against=base"},
+			{
+				path:  "/rounds/1/files/a.txt?against=base",
+				label: "Round 1",
+				href:  base + "/rounds/1?against=base",
+			},
+			{
+				path:  "/rounds/1/files/lib.txt",
+				label: "Files",
+				href:  base + "/rounds/1/files/",
+			},
+			{
+				path:  "/files/other.txt?against=base",
+				label: "Files",
+				href:  base + "/files/?against=base",
+			},
 			{path: "/files/later.txt", label: "Files", href: base + "/files/"},
 		}
 		for _, c := range backs {
@@ -946,7 +958,10 @@ func TestServer_Surface_reviewWholeFileLink(t *testing.T) {
 		{page: base, want: base + "/files/a.txt"},
 		{page: base + "?against=base", want: base + "/files/a.txt?against=base"},
 		{page: base + "/rounds/1", want: base + "/rounds/1/files/a.txt"},
-		{page: base + "/rounds/1?against=base", want: base + "/rounds/1/files/a.txt?against=base"},
+		{
+			page: base + "/rounds/1?against=base",
+			want: base + "/rounds/1/files/a.txt?against=base",
+		},
 	}
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {

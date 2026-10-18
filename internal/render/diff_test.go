@@ -36,9 +36,18 @@ func Test_hunkHeaderInGitsForm(t *testing.T) {
 		hunk diff.Hunk
 		want string
 	}{
-		{hunk: diff.Hunk{OldStart: 1, OldLines: 1, NewStart: 1, NewLines: 1}, want: "@@ -1 +1 @@"},
-		{hunk: diff.Hunk{OldStart: 0, OldLines: 0, NewStart: 1, NewLines: 3}, want: "@@ -0,0 +1,3 @@"},
-		{hunk: diff.Hunk{OldStart: 4, OldLines: 2, NewStart: 4, NewLines: 1}, want: "@@ -4,2 +4 @@"},
+		{
+			hunk: diff.Hunk{OldStart: 1, OldLines: 1, NewStart: 1, NewLines: 1},
+			want: "@@ -1 +1 @@",
+		},
+		{
+			hunk: diff.Hunk{OldStart: 0, OldLines: 0, NewStart: 1, NewLines: 3},
+			want: "@@ -0,0 +1,3 @@",
+		},
+		{
+			hunk: diff.Hunk{OldStart: 4, OldLines: 2, NewStart: 4, NewLines: 1},
+			want: "@@ -4,2 +4 @@",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.want, func(t *testing.T) {
@@ -93,10 +102,26 @@ func TestDiff(t *testing.T) {
 		{Number: 1, Text: "package a"},
 		{Number: 2, Text: ""},
 		{Number: 3, Text: "func f() int {"},
-		{Class: "del", Number: 4, Sign: "−", Text: "\treturn 1"},
-		{Class: "add", Number: 4, Sign: "+", Text: "\treturn 2"},
+		{
+			Class:  "del",
+			Number: 4,
+			Sign:   "−",
+			Text:   "\treturn 1",
+		},
+		{
+			Class:  "add",
+			Number: 4,
+			Sign:   "+",
+			Text:   "\treturn 2",
+		},
 		{Number: 5, Text: "}"},
-		{Class: "add", Number: 6, Sign: "+", Text: "var x = 3", NoNewline: true},
+		{
+			Class:     "add",
+			Number:    6,
+			Sign:      "+",
+			Text:      "var x = 3",
+			NoNewline: true,
+		},
 	}))
 	// The changed word is marked inside its role.
 	g.Expect(got.Rows[4].Segments).To(Equal([]Segment{

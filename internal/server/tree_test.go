@@ -33,9 +33,17 @@ func TestServer_Surface_reviewAllFiles(t *testing.T) {
 		href string
 	}{
 		{page: base, name: "All files", href: base + "/files/"},
-		{page: base + "?against=base", name: "All files", href: base + "/files/?against=base"},
+		{
+			page: base + "?against=base",
+			name: "All files",
+			href: base + "/files/?against=base",
+		},
 		{page: base + "/rounds/1", name: "All files", href: base + "/rounds/1/files/"},
-		{page: base + "/rounds/1?against=base", name: "All files", href: base + "/rounds/1/files/?against=base"},
+		{
+			page: base + "/rounds/1?against=base",
+			name: "All files",
+			href: base + "/rounds/1/files/?against=base",
+		},
 	}
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {

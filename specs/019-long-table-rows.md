@@ -1,7 +1,7 @@
 ---
-status: draft
+status: active
 created: 2026-10-18T00:00:00Z
-updated: 2026-10-18T00:00:00Z
+updated: 2026-10-18T21:07:38.065628743Z
 required_commands:
   - cmd: make check
 ---
@@ -14,6 +14,10 @@ every field on its own line. The rule came from the review of 018, which asked
 for a 139-character row in `cat_test.go` to be split. It is marked Judgment, and
 175 rows in 18 test files break it. This spec reformats them and adds a check
 that enforces the rule.
+
+Approved by the owner as review 60, round 1, on 2026-10-18, with the three
+choices below as written: 80 runes, rows of four or more short fields split, and
+test files only.
 
 ## Design
 
@@ -71,11 +75,27 @@ comparison and the check by its fixture and a planted violation.
 
 ## Iteration 1: reformat the rows
 
-- [ ] Every one-line row in a `_test.go` file with more than three fields, or
+- [x] Every one-line row in a `_test.go` file with more than three fields, or
       wider than 80 runes, has each field on its own line, with a trailing comma
       and the closing brace alone.
-- [ ] The token comparison passes on every changed file, and the result is
+- [x] The token comparison passes on every changed file, and the result is
       recorded here: files changed, rows reformatted.
+
+**Result, iteration 1.** Run on the branch at the spec's approval, the program
+reformatted 175 rows in 18 files, +1029 −175 lines, and every file passed the
+token comparison. The survey then found no one-line row over either limit and no
+multi-line row with two fields on a line. Both counts match the run on the clone
+of `520d698`.
+
+Two `punchcard` writes left the spec failing `oxfmt --check`: ticking the todos
+cut their continuation lines' indent from six spaces to two, and closing the
+iteration left a blank line at the end of the file, the fault 018 found in 016.
+The close ran `make check` before that write, so it passed. Both were put back
+with `oxfmt --write` before the commit.
+
+> **Completed** 2026-10-18 21:08 UTC
+>
+> - `make check` — 5.6s
 
 ## Iteration 2: enforce it
 

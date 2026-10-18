@@ -342,10 +342,38 @@ func TestServer_Surface_projectOpenReviews(t *testing.T) {
 		})
 	}
 	g.Expect(got).To(Equal([]shape{
-		{Class: "row waiting", Href: "/reviews/" + itoa(w1), Agent: "agent-w1", Age: "18m", Title: "w1", Meta: "Round 11 file+1 −0"},
-		{Class: "row waiting", Href: "/reviews/" + itoa(w2), Agent: "agent-w2", Age: "17m", Title: "w2", Meta: "Round 11 file+1 −0"},
-		{Class: "row working", Href: "/reviews/" + itoa(k1), Agent: "agent-k1", Age: "5m", Title: "k1", Meta: "Changes requested, round 1"},
-		{Class: "row working", Href: "/reviews/" + itoa(k2), Agent: "agent-k2", Age: "15m", Title: "k2", Meta: "Changes requested, round 1"},
+		{
+			Class: "row waiting",
+			Href:  "/reviews/" + itoa(w1),
+			Agent: "agent-w1",
+			Age:   "18m",
+			Title: "w1",
+			Meta:  "Round 11 file+1 −0",
+		},
+		{
+			Class: "row waiting",
+			Href:  "/reviews/" + itoa(w2),
+			Agent: "agent-w2",
+			Age:   "17m",
+			Title: "w2",
+			Meta:  "Round 11 file+1 −0",
+		},
+		{
+			Class: "row working",
+			Href:  "/reviews/" + itoa(k1),
+			Agent: "agent-k1",
+			Age:   "5m",
+			Title: "k1",
+			Meta:  "Changes requested, round 1",
+		},
+		{
+			Class: "row working",
+			Href:  "/reviews/" + itoa(k2),
+			Agent: "agent-k2",
+			Age:   "15m",
+			Title: "k2",
+			Meta:  "Changes requested, round 1",
+		},
 	}))
 }
 

@@ -121,14 +121,35 @@ func TestPlain(t *testing.T) {
 		NewStart: 1,
 		NewLines: 3,
 		Lines: []Line{
-			{Op: OpContext, Old: 1, New: 1, Text: "one"},
-			{Op: OpContext, Old: 2, New: 2, Text: "two"},
-			{Op: OpContext, Old: 3, New: 3, Text: "three", NoNewline: true},
+			{
+				Op:   OpContext,
+				Old:  1,
+				New:  1,
+				Text: "one",
+			},
+			{
+				Op:   OpContext,
+				Old:  2,
+				New:  2,
+				Text: "two",
+			},
+			{
+				Op:        OpContext,
+				Old:       3,
+				New:       3,
+				Text:      "three",
+				NoNewline: true,
+			},
 		},
 	}}))
 	// A final newline is a property of the text, not a line of its own.
 	ended := Plain([]byte("one\n"))
-	g.Expect(ended.Hunks[0].Lines).To(Equal([]Line{{Op: OpContext, Old: 1, New: 1, Text: "one"}}))
+	g.Expect(ended.Hunks[0].Lines).To(Equal([]Line{{
+		Op:   OpContext,
+		Old:  1,
+		New:  1,
+		Text: "one",
+	}}))
 	g.Expect(Plain(nil)).To(Equal(Result{}))
 }
 

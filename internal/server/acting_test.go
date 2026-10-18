@@ -41,10 +41,25 @@ func TestServer_AgentHandler_refusesEveryWrite(t *testing.T) {
 		method, path string
 		form         url.Values
 	}{
-		{method: http.MethodPost, path: "/reviews/" + itoa(id) + "/comments", form: url.Values{"round": {"1"}, "level": {"review"}, "body": {"x"}}},
-		{method: http.MethodPut, path: "/reviews/" + itoa(id) + "/comments/" + itoa(c.ID), form: url.Values{"body": {"changed"}}},
-		{method: http.MethodDelete, path: "/reviews/" + itoa(id) + "/comments/" + itoa(c.ID)},
-		{method: http.MethodPost, path: "/reviews/" + itoa(id) + "/decision", form: url.Values{"round": {"1"}, "verdict": {"approve"}}},
+		{
+			method: http.MethodPost,
+			path:   "/reviews/" + itoa(id) + "/comments",
+			form:   url.Values{"round": {"1"}, "level": {"review"}, "body": {"x"}},
+		},
+		{
+			method: http.MethodPut,
+			path:   "/reviews/" + itoa(id) + "/comments/" + itoa(c.ID),
+			form:   url.Values{"body": {"changed"}},
+		},
+		{
+			method: http.MethodDelete,
+			path:   "/reviews/" + itoa(id) + "/comments/" + itoa(c.ID),
+		},
+		{
+			method: http.MethodPost,
+			path:   "/reviews/" + itoa(id) + "/decision",
+			form:   url.Values{"round": {"1"}, "verdict": {"approve"}},
+		},
 	}
 	for _, w := range writes {
 		res := sendForm(f.s.AgentHandler(), w.method, w.path, w.form, false)
@@ -79,11 +94,39 @@ func TestServer_Surface_addComment(t *testing.T) {
 		where  string
 		quoted string
 	}{
-		{name: "a line", form: url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"2"}}, list: threadID("a.txt", 2), where: "a.txt:2", quoted: "two"},
-		{name: "a passage", form: url.Values{"level": {"passage"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}}, list: passageID("a.txt", 1, 2), where: "a.txt:1–2", quoted: "one two"},
-		{name: "a file", form: url.Values{"level": {"file"}, "path": {"a.txt"}}, list: listID(store.LevelFile, "a.txt"), where: "a.txt"},
-		{name: "a removed line, read from the base", form: url.Values{"level": {"file"}, "path": {"a.txt"}, "oldline": {"1"}}, list: listID(store.LevelFile, "a.txt"), where: "a.txt", quoted: "one"},
-		{name: "the review", form: url.Values{"level": {"review"}}, list: "comments-review", where: "This review"},
+		{
+			name:   "a line",
+			form:   url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"2"}},
+			list:   threadID("a.txt", 2),
+			where:  "a.txt:2",
+			quoted: "two",
+		},
+		{
+			name:   "a passage",
+			form:   url.Values{"level": {"passage"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}},
+			list:   passageID("a.txt", 1, 2),
+			where:  "a.txt:1–2",
+			quoted: "one two",
+		},
+		{
+			name:  "a file",
+			form:  url.Values{"level": {"file"}, "path": {"a.txt"}},
+			list:  listID(store.LevelFile, "a.txt"),
+			where: "a.txt",
+		},
+		{
+			name:   "a removed line, read from the base",
+			form:   url.Values{"level": {"file"}, "path": {"a.txt"}, "oldline": {"1"}},
+			list:   listID(store.LevelFile, "a.txt"),
+			where:  "a.txt",
+			quoted: "one",
+		},
+		{
+			name:  "the review",
+			form:  url.Values{"level": {"review"}},
+			list:  "comments-review",
+			where: "This review",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -132,15 +175,51 @@ func TestServer_Surface_addCommentRefused(t *testing.T) {
 		form   url.Values
 		status int
 	}{
-		{name: "a line past the end of the file", form: url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"3"}}, status: http.StatusBadRequest},
-		{name: "a path the round cannot read", form: url.Values{"level": {"line"}, "path": {"missing.txt"}, "start": {"1"}}, status: http.StatusBadRequest},
-		{name: "a line with no line", form: url.Values{"level": {"line"}, "path": {"a.txt"}}, status: http.StatusBadRequest},
-		{name: "a line with a range", form: url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}}, status: http.StatusBadRequest},
-		{name: "a review comment naming a path", form: url.Values{"level": {"review"}, "path": {"a.txt"}}, status: http.StatusBadRequest},
-		{name: "a level that does not exist", form: url.Values{"level": {"chapter"}}, status: http.StatusBadRequest},
-		{name: "no text", form: url.Values{"level": {"review"}, "body": {"  "}}, status: http.StatusBadRequest},
-		{name: "a climb out of the project", form: url.Values{"level": {"line"}, "path": {"../x"}, "start": {"1"}}, status: http.StatusBadRequest},
-		{name: "a round the review does not have", form: url.Values{"level": {"review"}, "round": {"9"}}, status: http.StatusNotFound},
+		{
+			name:   "a line past the end of the file",
+			form:   url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"3"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a path the round cannot read",
+			form:   url.Values{"level": {"line"}, "path": {"missing.txt"}, "start": {"1"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a line with no line",
+			form:   url.Values{"level": {"line"}, "path": {"a.txt"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a line with a range",
+			form:   url.Values{"level": {"line"}, "path": {"a.txt"}, "start": {"1"}, "end": {"2"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a review comment naming a path",
+			form:   url.Values{"level": {"review"}, "path": {"a.txt"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a level that does not exist",
+			form:   url.Values{"level": {"chapter"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "no text",
+			form:   url.Values{"level": {"review"}, "body": {"  "}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a climb out of the project",
+			form:   url.Values{"level": {"line"}, "path": {"../x"}, "start": {"1"}},
+			status: http.StatusBadRequest,
+		},
+		{
+			name:   "a round the review does not have",
+			form:   url.Values{"level": {"review"}, "round": {"9"}},
+			status: http.StatusNotFound,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
