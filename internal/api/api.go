@@ -9,6 +9,9 @@ type Code string
 const (
 	// CodeAlreadyDecided is a verdict on a round that already has one.
 	CodeAlreadyDecided Code = "already_decided"
+	// CodeAmbiguous is a cat whose approved reviews hold different content for
+	// the path, so no one of them answers.
+	CodeAmbiguous Code = "ambiguous"
 	// CodeAwaitingVerdict is a next round asked for while the last one waits.
 	CodeAwaitingVerdict Code = "awaiting_verdict"
 	// CodeBadBase is a base that does not name a commit.
@@ -58,6 +61,9 @@ const (
 	// CodeNotApproved is a check that found no approved review in the
 	// project whose latest round is measured from the base it was given.
 	CodeNotApproved Code = "not_approved"
+	// CodeNotCaptured is a cat that found no approved review, measured from the
+	// base it was given, whose latest round captured the path with content.
+	CodeNotCaptured Code = "not_captured"
 	// CodeNotFound is an id that names nothing.
 	CodeNotFound Code = "not_found"
 	// CodeNotOpen is a review that has already been approved or abandoned.
@@ -160,6 +166,23 @@ type CheckResult struct {
 	Title string `json:"title"`
 	// Agent is the agent that opened it.
 	Agent string `json:"agent"`
+}
+
+// CatResult is one file's content from the approved review a cat found.
+type CatResult struct {
+	// Review is the review's id.
+	Review int64 `json:"review"`
+	// Round is its latest round's number.
+	Round int `json:"round"`
+	// Path is the file, relative to the project root.
+	Path string `json:"path"`
+	// Digest is the SHA-256 of Content, as the blob store names it. A client
+	// that recomputes it knows the answer arrived whole.
+	Digest string `json:"digest"`
+	// Size is the length of Content in bytes.
+	Size int64 `json:"size"`
+	// Content is the file's bytes, which JSON carries as base64.
+	Content []byte `json:"content"`
 }
 
 // ReceiptBody names the comments the agent's client printed.
