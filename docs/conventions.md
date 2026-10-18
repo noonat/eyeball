@@ -558,7 +558,9 @@ correction, so the change cannot be reviewed at all.
 
 Non-trivial work is specced as markdown under `specs/NNN-description.md` and
 driven by the `punchcard` CLI. Run `punchcard doc` for the reference. Loose
-ideas that are not specs yet live in [specs/TODO.md](../specs/TODO.md).
+ideas that are not specs yet live in [specs/TODO.md](../specs/TODO.md). The
+order a spec is written, reviewed and run in is the `dev-workflow` skill. The
+rules below are the ones specific to this repository.
 
 **Judgment.** Reference a spec that does not exist yet by name, with its number
 in parentheses, as in `capture and diff (004)`. The number is the part that
@@ -578,9 +580,24 @@ reason to change the document. A plan is the opposite: it records what was
 intended, so where the work went differently, the difference belongs with the
 plan.
 
-**Judgment.** Carry the design in the spec, with the rejected alternative named.
-An iteration that omits the reasoning invites the executor to reinvent a design
-its author had already rejected.
+**Judgment.** Design lives in `docs/`, and a spec cites it. What the product
+does goes in product.md, how it is built in architecture.md, and research only
+one spec needs, such as how one API behaves at an edge, in a Markdown file of
+its own under `docs/`. The spec is a short plan, about 100 lines: what is built
+and why in a few paragraphs, the rejected alternative named, what is out of
+scope, the iterations, and a Review section. An iteration that omits the
+reasoning invites the executor to reinvent a design its author had already
+rejected.
+
+Specs here that carried their own design ran up to 2,642 lines, and every review
+round re-read all of it. A design in `docs/` is also corrected when the target
+moves, where a copy inside a spec stays as it was planned. The specs that
+already have a Design section keep it, as the record of what was planned.
+
+**Judgment.** A spec's Review section requests or declines a spec review pass
+and an end-of-branch review pass, each with a one-sentence reason. The reviewer
+decides both when approving the spec. A review pass never stands in for the
+reviewer's approval.
 
 **Judgment.** One iteration does one kind of work, and gates on commands
 wherever a command can prove it. Reserve an ack for what only a person can
