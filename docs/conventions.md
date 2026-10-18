@@ -417,7 +417,7 @@ without being typed, from a keyboard substitution or from text pasted in.
 
 Both rules read prose only. A fenced block is code, an inline code span names
 something rather than says it, and a blockquote is quoted material, which covers
-the annotations backlog writes into a spec. A double-quoted example is exempt
+the annotations punchcard writes into a spec. A double-quoted example is exempt
 too, which is how `docs/voice.md` states the rule against the first person
 without breaking it.
 
@@ -427,21 +427,21 @@ without breaking it.
 would expect it. A table nobody can predict the order of has to be read start to
 finish.
 
-**Specs are formatted like anything else.** backlog derives a todo's id by
+**Specs are formatted like anything else.** punchcard derives a todo's id by
 hashing its text as wrapped, so moving a line break changes the id and reflowing
 a spec churns every todo it rewraps. Editing a todo changes it too. Indentation
 alone does not: leading whitespace is stripped before hashing. The answer is
-backlog's own: never cache an id, and re-run `backlog spec list` when a command
+punchcard's own: never cache an id, and re-run `punchcard list` when a command
 reports one it cannot find. Nothing outside the spec file holds an id, state
 lives in the checkbox, and a review comment anchors to a line in a frozen
 capture rather than to text still being edited.
 
-**Run `make fmt` after a backlog command.** The in-progress marker `[/]` is not
-a GFM checkbox, which allows only `[ ]` and `[x]`, so oxfmt reads it as ordinary
-text and indents the continuation lines two spaces rather than six. A todo left
-`[/]` fails `make lint` until it is reformatted. Closing an iteration also
-appends its annotation with a blank line oxfmt removes. Both are cosmetic and
-neither touches an id.
+**Run `make fmt` after a punchcard command.** The in-progress marker `[/]` is
+not a GFM checkbox, which allows only `[ ]` and `[x]`, so oxfmt reads it as
+ordinary text and indents the continuation lines two spaces rather than six. A
+todo left `[/]` fails `make lint` until it is reformatted. Closing an iteration
+also appends its annotation with a blank line oxfmt removes. Both are cosmetic
+and neither touches an id.
 
 ## Tearouts
 
@@ -555,8 +555,8 @@ back with `--no-ff`.
 ## Specs
 
 Non-trivial work is specced as markdown under `specs/NNN-description.md` and
-driven by the `backlog` CLI. Run `backlog doc` for the reference. Loose ideas
-that are not specs yet live in [specs/TODO.md](../specs/TODO.md).
+driven by the `punchcard` CLI. Run `punchcard doc` for the reference. Loose
+ideas that are not specs yet live in [specs/TODO.md](../specs/TODO.md).
 
 **Judgment.** Reference a spec that does not exist yet by name, with its number
 in parentheses, as in `capture and diff (004)`. The number is the part that
