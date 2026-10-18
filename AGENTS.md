@@ -33,8 +33,8 @@ repository, and the documents they point at hold the rest.
 - All prose (documentation, comments, specs, commit messages) follows
   [docs/voice.md](docs/voice.md). Read it before writing any.
 - The prose voice is shared and has no per-developer override.
-- A session's conversational voice is `.claude/voice.md`, injected by a
-  `UserPromptSubmit` hook, overridden privately by an uncommitted
+- A session's conversational voice is `.claude/voice.md`, injected by the
+  machine's `UserPromptSubmit` hook, overridden privately by an uncommitted
   `.claude/voice.local.md`.
 
 This file is a stub. It grows as the project does, one pointer at a time. A
