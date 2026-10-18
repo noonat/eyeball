@@ -47,10 +47,33 @@ func TestServer_LoopbackSurface(t *testing.T) {
 		text    string
 		tailnet int
 	}{
-		{name: "no header", status: http.StatusForbidden, text: noToken, tailnet: http.StatusMethodNotAllowed},
-		{name: "a wrong token", token: "WRONG", status: http.StatusForbidden, text: noToken, tailnet: http.StatusMethodNotAllowed},
-		{name: "an earlier run's token", token: "EARLIER", htmx: true, status: http.StatusForbidden, text: noToken, tailnet: http.StatusMethodNotAllowed},
-		{name: "the run's token", token: "RUN", status: http.StatusMethodNotAllowed, tailnet: http.StatusMethodNotAllowed},
+		{
+			name:    "no header",
+			status:  http.StatusForbidden,
+			text:    noToken,
+			tailnet: http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "a wrong token",
+			token:   "WRONG",
+			status:  http.StatusForbidden,
+			text:    noToken,
+			tailnet: http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "an earlier run's token",
+			token:   "EARLIER",
+			htmx:    true,
+			status:  http.StatusForbidden,
+			text:    noToken,
+			tailnet: http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "the run's token",
+			token:   "RUN",
+			status:  http.StatusMethodNotAllowed,
+			tailnet: http.StatusMethodNotAllowed,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -155,16 +178,65 @@ func TestServer_Surface_crossOrigin(t *testing.T) {
 		headers map[string]string
 		status  int
 	}{
-		{name: "same origin", method: http.MethodPost, headers: map[string]string{"Sec-Fetch-Site": "same-origin"}, status: http.StatusMethodNotAllowed},
-		{name: "typed by the user", method: http.MethodPost, headers: map[string]string{"Sec-Fetch-Site": "none"}, status: http.StatusMethodNotAllowed},
-		{name: "no headers, as curl sends", method: http.MethodPost, status: http.StatusMethodNotAllowed},
-		{name: "an origin matching the host", method: http.MethodPost, headers: map[string]string{"Origin": "http://eyeball"}, status: http.StatusMethodNotAllowed},
-		{name: "same site, another port", method: http.MethodPost, headers: map[string]string{"Sec-Fetch-Site": "same-site"}, status: http.StatusForbidden},
-		{name: "cross site", method: http.MethodPost, headers: map[string]string{"Sec-Fetch-Site": "cross-site"}, status: http.StatusForbidden},
-		{name: "a sandboxed frame", method: http.MethodPost, headers: map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "null"}, status: http.StatusForbidden},
-		{name: "an origin not matching the host", method: http.MethodPost, headers: map[string]string{"Origin": "http://other:8112"}, status: http.StatusForbidden},
-		{name: "a cross-site delete", method: http.MethodDelete, headers: map[string]string{"Sec-Fetch-Site": "cross-site"}, status: http.StatusForbidden},
-		{name: "a cross-site read", method: http.MethodGet, headers: map[string]string{"Sec-Fetch-Site": "cross-site"}, status: http.StatusOK},
+		{
+			name:    "same origin",
+			method:  http.MethodPost,
+			headers: map[string]string{"Sec-Fetch-Site": "same-origin"},
+			status:  http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "typed by the user",
+			method:  http.MethodPost,
+			headers: map[string]string{"Sec-Fetch-Site": "none"},
+			status:  http.StatusMethodNotAllowed,
+		},
+		{
+			name:   "no headers, as curl sends",
+			method: http.MethodPost,
+			status: http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "an origin matching the host",
+			method:  http.MethodPost,
+			headers: map[string]string{"Origin": "http://eyeball"},
+			status:  http.StatusMethodNotAllowed,
+		},
+		{
+			name:    "same site, another port",
+			method:  http.MethodPost,
+			headers: map[string]string{"Sec-Fetch-Site": "same-site"},
+			status:  http.StatusForbidden,
+		},
+		{
+			name:    "cross site",
+			method:  http.MethodPost,
+			headers: map[string]string{"Sec-Fetch-Site": "cross-site"},
+			status:  http.StatusForbidden,
+		},
+		{
+			name:    "a sandboxed frame",
+			method:  http.MethodPost,
+			headers: map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "null"},
+			status:  http.StatusForbidden,
+		},
+		{
+			name:    "an origin not matching the host",
+			method:  http.MethodPost,
+			headers: map[string]string{"Origin": "http://other:8112"},
+			status:  http.StatusForbidden,
+		},
+		{
+			name:    "a cross-site delete",
+			method:  http.MethodDelete,
+			headers: map[string]string{"Sec-Fetch-Site": "cross-site"},
+			status:  http.StatusForbidden,
+		},
+		{
+			name:    "a cross-site read",
+			method:  http.MethodGet,
+			headers: map[string]string{"Sec-Fetch-Site": "cross-site"},
+			status:  http.StatusOK,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

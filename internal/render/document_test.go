@@ -24,7 +24,11 @@ func TestDocument(t *testing.T) {
 	g.Expect(shapesOf(g, out)).To(Equal([]shape{
 		{Text: "Title"},
 		{Text: "A paragraph that stays."},
-		{Mark: markReplaced, Text: "A paragraph that replaced it.", Was: []string{"A paragraph to replace."}},
+		{
+			Mark: markReplaced,
+			Text: "A paragraph that replaced it.",
+			Was:  []string{"A paragraph to replace."},
+		},
 		{Text: "task one task two"},
 		{Mark: markRemoved, Was: []string{"A paragraph to remove."}},
 		{Text: "Left Right a 1"},
@@ -194,8 +198,18 @@ func TestDocument_htmlBlock(t *testing.T) {
 		new  string
 		was  string
 	}{
-		{name: "a comment block", old: "<!--\nnote\n-->\n", new: "<!--\nnote two\n-->\n", was: "<!-- note -->"},
-		{name: "a div block", old: "<div>\na\n</div>\n", new: "<div>\nb\n</div>\n", was: "<div> a </div>"},
+		{
+			name: "a comment block",
+			old:  "<!--\nnote\n-->\n",
+			new:  "<!--\nnote two\n-->\n",
+			was:  "<!-- note -->",
+		},
+		{
+			name: "a div block",
+			old:  "<div>\na\n</div>\n",
+			new:  "<div>\nb\n</div>\n",
+			was:  "<div> a </div>",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -206,7 +220,11 @@ func TestDocument_htmlBlock(t *testing.T) {
 			out := Document([]byte(old), []byte(new), testPage())
 			g.Expect(shapesOf(g, out)).To(Equal([]shape{
 				{Text: "Before."},
-				{Mark: markReplaced, Text: "This block is HTML, which is not rendered. Read it in Source.", Was: []string{c.was}},
+				{
+					Mark: markReplaced,
+					Text: "This block is HTML, which is not rendered. Read it in Source.",
+					Was:  []string{c.was},
+				},
 				{Text: "After."},
 			}))
 			g.Expect(hrefs(parseBody(g, out))).To(Equal([]string{"/source"}))
@@ -241,15 +259,48 @@ func TestDocument_images(t *testing.T) {
 		href string
 		text string
 	}{
-		{name: "a project path", md: "![a diagram](diagram.png)", href: "/f/docs/diagram.png", text: "a diagram"},
-		{name: "a root-relative path", md: "![a diagram](/img/d.png)", href: "/f/img/d.png", text: "a diagram"},
-		{name: "an external source", md: "![a diagram](https://example.com/d.png)", text: "a diagram"},
+		{
+			name: "a project path",
+			md:   "![a diagram](diagram.png)",
+			href: "/f/docs/diagram.png",
+			text: "a diagram",
+		},
+		{
+			name: "a root-relative path",
+			md:   "![a diagram](/img/d.png)",
+			href: "/f/img/d.png",
+			text: "a diagram",
+		},
+		{
+			name: "an external source",
+			md:   "![a diagram](https://example.com/d.png)",
+			text: "a diagram",
+		},
 		{name: "a fragment", md: "![a diagram](#d)", text: "a diagram"},
 		{name: "a refused source", md: "![a diagram](vscode:d.png)", text: "a diagram"},
-		{name: "a climb out of the project", md: "![a diagram](../../d.png)", text: "a diagram"},
-		{name: "markup in the alt text", md: "![a *big* `diagram`](d.png)", href: "/f/docs/d.png", text: "a big diagram"},
-		{name: "inside a link", md: "[![a diagram](d.png)](https://example.com)", href: "https://example.com", text: "a diagram"},
-		{name: "inside a refused link", md: "[![a diagram](d.png)](vscode:x)", href: "/f/docs/d.png", text: "a diagram"},
+		{
+			name: "a climb out of the project",
+			md:   "![a diagram](../../d.png)",
+			text: "a diagram",
+		},
+		{
+			name: "markup in the alt text",
+			md:   "![a *big* `diagram`](d.png)",
+			href: "/f/docs/d.png",
+			text: "a big diagram",
+		},
+		{
+			name: "inside a link",
+			md:   "[![a diagram](d.png)](https://example.com)",
+			href: "https://example.com",
+			text: "a diagram",
+		},
+		{
+			name: "inside a refused link",
+			md:   "[![a diagram](d.png)](vscode:x)",
+			href: "/f/docs/d.png",
+			text: "a diagram",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -299,12 +350,33 @@ func TestDocument_links(t *testing.T) {
 		text string
 	}{
 		{name: "http", md: "[a](http://example.com/x)", href: "http://example.com/x"},
-		{name: "https", md: "[a](https://example.com/x?q=1#f)", href: "https://example.com/x?q=1#f"},
-		{name: "an upper case scheme", md: "[a](HTTPS://example.com)", href: "HTTPS://example.com"},
-		{name: "an address escaped as goldmark writes it", md: "[a](<https://example.com/a b>)", href: "https://example.com/a%20b"},
+		{
+			name: "https",
+			md:   "[a](https://example.com/x?q=1#f)",
+			href: "https://example.com/x?q=1#f",
+		},
+		{
+			name: "an upper case scheme",
+			md:   "[a](HTTPS://example.com)",
+			href: "HTTPS://example.com",
+		},
+		{
+			name: "an address escaped as goldmark writes it",
+			md:   "[a](<https://example.com/a b>)",
+			href: "https://example.com/a%20b",
+		},
 		{name: "mailto", md: "[a](mailto:x@example.com)", href: "mailto:x@example.com"},
-		{name: "a fragment alone, on a page with heading ids", md: "[a](#part)", ids: true, href: "#part"},
-		{name: "a fragment alone, on a page without them", md: "[a](#part)", href: "/f/docs/product.md#part"},
+		{
+			name: "a fragment alone, on a page with heading ids",
+			md:   "[a](#part)",
+			ids:  true,
+			href: "#part",
+		},
+		{
+			name: "a fragment alone, on a page without them",
+			md:   "[a](#part)",
+			href: "/f/docs/product.md#part",
+		},
 		{name: "javascript", md: "[a](javascript:alert(1))"},
 		{name: "javascript in upper case", md: "[a](JAVASCRIPT:alert(1))"},
 		{name: "a tab written as an entity", md: "[a](java&#x09;script:alert(1))"},
@@ -315,14 +387,31 @@ func TestDocument_links(t *testing.T) {
 		{name: "scheme-relative", md: "[a](//evil.example/x)"},
 		{name: "a name starting with a colon", md: "[a](:weird.md)"},
 		{name: "a reference to a refused scheme", md: "[a][r]\n\n[r]: vscode:x"},
-		{name: "a reference to a path", md: "[a][r]\n\n[r]: other.md", href: "/f/docs/other.md"},
+		{
+			name: "a reference to a path",
+			md:   "[a][r]\n\n[r]: other.md",
+			href: "/f/docs/other.md",
+		},
 		{name: "an autolink", md: "<https://example.com>", href: "https://example.com"},
 		{name: "a refused autolink", md: "<vscode://x>"},
-		{name: "an autolink inside a link", md: "[see <https://example.com>](x.md)", href: "/f/docs/x.md", text: "see https://example.com"},
-		{name: "an autolink inside a refused link", md: "[see <https://example.com>](vscode:x)", href: "https://example.com"},
+		{
+			name: "an autolink inside a link",
+			md:   "[see <https://example.com>](x.md)",
+			href: "/f/docs/x.md",
+			text: "see https://example.com",
+		},
+		{
+			name: "an autolink inside a refused link",
+			md:   "[see <https://example.com>](vscode:x)",
+			href: "https://example.com",
+		},
 		{name: "an email autolink", md: "<x@example.com>", href: "mailto:x@example.com"},
 		{name: "a bare address", md: "www.example.com", href: "http://www.example.com"},
-		{name: "a bare email address", md: "x@example.com", href: "mailto:x@example.com"},
+		{
+			name: "a bare email address",
+			md:   "x@example.com",
+			href: "mailto:x@example.com",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -367,7 +456,11 @@ func TestDocument_pairing(t *testing.T) {
 			want: []shape{
 				{Text: "Kept."},
 				{Mark: markChanged, Text: "New one."},
-				{Mark: markReplaced, Text: "New two.", Was: []string{"Old one.", "Old two.", "Old three."}},
+				{
+					Mark: markReplaced,
+					Text: "New two.",
+					Was:  []string{"Old one.", "Old two.", "Old three."},
+				},
 				{Text: "End."},
 			},
 		},
@@ -437,13 +530,33 @@ func TestDocument_ranges(t *testing.T) {
 		md   string
 		want string
 	}{
-		{name: "a wrapped paragraph", md: "One line\nwrapped onto two\nand three.\n", want: "1-3"},
+		{
+			name: "a wrapped paragraph",
+			md:   "One line\nwrapped onto two\nand three.\n",
+			want: "1-3",
+		},
 		{name: "a nested list", md: "- one\n  - two\n  - three\n- four\n", want: "1-4"},
-		{name: "a fenced block without its fences", md: "```go\nx := 1\ny := 2\n```\n", want: "2-3"},
-		{name: "a setext heading without its underline", md: "Title\n=====\n", want: "1-1"},
-		{name: "a table", md: "| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n", want: "1-4"},
+		{
+			name: "a fenced block without its fences",
+			md:   "```go\nx := 1\ny := 2\n```\n",
+			want: "2-3",
+		},
+		{
+			name: "a setext heading without its underline",
+			md:   "Title\n=====\n",
+			want: "1-1",
+		},
+		{
+			name: "a table",
+			md:   "| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n",
+			want: "1-4",
+		},
 		{name: "an HTML block", md: "<div>\nsome\n</div>\n", want: "1-3"},
-		{name: "after a blank line", md: "First.\n\nSecond\nparagraph.\n", want: "1-1,3-4"},
+		{
+			name: "after a blank line",
+			md:   "First.\n\nSecond\nparagraph.\n",
+			want: "1-1,3-4",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -493,7 +606,11 @@ func TestDocument_reflowedParagraph(t *testing.T) {
 	old := "A paragraph wrapped\nin one place.\n\nAnother.\n"
 	new := "A paragraph\nwrapped in   another.\n\nAnother.\n"
 	g.Expect(shapesOf(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
-		{Mark: markReplaced, Text: "A paragraph wrapped in another.", Was: []string{"A paragraph wrapped in one place."}},
+		{
+			Mark: markReplaced,
+			Text: "A paragraph wrapped in another.",
+			Was:  []string{"A paragraph wrapped in one place."},
+		},
 		{Text: "Another."},
 	}))
 	new = "A paragraph\nwrapped in one\nplace.\n\nAnother.\n"
@@ -530,25 +647,106 @@ func TestDocument_relativeLinks(t *testing.T) {
 		md   string
 		href string
 	}{
-		{name: "beside the document", doc: "docs/product.md", md: "[a](architecture.md)", href: "/f/docs/architecture.md"},
-		{name: "a dot segment", doc: "docs/product.md", md: "[a](./:weird.md)", href: "/f/docs/:weird.md"},
-		{name: "up a directory", doc: "docs/product.md", md: "[a](../README.md)", href: "/f/README.md"},
-		{name: "root-relative", doc: "docs/product.md", md: "[a](/internal/x.go)", href: "/f/internal/x.go"},
-		{name: "a document at the root", doc: "README.md", md: "[a](docs/x.md)", href: "/f/docs/x.md"},
-		{name: "an escaped name", doc: "docs/product.md", md: "[a](sub/50%25%20off.md)", href: "/f/docs/sub/50% off.md"},
-		{name: "a fragment kept", doc: "docs/product.md", md: "[a](other.md#part-two)", href: "/f/docs/other.md#part-two"},
-		{name: "a query dropped", doc: "docs/product.md", md: "[a](other.md?view=source)", href: "/f/docs/other.md"},
-		{name: "an empty destination", doc: "docs/product.md", md: "[a]()", href: "/f/docs/product.md"},
-		{name: "a climb out of the project", doc: "docs/product.md", md: "[a](../../etc/passwd)"},
-		{name: "a root-relative climb", doc: "docs/product.md", md: "[a](/../etc/passwd)"},
-		{name: "a repository's own directory", doc: "docs/product.md", md: "[a](sub/.git/config)"},
+		{
+			name: "beside the document",
+			doc:  "docs/product.md",
+			md:   "[a](architecture.md)",
+			href: "/f/docs/architecture.md",
+		},
+		{
+			name: "a dot segment",
+			doc:  "docs/product.md",
+			md:   "[a](./:weird.md)",
+			href: "/f/docs/:weird.md",
+		},
+		{
+			name: "up a directory",
+			doc:  "docs/product.md",
+			md:   "[a](../README.md)",
+			href: "/f/README.md",
+		},
+		{
+			name: "root-relative",
+			doc:  "docs/product.md",
+			md:   "[a](/internal/x.go)",
+			href: "/f/internal/x.go",
+		},
+		{
+			name: "a document at the root",
+			doc:  "README.md",
+			md:   "[a](docs/x.md)",
+			href: "/f/docs/x.md",
+		},
+		{
+			name: "an escaped name",
+			doc:  "docs/product.md",
+			md:   "[a](sub/50%25%20off.md)",
+			href: "/f/docs/sub/50% off.md",
+		},
+		{
+			name: "a fragment kept",
+			doc:  "docs/product.md",
+			md:   "[a](other.md#part-two)",
+			href: "/f/docs/other.md#part-two",
+		},
+		{
+			name: "a query dropped",
+			doc:  "docs/product.md",
+			md:   "[a](other.md?view=source)",
+			href: "/f/docs/other.md",
+		},
+		{
+			name: "an empty destination",
+			doc:  "docs/product.md",
+			md:   "[a]()",
+			href: "/f/docs/product.md",
+		},
+		{
+			name: "a climb out of the project",
+			doc:  "docs/product.md",
+			md:   "[a](../../etc/passwd)",
+		},
+		{
+			name: "a root-relative climb",
+			doc:  "docs/product.md",
+			md:   "[a](/../etc/passwd)",
+		},
+		{
+			name: "a repository's own directory",
+			doc:  "docs/product.md",
+			md:   "[a](sub/.git/config)",
+		},
 		{name: "a NUL", doc: "docs/product.md", md: "[a](a%00b.md)"},
-		{name: "the root, root-relative", doc: "docs/product.md", md: "[a](/)", href: "/f/"},
-		{name: "the root, up a directory", doc: "docs/product.md", md: "[a](../)", href: "/f/"},
-		{name: "the root, from a document there", doc: "README.md", md: "[a](./)", href: "/f/"},
-		{name: "the root with a fragment", doc: "docs/product.md", md: "[a](..#top)", href: "/f/#top"},
+		{
+			name: "the root, root-relative",
+			doc:  "docs/product.md",
+			md:   "[a](/)",
+			href: "/f/",
+		},
+		{
+			name: "the root, up a directory",
+			doc:  "docs/product.md",
+			md:   "[a](../)",
+			href: "/f/",
+		},
+		{
+			name: "the root, from a document there",
+			doc:  "README.md",
+			md:   "[a](./)",
+			href: "/f/",
+		},
+		{
+			name: "the root with a fragment",
+			doc:  "docs/product.md",
+			md:   "[a](..#top)",
+			href: "/f/#top",
+		},
 		{name: "a climb past the root", doc: "docs/product.md", md: "[a](../../)"},
-		{name: "a root-relative climb past the root", doc: "docs/product.md", md: "[a](/../)"},
+		{
+			name: "a root-relative climb past the root",
+			doc:  "docs/product.md",
+			md:   "[a](/../)",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -587,15 +785,39 @@ func TestDocument_replacedText(t *testing.T) {
 		old  string
 		was  string
 	}{
-		{name: "text nodes", old: "An *emphasized*\n**strong** `code span`\nwith &amp; and \\* and [a link](x.md).", was: "An emphasized strong code span with & and * and a link."},
+		{
+			name: "text nodes",
+			old:  "An *emphasized*\n**strong** `code span`\nwith &amp; and \\* and [a link](x.md).",
+			was:  "An emphasized strong code span with & and * and a link.",
+		},
 		{name: "a code span kept raw", old: "Raw `a\\*b`.", was: "Raw a\\*b."},
-		{name: "a fenced block's lines", old: "```go\nx := 1\ny := 2\n```", was: "x := 1 y := 2"},
-		{name: "an indented block's lines", old: "    x := 1\n    y := 2", was: "x := 1 y := 2"},
-		{name: "a table's cells", old: "| a | b |\n|---|---|\n| 1 | 2 |", was: "a b 1 2"},
+		{
+			name: "a fenced block's lines",
+			old:  "```go\nx := 1\ny := 2\n```",
+			was:  "x := 1 y := 2",
+		},
+		{
+			name: "an indented block's lines",
+			old:  "    x := 1\n    y := 2",
+			was:  "x := 1 y := 2",
+		},
+		{
+			name: "a table's cells",
+			old:  "| a | b |\n|---|---|\n| 1 | 2 |",
+			was:  "a b 1 2",
+		},
 		{name: "task boxes", old: "- [ ] open\n- [x] done", was: "[ ] open [x] done"},
 		{name: "list items", old: "- one\n- two", was: "one two"},
-		{name: "an autolink", old: "See <https://example.com>.", was: "See https://example.com."},
-		{name: "an image's alt text", old: "An ![alt text](d.png).", was: "An alt text."},
+		{
+			name: "an autolink",
+			old:  "See <https://example.com>.",
+			was:  "See https://example.com.",
+		},
+		{
+			name: "an image's alt text",
+			old:  "An ![alt text](d.png).",
+			was:  "An alt text.",
+		},
 		{name: "inline HTML dropped", old: "A <b>bold</b> word.", was: "A bold word."},
 		{name: "a hard line break", old: "One  \ntwo.", was: "One two."},
 	}
@@ -619,7 +841,11 @@ func TestHasBlocks(t *testing.T) {
 	}{
 		{name: "empty", source: "", want: false},
 		{name: "whitespace alone", source: "\n  \n\t\n", want: false},
-		{name: "a link reference definition alone", source: "[r]: other.md\n", want: false},
+		{
+			name:   "a link reference definition alone",
+			source: "[r]: other.md\n",
+			want:   false,
+		},
 		{name: "a paragraph", source: "One.\n", want: true},
 		{name: "a thematic break", source: "---\n", want: true},
 		{name: "an HTML block", source: "<div>\na\n</div>\n", want: true},

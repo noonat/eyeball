@@ -1,0 +1,130 @@
+---
+status: done
+created: 2026-10-18T00:00:00Z
+updated: 2026-10-18T21:11:59.573905554Z
+required_commands:
+  - cmd: make check
+---
+
+# 019 Long table rows
+
+docs/conventions.md, under Tests, says a table row stays on one line only when
+it has at most three fields and fits in about 80 characters, and otherwise puts
+every field on its own line. The rule came from the review of 018, which asked
+for a 139-character row in `cat_test.go` to be split. It is marked Judgment, and
+175 rows in 18 test files break it. This spec reformats them and adds a check
+that enforces the rule.
+
+Approved by the owner as review 60, round 1, on 2026-10-18, with the three
+choices below as written: 80 runes, rows of four or more short fields split, and
+test files only.
+
+## Design
+
+**The check, `row-lines`, applies the rule as two exact tests.** A row is what
+`keyed-rows` already calls one: a struct literal written as an element of
+another composite literal. In a `_test.go` file:
+
+- A row on one line is flagged when it has more than three fields, or when the
+  literal from `{` to `}` is more than 80 runes.
+- A row on several lines is flagged when a field shares a line with the opening
+  brace, with the field before it, or with the closing brace. Measured, none
+  does today. Without this half, a row could pass by breaking once in the
+  middle.
+
+The width is the row's own text, not the line it sits on. A line's length
+depends on how many tabs indent it and how wide a tab is drawn, and neither is
+part of the row. "About 80" becomes 80 because a check needs one number. The
+number moves the count more than anything else: 27 of the 175 rows have three
+fields or fewer and are 81 to 90 runes wide, so a limit of 90 would leave them
+alone. 29 of the 175 are at most 80 runes wide, with four or more fields. Those
+break the rule as worded, and a six-row table of four short fields grows from 6
+lines to 30.
+
+**Test files only.** The rule sits under Tests, and the comment it came from was
+about a test table. Applied to every Go file, it would also flag 15 rows in
+`acting.go`, `project.go`, `rendered.go` and `tool/seed/main.go`, compact tables
+of four or five short fields that read as a grid today.
+
+**The reformat is done by a throwaway program, not by hand.** It parses each
+test file, inserts a newline before every field of a flagged row and before its
+closing brace, adds a trailing comma, and runs `go/format`. It then scans the
+file before and after with `go/scanner`, comments included, and refuses to write
+a file whose tokens differ in anything but commas and newlines. Run on a clone
+of `master` at `520d698`, it reformatted all 175 rows, every file passed the
+comparison, a re-survey found no row breaking either test, and `make check`
+passed. The program is not committed. It runs once, and the check holds the rows
+to the rule afterward. No test file carries a build tag that holds a flagged
+row, so `make check` compiles every file the reformat touches.
+
+## Review
+
+Spec review pass: declined, because the check is one walk of the syntax tree
+beside `keyed-rows`, and the reformat was probed before this was written.
+End-of-branch review pass: declined, because the reformat is proved by the token
+comparison and the check by its fixture and a planted violation.
+
+## Out of scope
+
+- Rows outside test files. The 15 named above stay as they are. specs/TODO.md
+  records whether the rule should reach them.
+- Struct literals that are not rows, such as an `api.RequestBody` passed to a
+  call. The judgment rule for a struct literal that does not fit on one line
+  still covers them.
+- Committing the reformatting program.
+
+## Iteration 1: reformat the rows
+
+- [x] Every one-line row in a `_test.go` file with more than three fields, or
+      wider than 80 runes, has each field on its own line, with a trailing comma
+      and the closing brace alone.
+- [x] The token comparison passes on every changed file, and the result is
+      recorded here: files changed, rows reformatted.
+
+**Result, iteration 1.** Run on the branch at the spec's approval, the program
+reformatted 175 rows in 18 files, +1029 −175 lines, and every file passed the
+token comparison. The survey then found no one-line row over either limit and no
+multi-line row with two fields on a line. Both counts match the run on the clone
+of `520d698`.
+
+Two `punchcard` writes left the spec failing `oxfmt --check`: ticking the todos
+cut their continuation lines' indent from six spaces to two, and closing the
+iteration left a blank line at the end of the file, the fault 018 found in 016.
+The close ran `make check` before that write, so it passed. Both were put back
+with `oxfmt --write` before the commit.
+
+> **Completed** 2026-10-18 21:08 UTC
+>
+> - `make check` — 5.6s
+
+## Iteration 2: enforce it
+
+- [x] `row-lines` in `internal/convention` flags the two cases in Design, in
+      `_test.go` files only, and is registered in `Checks`.
+- [x] `testdata/row-lines/bad_test.go` holds a four-field row at most 80 runes
+      wide, a two-field row over 80 runes, and a multi-line row with two fields
+      on one line, written from the rule, and each is flagged.
+- [x] A violation planted in a real test file fails
+      `Test_repoFollowsConventions`, and is then removed.
+- [x] docs/conventions.md's entry says Enforced by `internal/convention` and
+      gives the exact rule: three fields, 80 runes from brace to brace.
+
+**Result, iteration 2.** The fixture holds the three rows the todo names, a row
+whose closing brace shares its last line, and three rows that pass: three short
+fields, a stacked row, and a row of 76 runes and 105 bytes, which passes only
+when the width is counted in runes. Its `bad.go` holds a five-field row outside
+a test, which passes. `Test_rowLinesFlagsEachCase` pins the four findings by
+line. Four edits to the check each made that test fail: counting bytes, dropping
+the test-file filter, raising the field limit to four, and skipping the closing
+brace. Joining one row of `internal/kind/kind_test.go` onto a line failed
+`Test_repoFollowsConventions` with
+`kind_test.go:43: table row holds 4 fields on one line`, and the file was then
+restored.
+
+The conventions entry no longer gives a phone as the reason for the rule. 018
+wrote that reason, and it was inferred: the review comment asked for the split
+without saying why.
+
+> **Completed** 2026-10-18 21:11 UTC
+>
+> - `make check` — 5.6s

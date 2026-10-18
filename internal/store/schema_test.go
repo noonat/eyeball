@@ -22,9 +22,24 @@ func Test_schemaAcceptsAWholeReview(t *testing.T) {
 		size    int64
 		inScope int
 	}{
-		{path: "docs/product.md", digest: digest('a'), size: 120, inScope: 1},
-		{path: "internal/store/store.go", digest: digest('b'), size: 4000, inScope: 0},
-		{path: "docs/gone.md", digest: "", size: 0, inScope: 1},
+		{
+			path:    "docs/product.md",
+			digest:  digest('a'),
+			size:    120,
+			inScope: 1,
+		},
+		{
+			path:    "internal/store/store.go",
+			digest:  digest('b'),
+			size:    4000,
+			inScope: 0,
+		},
+		{
+			path:    "docs/gone.md",
+			digest:  "",
+			size:    0,
+			inScope: 1,
+		},
 	}
 	insertFile := "INSERT INTO round_files (round_id, path, digest, size, in_scope) VALUES (?, ?, ?, ?, ?)"
 	for _, f := range files {
@@ -39,11 +54,41 @@ func Test_schemaAcceptsAWholeReview(t *testing.T) {
 		end    any
 		quoted any
 	}{
-		{level: "line", path: "docs/product.md", start: 12, end: 12, quoted: "one line"},
-		{level: "passage", path: "docs/product.md", start: 20, end: 24, quoted: "a passage"},
-		{level: "file", path: "docs/product.md", start: nil, end: nil, quoted: nil},
-		{level: "file", path: "docs/product.md", start: nil, end: nil, quoted: "a removed line"},
-		{level: "review", path: nil, start: nil, end: nil, quoted: nil},
+		{
+			level:  "line",
+			path:   "docs/product.md",
+			start:  12,
+			end:    12,
+			quoted: "one line",
+		},
+		{
+			level:  "passage",
+			path:   "docs/product.md",
+			start:  20,
+			end:    24,
+			quoted: "a passage",
+		},
+		{
+			level:  "file",
+			path:   "docs/product.md",
+			start:  nil,
+			end:    nil,
+			quoted: nil,
+		},
+		{
+			level:  "file",
+			path:   "docs/product.md",
+			start:  nil,
+			end:    nil,
+			quoted: "a removed line",
+		},
+		{
+			level:  "review",
+			path:   nil,
+			start:  nil,
+			end:    nil,
+			quoted: nil,
+		},
 	}
 	insertComment := "INSERT INTO comments (round_id, level, path, start_line, end_line, quoted, body, created, updated) VALUES (?, ?, ?, ?, ?, ?, 'a point', :at, :at)"
 	for _, c := range comments {

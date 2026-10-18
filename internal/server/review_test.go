@@ -297,7 +297,11 @@ func TestServer_Surface_reviewDocumentLinks(t *testing.T) {
 		{page: base, prefix: base},
 		{page: base + "?against=base", prefix: base, query: "?against=base"},
 		{page: base + "/rounds/1", prefix: base + "/rounds/1"},
-		{page: base + "/rounds/1?against=base", prefix: base + "/rounds/1", query: "?against=base"},
+		{
+			page:   base + "/rounds/1?against=base",
+			prefix: base + "/rounds/1",
+			query:  "?against=base",
+		},
 	}
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {
@@ -810,10 +814,30 @@ func TestServer_Surface_reviewSendsBodiesUpToItsLimits(t *testing.T) {
 		lines int
 		sent  bool
 	}{
-		{name: "ten files", files: 10, lines: 1, sent: true},
-		{name: "eleven files", files: 11, lines: 1, sent: false},
-		{name: "three hundred lines", files: 1, lines: 300, sent: true},
-		{name: "three hundred and one lines", files: 1, lines: 301, sent: false},
+		{
+			name:  "ten files",
+			files: 10,
+			lines: 1,
+			sent:  true,
+		},
+		{
+			name:  "eleven files",
+			files: 11,
+			lines: 1,
+			sent:  false,
+		},
+		{
+			name:  "three hundred lines",
+			files: 1,
+			lines: 300,
+			sent:  true,
+		},
+		{
+			name:  "three hundred and one lines",
+			files: 1,
+			lines: 301,
+			sent:  false,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

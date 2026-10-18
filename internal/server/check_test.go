@@ -39,8 +39,21 @@ func TestServer_check(t *testing.T) {
 		code   api.Code
 		says   string
 	}{
-		{name: "a base no approved review is measured from", caller: me, from: target, to: target, code: api.CodeNotApproved, says: "no approved review in " + repo + " has a latest round measured from " + target},
-		{name: "a ref that names no commit", caller: me, from: base, to: "no-such-branch", code: api.CodeBadCommit},
+		{
+			name:   "a base no approved review is measured from",
+			caller: me,
+			from:   target,
+			to:     target,
+			code:   api.CodeNotApproved,
+			says:   "no approved review in " + repo + " has a latest round measured from " + target,
+		},
+		{
+			name:   "a ref that names no commit",
+			caller: me,
+			from:   base,
+			to:     "no-such-branch",
+			code:   api.CodeBadCommit,
+		},
 	}
 	for _, c := range refusals {
 		t.Run(c.name, func(t *testing.T) {

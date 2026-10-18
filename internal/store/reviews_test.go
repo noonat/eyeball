@@ -83,7 +83,11 @@ func TestNormalizePath(t *testing.T) {
 		{name: "leading dot slash", in: "./docs", want: "docs"},
 		{name: "trailing slash", in: "docs/", want: "docs"},
 		{name: "doubled separator", in: "docs//product.md", want: "docs/product.md"},
-		{name: "an interior dot dot that stays inside", in: "docs/x/../product.md", want: "docs/product.md"},
+		{
+			name: "an interior dot dot that stays inside",
+			in:   "docs/x/../product.md",
+			want: "docs/product.md",
+		},
 		{name: "empty", in: "", bad: true},
 		{name: "only spaces", in: "   ", bad: true},
 		{name: "absolute", in: "/etc/passwd", bad: true},

@@ -34,7 +34,11 @@ func TestDocument_frontMatterChanged(t *testing.T) {
 	old := "---\nstatus: draft\n---\n\n# Title\n"
 	new := strings.Replace(old, "draft", "ready", 1)
 	g.Expect(shapesOf(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
-		{Mark: markReplaced, Text: "--- status: ready ---", Was: []string{"--- status: draft ---"}},
+		{
+			Mark: markReplaced,
+			Text: "--- status: ready ---",
+			Was:  []string{"--- status: draft ---"},
+		},
 		{Text: "Title"},
 	}))
 }

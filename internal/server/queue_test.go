@@ -134,9 +134,27 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 	}
 	// Each row is a link to its project's view.
 	g.Expect(got).To(Equal([]shape{
-		{Element: "a", Href: projectHref(eyeball), Project: "eyeball", Activity: "2 agents", Root: "~/src/eyeball"},
-		{Element: "a", Href: projectHref(fieldNotes), Project: "field-notes", Activity: "Idle", Root: "/srv/field-notes"},
-		{Element: "a", Href: projectHref(harbor), Project: "harbor", Activity: "1 agent", Root: "~/src/harbor"},
+		{
+			Element:  "a",
+			Href:     projectHref(eyeball),
+			Project:  "eyeball",
+			Activity: "2 agents",
+			Root:     "~/src/eyeball",
+		},
+		{
+			Element:  "a",
+			Href:     projectHref(fieldNotes),
+			Project:  "field-notes",
+			Activity: "Idle",
+			Root:     "/srv/field-notes",
+		},
+		{
+			Element:  "a",
+			Href:     projectHref(harbor),
+			Project:  "harbor",
+			Activity: "1 agent",
+			Root:     "~/src/harbor",
+		},
 	}))
 }
 
@@ -195,9 +213,34 @@ func TestServer_Surface_queue(t *testing.T) {
 		})
 	}
 	g.Expect(got).To(Equal([]shape{
-		{Class: "row waiting", Href: "/reviews/3", Project: "eyeball", Agent: "spec/012-surface", Age: "12m", Title: "Product doc, second pass", Gist: "look", Meta: "Round 11 file+1 −0"},
-		{Class: "row working", Href: "/reviews/2", Project: "eyeball", Agent: "spec/014-queue", Age: "30m", Title: "Queue screen markup", Meta: "Changes requested, round 1"},
-		{Class: "row approved", Href: "/reviews/1", Project: "harbor", Agent: "agent-s", Age: "2h", Title: "Delta sync watermark", Meta: "ApprovedRound 1"},
+		{
+			Class:   "row waiting",
+			Href:    "/reviews/3",
+			Project: "eyeball",
+			Agent:   "spec/012-surface",
+			Age:     "12m",
+			Title:   "Product doc, second pass",
+			Gist:    "look",
+			Meta:    "Round 11 file+1 −0",
+		},
+		{
+			Class:   "row working",
+			Href:    "/reviews/2",
+			Project: "eyeball",
+			Agent:   "spec/014-queue",
+			Age:     "30m",
+			Title:   "Queue screen markup",
+			Meta:    "Changes requested, round 1",
+		},
+		{
+			Class:   "row approved",
+			Href:    "/reviews/1",
+			Project: "harbor",
+			Agent:   "agent-s",
+			Age:     "2h",
+			Title:   "Delta sync watermark",
+			Meta:    "ApprovedRound 1",
+		},
 	}))
 	g.Expect(find(doc, "empty")).To(BeNil(), "something is waiting, so the queue is not empty")
 }

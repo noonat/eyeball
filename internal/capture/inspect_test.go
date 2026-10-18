@@ -620,13 +620,37 @@ func TestState_Measurable(t *testing.T) {
 		state State
 		want  bool
 	}{
-		{name: "a base that exists", state: State{Base: "abc", Live: LiveIgnoreRules}, want: true},
+		{
+			name:  "a base that exists",
+			state: State{Base: "abc", Live: LiveIgnoreRules},
+			want:  true,
+		},
 		{name: "no base", state: State{Live: LiveOpen}, want: true},
-		{name: "no base and a lost repository", state: State{Live: LiveLost}, want: true},
-		{name: "a gone base", state: State{Base: "abc", Live: LiveIgnoreRules, BaseGone: true}, want: false},
-		{name: "a lost repository", state: State{Base: "abc", Live: LiveLost}, want: false},
-		{name: "a missing root", state: State{Base: "abc", Live: LiveRootMissing}, want: false},
-		{name: "a refused live read", state: State{Base: "abc", Live: LiveRulesUnreadable}, want: true},
+		{
+			name:  "no base and a lost repository",
+			state: State{Live: LiveLost},
+			want:  true,
+		},
+		{
+			name:  "a gone base",
+			state: State{Base: "abc", Live: LiveIgnoreRules, BaseGone: true},
+			want:  false,
+		},
+		{
+			name:  "a lost repository",
+			state: State{Base: "abc", Live: LiveLost},
+			want:  false,
+		},
+		{
+			name:  "a missing root",
+			state: State{Base: "abc", Live: LiveRootMissing},
+			want:  false,
+		},
+		{
+			name:  "a refused live read",
+			state: State{Base: "abc", Live: LiveRulesUnreadable},
+			want:  true,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

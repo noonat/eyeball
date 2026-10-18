@@ -689,11 +689,30 @@ func TestServer_views(t *testing.T) {
 		views map[string]string
 		says  string
 	}{
-		{name: "a path the round does not hold", views: map[string]string{"nope.html": "rendered"}, says: "site/nope.html is not a file this round holds"},
-		{name: "a source view of an image", views: map[string]string{"icon.png": "source"}, says: `site/icon.png has no "source" view`},
-		{name: "a rendering of code", views: map[string]string{"../a.txt": "rendered"}, says: `a.txt has no "rendered" view`},
-		{name: "a choice that is not one", views: map[string]string{"page.html": "page"}, says: `site/page.html has no "page" view`},
-		{name: "a path leaving the project", views: map[string]string{"../../x.html": "rendered"}},
+		{
+			name:  "a path the round does not hold",
+			views: map[string]string{"nope.html": "rendered"},
+			says:  "site/nope.html is not a file this round holds",
+		},
+		{
+			name:  "a source view of an image",
+			views: map[string]string{"icon.png": "source"},
+			says:  `site/icon.png has no "source" view`,
+		},
+		{
+			name:  "a rendering of code",
+			views: map[string]string{"../a.txt": "rendered"},
+			says:  `a.txt has no "rendered" view`,
+		},
+		{
+			name:  "a choice that is not one",
+			views: map[string]string{"page.html": "page"},
+			says:  `site/page.html has no "page" view`,
+		},
+		{
+			name:  "a path leaving the project",
+			views: map[string]string{"../../x.html": "rendered"},
+		},
 	}
 	for _, c := range refusals {
 		t.Run(c.name, func(t *testing.T) {

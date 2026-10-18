@@ -48,6 +48,7 @@ var Checks = []Check{
 	{Name: "keyed-rows", Run: keyedRows},
 	{Name: "named-gomega", Run: namedGomega},
 	{Name: "range-literal", Run: rangeLiteral},
+	{Name: "row-lines", Run: rowLines},
 	{Name: "signature-lines", Run: signatureLines},
 	{Name: "string-wrapping", Run: stringWrapping},
 	{Name: "test-names", Run: testNames},
