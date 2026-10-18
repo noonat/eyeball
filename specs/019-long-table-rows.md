@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-10-18T00:00:00Z
-updated: 2026-10-18T21:07:38.065628743Z
+updated: 2026-10-18T21:11:59.573905554Z
 required_commands:
   - cmd: make check
 ---
@@ -99,12 +99,32 @@ with `oxfmt --write` before the commit.
 
 ## Iteration 2: enforce it
 
-- [ ] `row-lines` in `internal/convention` flags the two cases in Design, in
+- [x] `row-lines` in `internal/convention` flags the two cases in Design, in
       `_test.go` files only, and is registered in `Checks`.
-- [ ] `testdata/row-lines/bad_test.go` holds a four-field row at most 80 runes
+- [x] `testdata/row-lines/bad_test.go` holds a four-field row at most 80 runes
       wide, a two-field row over 80 runes, and a multi-line row with two fields
       on one line, written from the rule, and each is flagged.
-- [ ] A violation planted in a real test file fails
+- [x] A violation planted in a real test file fails
       `Test_repoFollowsConventions`, and is then removed.
-- [ ] docs/conventions.md's entry says Enforced by `internal/convention` and
+- [x] docs/conventions.md's entry says Enforced by `internal/convention` and
       gives the exact rule: three fields, 80 runes from brace to brace.
+
+**Result, iteration 2.** The fixture holds the three rows the todo names, a row
+whose closing brace shares its last line, and three rows that pass: three short
+fields, a stacked row, and a row of 76 runes and 105 bytes, which passes only
+when the width is counted in runes. Its `bad.go` holds a five-field row outside
+a test, which passes. `Test_rowLinesFlagsEachCase` pins the four findings by
+line. Four edits to the check each made that test fail: counting bytes, dropping
+the test-file filter, raising the field limit to four, and skipping the closing
+brace. Joining one row of `internal/kind/kind_test.go` onto a line failed
+`Test_repoFollowsConventions` with
+`kind_test.go:43: table row holds 4 fields on one line`, and the file was then
+restored.
+
+The conventions entry no longer gives a phone as the reason for the rule. 018
+wrote that reason, and it was inferred: the review comment asked for the split
+without saying why.
+
+> **Completed** 2026-10-18 21:11 UTC
+>
+> - `make check` — 5.6s

@@ -300,11 +300,15 @@ silently reassigns every existing value in every row. The struct type is
 declared inline rather than as a named type. This is the one place an anonymous
 struct is preferred.
 
-**Judgment.** A table row stays on one line only when it has at most three
-fields and fits in about 80 characters. Past that, every field goes on its own
-line, as any struct literal that does not fit on one line does. A reader looking
-for one field in a long row has to search the whole row for it. Stacked, gofmt
-aligns the values, so the same field sits in the same column in every row.
+**Enforced by `internal/convention`.** A table row in a test stays on one line
+only when it has at most three fields and is at most 80 runes from its opening
+brace to its closing one. Past either limit, every field goes on its own line,
+with both braces alone, as any struct literal that does not fit on one line
+does. A reader looking for one field in a long row has to search the whole row
+for it. Stacked, gofmt aligns the values, so the same field sits in the same
+column in every row. The row's own text is measured rather than its line,
+because a line's length depends on how deep it is indented and how wide a tab is
+drawn.
 
 **Enforced by `internal/convention`.** A test is named for what it tests, in the
 shape `go vet` already enforces for examples:
