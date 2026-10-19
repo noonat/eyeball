@@ -580,6 +580,28 @@ func TestServer_Surface_fileEscapedNames(t *testing.T) {
 	}
 }
 
+// A file opened for context is read live from the working copy its round came
+// from. The main checkout is the project's root, and the file exists only in
+// the worktree, so reading the project's root would answer not found.
+func TestServer_Surface_fileFromItsWorkingCopy(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	main := gitRepo(g, filepath.Join(dir, "harbor"))
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
+	worktree := filepath.Join(dir, "harbor-retry")
+	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+	write(g, worktree, "a.txt", "one\nretry\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"a.txt"}, Note: "retry"}).Review.ID
+	// Written after the request, so the round did not capture it and the page
+	// has to read it live.
+	write(g, worktree, "context.txt", "only in the worktree\n")
+
+	doc := f.page(g, "/reviews/"+itoa(id)+"/files/context.txt", http.StatusOK)
+	g.Expect(text(doc)).To(ContainSubstring("only in the worktree"))
+}
+
 func TestServer_Surface_fileMarksCheckout(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

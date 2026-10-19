@@ -90,21 +90,13 @@ func holdsEither(d string) (bool, error) {
 // naming it from there would call every submodule "modules".
 func ProjectName(ctx context.Context, root string) (string, error) {
 	own := filepath.Base(root)
-	if _, err := os.Lstat(filepath.Join(root, gitDir)); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return own, nil
-		}
-		return "", errors.Wrapf(err, "look for %s in %s", gitDir, root)
-	}
-	out, err := run(ctx, root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+	gitDirPath, common, found, err := gitDirs(ctx, root)
 	if err != nil {
 		return "", err
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) != 2 {
-		return "", errors.Newf("rev-parse printed %d lines for two questions", len(lines))
+	if !found {
+		return own, nil
 	}
-	gitDirPath, common := filepath.Clean(lines[0]), filepath.Clean(lines[1])
 	if gitDirPath == common {
 		return own, nil
 	}
@@ -119,6 +111,56 @@ func ProjectName(ctx context.Context, root string) (string, error) {
 		return own, nil
 	}
 	return name, nil
+}
+
+// Repo is what git says about a working copy: the repository it belongs to,
+// and whether it is that repository's main checkout.
+type Repo struct {
+	// Dir is the repository's common git directory with symlinks resolved, and
+	// is empty for a working copy found by its marker file.
+	Dir string
+	// Main reports that the working copy is its repository's main checkout,
+	// whose git directory is the common directory. A submodule is one too:
+	// its common directory is its own, under the superproject's .git/modules.
+	Main bool
+}
+
+// Repository asks git which repository the working copy at root belongs to.
+//
+// The common directory is the one answer git gives correctly in every layout:
+// git worktree list names the git directory rather than the working copy as a
+// --separate-git-dir repository's main entry, and does the same inside a
+// submodule.
+func Repository(ctx context.Context, root string) (Repo, error) {
+	gitDirPath, common, found, err := gitDirs(ctx, root)
+	if err != nil || !found {
+		return Repo{}, err
+	}
+	resolved, err := filepath.EvalSymlinks(common)
+	if err != nil {
+		return Repo{}, errors.Wrapf(err, "resolve %s", common)
+	}
+	return Repo{Dir: resolved, Main: gitDirPath == common}, nil
+}
+
+// gitDirs reads a working copy's git directory and common directory, both
+// absolute, and reports false for a root with no .git entry.
+func gitDirs(ctx context.Context, root string) (gitDirPath, common string, found bool, err error) {
+	if _, err := os.Lstat(filepath.Join(root, gitDir)); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", "", false, nil
+		}
+		return "", "", false, errors.Wrapf(err, "look for %s in %s", gitDir, root)
+	}
+	out, err := run(ctx, root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+	if err != nil {
+		return "", "", false, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) != 2 {
+		return "", "", false, errors.Newf("rev-parse printed %d lines for two questions", len(lines))
+	}
+	return filepath.Clean(lines[0]), filepath.Clean(lines[1]), true, nil
 }
 
 // AgentName is the name an agent is known by: the one it gave explicitly, then

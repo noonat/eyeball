@@ -35,7 +35,7 @@ func TestServer_Surface_project(t *testing.T) {
 	// counts against HEAD, and goes to the project file page. The approved
 	// review's file is unclaimed. The ignored file is not listed, and neither
 	// is the file inside a directory that has become a repository.
-	files := projectFileHref(h.project, "")
+	files := projectFileHref(h.project, 0, "")
 	g.Expect(workingRows(doc)).To(Equal([]string{
 		"bold a.txt +1 " + files + "a.txt",
 		"bold done/x.txt +1 −1 " + files + "done/x.txt",
@@ -64,9 +64,9 @@ func TestServer_Surface_projectBlobsUntouched(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	doc := f.page(g, projectHref(project.ID), http.StatusOK)
-	g.Expect(workingRows(doc)).To(Equal([]string{"bold a.txt +1 " + projectFileHref(project.ID, "a.txt")}))
-	f.page(g, projectFileHref(project.ID, "a.txt"), http.StatusOK)
-	f.page(g, projectFileHref(project.ID, "a.txt")+"?view=plain", http.StatusOK)
+	g.Expect(workingRows(doc)).To(Equal([]string{"bold a.txt +1 " + projectFileHref(project.ID, 0, "a.txt")}))
+	f.page(g, projectFileHref(project.ID, 0, "a.txt"), http.StatusOK)
+	f.page(g, projectFileHref(project.ID, 0, "a.txt")+"?view=plain", http.StatusOK)
 
 	var stored []string
 	err = filepath.WalkDir(filepath.Join(f.state, "blobs"), func(p string, d os.DirEntry, err error) error {
@@ -96,15 +96,15 @@ func TestServer_Surface_projectCapped(t *testing.T) {
 	g.Expect(headings(doc)).To(Equal([]string{"Working copy 205 files"}))
 	rows := workingRows(doc)
 	g.Expect(rows).To(HaveLen(maxWorkingRows))
-	g.Expect(rows[0]).To(Equal("bold a.txt +1 " + projectFileHref(project.ID, "a.txt")))
-	g.Expect(rows[maxWorkingRows-1]).To(Equal("bold new/198.txt +1 " + projectFileHref(project.ID, "new/198.txt")))
+	g.Expect(rows[0]).To(Equal("bold a.txt +1 " + projectFileHref(project.ID, 0, "a.txt")))
+	g.Expect(rows[maxWorkingRows-1]).To(Equal("bold new/198.txt +1 " + projectFileHref(project.ID, 0, "new/198.txt")))
 	g.Expect(notices(find(doc, "section"))).To(Equal([]string{
 		"info: Everything changed on disk right now, live. Read only: a verdict belongs to a review.",
 		"info: The first 200 of 205 files are listed.",
 	}))
 
 	// The cap limits the rows that are read, not what the listing holds.
-	page := f.page(g, projectFileHref(project.ID, "new/203.txt"), http.StatusOK)
+	page := f.page(g, projectFileHref(project.ID, 0, "new/203.txt"), http.StatusOK)
 	g.Expect(text(find(page, "toolbar"))).To(Equal("+1 −0 on disk MarkedPlain"))
 }
 
@@ -113,7 +113,7 @@ func TestServer_Surface_projectFile(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	f := newFixture(g, t)
 	h := newHarbor(g, t, f)
-	href := projectFileHref(h.project, "a.txt")
+	href := projectFileHref(h.project, 0, "a.txt")
 
 	doc := f.page(g, href, http.StatusOK)
 	g.Expect(barText(doc)).To(Equal("harbora.txt"))
@@ -139,12 +139,12 @@ func TestServer_Surface_projectFile(t *testing.T) {
 	// page, and an escaped name reaches its file.
 	doc = f.page(g, href+"/", http.StatusOK)
 	g.Expect(text(find(find(doc, "crumb"), "name"))).To(Equal("a.txt"))
-	doc = f.page(g, projectFileHref(h.project, "q#1.txt"), http.StatusOK)
+	doc = f.page(g, projectFileHref(h.project, 0, "q#1.txt"), http.StatusOK)
 	g.Expect(text(find(find(doc, "crumb"), "name"))).To(Equal("q#1.txt"))
 
 	// A markdown file answers what moved on disk, so it gets Marked and
 	// Plain, and is never rendered as a document.
-	md := projectFileHref(h.project, "notes/new.md")
+	md := projectFileHref(h.project, 0, "notes/new.md")
 	doc = f.page(g, md, http.StatusOK)
 	g.Expect(text(find(find(doc, "crumb"), "dir"))).To(Equal("notes/"))
 	g.Expect(find(doc, "prose")).To(BeNil())
@@ -158,7 +158,7 @@ func TestServer_Surface_projectFile(t *testing.T) {
 
 	// A file gone from disk shows its removed lines, and the deleted box in
 	// Plain, where there is nothing on disk to show.
-	gone := projectFileHref(h.project, "gone.txt")
+	gone := projectFileHref(h.project, 0, "gone.txt")
 	doc = f.page(g, gone, http.StatusOK)
 	g.Expect(tableRows(doc)).To(Equal([]string{"del 1−removed", "del 2−from disk"}))
 	doc = f.page(g, gone+"?view=plain", http.StatusOK)
@@ -166,7 +166,7 @@ func TestServer_Surface_projectFile(t *testing.T) {
 	g.Expect(find(doc, "file")).To(BeNil())
 
 	// A changed link compares its target text.
-	doc = f.page(g, projectFileHref(h.project, "link"), http.StatusOK)
+	doc = f.page(g, projectFileHref(h.project, 0, "link"), http.StatusOK)
 	g.Expect(tableRows(doc)).To(Equal([]string{"del 1−old-target", "add 1+new-target"}))
 }
 
@@ -193,7 +193,7 @@ func TestServer_Surface_projectFileNotFound(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	f := newFixture(g, t)
 	h := newHarbor(g, t, f)
-	files := projectFileHref(h.project, "")
+	files := projectFileHref(h.project, 0, "")
 
 	// Only a path the working copy lists answers. An unchanged tracked file,
 	// an ignored one and one the live read refuses are not listed.
@@ -232,19 +232,19 @@ func TestServer_Surface_projectFileTooLarge(t *testing.T) {
 	project, err := f.store.EnsureProject(t.Context(), root, "harbor")
 	g.Expect(err).NotTo(HaveOccurred())
 
-	doc := f.page(g, projectFileHref(project.ID, "big.txt"), http.StatusOK)
+	doc := f.page(g, projectFileHref(project.ID, 0, "big.txt"), http.StatusOK)
 	g.Expect(text(find(doc, "toobig"))).To(Equal("Too large to show as a diff."))
 	g.Expect(find(doc, "toolbar")).To(BeNil())
-	doc = f.page(g, projectFileHref(project.ID, "bin.dat"), http.StatusOK)
+	doc = f.page(g, projectFileHref(project.ID, 0, "bin.dat"), http.StatusOK)
 	g.Expect(text(find(doc, "toobig"))).To(Equal("Binary file, not shown as a diff."))
 	g.Expect(find(doc, "toolbar")).To(BeNil())
 
 	// The rows carry no counts for either.
 	doc = f.page(g, projectHref(project.ID), http.StatusOK)
 	g.Expect(workingRows(doc)).To(Equal([]string{
-		"bold a.txt +1 " + projectFileHref(project.ID, "a.txt"),
-		"bold big.txt " + projectFileHref(project.ID, "big.txt"),
-		"bold bin.dat " + projectFileHref(project.ID, "bin.dat"),
+		"bold a.txt +1 " + projectFileHref(project.ID, 0, "a.txt"),
+		"bold big.txt " + projectFileHref(project.ID, 0, "big.txt"),
+		"bold bin.dat " + projectFileHref(project.ID, 0, "bin.dat"),
 	}))
 }
 
@@ -508,7 +508,7 @@ func TestServer_Surface_projectStates(t *testing.T) {
 			g.Expect(headings(doc)).To(ContainElement("Working copy"), "nothing is listed, so nothing is counted")
 			g.Expect(find(doc, "tree")).To(BeNil())
 			// No file of the project answers the project file route.
-			f.page(g, projectFileHref(project, "a.txt"), http.StatusNotFound)
+			f.page(g, projectFileHref(project, 0, "a.txt"), http.StatusNotFound)
 		})
 	}
 }
@@ -646,4 +646,85 @@ func spelled(counts string) string {
 		parts = append(parts, minus)
 	}
 	return strings.Join(parts, " ")
+}
+
+// A project with a main checkout and a worktree on disk shows a section for
+// each, named by its directory with what it is and where under the name. A
+// file is in review only in the working copy its review came from, and the
+// worktree's rows open its own files.
+func TestServer_Surface_projectWorkingCopies(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	main := gitRepo(g, filepath.Join(dir, "harbor"))
+	inMain := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"}).Review.ID
+	worktree := filepath.Join(dir, "harbor-retry")
+	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+	write(g, worktree, "a.txt", "one\nretry\n")
+	write(g, worktree, "b.txt", "new\n")
+	inWorktree := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"b.txt"}, Note: "retry"}).Review.ID
+	review, err := f.store.Review(t.Context(), inMain)
+	g.Expect(err).NotTo(HaveOccurred())
+	copies, err := f.store.WorkingCopies(t.Context(), review.ProjectID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(copies).To(HaveLen(2))
+	retry := copies[1]
+
+	doc := f.page(g, projectHref(review.ProjectID), http.StatusOK)
+	var headings, hints []string
+	for _, h := range findAll(doc, func(n *html.Node) bool { return n.Data == "h2" }) {
+		headings = append(headings, text(h))
+	}
+	for _, h := range findAll(doc, hasClass("hint")) {
+		hints = append(hints, text(h))
+	}
+	g.Expect(headings).To(Equal([]string{"harbor", "Open reviews 2", "harbor 1 file", "harbor-retry 2 files"}))
+	g.Expect(hints).To(Equal([]string{"Main checkout, " + main, "Worktree, " + worktree}))
+	g.Expect(workingRows(doc)).To(Equal([]string{
+		"plain a.txt In review " + fileHref(inMain, 1, true, "a.txt"),
+		"bold a.txt +1 " + projectFileHref(review.ProjectID, retry.ID, "a.txt"),
+		"plain b.txt In review " + fileHref(inWorktree, 1, true, "b.txt"),
+	}))
+
+	// The worktree's row opens the worktree's file, and a copy the project
+	// does not have is not found.
+	page := f.page(g, projectFileHref(review.ProjectID, retry.ID, "a.txt"), http.StatusOK)
+	g.Expect(text(page)).To(ContainSubstring("retry"))
+	// The page's own Marked and Plain links keep the copy.
+	for _, link := range findAll(find(page, "segmented"), func(n *html.Node) bool { return n.Data == "a" }) {
+		f.page(g, attr(link, "href"), http.StatusOK)
+	}
+	g.Expect(findAll(find(page, "segmented"), func(n *html.Node) bool { return n.Data == "a" })).To(HaveLen(2))
+	other, err := f.store.EnsureProject(t.Context(), dir, "other")
+	g.Expect(err).NotTo(HaveOccurred())
+	elsewhere, err := f.store.EnsureWorkingCopy(t.Context(), other.ID, other.Root)
+	g.Expect(err).NotTo(HaveOccurred())
+	f.page(g, projectFileHref(review.ProjectID, elsewhere.ID, "a.txt"), http.StatusNotFound)
+	f.page(g, projectHref(review.ProjectID)+"/files/a.txt?copy=x", http.StatusNotFound)
+
+	// Once the worktree is removed, the main checkout is drawn alone, as a
+	// project with one working copy always was.
+	g.Expect(os.RemoveAll(worktree)).To(Succeed())
+	doc = f.page(g, projectHref(review.ProjectID), http.StatusOK)
+	headings = nil
+	for _, h := range findAll(doc, func(n *html.Node) bool { return n.Data == "h2" }) {
+		headings = append(headings, text(h))
+	}
+	g.Expect(headings).To(Equal([]string{"harbor", "Open reviews 2", "Working copy 1 file"}))
+	g.Expect(findAll(doc, hasClass("hint"))).To(BeEmpty())
+
+	// A worktree left alone after its main checkout is removed is named for
+	// what it is, rather than drawn as the project's root.
+	git(g, main, "worktree", "prune")
+	git(g, main, "worktree", "add", "--quiet", "-b", "again", worktree)
+	write(g, worktree, "c.txt", "new\n")
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"c.txt"}, Note: "again"})
+	g.Expect(os.Rename(main, main+"-moved")).To(Succeed())
+	doc = f.page(g, projectHref(review.ProjectID), http.StatusOK)
+	var lone []string
+	for _, h := range findAll(doc, hasClass("hint")) {
+		lone = append(lone, text(h))
+	}
+	g.Expect(lone).To(Equal([]string{"Worktree, " + worktree}))
 }

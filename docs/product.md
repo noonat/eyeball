@@ -76,9 +76,10 @@ overlap could only be guessed at. A guess merges two pieces of work under one
 verdict, or blocks work that never conflicted.
 
 **Overlapping scopes are refused.** A path already claimed by an open review in
-the same project cannot be claimed by a second one, because the same change
+the same working copy cannot be claimed by a second one, because the same change
 would then appear in two places with two verdicts. The refusal names the review
-holding it.
+holding it. Two worktrees of one repository hold two different changes to the
+same path, so a claim in one does not refuse the other.
 
 A review ends when it is approved. Asking for changes closes a round and opens
 the next one. A review can also be abandoned, which is the agent saying the
@@ -129,8 +130,8 @@ it came from:
    review is ever read from.
 2. **The base commit.** Exact as well, because a file that matches the base
    matches it byte for byte.
-3. **The working copy, as it is now.** Not frozen, and possibly moved since the
-   round was taken.
+3. **The working copy, as it is now.** The one the round was captured from. Not
+   frozen, and possibly moved since the round was taken.
 
 The third exists because the alternative is showing nothing, and a reviewer who
 cannot look up a definition goes to a computer, which ends the review. It covers
@@ -232,7 +233,10 @@ answers the question without opening anything, which is the difference between
 checking twenty times a day and checking when there is something to check.
 
 An empty queue says so plainly and lists the projects eyeball knows about, which
-is also how a project with a misconfigured root gets noticed.
+is also how a project with a misconfigured root gets noticed. A project whose
+every working copy is gone from disk is left out, with no count of what was left
+out. A worktree removed after its branch merged is the usual case, and a list of
+them is noise with nothing to act on.
 
 ### A review page
 
@@ -469,11 +473,14 @@ Reachable from any review's header and from the queue, one per project.
 **It lists the project's open reviews**, which is the same information the queue
 carries, arranged by project instead of by urgency.
 
-**It shows the working copy**, meaning everything currently changed on disk,
-including work no agent has submitted for review. This is the step back: what is
-going on in this repository right now, across every review and outside all of
-them. It is read-only context rather than a reviewable object, and it is live
-rather than frozen, because showing the present is its whole job.
+**It shows each working copy**, meaning everything currently changed on disk in
+each working copy an agent has used that is still on disk, including work no
+agent has submitted for review. A worktree no agent has run eyeball in is not
+shown, since git's own list of worktrees misnames the main checkout in some
+layouts. This is the step back: what is going on in this repository right now,
+across every review and outside all of them. It is read-only context rather than
+a reviewable object, and it is live rather than frozen, because showing the
+present is its whole job.
 
 ### First run
 
@@ -573,9 +580,17 @@ One eyeball runs. Every project on the machine uses it.
 **A project is discovered by walking up from the working directory**, so an
 agent does not have to be told which project it is in, and does not have to get
 it right after a restart. The first `.git` above the working directory is the
-project. A directory that is not a git repository is named by a marker file a
-person writes there once, which is the only setup eyeball ever asks for and is
-asked for only where the free answer is unavailable.
+working copy, and the repository it belongs to is the project, so a main
+checkout and every worktree of it are one project. A directory that is not a git
+repository is named by a marker file a person writes there once, which is the
+only setup eyeball ever asks for and is asked for only where the free answer is
+unavailable. It is a project with one working copy.
+
+**A review can move between working copies of its project.** An agent that did
+the work in a worktree can ask for the next round from the main checkout, which
+is where the merge happens. That round is captured from the main checkout, and
+its context is read from there. The agent passes its name, since by default an
+agent is named by the working copy it runs in.
 
 **eyeball does not modify the project.** No state written into the repository,
 no files added to a git project at all, no changes to its build or tooling. It

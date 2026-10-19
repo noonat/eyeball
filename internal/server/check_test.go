@@ -117,3 +117,29 @@ func TestServer_check(t *testing.T) {
 		g.Expect(e.Code).To(Equal(api.CodeMissing))
 	})
 }
+
+// An approval asked for in a worktree passes a check run from the main
+// checkout, where the merge happens, since both are one project. The commits
+// are read in the main checkout, which shares the worktree's objects.
+func TestServer_checkAcceptsAnApprovalFromAWorktree(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	main := gitRepo(g, filepath.Join(dir, "harbor"))
+	base := git(g, main, "rev-parse", "main")
+	worktree := filepath.Join(dir, "harbor-retry")
+	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+	write(g, worktree, "a.txt", "one\nretry\n")
+	approved := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree}, Paths: []string{"a.txt"}, Note: "retry"}).Review.ID
+	f.decide(g, t, approved, store.VerdictApprove, "")
+	git(g, worktree, "add", "a.txt")
+	tree := git(g, worktree, "write-tree")
+	target := git(g, worktree, "commit-tree", tree, "-p", "retry", "-m", "retry")
+	git(g, worktree, "update-ref", "refs/heads/retry", target)
+
+	v := url.Values{"base": {base}, "new": {target}}
+	var got api.CheckResult
+	f.ok(g, t, http.MethodGet, "/agent/check?"+query(api.Caller{Dir: main})+"&"+v.Encode(), nil, &got)
+	g.Expect(got.Review).To(Equal(approved))
+}

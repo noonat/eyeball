@@ -42,7 +42,7 @@ func (s *Server) handleCat(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	project, err := s.db.ProjectByRoot(ctx, root.Resolved)
+	project, err := s.projectAt(ctx, root)
 	if errors.Is(err, store.ErrNotFound) {
 		message := fmt.Sprintf("no review has been opened in %s", root.Resolved)
 		return refuse(http.StatusConflict, api.CodeNotCaptured, message, "request a review from the clone that merges, and have it approved")

@@ -77,6 +77,10 @@ var ErrNotFound = errors.New("not found")
 // ErrNotOpen reports a review that has already been approved or abandoned.
 var ErrNotOpen = errors.New("review is not open")
 
+// ErrWrongProject reports a working copy named for a round of another
+// project's review.
+var ErrWrongProject = errors.New("working copy belongs to another project")
+
 // ErrAwaitingVerdict reports a review whose latest round has no decision, so
 // there is nothing for a new round to answer.
 var ErrAwaitingVerdict = errors.New("review is awaiting a verdict")
@@ -90,6 +94,10 @@ type Project struct {
 	Root string
 	// Name is what the surface displays, and repeats freely across projects.
 	Name string
+	// Repository is the git common directory every working copy of the project
+	// shares, and is empty for a project found by its marker file or not yet
+	// asked about.
+	Repository string
 	// InsideCheckout records that a .git entry was once seen at or above a
 	// root holding a marker file. It is set and never cleared, because the
 	// moment it matters is the one where that .git is no longer there to see.
@@ -132,6 +140,9 @@ type Round struct {
 	Note string
 	// BaseCommit is what the capture was taken against, empty outside git.
 	BaseCommit string
+	// WorkingCopyID is the working copy the round was captured from, which is
+	// where everything the round reads live comes from.
+	WorkingCopyID int64
 	// Created is when the round was asked for, which is what a waiting
 	// round's age is measured from.
 	Created time.Time
@@ -181,6 +192,10 @@ type Request struct {
 	Note string
 	// BaseCommit is the commit the capture differs from, empty outside git.
 	BaseCommit string
+	// WorkingCopyID is the working copy the capture was taken from. Zero means
+	// the project's root on a first round, and the previous round's working
+	// copy on a later one.
+	WorkingCopyID int64
 	// Files is everything the capture holds, in or out of the review's scope.
 	Files []File
 	// Changes is what moved since the previous round, and on a first round is
@@ -206,8 +221,8 @@ type NewReview struct {
 	Request Request
 }
 
-// EnsureProject returns the project rooted at root, inserting it if this is the
-// first time it has been seen.
+// EnsureProject returns the project rooted at root, inserting it and the
+// working copy at its root if this is the first time it has been seen.
 //
 // The root is the identity, so a project that moves is a new one and
 // re-registering it costs nothing. The name is read only on insert: a root that
@@ -225,15 +240,18 @@ func (s *Store) EnsureProject(ctx context.Context, root, name string) (Project, 
 	var out Project
 	err := s.tx(ctx, func(tx *sql.Tx) error {
 		insert := "INSERT INTO projects (root, name, created) VALUES (?, ?, ?) ON CONFLICT (root) DO NOTHING"
-		if _, err := tx.ExecContext(ctx, insert, root, name, FormatTime(s.now())); err != nil {
+		at := FormatTime(s.now())
+		if _, err := tx.ExecContext(ctx, insert, root, name, at); err != nil {
 			return errors.Wrap(err, "insert project")
 		}
-		query := "SELECT id, root, name, inside_checkout FROM projects WHERE root = ?"
+		query := projectQuery + " WHERE root = ?"
 		row := tx.QueryRowContext(ctx, query, root)
-		if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
+		if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.Repository, &out.InsideCheckout); err != nil {
 			return errors.Wrap(err, "read project")
 		}
-		return nil
+		copyAt := "INSERT INTO working_copies (project_id, root, created) VALUES (?, ?, ?) ON CONFLICT (root) DO NOTHING"
+		_, err := tx.ExecContext(ctx, copyAt, out.ID, root, at)
+		return errors.Wrap(err, "insert the project's working copy")
 	})
 	return out, err
 }
@@ -255,8 +273,9 @@ func (s *Store) MarkInsideCheckout(ctx context.Context, projectID int64) error {
 // OpenReview creates a review, its claimed paths, and its first round with
 // everything that round captured, in one transaction.
 //
-// A path an open review in the same project already covers is refused, because
-// the same change would otherwise appear in two places under two verdicts.
+// A path an open review in the same working copy already covers is refused,
+// because the same change would otherwise appear in two places under two
+// verdicts. Two working copies hold two different changes to one path.
 func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, error) {
 	review := Review{
 		ProjectID: nr.ProjectID,
@@ -290,7 +309,16 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 	review.LatestRound = 1
 
 	err = s.tx(ctx, func(tx *sql.Tx) error {
-		if err := refuseClaimed(ctx, tx, nr.ProjectID, paths); err != nil {
+		round.WorkingCopyID = nr.Request.WorkingCopyID
+		if round.WorkingCopyID == 0 {
+			if round.WorkingCopyID, err = rootCopy(ctx, tx, nr.ProjectID); err != nil {
+				return err
+			}
+		}
+		if err := requireCopyIn(ctx, tx, round.WorkingCopyID, nr.ProjectID); err != nil {
+			return err
+		}
+		if err := refuseClaimed(ctx, tx, round.WorkingCopyID, 0, paths); err != nil {
 			return err
 		}
 		at := FormatTime(s.now())
@@ -321,7 +349,9 @@ func (s *Store) OpenReview(ctx context.Context, nr NewReview) (Review, Round, er
 //
 // It is refused unless the review is open and its latest round has a decision.
 // A review whose latest round is still waiting has nothing for a new round to
-// answer, and an approved review has ended.
+// answer, and an approved review has ended. A round from another working copy
+// of the project is refused where an open review there claims one of its
+// paths, as a new review would be.
 func (s *Store) OpenRound(ctx context.Context, reviewID int64, req Request) (Round, error) {
 	round, changes, err := s.checkRequest(req)
 	if err != nil {
@@ -346,6 +376,9 @@ func (s *Store) OpenRound(ctx context.Context, reviewID int64, req Request) (Rou
 		}
 		paths, err := reviewPaths(ctx, tx, reviewID)
 		if err != nil {
+			return err
+		}
+		if err := s.moveCopy(ctx, tx, &round, req.WorkingCopyID, paths); err != nil {
 			return err
 		}
 		return s.insertRound(ctx, tx, &round, paths, roundContent{files: req.Files, changes: changes, views: req.Views})
@@ -466,8 +499,8 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 	files, added, removed := size(paths, req.changes)
 	round.Files, round.Added, round.Removed = files, added, removed
 	insert := `INSERT INTO rounds
-			(review_id, number, note, base_commit, created, files_changed, lines_added, lines_removed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+			(review_id, number, note, base_commit, working_copy_id, created, files_changed, lines_added, lines_removed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	created := FormatTime(s.now())
 	// Read back from the stored text, so the round returned here and the one
 	// read later carry the same time to the nanosecond the text keeps.
@@ -480,6 +513,7 @@ func (s *Store) insertRound(ctx context.Context, tx *sql.Tx, round *Round, paths
 		round.Number,
 		round.Note,
 		round.BaseCommit,
+		round.WorkingCopyID,
 		created,
 		files,
 		added,
@@ -599,13 +633,17 @@ func pathsOverlap(a, b string) bool {
 	return a == b || strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
 }
 
-// refuseClaimed reports a path an open review in the same project already
-// covers, naming that review so the fix is to go and look at it.
-func refuseClaimed(ctx context.Context, tx *sql.Tx, projectID int64, paths []string) error {
+// refuseClaimed reports a path that an open review other than except already
+// covers in the working copy copyID, naming that review so the fix is to go and
+// look at it. A review's working copy is its latest round's.
+func refuseClaimed(ctx context.Context, tx *sql.Tx, copyID, except int64, paths []string) error {
 	query := `SELECT p.path, r.id, r.title, r.agent
-		FROM review_paths p JOIN reviews r ON r.id = p.review_id
-		WHERE r.project_id = ? AND r.state = ?`
-	rows, err := tx.QueryContext(ctx, query, projectID, StateOpen)
+		FROM review_paths p
+		JOIN reviews r ON r.id = p.review_id
+		JOIN rounds latest ON latest.review_id = r.id
+			AND latest.number = (SELECT max(number) FROM rounds WHERE review_id = r.id)
+		WHERE latest.working_copy_id = ? AND r.state = ? AND r.id <> ?`
+	rows, err := tx.QueryContext(ctx, query, copyID, StateOpen, except)
 	if err != nil {
 		return errors.Wrap(err, "read claimed paths")
 	}

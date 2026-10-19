@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -87,7 +88,7 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 		body.Settled = append(body.Settled, s.queueRow(row, render.Age(now, row.DecidedAt)))
 	}
 	if len(body.Waiting) == 0 {
-		projects, err := s.db.s.Projects(r.Context())
+		projects, err := s.projectsOnDisk(r.Context())
 		if err != nil {
 			return err
 		}
@@ -130,7 +131,32 @@ func gist(note, title string) string {
 	return ""
 }
 
-// emptyQueue builds the empty state from every project.
+// projectsOnDisk is every project with a working copy still on disk. A
+// project whose working copies are all gone is left out, usually worktrees
+// removed after their branches merged, since a row for one has nothing behind
+// it to open or act on.
+func (s *Server) projectsOnDisk(ctx context.Context) ([]store.ProjectRow, error) {
+	projects, err := s.db.s.Projects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []store.ProjectRow
+	for _, p := range projects {
+		copies, err := s.db.s.WorkingCopies(ctx, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range copies {
+			if onDisk(c.Root) {
+				out = append(out, p)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+// emptyQueue builds the empty state from the projects it lists.
 func (s *Server) emptyQueue(projects []store.ProjectRow) *emptyQueue {
 	out := &emptyQueue{}
 	agents := 0

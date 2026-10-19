@@ -142,9 +142,9 @@ func seekable(rc io.ReadCloser, size int64) (io.ReadSeeker, func(), error) {
 
 // rawReader reads a review's files as of a round, and round 0 as the base
 // commit alone. Every round of a review is measured from the same base, which
-// the first round fixed.
+// the first round fixed, and is read in the working copy its round came from.
 func (s *Server) rawReader(ctx context.Context, review store.Review, number int) (*capture.Reader, error) {
-	first, err := s.db.s.Round(ctx, review.ID, 1)
+	round, err := s.db.s.Round(ctx, review.ID, max(number, 1))
 	if err != nil {
 		return nil, err
 	}
@@ -152,16 +152,17 @@ func (s *Server) rawReader(ctx context.Context, review store.Review, number int)
 	if err != nil {
 		return nil, err
 	}
-	st, err := capture.Inspect(ctx, project.Root, first.BaseCommit, project.InsideCheckout)
+	root, err := s.copyRoot(ctx, round)
+	if err != nil {
+		return nil, err
+	}
+	// Every round carries the base the first one fixed.
+	st, err := capture.Inspect(ctx, root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
 		return nil, err
 	}
 	if number == 0 {
 		return st.Reader(s.blobs, nil), nil
-	}
-	round, err := s.db.s.Round(ctx, review.ID, number)
-	if err != nil {
-		return nil, err
 	}
 	files, err := s.roundFiles(ctx, round.ID)
 	if err != nil {

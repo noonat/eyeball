@@ -23,16 +23,18 @@ import (
 // reads well in a queue row, to be tuned once there is a queue to look at.
 const titleLimit = 72
 
-// caller is who sent a request, once the daemon has found its project.
+// caller is who sent a request, once the daemon has found its project and the
+// working copy it runs in.
 type caller struct {
 	dir     string
 	root    capture.Root
 	project store.Project
+	copy    store.WorkingCopy
 	agent   string
 }
 
-// resolve finds the caller's project, registering it on first sight, and the
-// name the caller is known by.
+// resolve finds the caller's project and working copy, registering either on
+// first sight, and the name the caller is known by.
 func (s *Server) resolve(ctx context.Context, c api.Caller) (caller, error) {
 	if !filepath.IsAbs(c.Dir) {
 		return caller{}, badRequest("the working directory %q is not absolute", c.Dir)
@@ -41,31 +43,115 @@ func (s *Server) resolve(ctx context.Context, c api.Caller) (caller, error) {
 	if err != nil {
 		return caller{}, err
 	}
-	project, err := s.project(ctx, root)
+	project, copy, err := s.project(ctx, root)
 	if err != nil {
 		return caller{}, err
 	}
 	agent := capture.AgentName(c.Agent, "", root, s.homeOf(c))
-	return caller{dir: c.Dir, root: root, project: project, agent: agent}, nil
+	return caller{dir: c.Dir, root: root, project: project, copy: copy, agent: agent}, nil
 }
 
-// project finds the project at root, registering it on first sight. Its name
-// costs a git call and is read only then, so a later request does not run git
-// for it, and a name that failed once is not retried into a different one.
+// project finds the project a working copy belongs to, and the working copy,
+// registering either on first sight.
 //
-// Whether a marker project sits inside a checkout is recorded on every
-// request, a new project or a known one, until it is. A project registered
-// before the store kept the flag has to be caught by a later request, and the
-// .git it was seen under may be moved away at any time after.
-func (s *Server) project(ctx context.Context, root capture.Root) (store.Project, error) {
-	project, err := s.db.ProjectByRoot(ctx, root.Resolved)
-	if errors.Is(err, store.ErrNotFound) {
-		project, err = s.register(ctx, root)
+// A working copy git knows belongs to the project of its repository, so a main
+// checkout and its worktrees are one project. One found by its marker file is a
+// project of its own, keyed by its root. git is asked on every request, since a
+// directory can be removed and made again as something else.
+func (s *Server) project(ctx context.Context, root capture.Root) (store.Project, store.WorkingCopy, error) {
+	repo, err := capture.Repository(ctx, root.Resolved)
+	if err != nil {
+		return store.Project{}, store.WorkingCopy{}, err
+	}
+	project, err := s.projectOf(ctx, root, repo)
+	if err != nil {
+		return store.Project{}, store.WorkingCopy{}, err
+	}
+	copy, err := s.db.EnsureWorkingCopy(ctx, project.ID, root.Resolved)
+	if err != nil {
+		return store.Project{}, store.WorkingCopy{}, err
+	}
+	if copy.ProjectID != project.ID {
+		// The root was a working copy of another project: a directory
+		// removed and made again as part of this one.
+		if err := s.db.RetireRoot(ctx, root.Resolved); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+		if copy, err = s.db.EnsureWorkingCopy(ctx, project.ID, root.Resolved); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+	}
+	if !repo.Main {
+		return project, copy, nil
+	}
+	if !copy.Main {
+		if err := s.db.MarkMain(ctx, copy.ID); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+		copy.Main = true
+	}
+	if project.Root != copy.Root {
+		if err := s.db.SetProjectRoot(ctx, project.ID, copy.Root); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+		project.Root = copy.Root
+	}
+	return project, copy, nil
+}
+
+// projectOf finds or registers the project of a working copy.
+//
+// A project already rooted where the caller is, that git does not name as this
+// one, belonged to a directory removed and made again as something else: a
+// marker directory that is now git, a git one that is now a marker directory,
+// or another repository's. It is retired, keeping its reviews, and this one
+// registers in its place.
+func (s *Server) projectOf(ctx context.Context, root capture.Root, repo capture.Repo) (store.Project, error) {
+	if repo.Dir == "" {
+		project, err := s.db.ProjectByRoot(ctx, root.Resolved)
+		if err == nil && project.Repository != "" {
+			if err := s.db.RetireRoot(ctx, root.Resolved); err != nil {
+				return store.Project{}, err
+			}
+			err = store.ErrNotFound
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			project, err = s.register(ctx, root)
+		}
+		if err != nil {
+			return store.Project{}, err
+		}
+		return s.markCheckout(ctx, project)
+	}
+	project, err := s.db.ProjectByRepository(ctx, repo.Dir)
+	if !errors.Is(err, store.ErrNotFound) {
+		return project, err
+	}
+	if _, err := s.db.ProjectByRoot(ctx, root.Resolved); err == nil {
+		if err := s.db.RetireRoot(ctx, root.Resolved); err != nil {
+			return store.Project{}, err
+		}
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return store.Project{}, err
+	}
+	if project, err = s.register(ctx, root); err != nil {
+		return store.Project{}, err
+	}
+	err = s.db.SetRepository(ctx, project.ID, repo.Dir)
+	if errors.Is(err, store.ErrRepositoryTaken) {
+		// Another working copy of the repository registered its project
+		// between the lookup above and here. That one is kept.
+		holder, err := s.db.ProjectByRepository(ctx, repo.Dir)
+		if err != nil {
+			return store.Project{}, err
+		}
+		return holder, s.db.MergeProjects(ctx, project.ID, holder.ID)
 	}
 	if err != nil {
 		return store.Project{}, err
 	}
-	return s.markCheckout(ctx, project)
+	project.Repository = repo.Dir
+	return project, nil
 }
 
 // register stores a project seen for the first time.
@@ -204,7 +290,11 @@ func (s *Server) apiReview(ctx context.Context, review store.Review) (api.Review
 	if err != nil {
 		return api.Review{}, err
 	}
-	_, decision, err := s.latest(ctx, review)
+	last, decision, err := s.latest(ctx, review)
+	if err != nil {
+		return api.Review{}, err
+	}
+	root, err := s.copyRoot(ctx, last)
 	if err != nil {
 		return api.Review{}, err
 	}
@@ -215,7 +305,7 @@ func (s *Server) apiReview(ctx context.Context, review store.Review) (api.Review
 		State:   agentState(review, decision),
 		Round:   review.LatestRound,
 		Paths:   review.Paths,
-		Project: api.Project{Name: project.Name, Root: project.Root},
+		Project: api.Project{Name: project.Name, Root: root},
 	}, nil
 }
 
@@ -313,6 +403,7 @@ func (s *Server) firstRound(ctx context.Context, c caller, body api.RequestBody)
 	if err != nil {
 		return api.RequestResult{}, err
 	}
+	req.WorkingCopyID = c.copy.ID
 	if err := refuseUnmatched(c.root.Resolved, paths, req.Files); err != nil {
 		return api.RequestResult{}, err
 	}
@@ -380,6 +471,7 @@ func (s *Server) nextRound(ctx context.Context, c caller, body api.RequestBody) 
 	if err != nil {
 		return api.RequestResult{}, err
 	}
+	req.WorkingCopyID = c.copy.ID
 	if req.Views, err = views(c, body.Views, req.Files); err != nil {
 		return api.RequestResult{}, err
 	}
@@ -800,7 +892,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 	}
 	result := api.StatusResult{
 		Daemon:  s.daemonInfo(),
-		Project: api.Project{Name: c.project.Name, Root: c.project.Root},
+		Project: api.Project{Name: c.project.Name, Root: c.copy.Root},
 		Agent:   c.agent,
 		Reviews: []api.StatusRow{},
 	}

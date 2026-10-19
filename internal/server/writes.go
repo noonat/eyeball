@@ -142,3 +142,44 @@ func (d *db) Project(ctx context.Context, projectID int64) (store.Project, error
 func (d *db) CommentReview(ctx context.Context, commentID int64) (int64, error) {
 	return d.s.CommentReview(ctx, commentID)
 }
+
+// ProjectByRepository reads the project of a git repository, if it has been
+// seen.
+func (d *db) ProjectByRepository(ctx context.Context, repo string) (store.Project, error) {
+	return d.s.ProjectByRepository(ctx, repo)
+}
+
+// EnsureWorkingCopy registers a working copy. It changes nothing a waiter
+// reads, so it does not publish.
+func (d *db) EnsureWorkingCopy(ctx context.Context, projectID int64, root string) (store.WorkingCopy, error) {
+	return d.s.EnsureWorkingCopy(ctx, projectID, root)
+}
+
+// MarkMain records a main checkout. It does not publish, for the reason
+// MarkInsideCheckout does not: requests write it.
+func (d *db) MarkMain(ctx context.Context, copyID int64) error {
+	return d.s.MarkMain(ctx, copyID)
+}
+
+// SetRepository records a project's repository, without publishing.
+func (d *db) SetRepository(ctx context.Context, projectID int64, repo string) error {
+	return d.s.SetRepository(ctx, projectID, repo)
+}
+
+// SetProjectRoot moves a project's root to its main checkout, without
+// publishing.
+func (d *db) SetProjectRoot(ctx context.Context, projectID int64, root string) error {
+	return d.s.SetProjectRoot(ctx, projectID, root)
+}
+
+// MergeProjects folds one project into another, then publishes, since a review
+// page and the queue name the project a review belongs to.
+func (d *db) MergeProjects(ctx context.Context, from, into int64) error {
+	return d.publish(d.s.MergeProjects(ctx, from, into))
+}
+
+// RetireRoot moves an old working copy and project off a root that is now
+// something else, then publishes, since the old project leaves the queue.
+func (d *db) RetireRoot(ctx context.Context, root string) error {
+	return d.publish(d.s.RetireRoot(ctx, root))
+}

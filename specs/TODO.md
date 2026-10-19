@@ -256,6 +256,23 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: a comment added on a second device shows on the first only after a
       reload. 008's stamps leave comment counts out, so a reviewer's own comment
       does not reload the page that wrote it.
+- [ ] product: forgetting a project, or deleting a working copy whose directory
+      is gone. Deleting a project row deletes its reviews with it, so 021 only
+      hides a project whose working copies are all gone.
+- [ ] product: showing a worktree no agent has run eyeball in on the project
+      view. 021 shows the working copies eyeball has seen, since
+      `git worktree list` misnames the main checkout with `--separate-git-dir`
+      and inside a submodule.
+- [ ] product: a default agent name shared across a repository's working copies.
+      021 lets a round come from another working copy when the agent passes
+      `--agent`, since the default name is the working copy's path.
+- [ ] design: submitting a verdict returns the reviewer to the queue, the
+      owner's words. Today the page reloads to the decided round, as the review
+      tearout's Approve frame draws it, so the tearout changes first.
+- [ ] design: the decision bar's notice while eyeball cannot be reached, "A
+      verdict needs eyeball. Both become available when the connection is
+      back.", wraps to two lines on the phone, the owner's words. A shorter
+      sentence or a layout that allows two lines are the options.
 
 ## Open questions
 

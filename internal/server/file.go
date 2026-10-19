@@ -145,7 +145,11 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	if err != nil {
 		return err
 	}
-	st, err := capture.Inspect(ctx, project.Root, round.BaseCommit, project.InsideCheckout)
+	root, err := s.copyRoot(ctx, round)
+	if err != nil {
+		return err
+	}
+	st, err := capture.Inspect(ctx, root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
 		return err
 	}
@@ -199,7 +203,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	now := st.Reader(s.blobs, files)
 	pathType, source, err := now.Locate(ctx, clean)
 	if errors.Is(err, capture.ErrNotFound) {
-		s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
+		s.notFoundPage(w, refusalNotice(st, err, s.tilde(st.Root)))
 		return nil
 	}
 	if err != nil {
@@ -213,7 +217,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	if dir := path.Dir(clean); dir != "." {
 		view.Dir = dir + "/"
 	}
-	if n := stateNotice(st, s.tilde(project.Root)); n != nil {
+	if n := stateNotice(st, s.tilde(st.Root)); n != nil {
 		view.Notices = append(view.Notices, *n)
 	}
 
@@ -291,7 +295,7 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	default:
 		rc, err := capture.ReadLive(ctx, st, clean)
 		if errors.Is(err, capture.ErrNotFound) {
-			s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
+			s.notFoundPage(w, refusalNotice(st, err, s.tilde(st.Root)))
 			return nil
 		}
 		if err != nil {
@@ -731,6 +735,10 @@ func escapePath(p string) string {
 func withQuery(href string, q url.Values) string {
 	if len(q) == 0 {
 		return href
+	}
+	// A worktree's file address already carries ?copy=.
+	if strings.Contains(href, "?") {
+		return href + "&" + q.Encode()
 	}
 	return href + "?" + q.Encode()
 }

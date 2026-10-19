@@ -235,7 +235,7 @@ func (a *app) command() *ucli.Command {
 		Flags: []ucli.Flag{
 			&ucli.BoolFlag{Name: "json", Usage: "print the answer as JSON"},
 			&ucli.StringFlag{Name: "format", Usage: "print the answer through a Go template over its JSON"},
-			&ucli.StringFlag{Name: "agent", Usage: "the name this agent goes by (default: EYEBALL_AGENT, then the project root's path)"},
+			&ucli.StringFlag{Name: "agent", Usage: "the name this agent goes by (default: EYEBALL_AGENT, then the working copy's path)"},
 		},
 		Commands: commands,
 		Before: func(ctx context.Context, cmd *ucli.Command) (context.Context, error) {
