@@ -99,6 +99,33 @@ above in the installed app and sends screenshots:
 - [ ] The readout on the same review, reached again from the queue, saying
       whether the bar sits at the bottom there
 
+**Readings so far, iteration 2.** Taken by the owner on 2026-10-18 on test
+reviews in a scratch repository, with this branch's build.
+
+- In the fault the visual viewport is 576 points tall in a 894-point window,
+  with nothing focused. Scrolled down, its `offsetTop` is 318; at the top of the
+  page it is 0. In a good state it is 894. The page header, each card's header
+  and the bar all move together, because the browser places them against a
+  visual viewport 318 points short.
+- With a real keyboard open on the verdict note, the visual viewport is 508, 386
+  points short. The fault's 318 is 68 points less, about the height of the bar
+  iOS adds above a web field's keyboard, so the phantom keyboard is likely not
+  one of the page's own fields. That is inferred from one pair of numbers.
+- Going to the queue and back left it short. Only closing the app cleared it, so
+  the state lives in the web view and not in the page.
+- It followed a reload by the live stream four times, one of them inferred
+  rather than seen, and one with the page left untouched while a round was
+  requested. A reload after a verdict alone stayed good three times. Once it
+  broke with no reload from the agent's side, and its readout was not captured.
+- The keyboard being up when a verdict is sent is not the trigger: the owner
+  could not reproduce it that way, with or without closing the keyboard first.
+
+The readout now also logs each change in the visual viewport's height, with the
+time since the page began loading and what had focus, so the next capture shows
+whether the page loaded short or shrank after. The trigger is intermittent, so
+iteration 2 stays open while the owner uses this build normally and captures the
+next occurrence.
+
 ## Iteration 3: The fix
 
 The readout picks the fix. The two readings expected, and their fixes:

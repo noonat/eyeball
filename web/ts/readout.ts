@@ -26,7 +26,23 @@ export function showReadout(): void {
     navigation instanceof PerformanceNavigationTiming
       ? navigation.type
       : "unknown";
+  // Each change in the visual viewport's height, with the milliseconds since
+  // the page began loading and what had focus, so the screenshot shows whether
+  // the page loaded short or shrank afterwards.
+  const changes: string[] = [];
+  let lastHeight = -1;
+  const note = (): void => {
+    const height = Math.round(window.visualViewport?.height ?? -1);
+    if (height === lastHeight) {
+      return;
+    }
+    lastHeight = height;
+    const focused = document.activeElement?.tagName.toLowerCase() ?? "none";
+    changes.push(`${Math.round(performance.now())}ms h${height} ${focused}`);
+    changes.splice(0, changes.length - 4);
+  };
   const draw = (): void => {
+    note();
     const view = window.visualViewport;
     // Pinned to what is on screen rather than to the layout viewport, since
     // the fault moves everything fixed to the layout viewport off screen.
@@ -39,6 +55,7 @@ export function showReadout(): void {
       `scrollY ${Math.round(window.scrollY)}  pageTop ${view ? Math.round(view.pageTop) : "-"}`,
       `bar ${bar ? `${Math.round(bar.top)}..${Math.round(bar.bottom)}` : "none"}`,
       `${document.visibilityState}  ${loaded}`,
+      ...changes,
     ].join("\n");
   };
   window.addEventListener("scroll", draw, { passive: true });
