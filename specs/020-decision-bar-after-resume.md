@@ -126,6 +126,20 @@ whether the page loaded short or shrank after. The trigger is intermittent, so
 iteration 2 stays open while the owner uses this build normally and captures the
 next occurrence.
 
+A capture on 2026-10-19 with that log settles part of it. The page was opened by
+a navigation, not a reload, from the home screen as far as the owner remembers,
+with no keyboard open. The visual viewport grew 854, 875, 884 in steps 25 ms
+apart, which looks like the app's opening animation, and 230 ms later fell to
+576 with nothing focused. So a reload is not needed for the fault, and the page
+asks for no keyboard: iOS applies a keyboard-sized viewport to the page on its
+own as the app comes forward.
+
+That matches neither expected reading, and the owner agreed to an experiment
+first. On seeing the fault, the page focuses a hidden field and blurs it at
+once, and if the viewport is still short, does the same inside the reader's next
+tap, where iOS treats the focus as the reader's own. The readout logs each
+attempt and the height that followed.
+
 ## Iteration 3: The fix
 
 The readout picks the fix. The two readings expected, and their fixes:

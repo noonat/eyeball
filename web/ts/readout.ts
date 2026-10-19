@@ -39,7 +39,13 @@ export function showReadout(): void {
     lastHeight = height;
     const focused = document.activeElement?.tagName.toLowerCase() ?? "none";
     changes.push(`${Math.round(performance.now())}ms h${height} ${focused}`);
-    changes.splice(0, changes.length - 4);
+    changes.splice(0, changes.length - 6);
+  };
+  // log adds a line that is not a height change, such as a reset attempt.
+  const log = (line: string): void => {
+    changes.push(`${Math.round(performance.now())}ms ${line}`);
+    changes.splice(0, changes.length - 6);
+    draw();
   };
   const draw = (): void => {
     note();
@@ -64,4 +70,81 @@ export function showReadout(): void {
   window.visualViewport?.addEventListener("scroll", draw);
   document.addEventListener("visibilitychange", draw);
   draw();
+  tryResets(log);
+}
+
+// stuck reports the fault: the visual viewport a keyboard's height short of the
+// window while nothing a keyboard types into has focus.
+function stuck(): boolean {
+  const view = window.visualViewport;
+  if (!view) {
+    return false;
+  }
+  const active = document.activeElement;
+  const typing =
+    active instanceof HTMLInputElement ||
+    active instanceof HTMLTextAreaElement ||
+    (active instanceof HTMLElement && active.isContentEditable);
+  return !typing && window.innerHeight - view.height > 100;
+}
+
+// flick focuses a hidden text field and blurs it at once, to ask iOS for a
+// keyboard and take it away again. The field's 16px font stops iOS zooming the
+// page on focus.
+function flick(): void {
+  const field = document.createElement("input");
+  field.setAttribute("aria-hidden", "true");
+  field.tabIndex = -1;
+  const style = field.style;
+  style.position = "fixed";
+  style.top = "0";
+  style.left = "0";
+  style.width = "1px";
+  style.height = "1px";
+  style.opacity = "0";
+  style.fontSize = "16px";
+  document.body.append(field);
+  field.focus({ preventScroll: true });
+  window.setTimeout(() => {
+    field.blur();
+    field.remove();
+  }, 50);
+}
+
+// viewHeight is the visual viewport's height, rounded.
+function viewHeight(): number {
+  return Math.round(window.visualViewport?.height ?? -1);
+}
+
+// tryResets is the experiment. When the fault is seen, it flicks focus once
+// with no tap, and if the viewport is still short, once more inside the next
+// tap, where iOS honours a focus as the reader's own. Each attempt is logged
+// with the height that followed.
+function tryResets(log: (line: string) => void): void {
+  let tried = false;
+  const check = (): void => {
+    if (tried || !stuck()) {
+      return;
+    }
+    tried = true;
+    log(`stuck h${viewHeight()}, reset a`);
+    flick();
+    window.setTimeout(() => {
+      log(`after a: h${viewHeight()}`);
+      if (!stuck()) {
+        return;
+      }
+      const onTap = (): void => {
+        document.removeEventListener("touchend", onTap, true);
+        log("reset b on tap");
+        flick();
+        window.setTimeout(() => {
+          log(`after b: h${viewHeight()}`);
+        }, 500);
+      };
+      document.addEventListener("touchend", onTap, true);
+    }, 300);
+  };
+  window.visualViewport?.addEventListener("resize", check);
+  window.setTimeout(check, 1000);
 }
