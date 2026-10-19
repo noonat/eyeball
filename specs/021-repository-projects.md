@@ -1,5 +1,5 @@
 ---
-status: draft
+status: ready
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -12,9 +12,9 @@ Every git worktree an agent asks for review from becomes a project of its own,
 and stays one after the worktree is removed. On 2026-10-18, five of the eleven
 projects in the owner's store had a root that no longer existed, all of them
 worktrees or build copies, and the queue's empty state lists every one with no
-way to clear it. The same rule made `eyeball check` from `~/src/eyeball` refuse
-review 58, approved from the `eyeball-018` worktree, so the same tree needed a
-third approval as review 59.
+way to clear it. The same rule made `eyeball check` from the main checkout
+refuse review 58, approved from a worktree, so the same tree needed a third
+approval as review 59.
 
 This spec makes a project the repository, and a worktree one of its working
 copies. The design is in [docs/product.md](../docs/product.md), under One
