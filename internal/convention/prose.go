@@ -108,7 +108,7 @@ func (p prose) lineAt(offset int) int {
 // proseOf reads a markdown file down to the words this repository wrote.
 //
 // A fenced block is code. A blockquote is quoted material, which covers the
-// annotations backlog writes into a spec when it closes an iteration. An inline
+// annotations punchcard writes into a spec when it closes an iteration. An inline
 // code span names something rather than says it, and a double-quoted span is an
 // example, which is how docs/voice.md states the rule against the first person
 // without breaking it.

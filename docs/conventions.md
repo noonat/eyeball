@@ -417,7 +417,7 @@ without being typed, from a keyboard substitution or from text pasted in.
 
 Both rules read prose only. A fenced block is code, an inline code span names
 something rather than says it, and a blockquote is quoted material, which covers
-the annotations backlog writes into a spec. A double-quoted example is exempt
+the annotations punchcard writes into a spec. A double-quoted example is exempt
 too, which is how `docs/voice.md` states the rule against the first person
 without breaking it.
 
@@ -427,21 +427,21 @@ without breaking it.
 would expect it. A table nobody can predict the order of has to be read start to
 finish.
 
-**Specs are formatted like anything else.** backlog derives a todo's id by
+**Specs are formatted like anything else.** punchcard derives a todo's id by
 hashing its text as wrapped, so moving a line break changes the id and reflowing
 a spec churns every todo it rewraps. Editing a todo changes it too. Indentation
 alone does not: leading whitespace is stripped before hashing. The answer is
-backlog's own: never cache an id, and re-run `backlog spec list` when a command
+punchcard's own: never cache an id, and re-run `punchcard list` when a command
 reports one it cannot find. Nothing outside the spec file holds an id, state
 lives in the checkbox, and a review comment anchors to a line in a frozen
 capture rather than to text still being edited.
 
-**Run `make fmt` after a backlog command.** The in-progress marker `[/]` is not
-a GFM checkbox, which allows only `[ ]` and `[x]`, so oxfmt reads it as ordinary
-text and indents the continuation lines two spaces rather than six. A todo left
-`[/]` fails `make lint` until it is reformatted. Closing an iteration also
-appends its annotation with a blank line oxfmt removes. Both are cosmetic and
-neither touches an id.
+**Run `make fmt` after a punchcard command.** The in-progress marker `[/]` is
+not a GFM checkbox, which allows only `[ ]` and `[x]`, so oxfmt reads it as
+ordinary text and indents the continuation lines two spaces rather than six. A
+todo left `[/]` fails `make lint` until it is reformatted. Closing an iteration
+also appends its annotation with a blank line oxfmt removes. Both are cosmetic
+and neither touches an id.
 
 ## Tearouts
 
@@ -503,18 +503,23 @@ Every message is drafted with the `dev-commit-message` skill and passes its
 gate. The rules below are the ones specific to this repository. The skill holds
 the rest, and the subject format here is the one it defers to.
 
-**Never commit or push without asking.** Approval of one commit is not approval
-of the next. A change to a drafted message is not approval either: redraft, then
-ask again.
+**Enforced by the review gate.** Work goes on a branch cut from `master`:
+`spec/NNN-name` for a spec, `chore/<name>` for anything smaller. A commit there
+needs only a message that passed the `dev-commit-message` gate, and git refuses
+one that did not. The reviewer reads the whole branch once, in eyeball, and
+`master` moves only to the tree that review approved. The merge is
+`git merge --no-ff --no-edit`, so the branch's commits stay together in the
+history.
 
-**Leave the work uncommitted until a human has reviewed it.** A commit records a
-change a person has already read. Asking is not review: a question answered
-before the diff was read approves nothing. Work up to one coherent change, run
-the checks, draft the message, and stop with the change still in the working
-tree, where `git diff` and `git status` show it whole.
+Reading every diff before its commit, with review subagents on top, cost about
+four times as much per spec as reading the branch once before it merges. The
+branch review sees the same changes, in the order they land.
 
-This bounds how large a change gets. A change too large to read in the working
-tree is too large to commit as one.
+This bounds how large a branch gets. A branch too large to read in one review is
+too large to merge as one.
+
+**Judgment.** Never push without asking. The gate sees only the local `master`,
+and a push leaves the machine.
 
 **Subject:** `type(scope): summary`, with a Conventional-Commits type (`feat`,
 `fix`, `refactor`, `chore`, `docs`, `test`, `perf`), imperative, under about 72
@@ -540,23 +545,22 @@ thing. Commits are permanent and those references rot.
 name the claim and say why it was wrong. A silent reversal leaves two
 contradictory statements in the history and no way to tell which one won.
 
-**Ask with a choice, not an open question.** Offer the options: commit it,
-commit the subject alone, do not commit, change something. An open question
-invites a yes that was meant as a comment.
+**Ask with a choice, not an open question.** When the reviewer has to decide
+something, offer the options. An open question invites a yes that was meant as a
+comment.
 
 **Amend only a commit nobody has seen.** Once a commit has been shown, or
 reported as done, it is fixed, and a correction is a new commit. An amend
 replaces the state that was read and leaves no diff between it and the
 correction, so the change cannot be reviewed at all.
 
-One branch per spec, `spec/NNN-name`, cut from the default branch and merged
-back with `--no-ff`.
-
 ## Specs
 
 Non-trivial work is specced as markdown under `specs/NNN-description.md` and
-driven by the `backlog` CLI. Run `backlog doc` for the reference. Loose ideas
-that are not specs yet live in [specs/TODO.md](../specs/TODO.md).
+driven by the `punchcard` CLI. Run `punchcard doc` for the reference. Loose
+ideas that are not specs yet live in [specs/TODO.md](../specs/TODO.md). The
+order a spec is written, reviewed and run in is the `dev-workflow` skill. The
+rules below are the ones specific to this repository.
 
 **Judgment.** Reference a spec that does not exist yet by name, with its number
 in parentheses, as in `capture and diff (004)`. The number is the part that
@@ -576,9 +580,24 @@ reason to change the document. A plan is the opposite: it records what was
 intended, so where the work went differently, the difference belongs with the
 plan.
 
-**Judgment.** Carry the design in the spec, with the rejected alternative named.
-An iteration that omits the reasoning invites the executor to reinvent a design
-its author had already rejected.
+**Judgment.** Design lives in `docs/`, and a spec cites it. What the product
+does goes in product.md, how it is built in architecture.md, and research only
+one spec needs, such as how one API behaves at an edge, in a Markdown file of
+its own under `docs/`. The spec is a short plan, about 100 lines: what is built
+and why in a few paragraphs, the rejected alternative named, what is out of
+scope, the iterations, and a Review section. An iteration that omits the
+reasoning invites the executor to reinvent a design its author had already
+rejected.
+
+Specs here that carried their own design ran up to 2,642 lines, and every review
+round re-read all of it. A design in `docs/` is also corrected when the target
+moves, where a copy inside a spec stays as it was planned. The specs that
+already have a Design section keep it, as the record of what was planned.
+
+**Judgment.** A spec's Review section requests or declines a spec review pass
+and an end-of-branch review pass, each with a one-sentence reason. The reviewer
+decides both when approving the spec. A review pass never stands in for the
+reviewer's approval.
 
 **Judgment.** One iteration does one kind of work, and gates on commands
 wherever a command can prove it. Reserve an ack for what only a person can
