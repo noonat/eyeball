@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -146,7 +147,7 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 			Href:     projectHref(fieldNotes),
 			Project:  "field-notes",
 			Activity: "Idle",
-			Root:     "/srv/field-notes",
+			Root:     q.path("/srv/field-notes"),
 		},
 		{
 			Element:  "a",
@@ -156,6 +157,32 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 			Root:     "~/src/harbor",
 		},
 	}))
+}
+
+// The empty state leaves out a project whose working copies are all gone from
+// disk, and says nothing about having done so. A project whose root is gone
+// but whose worktree is still there stays.
+func TestServer_Surface_emptyQueueLeavesOutGoneProjects(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	q.project(g, t, "/home/a/src/eyeball-018", "eyeball")
+	moved := q.project(g, t, "/home/a/src/harbor", "harbor")
+	_, err := q.store.EnsureWorkingCopy(t.Context(), moved, q.path("/home/a/src/harbor-retry"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(os.MkdirAll(q.path("/home/a/src/harbor-retry"), 0o700)).To(Succeed())
+	g.Expect(os.RemoveAll(q.path("/home/a/src/eyeball-018"))).To(Succeed())
+	g.Expect(os.RemoveAll(q.path("/home/a/src/harbor"))).To(Succeed())
+
+	res := serveSurface(q.s.Surface(), http.MethodGet, "/")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	doc := parse(g, res.Body.String())
+	var roots []string
+	for _, n := range findAll(doc, hasClass("agent")) {
+		roots = append(roots, text(n))
+	}
+	g.Expect(roots).To(Equal([]string{"~/src/eyeball", "~/src/harbor"}))
+	g.Expect(text(doc)).NotTo(ContainSubstring("eyeball-018"))
 }
 
 func TestServer_Surface_queue(t *testing.T) {
@@ -284,18 +311,24 @@ type queueFixture struct {
 	s     *Server
 	store *store.Store
 	at    time.Time
+	// base is a temporary directory every project root is made under, so
+	// the roots exist and the queue lists them. A root reads as a path
+	// outside it, such as /home/a/src/eyeball.
+	base string
 }
 
 // newQueueFixture opens a store and a server sharing one hand-moved clock.
 func newQueueFixture(g *WithT, t *testing.T) *queueFixture {
 	g.THelper()
-	q := &queueFixture{at: time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC)}
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	q := &queueFixture{at: time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC), base: base}
 	clock := func() time.Time { return q.at }
-	st, err := store.OpenWithClock(t.Context(), filepath.Join(t.TempDir(), "eyeball.db"), clock)
+	st, err := store.OpenWithClock(t.Context(), filepath.Join(base, "eyeball.db"), clock)
 	g.Expect(err).NotTo(HaveOccurred())
 	t.Cleanup(func() { _ = st.Close() })
 	q.store = st
-	q.s = New(Config{Store: st, Home: "/home/a", Now: clock})
+	q.s = New(Config{Store: st, Home: q.path("/home/a"), Now: clock})
 	return q
 }
 
@@ -304,10 +337,16 @@ func (q *queueFixture) advance(d time.Duration) {
 	q.at = q.at.Add(d)
 }
 
-// project registers a project.
+// path is where the fixture keeps a root that reads as p.
+func (q *queueFixture) path(p string) string {
+	return filepath.Join(q.base, p)
+}
+
+// project registers a project at a root it makes under the fixture's base.
 func (q *queueFixture) project(g *WithT, t *testing.T, root, name string) int64 {
 	g.THelper()
-	p, err := q.store.EnsureProject(t.Context(), root, name)
+	g.Expect(os.MkdirAll(q.path(root), 0o700)).To(Succeed())
+	p, err := q.store.EnsureProject(t.Context(), q.path(root), name)
 	g.Expect(err).NotTo(HaveOccurred())
 	return p.ID
 }

@@ -358,14 +358,18 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	// leaves nothing to compare against. The round's capture still holds every
 	// file the agent changed, so the page shows those as captured and the
 	// review can still be read and decided.
-	st, err := capture.Inspect(ctx, project.Root, round.BaseCommit, project.InsideCheckout)
+	root, err := s.copyRoot(ctx, round)
+	if err != nil {
+		return reviewPage{}, err
+	}
+	st, err := capture.Inspect(ctx, root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
 		return reviewPage{}, err
 	}
 	var moved []capture.Moved
 	var before, after *capture.Reader
 	if st.Measurable() {
-		if moved, before, after, err = s.compare(ctx, project.Root, review, round, wholeReview); err != nil {
+		if moved, before, after, err = s.compare(ctx, root, review, round, wholeReview); err != nil {
 			return reviewPage{}, err
 		}
 	} else if err := s.captured(ctx, &view, st, review, round); err != nil {
@@ -843,4 +847,11 @@ func (s *Server) handleCardBody(w http.ResponseWriter, r *http.Request) error {
 	}
 	plain(w, http.StatusNotFound, "This round shows no such file.")
 	return nil
+}
+
+// copyRoot is the root of the working copy a round was captured from, which is
+// where everything the round reads live comes from.
+func (s *Server) copyRoot(ctx context.Context, round store.Round) (string, error) {
+	c, err := s.db.s.WorkingCopyByID(ctx, round.WorkingCopyID)
+	return c.Root, err
 }

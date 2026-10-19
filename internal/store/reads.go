@@ -178,8 +178,8 @@ func (s *Store) ReviewsFor(ctx context.Context, projectID int64, agent string) (
 // done once, when it is first seen.
 func (s *Store) ProjectByRoot(ctx context.Context, root string) (Project, error) {
 	var out Project
-	row := s.db.QueryRowContext(ctx, "SELECT id, root, name, inside_checkout FROM projects WHERE root = ?", root)
-	if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
+	row := s.db.QueryRowContext(ctx, projectQuery+" WHERE root = ?", root)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.Repository, &out.InsideCheckout); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Project{}, errors.Wrapf(ErrNotFound, "project at %s", root)
 		}
@@ -233,7 +233,7 @@ func (s *Store) Review(ctx context.Context, reviewID int64) (Review, error) {
 // Round reads one round of a review by its number, which is how it is addressed
 // everywhere outside the store.
 func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, error) {
-	query := `SELECT id, review_id, number, note, base_commit,
+	query := `SELECT id, review_id, number, note, base_commit, working_copy_id,
 			files_changed, lines_added, lines_removed, created
 		FROM rounds WHERE review_id = ? AND number = ?`
 	var (
@@ -247,6 +247,7 @@ func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, e
 		&out.Number,
 		&out.Note,
 		&out.BaseCommit,
+		&out.WorkingCopyID,
 		&out.Files,
 		&out.Added,
 		&out.Removed,
@@ -418,8 +419,8 @@ func (s *Store) Projects(ctx context.Context) ([]ProjectRow, error) {
 // Project reads one project by its id.
 func (s *Store) Project(ctx context.Context, projectID int64) (Project, error) {
 	var out Project
-	row := s.db.QueryRowContext(ctx, "SELECT id, root, name, inside_checkout FROM projects WHERE id = ?", projectID)
-	if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
+	row := s.db.QueryRowContext(ctx, projectQuery+" WHERE id = ?", projectID)
+	if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.Repository, &out.InsideCheckout); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Project{}, errors.Wrapf(ErrNotFound, "project %d", projectID)
 		}

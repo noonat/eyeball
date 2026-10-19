@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -34,7 +35,7 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	project, err := s.db.ProjectByRoot(ctx, root.Resolved)
+	project, err := s.projectAt(ctx, root)
 	if errors.Is(err, store.ErrNotFound) {
 		message := fmt.Sprintf("no review has been opened in %s", root.Resolved)
 		return refuse(http.StatusConflict, api.CodeNotApproved, message, "request a review from the clone that merges, and have it approved")
@@ -88,4 +89,19 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) error {
 	}
 	message := fmt.Sprintf("no approved review in %s has a latest round measured from %s", root.Resolved, base)
 	return refuse(http.StatusConflict, api.CodeNotApproved, message, "request a review from the clone that merges, against this base, and have it approved")
+}
+
+// projectAt finds the project of the working copy at root and registers
+// nothing. A working copy git knows is found by its repository, so an approval
+// asked for in a worktree counts in the main checkout. One named by its marker
+// file is found by its root.
+func (s *Server) projectAt(ctx context.Context, root capture.Root) (store.Project, error) {
+	repo, err := capture.Repository(ctx, root.Resolved)
+	if err != nil {
+		return store.Project{}, err
+	}
+	if repo.Dir == "" {
+		return s.db.ProjectByRoot(ctx, root.Resolved)
+	}
+	return s.db.ProjectByRepository(ctx, repo.Dir)
 }

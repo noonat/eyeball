@@ -133,7 +133,7 @@ func Test_schemaRejectionsAreNotVacuous(t *testing.T) {
 	s := openStore(g, t)
 	ids := seed(g, t, s)
 
-	// Every row in Test_schemaRejectsBadRows is handed all six named arguments,
+	// Every row in Test_schemaRejectsBadRows is handed all seven named arguments,
 	// and most statements reference two or three. This is the same argument set
 	// on a row that must be accepted, so a driver that started refusing unused
 	// named arguments would fail here rather than turning all of those
@@ -144,6 +144,7 @@ func Test_schemaRejectionsAreNotVacuous(t *testing.T) {
 		sql.Named("project", ids.project),
 		sql.Named("review", ids.review),
 		sql.Named("round", ids.round),
+		sql.Named("copy", ids.copy),
 		sql.Named("at", "2026-08-26T04:05:06.000Z"),
 		sql.Named("digest", digest('c')),
 		sql.Named("upper", digest('A')),
@@ -180,6 +181,36 @@ func Test_schemaRejectsBadRows(t *testing.T) {
 			want: "UNIQUE",
 		},
 		{
+			name: "project repository shared with another project",
+			sql:  "UPDATE projects SET repository = '/tmp/project/.git'; INSERT INTO projects (root, name, created, repository) VALUES ('/tmp/other', 'other', :at, '/tmp/project/.git')",
+			want: "UNIQUE",
+		},
+		{
+			name: "project repository that is empty",
+			sql:  "UPDATE projects SET repository = '' WHERE id = :project",
+			want: "CHECK",
+		},
+		{
+			name: "working copy with no root",
+			sql:  "INSERT INTO working_copies (project_id, root, created) VALUES (:project, '', :at)",
+			want: "CHECK",
+		},
+		{
+			name: "working copy root reused",
+			sql:  "INSERT INTO working_copies (project_id, root, created) VALUES (:project, '/tmp/project', :at)",
+			want: "UNIQUE",
+		},
+		{
+			name: "working copy neither main nor not",
+			sql:  "INSERT INTO working_copies (project_id, root, main, created) VALUES (:project, '/tmp/other', 2, :at)",
+			want: "CHECK",
+		},
+		{
+			name: "working copy under a project that does not exist",
+			sql:  "INSERT INTO working_copies (project_id, root, created) VALUES (9999, '/tmp/other', :at)",
+			want: "FOREIGN KEY",
+		},
+		{
 			name: "review with no agent",
 			sql:  "INSERT INTO reviews (project_id, agent, title, state, created, updated) VALUES (:project, '', 'a title', 'open', :at, :at)",
 			want: "CHECK",
@@ -211,18 +242,28 @@ func Test_schemaRejectsBadRows(t *testing.T) {
 		},
 		{
 			name: "round numbered below one",
-			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, created) VALUES (:review, 0, 'look at this', '', :at)",
+			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, working_copy_id, created) VALUES (:review, 0, 'look at this', '', :copy, :at)",
 			want: "CHECK",
 		},
 		{
 			name: "round with no note",
-			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, created) VALUES (:review, 2, '', '', :at)",
+			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, working_copy_id, created) VALUES (:review, 2, '', '', :copy, :at)",
 			want: "CHECK",
 		},
 		{
 			name: "round number repeated in one review",
-			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, created) VALUES (:review, 1, 'look at this', '', :at)",
+			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, working_copy_id, created) VALUES (:review, 1, 'look at this', '', :copy, :at)",
 			want: "UNIQUE",
+		},
+		{
+			name: "round with no working copy",
+			sql:  "INSERT INTO rounds (review_id, number, note, base_commit, created) VALUES (:review, 2, 'look at this', '', :at)",
+			want: "a round needs the working copy it was captured from",
+		},
+		{
+			name: "round whose working copy is cleared",
+			sql:  "UPDATE rounds SET working_copy_id = NULL WHERE id = :round",
+			want: "a round needs the working copy it was captured from",
 		},
 		{
 			name: "captured file with no path",
@@ -357,6 +398,7 @@ func Test_schemaRejectsBadRows(t *testing.T) {
 				sql.Named("project", ids.project),
 				sql.Named("review", ids.review),
 				sql.Named("round", ids.round),
+				sql.Named("copy", ids.copy),
 				sql.Named("at", "2026-08-26T04:05:06.000Z"),
 				sql.Named("digest", digest('c')),
 				sql.Named("upper", digest('A')),
@@ -369,8 +411,8 @@ func Test_schemaRejectsBadRows(t *testing.T) {
 
 // seeded holds the ids of the graph every schema test starts from.
 type seeded struct {
-	// Project, Review and Round are the rows a bad row is attached to.
-	project, review, round int64
+	// Project, Review, Round and Copy are the rows a bad row is attached to.
+	project, review, round, copy int64
 }
 
 // digest is a 64-character digest built from one repeated character, which is
@@ -399,8 +441,8 @@ func openStore(g *WithT, t *testing.T) *Store {
 	return s
 }
 
-// seed inserts one project, one review with a claimed path, and its first
-// round, which is the smallest graph a comment or a captured file can hang off.
+// seed inserts one project, its working copy, one review with a claimed path,
+// and its first round, which is the smallest graph a comment or a captured file can hang off.
 func seed(g *WithT, t *testing.T, s *Store) seeded {
 	g.THelper()
 	at := "2026-08-26T04:05:06.000Z"
@@ -411,6 +453,11 @@ func seed(g *WithT, t *testing.T, s *Store) seeded {
 	ids.project, err = res.LastInsertId()
 	g.Expect(err).NotTo(HaveOccurred())
 
+	res, err = s.db.ExecContext(t.Context(), "INSERT INTO working_copies (project_id, root, created) VALUES (?, '/tmp/project', ?)", ids.project, at)
+	g.Expect(err).NotTo(HaveOccurred())
+	ids.copy, err = res.LastInsertId()
+	g.Expect(err).NotTo(HaveOccurred())
+
 	res, err = s.db.ExecContext(t.Context(), "INSERT INTO reviews (project_id, agent, title, state, created, updated) VALUES (?, 'agent-1', 'a title', 'open', ?, ?)", ids.project, at, at)
 	g.Expect(err).NotTo(HaveOccurred())
 	ids.review, err = res.LastInsertId()
@@ -418,7 +465,7 @@ func seed(g *WithT, t *testing.T, s *Store) seeded {
 
 	exec(g, t, s, "INSERT INTO review_paths (review_id, path) VALUES (?, 'docs')", ids.review)
 
-	res, err = s.db.ExecContext(t.Context(), "INSERT INTO rounds (review_id, number, note, base_commit, created) VALUES (?, 1, 'look at this', '', ?)", ids.review, at)
+	res, err = s.db.ExecContext(t.Context(), "INSERT INTO rounds (review_id, number, note, base_commit, working_copy_id, created) VALUES (?, 1, 'look at this', '', ?, ?)", ids.review, ids.copy, at)
 	g.Expect(err).NotTo(HaveOccurred())
 	ids.round, err = res.LastInsertId()
 	g.Expect(err).NotTo(HaveOccurred())

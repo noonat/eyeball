@@ -76,7 +76,7 @@ func (s *Server) treeView(ctx context.Context, w http.ResponseWriter, at fileAt,
 	if errors.Is(err, capture.ErrNotFound) {
 		// Locate found a directory a moment ago, and the disk no longer has
 		// it.
-		s.notFoundPage(w, refusalNotice(st, err, s.tilde(project.Root)))
+		s.notFoundPage(w, refusalNotice(st, err, s.tilde(st.Root)))
 		return nil
 	}
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *Server) treeView(ctx context.Context, w http.ResponseWriter, at fileAt,
 
 	view := treePage{
 		Name:    project.Name,
-		Notices: []notice{treeNotice(st, now.Listing(), s.tilde(project.Root))},
+		Notices: []notice{treeNotice(st, now.Listing(), s.tilde(st.Root))},
 		Empty:   fmt.Sprintf("Nothing is here as of round %d.", at.round.Number),
 	}
 	if at.path != "" {

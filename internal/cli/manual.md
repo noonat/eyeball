@@ -29,16 +29,24 @@ printed it.
 
 ## The project and the agent
 
-**The project** is the nearest directory above the working directory that holds
-a `.git` entry or a `.eyeball` file. A git worktree is a project of its own. A
-directory outside git becomes a project when a person creates an empty
-`.eyeball` file at its root. eyeball never writes into a project.
+**The working copy** is the nearest directory above the working directory that
+holds a `.git` entry or a `.eyeball` file. **The project** is the git repository
+it belongs to, so a main checkout and its worktrees are one project, and a
+review's paths are claimed only in the working copy it was asked for in. A
+directory outside git becomes a project of its own when a person creates an
+empty `.eyeball` file at its root. eyeball never writes into a project.
 
 **The agent's name** is `--agent`, then the `EYEBALL_AGENT` environment
-variable, then the project root's path with the home directory written as `~`.
+variable, then the working copy's path with the home directory written as `~`.
 An agent acts only on reviews opened under its own name in its own project, so
-keep the name the same across a restart. When a command refuses with
-`wrong_agent`, its fix names the agent that opened the review.
+keep the name the same across a restart. To ask for the next round from another
+working copy of the project, such as the main checkout after working in a
+worktree, pass the name the review was opened under.
+
+A JSON answer's `project.root` is a working copy: the caller's in `status`, and
+the one a review's latest round was captured from in an answer about a review.
+When a command refuses with `wrong_agent`, its fix names the agent that opened
+the review.
 
 **Paths** are relative to the working directory, as a shell reads them. Absolute
 paths work too. A path names a file, or a directory and everything under it. Two
@@ -153,8 +161,8 @@ asking for review.
 It prints one line naming the review, or refuses with one line naming the first
 path that differs. It reads and records nothing, and acknowledges nothing. It
 starts a daemon like any command; with `EYEBALL_NO_START` set, a stopped daemon
-is a refusal. A worktree is a project of its own, so a review opened from one
-does not match a merge made in the main clone.
+is a refusal. A review asked for in a worktree matches a merge made in the main
+checkout, since both are one project.
 
 A round captures working-tree bytes and the check reads committed ones, so a
 repository whose files pass through a git filter, such as LFS or line-ending
@@ -280,7 +288,7 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `daemon_unavailable`   | no daemon could be reached or started                                        |
 | `empty_change_request` | a change request with no comment and no note                                 |
 | `internal`             | a failure inside the daemon; its log says more                               |
-| `invalid_path`         | a path that is empty or names the project root                               |
+| `invalid_path`         | a path that is empty or names the working copy's root                        |
 | `login_failed`         | a tailnet login did not finish, or the tailnet cannot serve                  |
 | `missing`              | a required value was not given                                               |
 | `no_git`               | the project is a git repository and git is not on PATH                       |
@@ -399,7 +407,7 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 ### cat
 
 - `review`, the review's id, and `round`, its latest round's number
-- `path`, the file relative to the project root
+- `path`, the file relative to the working copy's root
 - `digest`, the SHA-256 of the content, and `size`, its length in bytes
 - `content`, the file's bytes as base64
 

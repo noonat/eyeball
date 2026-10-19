@@ -238,8 +238,10 @@ type Surface struct {
 type Project struct {
 	// Name is what the surface displays.
 	Name string `json:"name"`
-	// Root is the project's root with symlinks resolved, which is its
-	// identity.
+	// Root is a working copy of the project with symlinks resolved: the
+	// caller's in a status, and the one a review's latest round was captured
+	// from in a review. A project's main checkout and its worktrees are one
+	// project, so the root says which of them is meant.
 	Root string `json:"root"`
 }
 

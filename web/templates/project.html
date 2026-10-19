@@ -3,18 +3,24 @@
 <div class="where"><span class="agent">{{.Root}}</span></div>
 <h2 class="title">{{.Name}}</h2>
 </div>
-{{range .Notices}}{{template "notice" .}}{{end}}{{if .Open}}<div class="section">
+{{if not .Named}}{{range (index .Copies 0).Notices}}{{template "notice" .}}{{end}}{{end}}{{if .Open}}<div class="section">
 <h2>Open reviews <span class="count">{{.Open}}</span></h2>
 <div class="rows">
 {{range .Waiting}}{{template "waitingrow" .}}{{end}}{{range .Working}}{{template "workingrow" .}}{{end}}</div>
 </div>
-{{end}}<div class="section">
+{{end}}{{if .Named}}{{if .Live}}<div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Everything changed on disk right now, live, in each working copy. Read only: a verdict belongs to a review.</span></div>
+{{end}}{{range .Copies}}<div class="section">
+<h2>{{.Name}}{{with .Count}} <span class="count">{{.}}</span>{{end}}</h2>
+<div class="hint">{{.Hint}}</div>
+{{range .Notices}}{{template "notice" .}}{{end}}{{template "copyrows" .}}</div>
+{{end}}{{else}}{{with index .Copies 0}}<div class="section">
 <h2>Working copy{{with .Count}} <span class="count">{{.}}</span>{{end}}</h2>
 {{if .Rows}}<div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Everything changed on disk right now, live. Read only: a verdict belongs to a review.</span></div>
-{{with .Capped}}{{template "notice" .}}{{end}}<div class="tree">
+{{end}}{{template "copyrows" .}}</div>
+{{end}}{{end}}</div></div>
+{{end}}
+{{define "copyrows"}}{{if .Rows}}{{with .Capped}}{{template "notice" .}}{{end}}<div class="tree">
 {{range .Rows}}<a class="treerow{{if not .Claimed}} inscope{{end}}" href="{{.Href}}"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">{{.Path}}</span>{{if .Claimed}}<span class="pill plain">In review</span>{{else if or .Added .Removed}}<span class="counts">{{with .Added}}<span class="plus">+{{.}}</span>{{end}}{{if and .Added .Removed}} {{end}}{{with .Removed}}<span class="minus">&minus;{{.}}</span>{{end}}</span>{{end}}</a>
 {{end}}</div>
 {{else}}{{with .Empty}}<div class="empty"><span class="headline">{{.Headline}}</span><p>{{.Text}}</p></div>
-{{end}}{{end}}</div>
-</div></div>
-{{end}}
+{{end}}{{end}}{{end}}

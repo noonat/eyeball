@@ -195,6 +195,63 @@ func Test_migrateLeavesAnExistingProjectUnflagged(t *testing.T) {
 	g.Expect(flag).To(BeZero())
 }
 
+// 0010 makes every existing project a working copy at its own root, and points
+// each round at its review's project's copy. The ids are not consecutive, so a
+// migration that numbered copies afresh would point rounds at the wrong root.
+func Test_migrateMovesEachProjectIntoAWorkingCopy(t *testing.T) {
+	g := NewWithT(t)
+	db := openDB(g, t)
+	all, err := readMigrations(migrationFS())
+	g.Expect(err).NotTo(HaveOccurred())
+	before := fstest.MapFS{}
+	for _, m := range all {
+		if m.Name < "0010" {
+			before[m.Name] = &fstest.MapFile{Data: []byte(m.SQL)}
+		}
+	}
+	g.Expect(migrate(t.Context(), db, before, fixedClock())).To(Succeed())
+	at := "2026-08-26T04:05:06.000Z"
+	rows := []string{
+		"INSERT INTO projects (id, root, name, created) VALUES (3, '/tmp/harbor', 'harbor', '" + at + "')",
+		"INSERT INTO projects (id, root, name, created) VALUES (8, '/tmp/harbor-retry', 'harbor', '" + at + "')",
+		"INSERT INTO reviews (id, project_id, agent, title, state, created, updated) VALUES (1, 8, 'a', 't', 'open', '" + at + "', '" + at + "')",
+		"INSERT INTO reviews (id, project_id, agent, title, state, created, updated) VALUES (2, 3, 'a', 't', 'open', '" + at + "', '" + at + "')",
+		"INSERT INTO rounds (id, review_id, number, note, base_commit, created) VALUES (1, 1, 1, 'n', '', '" + at + "')",
+		"INSERT INTO rounds (id, review_id, number, note, base_commit, created) VALUES (2, 1, 2, 'n', '', '" + at + "')",
+		"INSERT INTO rounds (id, review_id, number, note, base_commit, created) VALUES (3, 2, 1, 'n', '', '" + at + "')",
+	}
+	for _, q := range rows {
+		_, err = db.ExecContext(t.Context(), q)
+		g.Expect(err).NotTo(HaveOccurred(), q)
+	}
+	g.Expect(migrate(t.Context(), db, migrationFS(), fixedClock())).To(Succeed())
+
+	query := `SELECT rd.id, c.root, p.root, p.repository IS NULL, c.main
+		FROM rounds rd
+		JOIN working_copies c ON c.id = rd.working_copy_id
+		JOIN reviews r ON r.id = rd.review_id
+		JOIN projects p ON p.id = r.project_id
+		ORDER BY rd.id`
+	found, err := db.QueryContext(t.Context(), query)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = found.Close() }()
+	var got []string
+	for found.Next() {
+		var (
+			id                int64
+			copyRoot, project string
+			noRepo, main      bool
+		)
+		g.Expect(found.Scan(&id, &copyRoot, &project, &noRepo, &main)).To(Succeed())
+		g.Expect(copyRoot).To(Equal(project), "round %d", id)
+		g.Expect(noRepo).To(BeTrue(), "a repository needs git, which the migration cannot run")
+		g.Expect(main).To(BeFalse(), "whether a copy is a main checkout needs git too")
+		got = append(got, copyRoot)
+	}
+	g.Expect(found.Err()).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal([]string{"/tmp/harbor-retry", "/tmp/harbor-retry", "/tmp/harbor"}))
+}
+
 func Test_migrateRefusesAChangedFile(t *testing.T) {
 	g := NewWithT(t)
 	db := openDB(g, t)
