@@ -177,3 +177,9 @@ func (d *db) SetProjectRoot(ctx context.Context, projectID int64, root string) e
 func (d *db) MergeProjects(ctx context.Context, from, into int64) error {
 	return d.publish(d.s.MergeProjects(ctx, from, into))
 }
+
+// RetireRoot moves an old working copy and project off a root that is now
+// something else, then publishes, since the old project leaves the queue.
+func (d *db) RetireRoot(ctx context.Context, root string) error {
+	return d.publish(d.s.RetireRoot(ctx, root))
+}

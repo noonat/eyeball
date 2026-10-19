@@ -250,3 +250,30 @@ since its sentence about agents at work says what eyeball cannot know.
 > - `make check` — 5.8s
 > - `go test -race ./...` — 45.2s
 > - `go test -count=1 -tags browser ./internal/server` — 33.9s
+
+## End-of-branch review pass
+
+One subagent at high effort read the branch's diff on 2026-10-18 and re-ran its
+claims in a scratch copy. It found eight things. Each fix below has a test that
+fails with the fix removed.
+
+- A directory recreated at a marker project's root as a worktree merged the
+  marker project's reviews into the repository's project. A project git was
+  never asked about cannot be told from a marker project, since neither has a
+  repository. Fixed by the owner's choice: the old working copy and project are
+  retired to a root not on disk and keep their reviews, and nothing is merged on
+  that path. This reverses iteration 3's todo that a recreated root merges its
+  old project, and its departure that refused a different repository.
+- A root once a worktree of one repository, made again as another repository,
+  failed every request as an internal error. The same retiring fixes it.
+- The Marked and Plain links on a worktree's file page were 404s, since the
+  address already carried `?copy=` and a second `?` was added. The test had
+  built the address by hand rather than following the page's link.
+- The first requests from a main checkout and its worktree, arriving together,
+  failed one and left two projects. `SetRepository` now refuses a repository
+  another project holds, in the same transaction, and the server merges the
+  project it just registered into the holder.
+- A worktree left alone when its main checkout was gone was drawn as the
+  project's root. It is now named as a worktree.
+- The `--agent` help, the manual's `project.root`, and two claims that every old
+  link opens the same file were corrected.

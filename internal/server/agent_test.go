@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -468,44 +469,6 @@ func TestServer_marksAMarkerProjectInsideACheckout(t *testing.T) {
 	}
 }
 
-// A directory made again at the root of a removed working copy belongs to that
-// copy's old project, so the old project is merged into the one git now names.
-func TestServer_mergesTheProjectOfARecreatedRoot(t *testing.T) {
-	g := NewWithT(t)
-	f := newFixture(g, t)
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	g.Expect(err).NotTo(HaveOccurred())
-	main := gitRepo(g, filepath.Join(dir, "harbor"))
-	worktree := filepath.Join(dir, "harbor-retry")
-
-	// The old project at the worktree's root was written before projects
-	// had repositories, and its directory was gone when the daemon started.
-	old, err := f.store.EnsureProject(t.Context(), worktree, "harbor")
-	g.Expect(err).NotTo(HaveOccurred())
-	_, _, err = f.store.OpenReview(t.Context(), store.NewReview{
-		ProjectID: old.ID,
-		Agent:     "a",
-		Title:     "old work",
-		Paths:     []string{"a.txt"},
-		Request:   store.Request{Note: "old", Files: []store.File{{Path: "a.txt"}}},
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
-
-	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
-	write(g, worktree, "b.txt", "new\n")
-	got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"b.txt"}, Note: "again"})
-
-	review, err := f.store.Review(t.Context(), got.Review.ID)
-	g.Expect(err).NotTo(HaveOccurred())
-	rows, err := f.store.ReviewsIn(t.Context(), review.ProjectID)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rows).To(HaveLen(3), "the old project's review moved into the repository's project")
-	_, err = f.store.Project(t.Context(), old.ID)
-	g.Expect(err).To(MatchError(store.ErrNotFound))
-}
-
 func TestServer_namesTheAgentFromTheCallersHome(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -749,6 +712,97 @@ func TestServer_reply(t *testing.T) {
 	f.ok(g, t, http.MethodPost, path, api.ReplyBody{Caller: me, Body: "done"}, &got)
 	g.Expect(got.Comment.Reply).To(Equal("done"))
 	g.Expect(got.Comment.ID).To(Equal(c.ID))
+}
+
+// A root eyeball knows, removed and made again as something else, is retired:
+// its old project keeps its reviews and leaves the queue, and the directory now
+// there registers as what git says it is. Nothing is merged, since a project
+// git was never asked about cannot be told from a marker project.
+func TestServer_retiresAReusedRoot(t *testing.T) {
+	dir := func(g *WithT, t *testing.T) string {
+		d, err := filepath.EvalSymlinks(t.TempDir())
+		g.Expect(err).NotTo(HaveOccurred())
+		return d
+	}
+	// reviewIn opens a review in a project straight through the store.
+	reviewIn := func(g *WithT, t *testing.T, f *fixture, projectID int64) int64 {
+		review, _, err := f.store.OpenReview(t.Context(), store.NewReview{
+			ProjectID: projectID,
+			Agent:     "a",
+			Title:     "old work",
+			Paths:     []string{"a.txt"},
+			Request:   store.Request{Note: "old", Files: []store.File{{Path: "a.txt"}}},
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+		return review.ID
+	}
+	// projectOf reads the project a review belongs to.
+	projectOf := func(g *WithT, t *testing.T, f *fixture, reviewID int64) store.Project {
+		review, err := f.store.Review(t.Context(), reviewID)
+		g.Expect(err).NotTo(HaveOccurred())
+		p, err := f.store.Project(t.Context(), review.ProjectID)
+		g.Expect(err).NotTo(HaveOccurred())
+		return p
+	}
+
+	t.Run("an old project is not merged into the repository", func(t *testing.T) {
+		g := NewWithT(t)
+		f := newFixture(g, t)
+		d := dir(g, t)
+		main := gitRepo(g, filepath.Join(d, "harbor"))
+		f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
+		worktree := filepath.Join(d, "harbor-retry")
+		old, err := f.store.EnsureProject(t.Context(), worktree, "harbor")
+		g.Expect(err).NotTo(HaveOccurred())
+		oldReview := reviewIn(g, t, f, old.ID)
+
+		git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+		write(g, worktree, "b.txt", "new\n")
+		got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"b.txt"}, Note: "again"})
+
+		g.Expect(projectOf(g, t, f, got.Review.ID).Root).To(Equal(main))
+		kept := projectOf(g, t, f, oldReview)
+		g.Expect(kept.ID).To(Equal(old.ID), "the old review stays where it was")
+		g.Expect(kept.Root).NotTo(Equal(worktree), "its root is retired, so the queue leaves it out")
+	})
+
+	t.Run("a marker project's root made again as a worktree", func(t *testing.T) {
+		g := NewWithT(t)
+		f := newFixture(g, t)
+		d := dir(g, t)
+		notes := filepath.Join(d, "notes")
+		write(g, notes, ".eyeball", "")
+		write(g, notes, "a.txt", "one\n")
+		marked := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: notes, Agent: "a"}, Paths: []string{"a.txt"}, Note: "notes"})
+		g.Expect(os.RemoveAll(notes)).To(Succeed())
+
+		main := gitRepo(g, filepath.Join(d, "harbor"))
+		f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
+		git(g, main, "worktree", "add", "--quiet", "-b", "notes", notes)
+		write(g, notes, "b.txt", "new\n")
+		got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: notes, Agent: "a"}, Paths: []string{"b.txt"}, Note: "worktree"})
+
+		g.Expect(projectOf(g, t, f, got.Review.ID).Root).To(Equal(main))
+		g.Expect(projectOf(g, t, f, marked.Review.ID).Name).To(Equal("notes"), "the marker project's review was not moved into harbor")
+	})
+
+	t.Run("a removed worktree's root made again as another repository", func(t *testing.T) {
+		g := NewWithT(t)
+		f := newFixture(g, t)
+		d := dir(g, t)
+		main := gitRepo(g, filepath.Join(d, "harbor"))
+		worktree := filepath.Join(d, "wt")
+		git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+		write(g, worktree, "a.txt", "one\nretry\n")
+		first := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"a.txt"}, Note: "retry"})
+		git(g, main, "worktree", "remove", "--force", worktree)
+
+		other := gitRepo(g, worktree)
+		got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: other, Agent: "a"}, Paths: []string{"a.txt"}, Note: "another repository"})
+
+		g.Expect(projectOf(g, t, f, got.Review.ID).Repository).To(Equal(filepath.Join(other, ".git")))
+		g.Expect(projectOf(g, t, f, first.Review.ID).Repository).To(Equal(filepath.Join(main, ".git")), "harbor keeps its review")
+	})
 }
 
 func TestServer_seesAVerdictBetweenReadAndBlock(t *testing.T) {

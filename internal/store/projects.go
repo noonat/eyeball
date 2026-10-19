@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/cockroachdb/errors"
 )
@@ -143,4 +144,34 @@ func requireRootIn(ctx context.Context, tx *sql.Tx, projectID int64, root string
 		return errors.Wrapf(ErrWrongProject, "%s belongs to project %d, not %d", root, owner, projectID)
 	}
 	return nil
+}
+
+// RetireRoot moves the working copy at root, and a project rooted there, to a
+// name that is not on disk, so the directory now at root can register as a
+// working copy of something else. It is for a directory removed and made again
+// as another repository, or as a marker directory, or as git where a marker
+// directory was. The old project keeps its reviews, which read their captures,
+// and the queue leaves it out once nothing of it is on disk.
+//
+// Merging the old project into the new one was rejected: a project git was
+// never asked about cannot be told from a marker project, so a merge would file
+// one repository's reviews under another's.
+func (s *Store) RetireRoot(ctx context.Context, root string) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		var id int64
+		err := tx.QueryRowContext(ctx, "SELECT id FROM working_copies WHERE root = ?", root).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			id = 0
+		} else if err != nil {
+			return errors.Wrap(err, "read the working copy to retire")
+		}
+		retired := fmt.Sprintf("%s (retired %d)", root, id)
+		if id != 0 {
+			if _, err := tx.ExecContext(ctx, "UPDATE working_copies SET root = ? WHERE id = ?", retired, id); err != nil {
+				return errors.Wrap(err, "retire the working copy")
+			}
+		}
+		_, err = tx.ExecContext(ctx, "UPDATE projects SET root = ? WHERE root = ?", retired, root)
+		return errors.Wrap(err, "retire the project's root")
+	})
 }

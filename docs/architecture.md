@@ -343,12 +343,23 @@ from a new worktree cannot find its main checkout's old row: that needs the
 repository the row does not have yet. The fill finishes before the agent socket
 accepts a request, so no request sees a half-filled store.
 
-**A directory recreated at a gone root is merged when it is next seen.** The
-gone project keeps its working copy row, so a request from a new checkout at
-that path finds a working copy whose project is not its repository's. The
-request merges the old project into the repository's, as the startup fill would
-have. This is not the lazy fill rejected above: git can answer for the new
-directory, and the row it needs is found by root.
+**A root made again as something else retires what was there.** A directory
+removed and made again at a root eyeball knows, as another repository's working
+copy, as a marker directory where git was, or as git where a marker directory
+was, finds an old working copy or project at that root. The old working copy and
+any project rooted there are renamed to a root that is not on disk,
+`<root> (retired <id>)`, so the old project keeps its reviews, which read their
+captures, and the queue leaves it out. The directory then registers as what git
+says it is.
+
+This corrects an earlier rule, that such a directory merges the old project into
+its repository's. A project git was never asked about has no repository, and so
+does a marker project, so the store cannot tell them apart, and a merge filed a
+marker project's reviews under a repository it never belonged to. A root reused
+by another repository was refused with an error, which reached the agent as a
+failure inside the daemon on every request. Merging stays where the repository
+is known to be the same: the startup fill, and two projects registered for one
+repository at the same moment.
 
 **SQLite cannot add the columns as constraints.** Measured on 2026-10-18 with
 foreign keys on: `ADD COLUMN` refuses a `REFERENCES` column with a non-null

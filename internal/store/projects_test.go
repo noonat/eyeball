@@ -62,6 +62,34 @@ func TestStore_MergeProjects_mainCheckoutBecomesTheRoot(t *testing.T) {
 	g.Expect(merged.Root).To(Equal(main.Root))
 }
 
+func TestStore_RetireRoot(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	p := ensureProject(g, t, s)
+	review, _ := openReview(g, t, s, p.ID, "docs/a.md")
+
+	g.Expect(s.RetireRoot(t.Context(), p.Root)).To(Succeed())
+
+	retired, err := s.Project(t.Context(), p.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(retired.Root).To(HavePrefix(p.Root + " (retired "))
+	copies, err := s.WorkingCopies(t.Context(), p.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(copies).To(HaveLen(1))
+	g.Expect(copies[0].Root).To(Equal(retired.Root))
+	rows, err := s.ReviewsIn(t.Context(), p.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rows).To(HaveLen(1), "the old project keeps its review")
+	g.Expect(rows[0].ReviewID).To(Equal(review.ID))
+
+	// The root is free for a new project, and retiring a root nothing holds
+	// changes nothing.
+	again, err := s.EnsureProject(t.Context(), p.Root, "again")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(again.ID).NotTo(Equal(p.ID))
+	g.Expect(s.RetireRoot(t.Context(), "/tmp/nothing")).To(Succeed())
+}
+
 func TestStore_SetProjectRoot(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)

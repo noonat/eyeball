@@ -72,10 +72,14 @@ func (s *Server) project(ctx context.Context, root capture.Root) (store.Project,
 		return store.Project{}, store.WorkingCopy{}, err
 	}
 	if copy.ProjectID != project.ID {
-		if err := s.adopt(ctx, copy, project); err != nil {
+		// The root was a working copy of another project: a directory
+		// removed and made again as part of this one.
+		if err := s.db.RetireRoot(ctx, root.Resolved); err != nil {
 			return store.Project{}, store.WorkingCopy{}, err
 		}
-		copy.ProjectID = project.ID
+		if copy, err = s.db.EnsureWorkingCopy(ctx, project.ID, root.Resolved); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
 	}
 	if !repo.Main {
 		return project, copy, nil
@@ -96,9 +100,21 @@ func (s *Server) project(ctx context.Context, root capture.Root) (store.Project,
 }
 
 // projectOf finds or registers the project of a working copy.
+//
+// A project already rooted where the caller is, that git does not name as this
+// one, belonged to a directory removed and made again as something else: a
+// marker directory that is now git, a git one that is now a marker directory,
+// or another repository's. It is retired, keeping its reviews, and this one
+// registers in its place.
 func (s *Server) projectOf(ctx context.Context, root capture.Root, repo capture.Repo) (store.Project, error) {
 	if repo.Dir == "" {
 		project, err := s.db.ProjectByRoot(ctx, root.Resolved)
+		if err == nil && project.Repository != "" {
+			if err := s.db.RetireRoot(ctx, root.Resolved); err != nil {
+				return store.Project{}, err
+			}
+			err = store.ErrNotFound
+		}
 		if errors.Is(err, store.ErrNotFound) {
 			project, err = s.register(ctx, root)
 		}
@@ -111,11 +127,15 @@ func (s *Server) projectOf(ctx context.Context, root capture.Root, repo capture.
 	if !errors.Is(err, store.ErrNotFound) {
 		return project, err
 	}
-	if project, err = s.register(ctx, root); err != nil {
+	if _, err := s.db.ProjectByRoot(ctx, root.Resolved); err == nil {
+		if err := s.db.RetireRoot(ctx, root.Resolved); err != nil {
+			return store.Project{}, err
+		}
+	} else if !errors.Is(err, store.ErrNotFound) {
 		return store.Project{}, err
 	}
-	if project.Repository != "" && project.Repository != repo.Dir {
-		return store.Project{}, errors.Newf("the project at %s belongs to the repository %s, and git now says %s", root.Resolved, project.Repository, repo.Dir)
+	if project, err = s.register(ctx, root); err != nil {
+		return store.Project{}, err
 	}
 	err = s.db.SetRepository(ctx, project.ID, repo.Dir)
 	if errors.Is(err, store.ErrRepositoryTaken) {
@@ -132,23 +152,6 @@ func (s *Server) projectOf(ctx context.Context, root capture.Root, repo capture.
 	}
 	project.Repository = repo.Dir
 	return project, nil
-}
-
-// adopt brings a working copy found under another project into project. It is
-// a directory made again at the root of one that was removed, so its old
-// project is the same repository and is merged in. An old project that git was
-// never asked about is taken to be the same repository, since nothing on disk
-// can say otherwise. One that names a different repository is refused rather
-// than filed under the wrong project.
-func (s *Server) adopt(ctx context.Context, copy store.WorkingCopy, project store.Project) error {
-	old, err := s.db.Project(ctx, copy.ProjectID)
-	if err != nil {
-		return err
-	}
-	if old.Repository != "" && old.Repository != project.Repository {
-		return errors.Newf("%s was a working copy of the repository %s, and git now says %s", copy.Root, old.Repository, project.Repository)
-	}
-	return s.db.MergeProjects(ctx, old.ID, project.ID)
 }
 
 // register stores a project seen for the first time.
