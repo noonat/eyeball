@@ -984,6 +984,43 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue())
 }
 
+// A visual viewport a keyboard's height short of the window, with nothing
+// focused, is the fault iOS leaves after the app opens over another app's
+// keyboard. The page answers the next tap by focusing and blurring a hidden
+// field, which has iOS show a keyboard and take it away, and stops after two.
+// Chromium has no such fault, so the test makes the viewport report it.
+func TestServer_Surface_browserViewport(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "short"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	// Counted as the hidden field arrives. A headless page without focus
+	// fires no focus events.
+	b.eval(g, `window.flicks = 0; new MutationObserver((records) => { for (const r of records) for (const n of r.addedNodes) if (n.dataset && "flick" in n.dataset) window.flicks++ }).observe(document.body, {childList: true})`)
+	tap := `document.dispatchEvent(new Event("touchend"))`
+	resize := `window.visualViewport.dispatchEvent(new Event("resize"))`
+	b.eval(g, tap)
+	g.Expect(b.eval(g, `window.flicks`)).To(BeEquivalentTo(0), "a whole viewport is left alone")
+
+	b.eval(g, `Object.defineProperty(window.visualViewport, "height", {configurable: true, get: () => window.innerHeight - 318})`)
+	b.eval(g, resize)
+	g.Expect(b.eval(g, `window.flicks`)).To(BeEquivalentTo(0), "nothing is focused before a tap")
+	// Tap and resize every 100ms, as a reader tapping through a keyboard
+	// that comes and goes. A reset is given three seconds to settle, so the
+	// second comes after that, and there is no third.
+	b.eval(g, `window.tapping = setInterval(() => { `+tap+`; `+resize+` }, 100)`)
+	g.Expect(b.eval(g, `new Promise((done) => setTimeout(() => done(window.flicks), 1000))`)).To(BeEquivalentTo(1), "one reset while the first settles")
+	b.waitFor(g, `window.flicks === 2`)
+	g.Expect(b.eval(g, `new Promise((done) => setTimeout(() => done(window.flicks), 3500))`)).To(BeEquivalentTo(2), "two tries and no more")
+	b.eval(g, `clearInterval(window.tapping)`)
+	g.Expect(b.eval(g, `document.querySelector("[data-flick]") === null`)).To(BeTrue(), "the hidden field is removed")
+}
+
 // The page registers its service worker, scoped to the whole surface, which
 // push needs.
 func TestServer_Surface_browserWorker(t *testing.T) {

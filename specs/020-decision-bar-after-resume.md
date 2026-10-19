@@ -94,9 +94,9 @@ required_acks:
 With the daemon running this branch's build, the owner follows the five steps
 above in the installed app and sends screenshots:
 
-- [/] The readout with the bar misbehaving, at the top of the page and scrolled
-  halfway down, saying whether a verdict note was typed
-- [ ] The readout on the same review, reached again from the queue, saying
+- [x] The readout with the bar misbehaving, at the top of the page and scrolled
+      halfway down, saying whether a verdict note was typed
+- [x] The readout on the same review, reached again from the queue, saying
       whether the bar sits at the bottom there
 
 **Readings so far, iteration 2.** Taken by the owner on 2026-10-18 on test
@@ -140,6 +140,21 @@ once, and if the viewport is still short, does the same inside the reader's next
 tap, where iOS treats the focus as the reader's own. The readout logs each
 attempt and the height that followed.
 
+The experiment's capture, the same night, names the trigger and the fix. The
+owner came from a terminal app with its keyboard open and tapped a notification.
+The page loaded 318 short with nothing focused, a keyboard without the bar iOS
+adds over a web field, which is the other app's keyboard carried into this one.
+The focus with no tap changed nothing. The focus inside the next tap brought a
+real keyboard up, to 508, and once it went away the viewport was 894 again, 2.8
+seconds after the tap.
+
+> **Completed** 2026-10-19 07:39 UTC
+>
+> - acks: readout-read
+> - `make check` — 5.8s
+> - `go test -race ./...` — 1.7s
+> - `go test -count=1 -tags browser ./internal/server` — 32.9s
+
 ## Iteration 3: The fix
 
 The readout picks the fix. The two readings expected, and their fixes:
@@ -154,11 +169,37 @@ The readout picks the fix. The two readings expected, and their fixes:
 A reading that matches neither goes to the owner as a question before any fix is
 written.
 
-- [ ] The fix the readout picked, with a comment naming the five steps and the
+- [x] The fix the readout picked, with a comment naming the five steps and the
       readout that showed the cause
-- [ ] A browser test that fails with the fix removed, or a departure saying why
+- [x] A browser test that fails with the fix removed, or a departure saying why
       Chromium cannot show the condition
-- [ ] The readout script removed, and nothing left of it in the tree
+- [x] The readout script removed, and nothing left of it in the tree
+
+**Departures, iteration 3.**
+
+- The readout picked neither expected fix. The fault is iOS loading the page
+  with another app's keyboard height taken off the viewport, with nothing
+  focused, so neither waiting to reload nor laying the bar out again would have
+  helped. The fix is the one the experiment showed working: on the next tap, a
+  hidden field is focused and blurred, which has iOS show a keyboard and take it
+  away. It lives in `web/ts/viewport.ts`, tries at most twice per page, and
+  waits three seconds after each try before judging again, since the keyboard a
+  try brings up took 2.8 seconds to go on the phone.
+- The cost is a keyboard that flickers up once, on the first tap after the
+  fault. A focus with no tap would have had none, and the phone showed it does
+  nothing.
+- The browser test makes the visual viewport report the fault, since Chromium
+  has none, and counts the hidden field arriving rather than focus events, which
+  a headless page without focus does not fire. It fails with the fix switched
+  off and with the settling wait removed.
+- The browser suite failed once while closing iteration 2, and passed the four
+  runs after. Which test failed was not captured, as in 016 and 017.
+
+> **Completed** 2026-10-19 07:44 UTC
+>
+> - `make check` — 5.8s
+> - `go test -race ./...` — 43.0s
+> - `go test -count=1 -tags browser ./internal/server` — 40.1s
 
 ## Iteration 4: On the phone
 
