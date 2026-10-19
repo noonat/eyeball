@@ -241,6 +241,36 @@ func TestServer_asksForANextRound(t *testing.T) {
 	g.Expect(got.Size).To(Equal(api.Size{Files: 1, Added: 1, Removed: 2}))
 }
 
+// An agent that worked in a worktree can ask for the next round from the main
+// checkout, where the merge happens, by passing the name it opened the review
+// under. The round is captured there and reads its context from there.
+func TestServer_asksForANextRoundFromAnotherWorkingCopy(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	main := gitRepo(g, filepath.Join(dir, "harbor"))
+	git(g, main, "checkout", "--quiet", "--", "a.txt")
+	worktree := filepath.Join(dir, "harbor-retry")
+	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+	write(g, worktree, "a.txt", "one\nretry\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"a.txt"}, Note: "retry"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "merge it")
+
+	// Without the name, the agent in the main checkout is another agent.
+	_, refusal := f.refused(g, t, http.MethodPost, "/agent/requests", api.RequestBody{Caller: api.Caller{Dir: main}, Review: id, Note: "merged"})
+	g.Expect(refusal.Code).To(Equal(api.CodeWrongAgent))
+
+	write(g, main, "a.txt", "one\nretry\n")
+	got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Review: id, Note: "merged"})
+	g.Expect(got.Review.Round).To(Equal(2))
+	round, err := f.store.Round(t.Context(), id, 2)
+	g.Expect(err).NotTo(HaveOccurred())
+	c, err := f.store.WorkingCopyByID(t.Context(), round.WorkingCopyID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(c.Root).To(Equal(main))
+}
+
 // A main checkout and its worktree are one project, and each round records the
 // working copy it came from. A bare clone's worktree and a submodule are
 // repositories of their own.

@@ -228,7 +228,11 @@ func (s *Server) quote(ctx context.Context, review store.Review, round store.Rou
 	if err != nil {
 		return "", "", err
 	}
-	st, err := capture.Inspect(ctx, project.Root, round.BaseCommit, project.InsideCheckout)
+	root, err := s.copyRoot(ctx, round)
+	if err != nil {
+		return "", "", err
+	}
+	st, err := capture.Inspect(ctx, root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
 		return "", "", err
 	}

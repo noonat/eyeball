@@ -277,7 +277,11 @@ func (s *Server) apiReview(ctx context.Context, review store.Review) (api.Review
 	if err != nil {
 		return api.Review{}, err
 	}
-	_, decision, err := s.latest(ctx, review)
+	last, decision, err := s.latest(ctx, review)
+	if err != nil {
+		return api.Review{}, err
+	}
+	root, err := s.copyRoot(ctx, last)
 	if err != nil {
 		return api.Review{}, err
 	}
@@ -288,7 +292,7 @@ func (s *Server) apiReview(ctx context.Context, review store.Review) (api.Review
 		State:   agentState(review, decision),
 		Round:   review.LatestRound,
 		Paths:   review.Paths,
-		Project: api.Project{Name: project.Name, Root: project.Root},
+		Project: api.Project{Name: project.Name, Root: root},
 	}, nil
 }
 
@@ -875,7 +879,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) error {
 	}
 	result := api.StatusResult{
 		Daemon:  s.daemonInfo(),
-		Project: api.Project{Name: c.project.Name, Root: c.project.Root},
+		Project: api.Project{Name: c.project.Name, Root: c.copy.Root},
 		Agent:   c.agent,
 		Reviews: []api.StatusRow{},
 	}

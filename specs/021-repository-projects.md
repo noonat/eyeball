@@ -157,15 +157,38 @@ name, which is how the second todo's heading was drawn.
 
 ## Iteration 4: Reading the round's working copy
 
-- [ ] The review page, the file page, the raw route and the decision reading the
+- [x] The review page, the file page, the raw route and the decision reading the
       round's working copy where they read `project.Root` today
-- [ ] `ownReview` accepting a round from another working copy of the project,
+- [x] `ownReview` accepting a round from another working copy of the project,
       with a test that the next round reads the new working copy
-- [ ] `eyeball check` and `eyeball cat` finding the project by repository, with
+- [x] `eyeball check` and `eyeball cat` finding the project by repository, with
       a test that an approval asked for in a worktree passes `check` run from
       the main checkout
-- [ ] `api.Project.Root` documented as the caller's working copy, in
+- [x] `api.Project.Root` documented as the caller's working copy, in
       `eyeball     doc` and the CLI tests that print it
+
+**Departures, iteration 4.**
+
+- `api.Project.Root` is the caller's working copy in a status, as planned, and
+  in a review it is the working copy the review's latest round came from, since
+  `show` and `wait` answer about a review from any working copy. The CLI tests
+  needed no change: their fixtures have one working copy, where the two agree.
+- The file page's and the tree's notices name the root they read, from the
+  inspection, rather than the project's root.
+- One test covers the live reads, on the file page: a file written in a worktree
+  after its round, in a project whose root is the main checkout. The review
+  page, the raw route and the verdict read through the same `copyRoot`. The
+  first version wrote the file before the round, which captured it, so the page
+  served the capture and the test passed against the old code. Each test in this
+  iteration was checked by putting the old lookup back.
+- The manual's three passages saying a worktree is its own project are
+  rewritten, and it says how to ask for a round from another working copy.
+
+> **Completed** 2026-10-19 03:43 UTC
+>
+> - `make check` — 6.5s
+> - `go test -race ./...` — 44.6s
+> - `go test -count=1 -tags browser ./internal/server` — 35.6s
 
 ## Iteration 5: The surface
 
