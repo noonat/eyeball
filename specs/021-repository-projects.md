@@ -57,8 +57,19 @@ required_acks:
       each working copy as its own section with its changed files
 - [x] project.html drawing a worktree whose working copy is clean, and the root
       named in each section's heading as the topbar names it today
-- [ ] The tearout judged on the phone by the owner, with any change asked for
+- [x] The tearout judged on the phone by the owner, with any change asked for
       made before the ack
+
+Approved by the owner on 2026-10-18 with no changes. Each working copy is named
+by its directory, with "Main checkout" or "Worktree" and its path under the
+name, which is how the second todo's heading was drawn.
+
+> **Completed** 2026-10-19 02:51 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 5.6s
+> - `go test -race ./...` — 36.6s
+> - `go test -count=1 -tags browser ./internal/server` — 32.4s
 
 ## Iteration 2: Working copies in the store
 
