@@ -26,6 +26,19 @@ requirement in either document that none of them names is a gap in this list.
 
 ## Unscheduled
 
+- [ ] tooling: move finished specs into `specs/done/` with `git mv`, and add
+      `specs/done/AGENTS.md` reading: "Specs in this directory are finished.
+      Each is the record of what was planned and what changed while it ran. None
+      describes the current design: cite `docs/` for that. Do not edit a
+      finished spec except to add a correction or an outcome note." The spec
+      tool walks subdirectories but lists only files whose front matter it
+      recognizes, so compare its list before and after the move. A moved spec's
+      ids change, which is harmless once it is finished. A new spec is numbered
+      after the highest in either directory, and links to moved paths are fixed.
+      It waits on a change to the workflow these specs follow.
+- [ ] docs: one line in AGENTS.md saying the repository is public, so specs,
+      docs and commit messages describe callers generically, such as "a review
+      gate", and name no private repository or tool.
 - [ ] design: markdown rendered as a diff, the owner's words. What form is open:
       today a changed document renders with changed passages marked.
 - [ ] design: show that the page is refreshing when the installed app comes back

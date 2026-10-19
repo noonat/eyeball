@@ -83,7 +83,7 @@ required_acks:
 ```
 
 With the daemon running this branch's build, the owner follows the five steps
-above in the installed app and sends screenshots through dispatch:
+above in the installed app and sends screenshots:
 
 - [ ] The readout with the bar misbehaving, at the top of the page and scrolled
       halfway down, saying whether a verdict note was typed
@@ -101,8 +101,8 @@ The readout picks the fix. The two readings expected, and their fixes:
   position. The bar is laid out again once the reloaded page settles, by
   dropping and restoring its `position`.
 
-A reading that matches neither goes to the owner through `dispatch ask` before
-any fix is written.
+A reading that matches neither goes to the owner as a question before any fix is
+written.
 
 - [ ] The fix the readout picked, with a comment naming the five steps and the
       readout that showed the cause
