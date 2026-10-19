@@ -18,11 +18,6 @@ requirement in either document that none of them names is a gap in this list.
       page scrolls, after the review page reloads itself for a new round while
       the installed app returns from the background. Seen on the phone twice.
       Chromium places it correctly, and no WebKit runs on this machine.
-- [ ] 021 product: a project is a git repository, so its worktrees share it, and
-      each review reads the working copy it was captured from. The main page
-      leaves out a project whose working copies are all gone, with no count of
-      what it left out. Five of eleven known roots were gone on 2026-10-18, all
-      worktrees or build copies.
 - [ ] 022 product: the main page's empty state says "Nothing waiting" and
       nothing else, the owner's choice on 2026-10-18. Its list of projects and
       its sentence counting agents at work go. The sentence counts agents with
