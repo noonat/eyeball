@@ -73,17 +73,38 @@ name, which is how the second todo's heading was drawn.
 
 ## Iteration 2: Working copies in the store
 
-- [ ] Migration 0010 adding `working_copies`, `projects.repository` with its
+- [x] Migration 0010 adding `working_copies`, `projects.repository` with its
       partial unique index, and `rounds.working_copy_id` with the trigger that
       refuses a round without one, every existing round pointed at its copy
-- [ ] A migration test on a database holding two projects with reviews, reading
+- [x] A migration test on a database holding two projects with reviews, reading
       back each round's working copy and each project's unchanged root
-- [ ] Store reads and writes for working copies, and `OpenReview` and
+- [x] Store reads and writes for working copies, and `OpenReview` and
       `OpenRound` recording the working copy a round was captured from
-- [ ] The overlap refusal scoped to open reviews whose latest round is in the
+- [x] The overlap refusal scoped to open reviews whose latest round is in the
       same working copy, with a test that the same path is accepted in another
-- [ ] `OpenRound` refusing a round from another working copy where an open
+- [x] `OpenRound` refusing a round from another working copy where an open
       review there claims one of its paths, with a test of the refusal
+
+> **Completed** 2026-10-19 03:02 UTC
+>
+> - `make check` — 6.0s
+> - `go test -race ./...` — 44.2s
+> - `go test -count=1 -tags browser ./internal/server` — 34.2s
+
+**Departures, iteration 2.**
+
+- `EnsureProject` also registers the working copy at the project's root, and a
+  request naming no working copy is recorded against that copy on a first round
+  and against the previous round's on a later one. About forty callers and tests
+  open reviews through `EnsureProject`, and none of them had a working copy to
+  pass. Iteration 3's test that a worktree's round records the worktree is what
+  catches a caller that forgets to name one.
+- `store.ErrWrongProject` has a refusal mapping in the server, since a test
+  requires one for every exported store error. It answers 403 with the existing
+  `wrong_project` code.
+- Each new test was checked by breaking what it covers: pointing rounds at the
+  wrong copy in the migration, dropping the claim check when a round moves, and
+  scoping claims to the project again. Each made its test fail.
 
 ## Iteration 3: Finding the project
 

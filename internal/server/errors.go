@@ -223,6 +223,13 @@ var mappings = []mapping{
 		code:   api.CodeRoundClosed,
 		fix:    "write a new comment instead",
 	},
+	{
+		name:   "store.ErrWrongProject",
+		err:    store.ErrWrongProject,
+		status: http.StatusForbidden,
+		code:   api.CodeWrongProject,
+		fix:    "run the command from a working copy of the review's project",
+	},
 }
 
 // toRefusal turns any error from a handler into the status and body it is

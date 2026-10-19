@@ -236,6 +236,34 @@ func TestStore_OpenReview(t *testing.T) {
 	}))
 }
 
+// A claim covers the working copy its review's latest round came from, so two
+// worktrees can hold reviews of one path, and a second review in the same copy
+// is still refused.
+func TestStore_OpenReview_claimsOnlyInItsWorkingCopy(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	p := ensureProject(g, t, s)
+	worktree, err := s.EnsureWorkingCopy(t.Context(), p.ID, "/tmp/project-retry")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	first, round := openReview(g, t, s, p.ID, "docs/a.md")
+	g.Expect(round.WorkingCopyID).NotTo(BeZero(), "a request naming no copy is the project's root")
+
+	inWorktree := newReview(p.ID, "docs/a.md")
+	inWorktree.Request.WorkingCopyID = worktree.ID
+	_, other, err := s.OpenReview(t.Context(), inWorktree)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(other.WorkingCopyID).To(Equal(worktree.ID))
+	read, err := s.Round(t.Context(), other.ReviewID, 1)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(read.WorkingCopyID).To(Equal(worktree.ID))
+
+	_, _, err = s.OpenReview(t.Context(), newReview(p.ID, "docs"))
+	var claimed *ClaimedError
+	g.Expect(errors.As(err, &claimed)).To(BeTrue(), "%v", err)
+	g.Expect(claimed.ReviewID).To(Equal(first.ID))
+}
+
 func TestStore_OpenReview_concurrentClaims(t *testing.T) {
 	g := NewWithT(t)
 	// The pool is deliberately wider than one connection, so what serializes
@@ -675,6 +703,57 @@ func TestStore_OpenRound_countsARevertedFile(t *testing.T) {
 	files, err := s.RoundFiles(t.Context(), second.ID)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(files).To(BeEmpty())
+}
+
+// A later round can come from another working copy of the project, which then
+// holds the review's claim. It is refused where an open review there already
+// claims one of its paths, and for a working copy of another project.
+func TestStore_OpenRound_fromAnotherWorkingCopy(t *testing.T) {
+	g := NewWithT(t)
+	s := openStore(g, t)
+	p := ensureProject(g, t, s)
+	worktree, err := s.EnsureWorkingCopy(t.Context(), p.ID, "/tmp/project-retry")
+	g.Expect(err).NotTo(HaveOccurred())
+	decide := func(roundID int64) {
+		g.Expect(s.Decide(t.Context(), roundID, VerdictChanges, "more")).To(Succeed())
+	}
+	request := func(copyID int64, claim string) Request {
+		return Request{Note: "again", WorkingCopyID: copyID, Files: []File{{Path: claim}}}
+	}
+
+	moving := newReview(p.ID, "docs/a.md")
+	moving.Request.WorkingCopyID = worktree.ID
+	review, first, err := s.OpenReview(t.Context(), moving)
+	g.Expect(err).NotTo(HaveOccurred())
+	decide(first.ID)
+
+	kept, err := s.OpenRound(t.Context(), review.ID, request(0, "docs/a.md"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(kept.WorkingCopyID).To(Equal(worktree.ID), "a request naming no copy keeps the previous round's")
+	decide(kept.ID)
+
+	holder, _ := openReview(g, t, s, p.ID, "docs")
+	_, err = s.OpenRound(t.Context(), review.ID, request(first.WorkingCopyID+100, "docs/a.md"))
+	g.Expect(err).To(MatchError(ContainSubstring("working copy")))
+	root, err := s.EnsureWorkingCopy(t.Context(), p.ID, p.Root)
+	g.Expect(err).NotTo(HaveOccurred())
+	_, err = s.OpenRound(t.Context(), review.ID, request(root.ID, "docs/a.md"))
+	var claimed *ClaimedError
+	g.Expect(errors.As(err, &claimed)).To(BeTrue(), "%v", err)
+	g.Expect(claimed.ReviewID).To(Equal(holder.ID))
+
+	g.Expect(s.Abandon(t.Context(), holder.ID)).To(Succeed())
+	moved, err := s.OpenRound(t.Context(), review.ID, request(root.ID, "docs/a.md"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(moved.WorkingCopyID).To(Equal(root.ID))
+
+	other, err := s.EnsureProject(t.Context(), "/tmp/other", "other")
+	g.Expect(err).NotTo(HaveOccurred())
+	elsewhere, err := s.EnsureWorkingCopy(t.Context(), other.ID, other.Root)
+	g.Expect(err).NotTo(HaveOccurred())
+	decide(moved.ID)
+	_, err = s.OpenRound(t.Context(), review.ID, request(elsewhere.ID, "docs/a.md"))
+	g.Expect(err).To(MatchError(ErrWrongProject))
 }
 
 func TestStore_OpenRound_refusals(t *testing.T) {

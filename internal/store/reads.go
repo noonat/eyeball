@@ -233,7 +233,7 @@ func (s *Store) Review(ctx context.Context, reviewID int64) (Review, error) {
 // Round reads one round of a review by its number, which is how it is addressed
 // everywhere outside the store.
 func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, error) {
-	query := `SELECT id, review_id, number, note, base_commit,
+	query := `SELECT id, review_id, number, note, base_commit, working_copy_id,
 			files_changed, lines_added, lines_removed, created
 		FROM rounds WHERE review_id = ? AND number = ?`
 	var (
@@ -247,6 +247,7 @@ func (s *Store) Round(ctx context.Context, reviewID int64, number int) (Round, e
 		&out.Number,
 		&out.Note,
 		&out.BaseCommit,
+		&out.WorkingCopyID,
 		&out.Files,
 		&out.Added,
 		&out.Removed,
