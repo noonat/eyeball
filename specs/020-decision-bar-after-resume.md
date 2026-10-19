@@ -1,5 +1,5 @@
 ---
-status: draft
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -61,13 +61,19 @@ phone can show whether the fault is gone.
 
 ## Iteration 1: A readout
 
-- [ ] A script, on this branch only, that draws a small panel on a review page
+- [x] A script, on this branch only, that draws a small panel on a review page
       showing `innerHeight`, the root's `clientHeight`, `visualViewport` height
       and `offsetTop`, `scrollY`, and the bar's top and bottom
-- [ ] The panel also showing `document.visibilityState` and the navigation type,
+- [x] The panel also showing `document.visibilityState` and the navigation type,
       so a page that reloaded itself reads differently from one opened
-- [ ] The panel updating on scroll, on resize and on `visualViewport`'s resize
+- [x] The panel updating on scroll, on resize and on `visualViewport`'s resize
       and scroll events, and readable over both themes
+
+> **Completed** 2026-10-19 02:21 UTC
+>
+> - `make check` — 21.6s
+> - `go test -race ./...` — 44.8s
+> - `go test -count=1 -tags browser ./internal/server` — 34.0s
 
 ## Iteration 2: Read on the phone
 
