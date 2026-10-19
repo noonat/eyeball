@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -53,9 +53,9 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] project.html drawing a project with its main checkout and one worktree,
+- [x] project.html drawing a project with its main checkout and one worktree,
       each working copy as its own section with its changed files
-- [ ] project.html drawing a worktree whose working copy is clean, and the root
+- [x] project.html drawing a worktree whose working copy is clean, and the root
       named in each section's heading as the topbar names it today
 - [ ] The tearout judged on the phone by the owner, with any change asked for
       made before the ack

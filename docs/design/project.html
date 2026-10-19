@@ -141,6 +141,140 @@
   </ul>
 </section>
 
+<section class="spec" id="worktrees">
+  <h2>A main checkout and a worktree <span class="tag">one repository</span></h2>
+  <p>A worktree belongs to its repository's project, so its work shows here
+  rather than as a project of its own. Each working copy an agent has used gets
+  a section, the main checkout first, named by its directory, with what it is
+  and where it lives under the name.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light &mdash; both working copies changed</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>harbor</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="agent">~/src/harbor</span></div>
+            <h2 class="title">harbor</h2>
+          </div>
+
+          <div class="section">
+            <h2>Open reviews <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">~/src/harbor-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title"><mark>Upload worker and its retry ladder</mark></span><span class="gist">The worker retries three times with backoff, then gives up and records the failure on the job.</span>
+                <span class="meta"><span>Round 1</span><span>2 files</span><span class="counts"><span class="plus">+212</span> <span class="minus">&minus;40</span></span></span>
+              </a>
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">~/src/harbor</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Everything changed on disk right now, live, in each working copy. Read only: a verdict belongs to a review.</span></div>
+
+          <div class="section">
+            <h2>harbor <span class="count">3 files</span></h2>
+            <div class="hint">Main checkout, ~/src/harbor</div>
+            <div class="tree">
+              <a class="treerow" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow inscope" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain_test.go</span><span class="counts"><span class="plus">+64</span></span></a>
+              <a class="treerow inscope" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">docs/architecture.md</span><span class="counts"><span class="plus">+11</span> <span class="minus">&minus;4</span></span></a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>harbor-retry <span class="count">2 files</span></h2>
+            <div class="hint">Worktree, ~/src/harbor-retry</div>
+            <div class="tree">
+              <a class="treerow" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/upload/worker.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/upload/backoff.go</span><span class="pill plain">In review</span></a>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark &mdash; the worktree committed</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
+          <h1>harbor</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
+        </div>
+        <div class="scroll"><div class="page">
+
+          <div class="brief">
+            <div class="where"><span class="agent">~/src/harbor</span></div>
+            <h2 class="title">harbor</h2>
+          </div>
+
+          <div class="section">
+            <h2>Open reviews <span class="count">2</span></h2>
+            <div class="rows">
+              <a class="row waiting" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">~/src/harbor-retry</span></span></span>
+                <span class="age">1h</span>
+                <span class="title"><mark>Upload worker and its retry ladder</mark></span><span class="gist">The worker retries three times with backoff, then gives up and records the failure on the job.</span>
+                <span class="meta"><span>Round 1</span><span>2 files</span><span class="counts"><span class="plus">+212</span> <span class="minus">&minus;40</span></span></span>
+              </a>
+              <a class="row working" href="review.html">
+                <span class="where"><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">~/src/harbor</span></span></span>
+                <span class="age">26m</span>
+                <span class="title">Offline outbox drainer</span>
+                <span class="meta"><span>Changes requested, round 2</span></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span>Everything changed on disk right now, live, in each working copy. Read only: a verdict belongs to a review.</span></div>
+
+          <div class="section">
+            <h2>harbor <span class="count">3 files</span></h2>
+            <div class="hint">Main checkout, ~/src/harbor</div>
+            <div class="tree">
+              <a class="treerow" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain.go</span><span class="pill plain">In review</span></a>
+              <a class="treerow inscope" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">internal/outbox/drain_test.go</span><span class="counts"><span class="plus">+64</span></span></a>
+              <a class="treerow inscope" href="#worktrees"><span class="i i-file-text" aria-hidden="true"></span><span class="nm">docs/architecture.md</span><span class="counts"><span class="plus">+11</span> <span class="minus">&minus;4</span></span></a>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>harbor-retry</h2>
+            <div class="hint">Worktree, ~/src/harbor-retry</div>
+            <div class="empty">
+              <span class="headline">Nothing changed on disk</span>
+              <p>Everything in this worktree is committed.</p>
+            </div>
+          </div>
+
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>One notice above every working copy.</b> Repeating "live, read only"
+    in each section says the same thing twice on one screen.</li>
+    <li><b>A file is in review only in its own working copy.</b> A review claims
+    paths in the copy it was captured from, so the same path changed in the
+    other copy is plain context there.</li>
+    <li><b>A worktree no agent has used is not drawn.</b> eyeball lists the
+    working copies it has seen, since git's own list of worktrees misnames the
+    main checkout in some layouts.</li>
+    <li><b>A removed worktree has no section.</b> Its reviews stay in the list
+    above for as long as they are open.</li>
+  </ul>
+</section>
+
 <hr class="rule">
 
 <section class="spec" id="edge">
