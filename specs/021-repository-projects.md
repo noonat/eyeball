@@ -108,20 +108,52 @@ name, which is how the second todo's heading was drawn.
 
 ## Iteration 3: Finding the project
 
-- [ ] `capture.Repository` returning a working copy's resolved common git
+- [x] `capture.Repository` returning a working copy's resolved common git
       directory, and nothing for a working copy found by its marker
-- [ ] `resolve` finding the project by repository and the working copy by root,
+- [x] `resolve` finding the project by repository and the working copy by root,
       registering either on first sight, and moving the project's root to a main
       checkout once one is seen
-- [ ] Tests that a main checkout and its worktree resolve to one project, and a
+- [x] Tests that a main checkout and its worktree resolve to one project, and a
       submodule, a bare clone's worktree and a marker directory to their own
-- [ ] The startup fill of `projects.repository` for roots still on disk,
+- [x] The startup fill of `projects.repository` for roots still on disk,
       finished before the agent socket accepts a request, merging two projects
       that share one
-- [ ] A merge test counting reviews, rounds and comments before and after, so a
+- [x] A merge test counting reviews, rounds and comments before and after, so a
       merge that deletes a project before moving its reviews fails
-- [ ] A request from a directory recreated at a gone root merging that root's
+- [x] A request from a directory recreated at a gone root merging that root's
       old project into the repository's, with a test
+
+**Departures, iteration 3.**
+
+- git is asked about the caller's working copy on every request, not only on
+  first sight, since a directory can be removed and made again as part of
+  another repository. It is one `rev-parse`.
+- A directory made again at a gone root is merged into the repository's project
+  only when the old project names the same repository, or none. An old project
+  git was never asked about is taken to be the same repository, an assumption
+  nothing on disk can check. One that names a different repository is refused
+  with an error naming both, rather than filed under the wrong project.
+- When no project has the repository yet, the request registers one at its own
+  root, which finds an old project at that root if there is one. So a worktree
+  recreated before its main checkout is seen takes over its old project rather
+  than merging it into anything.
+- The fill runs between building the server and serving the agent socket, in
+  `internal/daemon/run.go`. No test checks the order, since it is two adjacent
+  lines.
+- A merge publishes on the hub, so an open page of either project reloads. The
+  other new writes do not, as `MarkInsideCheckout` does not, since requests make
+  them.
+- The tests were checked by breaking what they cover: dropping the working copy
+  from a request, skipping each of the fill's two merge branches, and deleting
+  before moving in a merge. The first version of the worktree test passed with
+  the working copy dropped, because the copy a request falls back to happened to
+  be the right one. It now asks from the main checkout first.
+
+> **Completed** 2026-10-19 03:37 UTC
+>
+> - `make check` — 6.2s
+> - `go test -race ./...` — 46.4s
+> - `go test -count=1 -tags browser ./internal/server` — 34.7s
 
 ## Iteration 4: Reading the round's working copy
 

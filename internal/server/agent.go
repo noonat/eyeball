@@ -23,16 +23,18 @@ import (
 // reads well in a queue row, to be tuned once there is a queue to look at.
 const titleLimit = 72
 
-// caller is who sent a request, once the daemon has found its project.
+// caller is who sent a request, once the daemon has found its project and the
+// working copy it runs in.
 type caller struct {
 	dir     string
 	root    capture.Root
 	project store.Project
+	copy    store.WorkingCopy
 	agent   string
 }
 
-// resolve finds the caller's project, registering it on first sight, and the
-// name the caller is known by.
+// resolve finds the caller's project and working copy, registering either on
+// first sight, and the name the caller is known by.
 func (s *Server) resolve(ctx context.Context, c api.Caller) (caller, error) {
 	if !filepath.IsAbs(c.Dir) {
 		return caller{}, badRequest("the working directory %q is not absolute", c.Dir)
@@ -41,31 +43,102 @@ func (s *Server) resolve(ctx context.Context, c api.Caller) (caller, error) {
 	if err != nil {
 		return caller{}, err
 	}
-	project, err := s.project(ctx, root)
+	project, copy, err := s.project(ctx, root)
 	if err != nil {
 		return caller{}, err
 	}
 	agent := capture.AgentName(c.Agent, "", root, s.homeOf(c))
-	return caller{dir: c.Dir, root: root, project: project, agent: agent}, nil
+	return caller{dir: c.Dir, root: root, project: project, copy: copy, agent: agent}, nil
 }
 
-// project finds the project at root, registering it on first sight. Its name
-// costs a git call and is read only then, so a later request does not run git
-// for it, and a name that failed once is not retried into a different one.
+// project finds the project a working copy belongs to, and the working copy,
+// registering either on first sight.
 //
-// Whether a marker project sits inside a checkout is recorded on every
-// request, a new project or a known one, until it is. A project registered
-// before the store kept the flag has to be caught by a later request, and the
-// .git it was seen under may be moved away at any time after.
-func (s *Server) project(ctx context.Context, root capture.Root) (store.Project, error) {
-	project, err := s.db.ProjectByRoot(ctx, root.Resolved)
-	if errors.Is(err, store.ErrNotFound) {
-		project, err = s.register(ctx, root)
-	}
+// A working copy git knows belongs to the project of its repository, so a main
+// checkout and its worktrees are one project. One found by its marker file is a
+// project of its own, keyed by its root. git is asked on every request, since a
+// directory can be removed and made again as something else.
+func (s *Server) project(ctx context.Context, root capture.Root) (store.Project, store.WorkingCopy, error) {
+	repo, err := capture.Repository(ctx, root.Resolved)
 	if err != nil {
+		return store.Project{}, store.WorkingCopy{}, err
+	}
+	project, err := s.projectOf(ctx, root, repo)
+	if err != nil {
+		return store.Project{}, store.WorkingCopy{}, err
+	}
+	copy, err := s.db.EnsureWorkingCopy(ctx, project.ID, root.Resolved)
+	if err != nil {
+		return store.Project{}, store.WorkingCopy{}, err
+	}
+	if copy.ProjectID != project.ID {
+		if err := s.adopt(ctx, copy, project); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+		copy.ProjectID = project.ID
+	}
+	if !repo.Main {
+		return project, copy, nil
+	}
+	if !copy.Main {
+		if err := s.db.MarkMain(ctx, copy.ID); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+		copy.Main = true
+	}
+	if project.Root != copy.Root {
+		if err := s.db.SetProjectRoot(ctx, project.ID, copy.Root); err != nil {
+			return store.Project{}, store.WorkingCopy{}, err
+		}
+		project.Root = copy.Root
+	}
+	return project, copy, nil
+}
+
+// projectOf finds or registers the project of a working copy.
+func (s *Server) projectOf(ctx context.Context, root capture.Root, repo capture.Repo) (store.Project, error) {
+	if repo.Dir == "" {
+		project, err := s.db.ProjectByRoot(ctx, root.Resolved)
+		if errors.Is(err, store.ErrNotFound) {
+			project, err = s.register(ctx, root)
+		}
+		if err != nil {
+			return store.Project{}, err
+		}
+		return s.markCheckout(ctx, project)
+	}
+	project, err := s.db.ProjectByRepository(ctx, repo.Dir)
+	if !errors.Is(err, store.ErrNotFound) {
+		return project, err
+	}
+	if project, err = s.register(ctx, root); err != nil {
 		return store.Project{}, err
 	}
-	return s.markCheckout(ctx, project)
+	if project.Repository != "" && project.Repository != repo.Dir {
+		return store.Project{}, errors.Newf("the project at %s belongs to the repository %s, and git now says %s", root.Resolved, project.Repository, repo.Dir)
+	}
+	if err := s.db.SetRepository(ctx, project.ID, repo.Dir); err != nil {
+		return store.Project{}, err
+	}
+	project.Repository = repo.Dir
+	return project, nil
+}
+
+// adopt brings a working copy found under another project into project. It is
+// a directory made again at the root of one that was removed, so its old
+// project is the same repository and is merged in. An old project that git was
+// never asked about is taken to be the same repository, since nothing on disk
+// can say otherwise. One that names a different repository is refused rather
+// than filed under the wrong project.
+func (s *Server) adopt(ctx context.Context, copy store.WorkingCopy, project store.Project) error {
+	old, err := s.db.Project(ctx, copy.ProjectID)
+	if err != nil {
+		return err
+	}
+	if old.Repository != "" && old.Repository != project.Repository {
+		return errors.Newf("%s was a working copy of the repository %s, and git now says %s", copy.Root, old.Repository, project.Repository)
+	}
+	return s.db.MergeProjects(ctx, old.ID, project.ID)
 }
 
 // register stores a project seen for the first time.
@@ -313,6 +386,7 @@ func (s *Server) firstRound(ctx context.Context, c caller, body api.RequestBody)
 	if err != nil {
 		return api.RequestResult{}, err
 	}
+	req.WorkingCopyID = c.copy.ID
 	if err := refuseUnmatched(c.root.Resolved, paths, req.Files); err != nil {
 		return api.RequestResult{}, err
 	}
@@ -380,6 +454,7 @@ func (s *Server) nextRound(ctx context.Context, c caller, body api.RequestBody) 
 	if err != nil {
 		return api.RequestResult{}, err
 	}
+	req.WorkingCopyID = c.copy.ID
 	if req.Views, err = views(c, body.Views, req.Files); err != nil {
 		return api.RequestResult{}, err
 	}

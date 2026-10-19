@@ -174,6 +174,8 @@ func serve(ctx context.Context, c Config, started time.Time, held *lock) error {
 		},
 	})
 
+	srv.FillRepositories(ctx)
+
 	// No WriteTimeout: it would cut every long poll at that duration.
 	// ReadHeaderTimeout only bounds a client that never finishes sending.
 	base, cancel := context.WithCancel(context.Background())

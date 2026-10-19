@@ -94,6 +94,10 @@ type Project struct {
 	Root string
 	// Name is what the surface displays, and repeats freely across projects.
 	Name string
+	// Repository is the git common directory every working copy of the project
+	// shares, and is empty for a project found by its marker file or not yet
+	// asked about.
+	Repository string
 	// InsideCheckout records that a .git entry was once seen at or above a
 	// root holding a marker file. It is set and never cleared, because the
 	// moment it matters is the one where that .git is no longer there to see.
@@ -240,9 +244,9 @@ func (s *Store) EnsureProject(ctx context.Context, root, name string) (Project, 
 		if _, err := tx.ExecContext(ctx, insert, root, name, at); err != nil {
 			return errors.Wrap(err, "insert project")
 		}
-		query := "SELECT id, root, name, inside_checkout FROM projects WHERE root = ?"
+		query := projectQuery + " WHERE root = ?"
 		row := tx.QueryRowContext(ctx, query, root)
-		if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.InsideCheckout); err != nil {
+		if err := row.Scan(&out.ID, &out.Root, &out.Name, &out.Repository, &out.InsideCheckout); err != nil {
 			return errors.Wrap(err, "read project")
 		}
 		copyAt := "INSERT INTO working_copies (project_id, root, created) VALUES (?, ?, ?) ON CONFLICT (root) DO NOTHING"

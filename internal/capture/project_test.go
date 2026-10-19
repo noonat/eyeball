@@ -268,6 +268,95 @@ func TestProjectName(t *testing.T) {
 	}
 }
 
+func TestRepository(t *testing.T) {
+	g := NewWithT(t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	r := newRepo(g, filepath.Join(dir, "harbor"))
+	r.write(g, "a.txt", "a\n")
+	r.commit(g, "base")
+	harbor := filepath.Join(r.root, ".git")
+
+	plain := filepath.Join(dir, "notes")
+	g.Expect(os.MkdirAll(plain, 0o700)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(plain, Marker), nil, 0o600)).To(Succeed())
+
+	linked := filepath.Join(dir, "harbor-retry")
+	r.git(g, "worktree", "add", "--quiet", linked)
+	link := filepath.Join(dir, "harbor-link")
+	g.Expect(os.Symlink(linked, link)).To(Succeed())
+
+	bare := &repo{root: filepath.Join(dir, "shared.git")}
+	r.git(g, "clone", "--quiet", "--bare", r.root, bare.root)
+	fromBare := filepath.Join(dir, "shared-wt")
+	bare.git(g, "worktree", "add", "--quiet", fromBare)
+
+	separate := newRepo(g, filepath.Join(dir, "split"), "--separate-git-dir", filepath.Join(dir, "split.git"))
+	separate.write(g, "a.txt", "a\n")
+	separate.commit(g, "base")
+	fromSeparate := filepath.Join(dir, "split-wt")
+	separate.git(g, "worktree", "add", "--quiet", fromSeparate)
+
+	super := newRepo(g, filepath.Join(dir, "super"))
+	super.git(g, "-c", "protocol.file.allow=always", "submodule", "--quiet", "add", r.root, "vendored")
+	sub := filepath.Join(super.root, "vendored")
+
+	cases := []struct {
+		name string
+		root string
+		want Repo
+	}{
+		{
+			name: "a main checkout",
+			root: r.root,
+			want: Repo{Dir: harbor, Main: true},
+		},
+		{
+			name: "a directory outside git belongs to no repository",
+			root: plain,
+			want: Repo{},
+		},
+		{
+			name: "a linked worktree belongs to its main checkout's repository",
+			root: linked,
+			want: Repo{Dir: harbor},
+		},
+		{
+			name: "a worktree reached through a symlink is the same repository",
+			root: link,
+			want: Repo{Dir: harbor},
+		},
+		{
+			name: "a worktree of a bare clone belongs to the clone",
+			root: fromBare,
+			want: Repo{Dir: bare.root},
+		},
+		{
+			name: "a separate git directory is the repository of its checkout",
+			root: separate.root,
+			want: Repo{Dir: filepath.Join(dir, "split.git"), Main: true},
+		},
+		{
+			name: "and of the checkout's worktree",
+			root: fromSeparate,
+			want: Repo{Dir: filepath.Join(dir, "split.git")},
+		},
+		{
+			name: "a submodule is a repository of its own",
+			root: sub,
+			want: Repo{Dir: filepath.Join(super.root, ".git", "modules", "vendored"), Main: true},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			got, err := Repository(t.Context(), c.root)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(got).To(Equal(c.want))
+		})
+	}
+}
+
 func TestReviewPath(t *testing.T) {
 	root := Root{Logical: "/link/harbor", Resolved: "/real/harbor"}
 	cases := []struct {

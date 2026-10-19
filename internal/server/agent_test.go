@@ -241,6 +241,72 @@ func TestServer_asksForANextRound(t *testing.T) {
 	g.Expect(got.Size).To(Equal(api.Size{Files: 1, Added: 1, Removed: 2}))
 }
 
+// A main checkout and its worktree are one project, and each round records the
+// working copy it came from. A bare clone's worktree and a submodule are
+// repositories of their own.
+func TestServer_findsAWorktreeInItsRepository(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	main := gitRepo(g, filepath.Join(dir, "harbor"))
+	worktree := filepath.Join(dir, "harbor-retry")
+	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+	write(g, worktree, "a.txt", "one\nretry\n")
+	projectOf := func(reviewID int64) int64 {
+		review, err := f.store.Review(t.Context(), reviewID)
+		g.Expect(err).NotTo(HaveOccurred())
+		return review.ProjectID
+	}
+	copyOf := func(reviewID int64) store.WorkingCopy {
+		round, err := f.store.Round(t.Context(), reviewID, 1)
+		g.Expect(err).NotTo(HaveOccurred())
+		c, err := f.store.WorkingCopyByID(t.Context(), round.WorkingCopyID)
+		g.Expect(err).NotTo(HaveOccurred())
+		return c
+	}
+
+	inMain := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
+	g.Expect(copyOf(inMain.Review.ID).Root).To(Equal(main))
+	g.Expect(copyOf(inMain.Review.ID).Main).To(BeTrue())
+
+	// The main checkout was seen first, so it is the project's root, and a
+	// round that fell back to the root would record it instead of the
+	// worktree. The same path is a different change in each copy, so the
+	// main checkout's claim does not refuse it.
+	inWorktree := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"a.txt"}, Note: "retry"})
+	g.Expect(projectOf(inWorktree.Review.ID)).To(Equal(projectOf(inMain.Review.ID)))
+	g.Expect(copyOf(inWorktree.Review.ID).Root).To(Equal(worktree), "a round reads the working copy it was captured from")
+	g.Expect(copyOf(inWorktree.Review.ID).Main).To(BeFalse())
+
+	// A project first seen from a worktree moves its root to the main
+	// checkout once a request comes from there.
+	other := gitRepo(g, filepath.Join(dir, "dock"))
+	otherWorktree := filepath.Join(dir, "dock-retry")
+	git(g, other, "worktree", "add", "--quiet", "-b", "retry", otherWorktree)
+	write(g, otherWorktree, "a.txt", "one\nretry\n")
+	first := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: otherWorktree, Agent: "a"}, Paths: []string{"a.txt"}, Note: "retry"})
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: other, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
+	project, err := f.store.Project(t.Context(), projectOf(first.Review.ID))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(project.Root).To(Equal(other))
+
+	bare := filepath.Join(dir, "shared.git")
+	git(g, main, "clone", "--quiet", "--bare", main, bare)
+	fromBare := filepath.Join(dir, "shared-wt")
+	git(g, bare, "worktree", "add", "--quiet", fromBare)
+	write(g, fromBare, "a.txt", "one\nbare\n")
+	inBare := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: fromBare, Agent: "a"}, Paths: []string{"a.txt"}, Note: "bare"})
+	g.Expect(projectOf(inBare.Review.ID)).NotTo(Equal(projectOf(inMain.Review.ID)), "a clone is another repository")
+
+	git(g, main, "-c", "protocol.file.allow=always", "submodule", "--quiet", "add", bare, "vendored")
+	sub := filepath.Join(main, "vendored")
+	write(g, sub, "a.txt", "one\nsub\n")
+	inSub := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: sub, Agent: "a"}, Paths: []string{"a.txt"}, Note: "sub"})
+	g.Expect(projectOf(inSub.Review.ID)).NotTo(Equal(projectOf(inMain.Review.ID)))
+	g.Expect(projectOf(inSub.Review.ID)).NotTo(Equal(projectOf(inBare.Review.ID)))
+}
+
 func TestServer_handsOverLateComments(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -339,6 +405,44 @@ func TestServer_marksAMarkerProjectInsideACheckout(t *testing.T) {
 			g.Expect(got.InsideCheckout).To(Equal(c.want))
 		})
 	}
+}
+
+// A directory made again at the root of a removed working copy belongs to that
+// copy's old project, so the old project is merged into the one git now names.
+func TestServer_mergesTheProjectOfARecreatedRoot(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	main := gitRepo(g, filepath.Join(dir, "harbor"))
+	worktree := filepath.Join(dir, "harbor-retry")
+
+	// The old project at the worktree's root was written before projects
+	// had repositories, and its directory was gone when the daemon started.
+	old, err := f.store.EnsureProject(t.Context(), worktree, "harbor")
+	g.Expect(err).NotTo(HaveOccurred())
+	_, _, err = f.store.OpenReview(t.Context(), store.NewReview{
+		ProjectID: old.ID,
+		Agent:     "a",
+		Title:     "old work",
+		Paths:     []string{"a.txt"},
+		Request:   store.Request{Note: "old", Files: []store.File{{Path: "a.txt"}}},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: main, Agent: "a"}, Paths: []string{"a.txt"}, Note: "main"})
+
+	git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+	write(g, worktree, "b.txt", "new\n")
+	got := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"b.txt"}, Note: "again"})
+
+	review, err := f.store.Review(t.Context(), got.Review.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	rows, err := f.store.ReviewsIn(t.Context(), review.ProjectID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(rows).To(HaveLen(3), "the old project's review moved into the repository's project")
+	_, err = f.store.Project(t.Context(), old.ID)
+	g.Expect(err).To(MatchError(store.ErrNotFound))
 }
 
 func TestServer_namesTheAgentFromTheCallersHome(t *testing.T) {
