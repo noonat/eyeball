@@ -14,10 +14,15 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-Nothing. As of 015 the reading desk is applied, as of 017 a card's file header
-stays at the top of the screen, and every requirement product.md and
-architecture.md describe is built as of 010. The next work comes from
-Unscheduled below, once real reviews say which of it matters.
+- [ ] 020 fix: the decision bar floats partway up the screen and drifts as the
+      page scrolls, after the review page reloads itself for a new round while
+      the installed app returns from the background. Seen on the phone twice.
+      Chromium places it correctly, and no WebKit runs on this machine.
+- [ ] 021 product: a project is a git repository, so its worktrees share it, and
+      each review reads the working copy it was captured from. The main page
+      leaves out a project whose working copies are all gone, with no count of
+      what it left out. Five of eleven known roots were gone on 2026-10-18, all
+      worktrees or build copies.
 
 ## Unscheduled
 
