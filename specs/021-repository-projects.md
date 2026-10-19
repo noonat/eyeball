@@ -192,12 +192,37 @@ name, which is how the second todo's heading was drawn.
 
 ## Iteration 5: The surface
 
-- [ ] The queue's empty state leaving out a project with no working copy on
+- [x] The queue's empty state leaving out a project with no working copy on
       disk, with a test that a project with one gone and one present stays
-- [ ] The project view showing each working copy on disk as the approved tearout
+- [x] The project view showing each working copy on disk as the approved tearout
       draws it, with claimed files marked from that copy's reviews
-- [ ] The project file route and the tree reading `?copy=<id>`, defaulting to
+- [x] The project file route and the tree reading `?copy=<id>`, defaulting to
       the project's root, with a test that a worktree's file opens from it
+
+**Departures, iteration 5.**
+
+- A project with one working copy on disk is drawn as it was before, under
+  "Working copy" with no name or hint, since that frame was approved too. Only a
+  project with several on disk is drawn with a section per copy, and the notice
+  that the rows are live appears once above them, as the tearout draws.
+- There is no project tree route. "The tree" in the third todo was a mistake in
+  the spec: the tree under a review reads its round's working copy since
+  iteration 4. The project file route takes `copy`, and refuses one that does
+  not exist or belongs to another project.
+- A root that cannot be looked at for a reason other than being gone counts as
+  on disk, so the queue still lists it, and the project view says why it cannot
+  be read.
+- The queue tests registered projects at made-up paths, which the new rule
+  hides. The fixture now makes each root under a temporary directory, and the
+  roots still read as the same paths.
+- Each test was checked by removing what it covers: the claim filter per working
+  copy, and the queue's filter.
+
+> **Completed** 2026-10-19 03:50 UTC
+>
+> - `make check` — 7.2s
+> - `go test -race ./...` — 43.9s
+> - `go test -count=1 -tags browser ./internal/server` — 36.6s
 
 ## Iteration 6: On the phone
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -25,13 +26,28 @@ const maxWorkingRows = 200
 type projectPage struct {
 	// Name is the project's name, and Root its root written with ~.
 	Name, Root string
-	// Notices are the banners under the brief, saying what the working copy
-	// cannot show and why.
-	Notices []notice
 	// Open counts the open reviews, and Waiting and Working are their rows,
 	// each in the queue's order.
 	Open             int
 	Waiting, Working []queueRow
+	// Copies are the project's working copies on disk, the main checkout
+	// first. A project with one is drawn as before working copies existed,
+	// with no name or hint on its section.
+	Copies []copySection
+	// Live says some working copy lists rows, so the page says once that what
+	// it lists is live and read only.
+	Live bool
+}
+
+// copySection is one working copy on the project view.
+type copySection struct {
+	// Name is the working copy's directory, and Hint says what it is and
+	// where, as "Main checkout, ~/src/harbor". Both are empty on a project
+	// with one working copy.
+	Name, Hint string
+	// Notices are the banners saying what the working copy cannot show and
+	// why.
+	Notices []notice
 	// Count is the number of files the working copy lists, written out, and
 	// empty where nothing is listed.
 	Count string
@@ -70,20 +86,19 @@ type openReview struct {
 	waiting bool
 	paths   []string
 	latest  int
+	// copyID is the working copy its latest round came from, the only one
+	// where its paths are claimed.
+	copyID int64
 }
 
 // handleProjectPage answers GET /projects/{project}: the project's open
-// reviews, then its working copy as it is on disk now.
+// reviews, then each working copy on disk as it is now.
 func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error {
 	project, ok, err := s.projectFromPath(r)
 	if err != nil || !ok {
 		return s.missing(w, err)
 	}
 	ctx := r.Context()
-	wc, err := s.workingCopy(ctx, project)
-	if err != nil {
-		return err
-	}
 	open, err := s.openReviews(ctx, project.ID)
 	if err != nil {
 		return err
@@ -98,26 +113,91 @@ func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error
 		}
 		view.Working = append(view.Working, withoutProject(s.queueRow(o.row, render.Age(now, o.row.DecidedAt))))
 	}
+	copies, err := s.copiesOnDisk(ctx, project)
+	if err != nil {
+		return err
+	}
+	for _, c := range copies {
+		section, err := s.copySection(ctx, project, c, open, len(copies) > 1)
+		if err != nil {
+			return err
+		}
+		view.Live = view.Live || len(section.Rows) > 0
+		view.Copies = append(view.Copies, section)
+	}
+	s.renderPage(w, http.StatusOK, "projectpage", page{Title: project.Name, Back: "/", BackLabel: "Queue", Body: view})
+	return nil
+}
 
+// copiesOnDisk is the project's working copies that are still on disk, the
+// main checkout first. Where none is, it is the working copy at the project's
+// root alone, so the page says that root is gone rather than showing nothing.
+func (s *Server) copiesOnDisk(ctx context.Context, project store.Project) ([]store.WorkingCopy, error) {
+	all, err := s.db.s.WorkingCopies(ctx, project.ID)
+	if err != nil {
+		return nil, err
+	}
+	var out []store.WorkingCopy
+	var atRoot store.WorkingCopy
+	for _, c := range all {
+		if c.Root == project.Root {
+			atRoot = c
+		}
+		if onDisk(c.Root) {
+			out = append(out, c)
+		}
+	}
+	if len(out) == 0 {
+		atRoot.Root, atRoot.ProjectID = project.Root, project.ID
+		out = append(out, atRoot)
+	}
+	return out, nil
+}
+
+// onDisk reports whether a root is still there. A root that cannot be looked
+// at for another reason counts as there, since a page saying why is more use
+// than a project that silently disappears.
+func onDisk(root string) bool {
+	_, err := os.Stat(root)
+	return !errors.Is(err, os.ErrNotExist)
+}
+
+// copySection reads one working copy and fills in its section, its files
+// claimed only by the open reviews whose latest round came from it.
+func (s *Server) copySection(ctx context.Context, project store.Project, c store.WorkingCopy, open []openReview, named bool) (copySection, error) {
+	var section copySection
+	if named {
+		section.Name = path.Base(c.Root)
+		kind := "Worktree"
+		if c.Main {
+			kind = "Main checkout"
+		}
+		section.Hint = kind + ", " + s.tilde(c.Root)
+	}
+	wc, err := s.workingCopy(ctx, project, c.Root)
+	if err != nil {
+		return copySection{}, err
+	}
+	var here []openReview
+	for _, o := range open {
+		if o.copyID == c.ID {
+			here = append(here, o)
+		}
+	}
 	st := wc.State
 	if wc.Listed {
-		err := s.workingRows(ctx, &view, project, wc, open)
+		err := s.workingRows(ctx, &section, project, c, wc, here)
 		if !errors.Is(err, capture.ErrRulesUnreadable) {
-			if err != nil {
-				return err
-			}
-			s.renderPage(w, http.StatusOK, "projectpage", page{Title: project.Name, Back: "/", BackLabel: "Queue", Body: view})
-			return nil
+			return section, err
 		}
 		// git listed the working copy and then failed to say what it
 		// ignores. Showing rows it could not check is what the rules exist
 		// to prevent.
 		st.Live = capture.LiveRulesUnreadable
-		view.Count, view.Capped, view.Rows = "", nil, nil
+		section.Count, section.Capped, section.Rows = "", nil, nil
 	}
-	view.Notices, view.Empty = unlisted(st, wc.ListErr, s.tilde(project.Root))
-	s.renderPage(w, http.StatusOK, "projectpage", page{Title: project.Name, Back: "/", BackLabel: "Queue", Body: view})
-	return nil
+	section.Notices, section.Empty = unlisted(st, wc.ListErr, s.tilde(c.Root))
+	return section, nil
 }
 
 // withoutProject is a queue row with its project left out, since the page is
@@ -130,7 +210,7 @@ func withoutProject(row queueRow) queueRow {
 // workingRows fills in the working copy's rows: each file up to the cap,
 // claimed ones marked and linked to their review, and the rest bold with
 // their counts against HEAD.
-func (s *Server) workingRows(ctx context.Context, view *projectPage, project store.Project, wc *capture.WorkingCopy, open []openReview) error {
+func (s *Server) workingRows(ctx context.Context, view *copySection, project store.Project, c store.WorkingCopy, wc *capture.WorkingCopy, open []openReview) error {
 	entries := wc.Entries
 	if len(entries) == 0 {
 		text := "Everything is committed."
@@ -151,7 +231,7 @@ func (s *Server) workingRows(ctx context.Context, view *projectPage, project sto
 
 	var unclaimed []string
 	for _, e := range entries {
-		row := workingRow{Path: e.Path, Href: projectFileHref(project.ID, e.Path)}
+		row := workingRow{Path: e.Path, Href: projectFileHref(project.ID, copyParam(project, c), e.Path)}
 		if o := claimant(open, e.Path); o != nil {
 			row.Claimed, row.Href = true, fileHref(o.row.ReviewID, o.latest, true, e.Path)
 		} else {
@@ -246,7 +326,11 @@ func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return err
 	}
-	wc, err := s.workingCopy(ctx, project)
+	c, ok, err := s.copyFromQuery(ctx, r, project)
+	if err != nil || !ok {
+		return s.missing(w, err)
+	}
+	wc, err := s.workingCopy(ctx, project, c.Root)
 	if err != nil {
 		return err
 	}
@@ -257,7 +341,7 @@ func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) e
 	}
 	head, disk, tooLarge, err := wc.Sides(ctx, clean)
 	if errors.Is(err, capture.ErrRulesUnreadable) {
-		s.notFoundPage(w, refusalNotice(wc.State, err, s.tilde(project.Root)))
+		s.notFoundPage(w, refusalNotice(wc.State, err, s.tilde(c.Root)))
 		return nil
 	}
 	if err != nil {
@@ -271,7 +355,7 @@ func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) e
 	if dir := path.Dir(clean); dir != "." {
 		view.Dir = dir + "/"
 	}
-	view.showWorking(project.ID, clean, entry.Deleted, head, disk, tooLarge, r.URL.Query().Get("view") == "plain")
+	view.showWorking(projectFileHref(project.ID, copyParam(project, c), clean), clean, entry.Deleted, head, disk, tooLarge, r.URL.Query().Get("view") == "plain")
 	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: projectHref(project.ID), BackLabel: project.Name, Body: view})
 	return nil
 }
@@ -283,7 +367,7 @@ func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) e
 // A markdown file gets Marked and Plain too, not Document and Source. The page
 // answers what moved on disk, which is a question about the edit, and nothing
 // here is read as prose for a verdict.
-func (v *filePage) showWorking(projectID int64, p string, deleted bool, head, disk []byte, tooLarge, plain bool) {
+func (v *filePage) showWorking(href, p string, deleted bool, head, disk []byte, tooLarge, plain bool) {
 	if tooLarge {
 		v.Diff = render.File{TooLarge: true}
 		return
@@ -293,7 +377,6 @@ func (v *filePage) showWorking(projectID int64, p string, deleted bool, head, di
 		v.Diff = render.Whole(p, result)
 		return
 	}
-	href := projectFileHref(projectID, p)
 	v.Toolbar = &fileToolbar{
 		Added:     thousands(result.Added),
 		Removed:   thousands(result.Removed),
@@ -331,10 +414,10 @@ func (s *Server) projectFromPath(r *http.Request) (store.Project, bool, error) {
 	return project, err == nil, err
 }
 
-// workingCopy reads a project's working copy, and records a .git that Inspect
-// found at or above a marker root, as the file routes do.
-func (s *Server) workingCopy(ctx context.Context, project store.Project) (*capture.WorkingCopy, error) {
-	wc, err := capture.ReadWorkingCopy(ctx, project.Root, project.InsideCheckout)
+// workingCopy reads one of a project's working copies, and records a .git that
+// Inspect found at or above a marker root, as the file routes do.
+func (s *Server) workingCopy(ctx context.Context, project store.Project, root string) (*capture.WorkingCopy, error) {
+	wc, err := capture.ReadWorkingCopy(ctx, root, project.InsideCheckout)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +467,11 @@ func (s *Server) openReviews(ctx context.Context, projectID int64) ([]openReview
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, openReview{row: row, waiting: i < len(waiting), paths: review.Paths, latest: review.LatestRound})
+		latest, err := s.db.s.Round(ctx, row.ReviewID, review.LatestRound)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, openReview{row: row, waiting: i < len(waiting), paths: review.Paths, latest: review.LatestRound, copyID: latest.WorkingCopyID})
 	}
 	return out, nil
 }
@@ -394,7 +481,41 @@ func projectHref(projectID int64) string {
 	return "/projects/" + strconv.FormatInt(projectID, 10)
 }
 
-// projectFileHref is a file's page in a project's working copy.
-func projectFileHref(projectID int64, p string) string {
-	return projectHref(projectID) + "/files/" + escapePath(p)
+// projectFileHref is a file's page in one of a project's working copies. A
+// copy of zero is the one at the project's root, which the address leaves out,
+// so a link written before working copies existed opens the same file.
+func projectFileHref(projectID, copyID int64, p string) string {
+	href := projectHref(projectID) + "/files/" + escapePath(p)
+	if copyID == 0 {
+		return href
+	}
+	return withQuery(href, url.Values{"copy": {strconv.FormatInt(copyID, 10)}})
+}
+
+// copyParam is the copy a file link names: zero for the working copy at the
+// project's root, and the copy's id for any other.
+func copyParam(project store.Project, c store.WorkingCopy) int64 {
+	if c.Root == project.Root {
+		return 0
+	}
+	return c.ID
+}
+
+// copyFromQuery reads the working copy a file address names with copy=, and
+// the one at the project's root where it names none. It reports false for a
+// copy that does not exist or belongs to another project.
+func (s *Server) copyFromQuery(ctx context.Context, r *http.Request, project store.Project) (store.WorkingCopy, bool, error) {
+	raw := r.URL.Query().Get("copy")
+	if raw == "" {
+		return store.WorkingCopy{ProjectID: project.ID, Root: project.Root}, true, nil
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return store.WorkingCopy{}, false, nil
+	}
+	c, err := s.db.s.WorkingCopyByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) || (err == nil && c.ProjectID != project.ID) {
+		return store.WorkingCopy{}, false, nil
+	}
+	return c, err == nil, err
 }
