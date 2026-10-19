@@ -117,7 +117,17 @@ func (s *Server) projectOf(ctx context.Context, root capture.Root, repo capture.
 	if project.Repository != "" && project.Repository != repo.Dir {
 		return store.Project{}, errors.Newf("the project at %s belongs to the repository %s, and git now says %s", root.Resolved, project.Repository, repo.Dir)
 	}
-	if err := s.db.SetRepository(ctx, project.ID, repo.Dir); err != nil {
+	err = s.db.SetRepository(ctx, project.ID, repo.Dir)
+	if errors.Is(err, store.ErrRepositoryTaken) {
+		// Another working copy of the repository registered its project
+		// between the lookup above and here. That one is kept.
+		holder, err := s.db.ProjectByRepository(ctx, repo.Dir)
+		if err != nil {
+			return store.Project{}, err
+		}
+		return holder, s.db.MergeProjects(ctx, project.ID, holder.ID)
+	}
+	if err != nil {
 		return store.Project{}, err
 	}
 	project.Repository = repo.Dir

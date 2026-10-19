@@ -97,4 +97,10 @@ func TestStore_SetRepository(t *testing.T) {
 	pending, err := s.ProjectsWithoutRepository(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(pending).To(BeEmpty())
+
+	// A second project naming the same repository is refused, so the server
+	// can merge it into the one that holds it.
+	other, err := s.EnsureProject(t.Context(), "/tmp/other", "other")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(s.SetRepository(t.Context(), other.ID, "/tmp/project/.git")).To(MatchError(ErrRepositoryTaken))
 }

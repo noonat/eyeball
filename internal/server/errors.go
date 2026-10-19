@@ -217,6 +217,13 @@ var mappings = []mapping{
 		fix:    "run eyeball status to see the review that holds it",
 	},
 	{
+		name:   "store.ErrRepositoryTaken",
+		err:    store.ErrRepositoryTaken,
+		status: http.StatusConflict,
+		code:   api.CodeInternal,
+		fix:    "run the command again; two working copies of one repository were seen at once",
+	},
+	{
 		name:   "store.ErrRoundClosed",
 		err:    store.ErrRoundClosed,
 		status: http.StatusConflict,

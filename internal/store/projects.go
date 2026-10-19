@@ -25,12 +25,28 @@ func (s *Store) ProjectByRepository(ctx context.Context, repo string) (Project, 
 	return out, nil
 }
 
+// ErrRepositoryTaken reports a repository another project already holds. Two
+// working copies of one repository seen for the first time at the same moment
+// each register a project, and the second to record the repository finds it
+// taken.
+var ErrRepositoryTaken = errors.New("another project holds the repository")
+
 // SetRepository records the git common directory a project's working copies
 // share. It is set once, when git is first asked, so a project that already has
-// one keeps it.
+// one keeps it. It is refused with ErrRepositoryTaken when another project
+// holds the repository, checked in the same write transaction so two callers
+// cannot both pass.
 func (s *Store) SetRepository(ctx context.Context, projectID int64, repo string) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, "UPDATE projects SET repository = ? WHERE id = ? AND repository IS NULL", repo, projectID)
+		var holder int64
+		err := tx.QueryRowContext(ctx, "SELECT id FROM projects WHERE repository = ? AND id <> ?", repo, projectID).Scan(&holder)
+		if err == nil {
+			return errors.Wrapf(ErrRepositoryTaken, "project %d holds %s", holder, repo)
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return errors.Wrap(err, "read the repository's project")
+		}
+		_, err = tx.ExecContext(ctx, "UPDATE projects SET repository = ? WHERE id = ? AND repository IS NULL", repo, projectID)
 		return errors.Wrap(err, "record the project's repository")
 	})
 }

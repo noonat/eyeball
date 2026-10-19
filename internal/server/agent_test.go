@@ -337,6 +337,37 @@ func TestServer_findsAWorktreeInItsRepository(t *testing.T) {
 	g.Expect(projectOf(inSub.Review.ID)).NotTo(Equal(projectOf(inBare.Review.ID)))
 }
 
+// The first requests from a main checkout and its worktree, arriving together,
+// both find no project for the repository and both register one. The second
+// to record the repository merges its project into the first, so both
+// requests answer and one project is left. Ten fresh repositories, since the
+// two requests only sometimes interleave.
+func TestServer_findsOneProjectWhenTwoWorkingCopiesArriveTogether(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(err).NotTo(HaveOccurred())
+	for i := range 10 {
+		main := gitRepo(g, filepath.Join(dir, "harbor"+strconv.Itoa(i)))
+		worktree := main + "-retry"
+		git(g, main, "worktree", "add", "--quiet", "-b", "retry", worktree)
+		statuses := make(chan int, 2)
+		roots := []string{main, worktree}
+		for _, root := range roots {
+			go func() {
+				status, _ := f.call(g, t.Context(), http.MethodGet, "/agent/status?"+query(api.Caller{Dir: root}), nil)
+				statuses <- status
+			}()
+		}
+		g.Expect([]int{<-statuses, <-statuses}).To(Equal([]int{http.StatusOK, http.StatusOK}))
+		repo, err := f.store.ProjectByRepository(t.Context(), filepath.Join(main, ".git"))
+		g.Expect(err).NotTo(HaveOccurred())
+		copies, err := f.store.WorkingCopies(t.Context(), repo.ID)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(copies).To(HaveLen(2), "both working copies are in the one project")
+	}
+}
+
 func TestServer_handsOverLateComments(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
