@@ -211,6 +211,115 @@ required_acks:
 With the daemon running this branch's build, the owner checks in the installed
 app:
 
-- [ ] The five steps leave the bar against the bottom edge while scrolling
+- [/] The five steps leave the bar against the bottom edge while scrolling
 - [ ] A review opened from the queue still shows the bar at the bottom, and a
       short page shows it under its content
+
+## Where the investigation stands
+
+Written on 2026-10-19 so a fresh session can pick it up. Iteration 4 is open.
+The owner is not satisfied with the fix as it stands, for the reason under "What
+is not solved".
+
+### The fault, as measured
+
+- The installed app shows the page through a visual viewport 318 points shorter
+  than the 894-point window, with nothing focused. `window.innerHeight` and the
+  root's `clientHeight` stay 894. `visualViewport.height` is 576, and its
+  `offsetTop` is 318 when scrolled down and 0 at the top of the page.
+- Everything placed against the visual viewport moves together: the sticky page
+  header, each card's sticky header, and the decision bar, whose bottom sits
+  at 576. Scrolling to the top makes it look right, since `offsetTop` is then 0.
+- With a real keyboard open on the verdict note the viewport is 508, 386 short.
+  The fault's 318 is 68 less, the height of the bar iOS adds above a web field's
+  keyboard. So the phantom keyboard is not one of the page's own fields. That is
+  inferred from these two numbers, not measured another way.
+- It survives the page: going to the queue and back, or a reload, leaves it
+  short. Closing the app clears it. So does a real keyboard shown and hidden,
+  which is what the fix does.
+
+### When it happens
+
+Seen, with the readout running:
+
+- The app opened from a notification while a terminal app had its keyboard up.
+  The page loaded short with nothing focused.
+- The app brought back with the app switcher while another app had its keyboard
+  up, with the review page already open and scrolled. No reload: the page came
+  back to the foreground at 894 and 55 ms later was 576.
+- Once on a fresh open from what the owner thinks was the home screen with no
+  keyboard. The viewport grew 854, 875, 884 in 25 ms steps, which looks like the
+  app's opening animation, then fell to 576 230 ms later. The owner is not sure
+  no keyboard was up.
+
+Seen before the readout, and consistent with the above:
+
+- After the page reloaded itself for a new round as the app came back from the
+  background. These were early reports, and the owner had been typing in other
+  apps between them.
+
+Not a trigger:
+
+- Sending a verdict with the note's keyboard up, or after closing it first.
+- The reload that follows a verdict, on its own.
+
+Not known:
+
+- The iOS version on the phone.
+- Whether a Safari tab shows it, or only the installed app.
+- Whether other installed web apps show it, which would make it WebKit's alone.
+
+### What has been tried
+
+- A hidden field focused and blurred with no tap: no effect at all. iOS ignores
+  a focus that a tap did not start.
+- The same inside the reader's tap: restores the viewport. The first time it
+  took 2.8 seconds and a real keyboard flashed up, to 508, and down. The second
+  time it took 112 ms, and the owner saw no keyboard.
+- The same on `touchend`: a touch that ends a scroll fires it too, and iOS does
+  not honor a focus there, so scrolling spent both tries and nothing changed.
+  The fix now waits for `click`, which fires only for a tap.
+
+### The code on this branch
+
+- `web/ts/viewport.ts` is the fix. It counts the fault when the visual viewport
+  is more than 100 points short of the window, nothing that takes typing is
+  focused, and the page is not zoomed. It then waits for a click and focuses and
+  blurs a hidden 16px field inside it, at most twice per return to the
+  foreground, with three seconds between tries for the viewport to settle. It
+  checks on each viewport resize, on load, and on `visibilitychange` and
+  `pageshow`.
+- `web/ts/readout.ts` is back, temporarily, and the fix reports to it through an
+  `eyeball:viewport` event: `visible`, `armed`, `reset N`, and each height. Both
+  the readout and the reporting have to go before the branch is reviewed.
+- `TestServer_Surface_browserViewport` makes the viewport report the fault in
+  Chromium, which has none, and counts the hidden field arriving. It fails with
+  the fix off, without the settling wait, and without the foreground check.
+- The daemon on the owner's machine runs this branch, merged with master, with
+  the readout. Test reviews in a scratch repository are open for checking.
+
+### What is not solved
+
+Until the reader's first tap, the page stays wrong. A scroll cannot fix it,
+because iOS honors a focus only during a tap, and a reader's first gesture on a
+review is usually a scroll. The owner does not accept "fixed on the first tap".
+
+Not tried yet, roughly from cheapest:
+
+- Laying out against the shortfall while it lasts. The gap is known at every
+  moment: `innerHeight - visualViewport.height - visualViewport.offsetTop` below
+  the visual viewport. The page could move the bar down and the header up by
+  that much, through custom properties the sticky rules read, and stop once the
+  viewport is whole. The risk is that WebKit already places sticky elements
+  against the visual viewport, so a correction may double-move them, and the
+  amount changes with every scroll.
+- A `position: fixed` bar placed from `visualViewport` by script, as some web
+  apps do to sit above a keyboard. It would follow the visual viewport by
+  design, which is the opposite of what is wanted here, unless the script places
+  it against the window instead.
+- The viewport meta's `interactive-widget` key. Chromium honors it. Whether
+  WebKit does is not known.
+- Reading WebKit's bug tracker for a phantom keyboard height in standalone web
+  apps after an app switch, and the iOS version it applies to.
+- Asking whether a Safari tab shows it, to tell the installed app's behavior
+  from WebKit's.

@@ -1,4 +1,4 @@
-// maxTries bounds the resets one page makes, so a viewport iOS never gives
+// maxTries bounds the resets each return to the foreground makes, so a viewport iOS never gives
 // back does not bring a keyboard up on every tap.
 const maxTries = 2;
 
@@ -28,13 +28,17 @@ export function restoreViewport(): void {
   let tries = 0;
   let armed = false;
   let settling = false;
+  // A click is a tap, the one gesture iOS honours a focus in. A touch that
+  // ends a scroll is not, and spent the tries with nothing to show.
   const onTap = (): void => {
-    document.removeEventListener("touchend", onTap, true);
+    document.removeEventListener("click", onTap, true);
     armed = false;
     if (!stuck(view)) {
+      report(`tap, not stuck h${Math.round(view.height)}`);
       return;
     }
     tries++;
+    report(`reset ${tries} h${Math.round(view.height)}`);
     flick();
     settling = true;
     window.setTimeout(() => {
@@ -47,10 +51,29 @@ export function restoreViewport(): void {
       return;
     }
     armed = true;
-    document.addEventListener("touchend", onTap, true);
+    report(`armed h${Math.round(view.height)}`);
+    document.addEventListener("click", onTap, true);
   };
   view.addEventListener("resize", check);
+  // A page left open while another app's keyboard was up comes back short
+  // with no resize to say so, so a return to the foreground is a new chance
+  // with fresh tries.
+  const resumed = (): void => {
+    if (document.visibilityState !== "visible") {
+      return;
+    }
+    tries = 0;
+    report(`visible h${Math.round(view.height)}`);
+    check();
+  };
+  document.addEventListener("visibilitychange", resumed);
+  window.addEventListener("pageshow", resumed);
   check();
+}
+
+// report tells the readout what the fix did, while it is measured on the phone.
+function report(line: string): void {
+  document.dispatchEvent(new CustomEvent("eyeball:viewport", { detail: line }));
 }
 
 // stuck reports a visual viewport a keyboard's height short of the window

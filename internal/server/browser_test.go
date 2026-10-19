@@ -1002,7 +1002,7 @@ func TestServer_Surface_browserViewport(t *testing.T) {
 	// Counted as the hidden field arrives. A headless page without focus
 	// fires no focus events.
 	b.eval(g, `window.flicks = 0; new MutationObserver((records) => { for (const r of records) for (const n of r.addedNodes) if (n.dataset && "flick" in n.dataset) window.flicks++ }).observe(document.body, {childList: true})`)
-	tap := `document.dispatchEvent(new Event("touchend"))`
+	tap := `document.dispatchEvent(new Event("click"))`
 	resize := `window.visualViewport.dispatchEvent(new Event("resize"))`
 	b.eval(g, tap)
 	g.Expect(b.eval(g, `window.flicks`)).To(BeEquivalentTo(0), "a whole viewport is left alone")
@@ -1019,6 +1019,12 @@ func TestServer_Surface_browserViewport(t *testing.T) {
 	g.Expect(b.eval(g, `new Promise((done) => setTimeout(() => done(window.flicks), 3500))`)).To(BeEquivalentTo(2), "two tries and no more")
 	b.eval(g, `clearInterval(window.tapping)`)
 	g.Expect(b.eval(g, `document.querySelector("[data-flick]") === null`)).To(BeTrue(), "the hidden field is removed")
+
+	// A return to the foreground with no resize, as when the page was left
+	// open while another app's keyboard was up, gives fresh tries.
+	b.eval(g, `document.dispatchEvent(new Event("visibilitychange"))`)
+	b.eval(g, tap)
+	b.waitFor(g, `window.flicks === 3`)
 }
 
 // The page registers its service worker, scoped to the whole surface, which

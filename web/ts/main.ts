@@ -10,6 +10,7 @@ import { keepDrafts } from "./drafts";
 import { trackHead } from "./head";
 import { reportFailures } from "./failures";
 import { keepPlace } from "./place";
+import { showReadout } from "./readout";
 import { prune } from "./storage";
 import { followPush } from "./push";
 import { followStream } from "./stream";
@@ -49,4 +50,5 @@ document.addEventListener("DOMContentLoaded", () => {
   keepDrafts();
   blinkOnLoad();
   restoreViewport();
+  showReadout();
 });
