@@ -736,5 +736,9 @@ func withQuery(href string, q url.Values) string {
 	if len(q) == 0 {
 		return href
 	}
+	// A worktree's file address already carries ?copy=.
+	if strings.Contains(href, "?") {
+		return href + "&" + q.Encode()
+	}
 	return href + "?" + q.Encode()
 }

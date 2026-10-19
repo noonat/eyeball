@@ -689,8 +689,13 @@ func TestServer_Surface_projectWorkingCopies(t *testing.T) {
 
 	// The worktree's row opens the worktree's file, and a copy the project
 	// does not have is not found.
-	page := f.page(g, projectFileHref(review.ProjectID, retry.ID, "a.txt")+"&view=plain", http.StatusOK)
+	page := f.page(g, projectFileHref(review.ProjectID, retry.ID, "a.txt"), http.StatusOK)
 	g.Expect(text(page)).To(ContainSubstring("retry"))
+	// The page's own Marked and Plain links keep the copy.
+	for _, link := range findAll(find(page, "segmented"), func(n *html.Node) bool { return n.Data == "a" }) {
+		f.page(g, attr(link, "href"), http.StatusOK)
+	}
+	g.Expect(findAll(find(page, "segmented"), func(n *html.Node) bool { return n.Data == "a" })).To(HaveLen(2))
 	other, err := f.store.EnsureProject(t.Context(), dir, "other")
 	g.Expect(err).NotTo(HaveOccurred())
 	elsewhere, err := f.store.EnsureWorkingCopy(t.Context(), other.ID, other.Root)
@@ -708,4 +713,18 @@ func TestServer_Surface_projectWorkingCopies(t *testing.T) {
 	}
 	g.Expect(headings).To(Equal([]string{"harbor", "Open reviews 2", "Working copy 1 file"}))
 	g.Expect(findAll(doc, hasClass("hint"))).To(BeEmpty())
+
+	// A worktree left alone after its main checkout is removed is named for
+	// what it is, rather than drawn as the project's root.
+	git(g, main, "worktree", "prune")
+	git(g, main, "worktree", "add", "--quiet", "-b", "again", worktree)
+	write(g, worktree, "c.txt", "new\n")
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: worktree, Agent: "a"}, Paths: []string{"c.txt"}, Note: "again"})
+	g.Expect(os.Rename(main, main+"-moved")).To(Succeed())
+	doc = f.page(g, projectHref(review.ProjectID), http.StatusOK)
+	var lone []string
+	for _, h := range findAll(doc, hasClass("hint")) {
+		lone = append(lone, text(h))
+	}
+	g.Expect(lone).To(Equal([]string{"Worktree, " + worktree}))
 }

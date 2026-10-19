@@ -592,9 +592,9 @@ Routes, with the spec that builds each:
 every path, and would answer `/agent/daemon` on the surface's listener.
 
 **A worktree's live file is the project's file route with `?copy=<id>`**, the
-working copy's row id. Without it the route reads the project's root, so every
-link written before working copies still opens the same file. A path segment for
-the copy was rejected because every existing project link would change.
+working copy's row id. Without it the route reads the project's root, so a
+project with one working copy keeps the addresses it had. A path segment for the
+copy was rejected because every existing project link would change.
 
 **Paths are spelled out.** `/reviews/` rather than `/r/`, `/files/` rather than
 `/f/`. These are read in a browser address bar, quoted in a comment, and typed

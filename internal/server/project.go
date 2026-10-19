@@ -37,6 +37,9 @@ type projectPage struct {
 	// Live says some working copy lists rows, so the page says once that what
 	// it lists is live and read only.
 	Live bool
+	// Named says each section carries its working copy's name and hint: there
+	// are several, or the one there is is not at the project's root.
+	Named bool
 }
 
 // copySection is one working copy on the project view.
@@ -118,7 +121,11 @@ func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 	for _, c := range copies {
-		section, err := s.copySection(ctx, project, c, open, len(copies) > 1)
+		// A single working copy that is not at the project's root is a
+		// worktree whose main checkout is gone, so it is named for what it is.
+		named := len(copies) > 1 || c.Root != project.Root
+		view.Named = view.Named || named
+		section, err := s.copySection(ctx, project, c, open, named)
 		if err != nil {
 			return err
 		}
@@ -483,7 +490,7 @@ func projectHref(projectID int64) string {
 
 // projectFileHref is a file's page in one of a project's working copies. A
 // copy of zero is the one at the project's root, which the address leaves out,
-// so a link written before working copies existed opens the same file.
+// so a project with one working copy keeps the addresses it had.
 func projectFileHref(projectID, copyID int64, p string) string {
 	href := projectHref(projectID) + "/files/" + escapePath(p)
 	if copyID == 0 {

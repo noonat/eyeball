@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -234,5 +234,19 @@ required_acks:
 With the daemon running this branch's build, the owner checks in the installed
 app:
 
-- [ ] The queue's empty state lists no project whose working copies are gone
-- [ ] The eyeball project view shows a worktree in use beside the main checkout
+- [x] The queue's empty state lists no project whose working copies are gone
+- [x] The eyeball project view shows a worktree in use beside the main checkout
+
+Checked by the owner on 2026-10-18, with the daemon running this branch's build
+and 020's readout merged in uncommitted, after migration 0010 ran on the owner's
+store with a copy kept first. The project view showed the main checkout and a
+scratch worktree, each in its own section. The first check was not made: the
+owner chose to remove the empty state's list of projects altogether, as 022,
+since its sentence about agents at work says what eyeball cannot know.
+
+> **Completed** 2026-10-19 06:46 UTC
+>
+> - acks: phone-checked
+> - `make check` — 5.8s
+> - `go test -race ./...` — 45.2s
+> - `go test -count=1 -tags browser ./internal/server` — 33.9s

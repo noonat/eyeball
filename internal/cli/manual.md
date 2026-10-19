@@ -41,8 +41,12 @@ variable, then the working copy's path with the home directory written as `~`.
 An agent acts only on reviews opened under its own name in its own project, so
 keep the name the same across a restart. To ask for the next round from another
 working copy of the project, such as the main checkout after working in a
-worktree, pass the name the review was opened under. When a command refuses with
-`wrong_agent`, its fix names the agent that opened the review.
+worktree, pass the name the review was opened under.
+
+A JSON answer's `project.root` is a working copy: the caller's in `status`, and
+the one a review's latest round was captured from in an answer about a review.
+When a command refuses with `wrong_agent`, its fix names the agent that opened
+the review.
 
 **Paths** are relative to the working directory, as a shell reads them. Absolute
 paths work too. A path names a file, or a directory and everything under it. Two
@@ -284,7 +288,7 @@ A refusal prints `eyeball: <message>` and `fix: <what to do>` on stderr. Under
 | `daemon_unavailable`   | no daemon could be reached or started                                        |
 | `empty_change_request` | a change request with no comment and no note                                 |
 | `internal`             | a failure inside the daemon; its log says more                               |
-| `invalid_path`         | a path that is empty or names the project root                               |
+| `invalid_path`         | a path that is empty or names the working copy's root                        |
 | `login_failed`         | a tailnet login did not finish, or the tailnet cannot serve                  |
 | `missing`              | a required value was not given                                               |
 | `no_git`               | the project is a git repository and git is not on PATH                       |
@@ -403,7 +407,7 @@ Each command's `--json` answer, by dotted path. A path through a list, such as
 ### cat
 
 - `review`, the review's id, and `round`, its latest round's number
-- `path`, the file relative to the project root
+- `path`, the file relative to the working copy's root
 - `digest`, the SHA-256 of the content, and `size`, its length in bytes
 - `content`, the file's bytes as base64
 
