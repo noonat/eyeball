@@ -238,6 +238,9 @@ Unscheduled below, once real reviews say which of it matters.
 - [ ] product: a default agent name shared across a repository's working copies.
       021 lets a round come from another working copy when the agent passes
       `--agent`, since the default name is the working copy's path.
+- [ ] design: submitting a verdict returns the reviewer to the queue, the
+      owner's words. Today the page reloads to the decided round, as the review
+      tearout's Approve frame draws it, so the tearout changes first.
 
 ## Open questions
 
