@@ -23,9 +23,19 @@ requirement in either document that none of them names is a gap in this list.
       leaves out a project whose working copies are all gone, with no count of
       what it left out. Five of eleven known roots were gone on 2026-10-18, all
       worktrees or build copies.
+- [ ] 022 product: the main page's empty state says "Nothing waiting" and
+      nothing else, the owner's choice on 2026-10-18. Its list of projects and
+      its sentence counting agents at work go. The sentence counts agents with
+      an open review, so it says no agents are working while agents work on
+      something not yet up for review. Changes product.md's empty queue and an
+      approved screen, so it opens with a tearout.
 
 ## Unscheduled
 
+- [ ] product: agents report status and send messages to the owner through
+      eyeball, in the same place they ask for review, replacing the separate
+      channel used for that today. The empty state would then list active
+      sessions, not projects. The owner's idea, 2026-10-18, for later.
 - [ ] tooling: move finished specs into `specs/done/` with `git mv`, and add
       `specs/done/AGENTS.md` reading: "Specs in this directory are finished.
       Each is the record of what was planned and what changed while it ran. None
