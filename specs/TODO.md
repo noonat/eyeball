@@ -241,6 +241,10 @@ Unscheduled below, once real reviews say which of it matters.
 - [ ] design: submitting a verdict returns the reviewer to the queue, the
       owner's words. Today the page reloads to the decided round, as the review
       tearout's Approve frame draws it, so the tearout changes first.
+- [ ] design: the decision bar's notice while eyeball cannot be reached, "A
+      verdict needs eyeball. Both become available when the connection is
+      back.", wraps to two lines on the phone, the owner's words. A shorter
+      sentence or a layout that allows two lines are the options.
 
 ## Open questions
 
