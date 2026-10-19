@@ -75,6 +75,15 @@ phone can show whether the fault is gone.
 > - `go test -race ./...` — 44.8s
 > - `go test -count=1 -tags browser ./internal/server` — 34.0s
 
+**Departures, iteration 1.**
+
+- The panel follows the visual viewport, 70 pixels below the top of what is on
+  screen, rather than sitting under the page header. The owner saw that in the
+  fault the page header and each file's header are off screen too, as if the
+  whole view had moved up, and come back as the page is scrolled up. A panel
+  pinned under the header would have been off screen with it. It also shows the
+  visual viewport's `pageTop` beside `scrollY`, so the two can be compared.
+
 ## Iteration 2: Read on the phone
 
 ```punchcard
@@ -85,8 +94,8 @@ required_acks:
 With the daemon running this branch's build, the owner follows the five steps
 above in the installed app and sends screenshots:
 
-- [ ] The readout with the bar misbehaving, at the top of the page and scrolled
-      halfway down, saying whether a verdict note was typed
+- [/] The readout with the bar misbehaving, at the top of the page and scrolled
+  halfway down, saying whether a verdict note was typed
 - [ ] The readout on the same review, reached again from the queue, saying
       whether the bar sits at the bottom there
 

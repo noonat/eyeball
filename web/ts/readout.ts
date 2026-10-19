@@ -9,7 +9,7 @@ export function showReadout(): void {
   const panel = document.createElement("pre");
   const style = panel.style;
   style.position = "fixed";
-  style.top = "var(--head-height, 0px)";
+  style.top = "0";
   style.left = "0";
   style.zIndex = "100";
   style.margin = "0";
@@ -28,11 +28,15 @@ export function showReadout(): void {
       : "unknown";
   const draw = (): void => {
     const view = window.visualViewport;
+    // Pinned to what is on screen rather than to the layout viewport, since
+    // the fault moves everything fixed to the layout viewport off screen.
+    const top = view ? view.offsetTop : 0;
+    style.top = `${Math.round(top) + 70}px`;
     const bar = document.getElementById("bar")?.getBoundingClientRect();
     panel.textContent = [
       `inner ${window.innerHeight}  client ${document.documentElement.clientHeight}`,
       `visual ${view ? Math.round(view.height) : "-"}  offsetTop ${view ? Math.round(view.offsetTop) : "-"}`,
-      `scrollY ${Math.round(window.scrollY)}`,
+      `scrollY ${Math.round(window.scrollY)}  pageTop ${view ? Math.round(view.pageTop) : "-"}`,
       `bar ${bar ? `${Math.round(bar.top)}..${Math.round(bar.bottom)}` : "none"}`,
       `${document.visibilityState}  ${loaded}`,
     ].join("\n");
