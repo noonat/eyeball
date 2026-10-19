@@ -115,30 +115,58 @@ agents, is a defensible smaller rule and is not adopted yet. It is in
 
 ## The project and the agent
 
-**A project is the nearest directory above the caller's working directory that
-holds a `.git` entry or a `.eyeball` marker file.** The nearest wins, whichever
-it is, so a marker inside a repository names a smaller project that is walked
-rather than diffed. The marker is an empty file and nothing is read from it.
+**A working copy is the nearest directory above the caller's working directory
+that holds a `.git` entry or a `.eyeball` marker file.** The nearest wins,
+whichever it is, so a marker inside a repository names a smaller project that is
+walked rather than diffed. The marker is an empty file and nothing is read from
+it.
 
-**A git worktree is its own project**, because its root holds a `.git` file of
-its own. Capture runs git at the project root, and a worktree's changes are
-visible only from the worktree. Overlapping scopes are refused within a project,
-so two worktrees can claim the same path, which is right: sharing a repository
-is no more a reason to share a verdict than sharing a working copy is. A linked
-worktree is displayed under its repository's name, taken from
-`git rev-parse --git-common-dir`, so every worktree of `harbor` shows as
-`harbor`.
+**A project is the repository a working copy belongs to**, named by
+`git rev-parse --path-format=absolute --git-common-dir` with symlinks resolved.
+A main checkout and its linked worktrees give the same answer, so they are one
+project. The common directory is the only answer git gives correctly in every
+layout. Measured on 2026-10-18 with git 2.55: `git worktree list` names the git
+directory, not the working copy, as the main entry of a repository made with
+`--separate-git-dir` and inside a submodule, and it keeps listing a deleted
+worktree until `git worktree prune`. A submodule has a common directory of its
+own under the superproject's `.git/modules`, so it stays its own project. A
+working copy found by its marker file is a project of its own, keyed by its
+root, as before.
+
+This corrects an earlier rule, that a git worktree is its own project. Capture
+runs git in the working copy, and a worktree's changes are visible only from the
+worktree, but neither needs the worktree to be a project. Treating it as one
+left a row on the queue's empty state for every worktree ever removed, and made
+`eyeball check` from the main checkout refuse an approval asked for from a
+worktree (see Checking a merge).
+
+**A round records the working copy it was captured from**, and everything a
+round reads live, the base commit's files and the working copy as it is now,
+comes from there. Overlapping scopes are refused within a working copy, so two
+worktrees can still claim the same path, which is right: sharing a repository is
+no more a reason to share a verdict than sharing a working copy is. A review's
+working copy is its latest round's. A round asked for from another working copy
+is refused when an open review there already claims one of its paths, the same
+refusal a new review gets.
+
+**A project's root is its main checkout** once one has been seen, and until then
+the first working copy seen. It is what the queue's empty state and the project
+view show. A main checkout is the working copy whose git directory and common
+directory are the same. A repository with no main checkout, a bare clone with
+worktrees, keeps the first working copy seen.
 
 **The root is resolved through symlinks for its identity**, so two shells
-reaching one repository by two spellings are one project. Review paths are
-computed against the root as the shell spelled it, because an agent builds an
-absolute path from the directory it sees.
+reaching one repository by two spellings are one working copy. The common
+directory is the same through a symlink, measured on 2026-10-18. Review paths
+are computed against the root as the shell spelled it, because an agent builds
+an absolute path from the directory it sees.
 
-**An agent is named by `--agent`, then `EYEBALL_AGENT`, then its project root's
+**An agent is named by `--agent`, then `EYEBALL_AGENT`, then its working copy's
 path with the home directory written as `~`.** The working copy is the identity
-product.md asks for, and the root's path is the working copy. The current branch
-reads better in a queue and was rejected because it moves: an agent that
-switched branches would stop seeing its own reviews.
+product.md asks for. An agent asking for a round from another working copy of
+the project passes the name it opened the review under. The current branch reads
+better in a queue and was rejected because it moves: an agent that switched
+branches would stop seeing its own reviews.
 
 **git runs without the variables git itself calls repository-local.** The daemon
 serves every project and inherits the environment of whichever agent started it,
@@ -301,6 +329,35 @@ the same and the rename is a no-op.
 **Migrations are forward-only `*.sql` files** embedded with `//go:embed`,
 applied against a `schema_migrations` ledger.
 
+**A working copy is a row of its own, under its project.** Each project row
+written before working copies existed becomes one working copy at the same root,
+and every round of its reviews points at it. Which repository such a project
+belongs to needs git, which SQL cannot run, so the daemon fills it in at start
+for every project whose root is still on disk. Two old projects that turn out to
+share a repository are merged into one: their working copies and reviews move to
+the project whose root is the main checkout. On 2026-10-18 no two live roots
+shared one, so the merge runs only in a test. A project whose root is gone keeps
+no repository, stays a project of its own, and is left off the queue's empty
+state. Filling it in when a request first arrives was rejected, since a request
+from a new worktree cannot find its main checkout's old row: that needs the
+repository the row does not have yet. The fill finishes before the agent socket
+accepts a request, so no request sees a half-filled store.
+
+**A directory recreated at a gone root is merged when it is next seen.** The
+gone project keeps its working copy row, so a request from a new checkout at
+that path finds a working copy whose project is not its repository's. The
+request merges the old project into the repository's, as the startup fill would
+have. This is not the lazy fill rejected above: git can answer for the new
+directory, and the row it needs is found by root.
+
+**SQLite cannot add the columns as constraints.** Measured on 2026-10-18 with
+foreign keys on: `ADD COLUMN` refuses a `REFERENCES` column with a non-null
+default, and refuses `UNIQUE`. So `rounds.working_copy_id` is added nullable,
+filled by the migration, and a trigger refuses a round written without one.
+`projects.repository` is unique through a partial index over the rows that have
+one. Rebuilding `rounds` to declare `NOT NULL` was rejected, since every table
+holding a round's files, comments and decisions references it.
+
 ## Capture
 
 **`git` by shell-out, not a Go implementation of git.** The agent's repository
@@ -369,11 +426,13 @@ pins the current answer, so a version bump that changes it is noticed.
 socket**, like every command, so the daemon that owns the store answers it. A
 review gate runs it before a default branch moves from `<old>` to `<new>`, so
 the reviewer's eyeball approval is the only one. It passes when an approved
-review in the caller's project, opened by any agent, has a latest round measured
-from `<old>` whose capture matches `<new>`'s tree. Reading `eyeball.db` from the
-CLI would work with the daemon stopped, and was rejected for adding a second
-reader of the schema. A gate that sets `EYEBALL_NO_START` gets a refusal from a
-stopped daemon instead of starting one.
+review in the caller's project, opened by any agent from any of its working
+copies, has a latest round measured from `<old>` whose capture matches `<new>`'s
+tree. The commits are read in the caller's working copy, which shares its
+objects with every other working copy of the repository. Reading `eyeball.db`
+from the CLI would work with the daemon stopped, and was rejected for adding a
+second reader of the schema. A gate that sets `EYEBALL_NO_START` gets a refusal
+from a stopped daemon instead of starting one.
 
 **They match when the two disagree on no path that matters.** Every path `<new>`
 changes from `<old>` must be captured inside the review's paths with `<new>`'s
@@ -402,9 +461,11 @@ directory there, and every git command the daemon runs already drops git's
 repository-local variables.
 
 **It records nothing.** The project is looked up and never registered, so a
-repository eyeball has not seen is refused. A worktree is a project of its own,
-so a review opened from one does not match a merge made in the main clone, and
-the refusal names the project root and the base so that is visible.
+repository eyeball has not seen is refused. A review asked for from a worktree
+matches a merge made in the main checkout, since both are one project. Before
+working copies, a worktree was a project of its own, and on 2026-10-18 an
+approval of review 58, asked for from a worktree, did not match the merge, so
+the same tree needed review 59.
 
 ## Reading the approved bytes
 
@@ -425,8 +486,12 @@ the review's paths and with content. A deletion does not answer. Reviews that
 hold the same bytes are one answer. Reviews that hold different bytes are
 refused as `ambiguous`, because picking one would let a gate approve or refuse
 by whichever review the query listed first. None is refused as `not_captured`.
-Like `check`, it reads and records nothing, and a repository eyeball has not
-seen is refused.
+An approval asked for from a worktree is a candidate too, so a spec approved
+from a worktree and a branch approved from the main checkout, on one base and
+holding different bytes of the spec, are refused as `ambiguous` where before
+only the main checkout's counted. That is the same answer two such approvals in
+one checkout get today. Like `check`, it reads and records nothing, and a
+repository eyeball has not seen is refused.
 
 **The body is JSON, with the content as base64 and its SHA-256, and the command
 recomputes the digest.** The client already treats a 200 whose body is not JSON
@@ -502,8 +567,8 @@ Routes, with the spec that builds each:
 | `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round         | 007  |
 | `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round                | 007  |
 | `GET /reviews/{review}/raw/{round}/{path...}`          | a file's bytes as of a round, 0 the base            | 010  |
-| `GET /projects/{project}`                              | the project view and its working copy               | 007  |
-| `GET /projects/{project}/files/{path...}`              | one changed file in the working copy, live          | 007  |
+| `GET /projects/{project}`                              | the project view and its working copies             | 007  |
+| `GET /projects/{project}/files/{path...}`              | one changed file in a working copy, live, by `copy` | 007  |
 | `POST /reviews/{review}/comments`                      | one comment                                         | 008  |
 | `PUT /reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | 008  |
 | `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                         | 008  |
@@ -525,6 +590,11 @@ Routes, with the spec that builds each:
 
 `GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
 every path, and would answer `/agent/daemon` on the surface's listener.
+
+**A worktree's live file is the project's file route with `?copy=<id>`**, the
+working copy's row id. Without it the route reads the project's root, so every
+link written before working copies still opens the same file. A path segment for
+the copy was rejected because every existing project link would change.
 
 **Paths are spelled out.** `/reviews/` rather than `/r/`, `/files/` rather than
 `/f/`. These are read in a browser address bar, quoted in a comment, and typed

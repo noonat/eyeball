@@ -228,6 +228,16 @@ Unscheduled below, once real reviews say which of it matters.
 - [ ] design: a comment added on a second device shows on the first only after a
       reload. 008's stamps leave comment counts out, so a reviewer's own comment
       does not reload the page that wrote it.
+- [ ] product: forgetting a project, or deleting a working copy whose directory
+      is gone. Deleting a project row deletes its reviews with it, so 021 only
+      hides a project whose working copies are all gone.
+- [ ] product: showing a worktree no agent has run eyeball in on the project
+      view. 021 shows the working copies eyeball has seen, since
+      `git worktree list` misnames the main checkout with `--separate-git-dir`
+      and inside a submodule.
+- [ ] product: a default agent name shared across a repository's working copies.
+      021 lets a round come from another working copy when the agent passes
+      `--agent`, since the default name is the working copy's path.
 
 ## Open questions
 
