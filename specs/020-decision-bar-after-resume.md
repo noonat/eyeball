@@ -352,6 +352,76 @@ Each prediction that fails counts against the hypothesis:
 Coming back from a notification banner needs web push, which the probe does not
 have, so that way back is checked on eyeball with the readout.
 
+### What the trials showed
+
+Run on 2026-10-20 with the probe, then with eyeball on this branch's build.
+
+- Coming back from the terminal app while its keyboard is up shrinks the visual
+  viewport to 576, the fault's exact height, about 50 ms after the page turns
+  visible, in the installed app and in a Safari tab alike. With nothing focused.
+  In the probe it always came back 0.3 to 1 second later. Notes' keyboard never
+  shrank it, so prediction 1 could not be tested: only the terminal app's
+  keyboard reaches the page at all, for a reason not known.
+- A reload during that dip does not clear it. The new page loads whole and
+  shrinks within 40 ms, so the state belongs to the native web view.
+- A scroll during the dip gives the fault's layout: `offsetTop` 318, and
+  everything pinned to the layout viewport 318 points up the screen.
+- The probe was never left short. Its own reloads at once, after 300 ms, a busy
+  main thread and a scroll all recovered. The probe's script stops about 3
+  seconds after it is hidden, measured once.
+
+**A reproduction.** In eyeball, with a review open and scrolled partway:
+
+1. Switch to the terminal app and use it with the keyboard up for a minute.
+2. Have an agent open a new review, so its notification arrives.
+3. Tap the notification with the terminal's keyboard still up.
+
+It left the page short both times it was tried, reviews 108 and 109. On 108 the
+page loaded by navigation at 894, turned visible at 894 at 150 ms, fell to 576
+at 188 ms and stayed there, with `offsetTop` 312 and the bar at 422 to 582 when
+scrolled. On 109 the phone was in landscape when tapped. The page loaded whole
+at 440, and turned 576 tall on rotating to portrait 2.5 seconds later. Opening a
+different review in the app cleared it both times.
+
+On review 110 the terminal's keyboard was closed before the tap, and the page
+was left short the same way: whole at 186 ms, 576 at 254 ms, `offsetTop` 318 and
+the bar at 416 to 576. So the keyboard does not have to be on screen when the
+notification is tapped. Whether it had been up earlier in that minute was not
+recorded. Switching to the terminal and back through the app switcher cleared
+it, which fits a later keyboard notification resetting the rectangle.
+
+On review 111 about two minutes were spent in Photos, with no keyboard shown in
+any app since eyeball was last whole. The tap left the page whole: 894 at 177 ms
+and after. So the fault needs the terminal app, even with its keyboard closed at
+the tap. A notification tap alone does not cause it.
+
+With a minute in the terminal and its keyboard up, coming back through the app
+switcher instead of a notification left the page whole once it settled. It fell
+to 576 and came back 4.9 seconds later with no tap, far slower than the probe's
+0.3 to 1 second. So the notification is part of the fault, and the terminal
+alone is not.
+
+A notification for the review already open left it short too. The service worker
+then only focuses the window and does not navigate it, and the page reloaded
+itself when its stream saw the new round: loaded whole by `reload` at 153 ms,
+576 at 194 ms, `offsetTop` 213. So the service worker's navigation is not the
+trigger.
+
+A push that arrived while the terminal was in front, left untapped, did not
+leave it short. Coming back through the app switcher ten seconds later, the page
+was 894 with no dip at all. So the push waking eyeball in the background is not
+the trigger. The tap on the banner is.
+
+Opening a different review probably cleared it through this branch's own fix,
+not through the navigation. The fix was armed each time, and the tap on the link
+to the other review is the tap it waits for. The readout cannot show the reset,
+because the page that ran it was replaced. Inferred, not checked.
+
+The tap reaches the page through the service worker, which navigates the window
+already open with `navigate` (`openReview` in `web/ts/sw.ts`). That navigation
+starts while iOS brings the app forward. Which part the fault needs, the
+navigation, the notification, or the minute away, is not yet known.
+
 ### The code on this branch
 
 - `web/ts/viewport.ts` is the fix. It counts the fault when the visual viewport
