@@ -265,9 +265,11 @@ Not a trigger:
 
 Not known:
 
-- The iOS version on the phone.
 - Whether a Safari tab shows it, or only the installed app.
 - Whether other installed web apps show it, which would make it WebKit's alone.
+  No WebKit bug matches it, searched on 2026-10-20. Another installed web app's
+  tracker reports a footer stuck mid-screen after a return from the home screen,
+  with no steps that reproduce it (cybersemics/em issue 5972).
 
 ### What has been tried
 
@@ -279,6 +281,76 @@ Not known:
 - The same on `touchend`: a touch that ends a scroll fires it too, and iOS does
   not honor a focus there, so scrolling spent both tries and nothing changed.
   The fix now waits for `click`, which fires only for a tap.
+
+### The cause, as read in WebKit's source
+
+Read on 2026-10-20 in `Source/WebKit/UIProcess/API/ios/WKWebViewIOS.mm` on
+WebKit's `main`. The phone runs iOS 26.6.2. Apple's branch for that release is
+not public, so that it holds the same code is inferred from the history below,
+not seen.
+
+- The web view listens for UIKit's keyboard notifications with no filter on
+  which app's keyboard sent them.
+- On a will-show or will-change-frame notification,
+  `_shouldUpdateKeyboardWithInfo` keeps the keyboard's frame when a page element
+  is being focused, or when `UIKeyboardIsLocalUserInfoKey` is false, which means
+  the keyboard belongs to another app. The frame is stored in
+  `_inputViewBoundsInWindow`. A did-change-frame notification stores its frame
+  with no check.
+- `_inputViewBoundsForViewportCalculations` takes that rectangle off the area
+  the page sees, which is what `visualViewport` reports. Only a later will-hide,
+  or a frame that ends off screen, clears it. Loading a page does not.
+- The rule for another app's keyboard came in April 2015 with "Non-local
+  keyboards don't update scroll view parameters" (WebKit bug 143791), for an
+  iPad app sharing the screen with another app's keyboard. It last changed in
+  2022, and no commit to the file since June 2025 touches the keyboard handlers.
+
+So the hypothesis is this. When the app comes forward while another app's
+keyboard is on screen, the web view is sent that keyboard's frame and keeps it.
+The will-hide sent as the other app goes to the background never reaches it. The
+rectangle then stays until a keyboard of the app's own is shown and hidden.
+
+It accounts for each reading above. Nothing is focused, because no element of
+the page asked for a keyboard. The 318 lacks the bar WebKit adds over a web
+field, because the keyboard was another app's. It survives the queue and a
+reload, because the rectangle belongs to the native web view and not to a page.
+Closing the app builds a new web view. The fix's own keyboard ends in a
+will-hide, which clears it.
+
+Why the will-hide is missed is inferred, not read. How UIKit delivers another
+app's keyboard notifications is not public source.
+
+The viewport meta's `interactive-widget=overlays-content` makes
+`_inputViewBoundsForViewportCalculations` return an empty rectangle, so a stuck
+one would no longer shorten the viewport. WebKit parses the key only when the
+setting `metaViewportInteractiveWidgetEnabled` is on, and its value in iOS
+26.6.2 is not known. The cost is that the page's own keyboard would cover the
+verdict note instead of shortening the viewport.
+
+### The trials that test it
+
+A probe page outside eyeball runs them: a sticky header, a long body, a sticky
+footer and no eyeball script, added to the home screen. It sends each change in
+the visual viewport, each visibility and focus change, and samples at fixed
+delays after each return to the foreground, to a log on the development machine.
+That separates WebKit from eyeball's code, and replaces screenshots with exact
+numbers and times. It stays out of the tree, since it exists only to answer
+this.
+
+Each prediction that fails counts against the hypothesis:
+
+1. The shortfall is the other app's keyboard height. A terminal app's keyboard,
+   Notes' keyboard with its suggestion bar and the emoji keyboard each give a
+   different number.
+2. With another app's keyboard up, coming back through the app switcher or
+   through Spotlight search leaves the probe short. With it down, never.
+3. Replying to a notification while the probe stays in front shrinks the
+   viewport and gives it back, since the probe is in front to receive the
+   will-hide.
+4. A Safari tab shows it too, since Safari uses the same web view code.
+
+Coming back from a notification banner needs web push, which the probe does not
+have, so that way back is checked on eyeball with the readout.
 
 ### The code on this branch
 
@@ -304,8 +376,11 @@ Until the reader's first tap, the page stays wrong. A scroll cannot fix it,
 because iOS honors a focus only during a tap, and a reader's first gesture on a
 review is usually a scroll. The owner does not accept "fixed on the first tap".
 
-Not tried yet, roughly from cheapest:
+No workaround is written until the trials settle the cause. The options once
+they do, roughly from cheapest:
 
+- `interactive-widget=overlays-content`, under "The cause, as read in WebKit's
+  source" above, if iOS 26.6.2 honors it.
 - Laying out against the shortfall while it lasts. The gap is known at every
   moment: `innerHeight - visualViewport.height - visualViewport.offsetTop` below
   the visual viewport. The page could move the bar down and the header up by
@@ -317,9 +392,3 @@ Not tried yet, roughly from cheapest:
   apps do to sit above a keyboard. It would follow the visual viewport by
   design, which is the opposite of what is wanted here, unless the script places
   it against the window instead.
-- The viewport meta's `interactive-widget` key. Chromium honors it. Whether
-  WebKit does is not known.
-- Reading WebKit's bug tracker for a phantom keyboard height in standalone web
-  apps after an app switch, and the iOS version it applies to.
-- Asking whether a Safari tab shows it, to tell the installed app's behavior
-  from WebKit's.
