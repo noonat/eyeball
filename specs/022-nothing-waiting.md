@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -55,16 +55,25 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] queue.html's nothing-waiting frame showing the shut eye and "Nothing
+- [x] queue.html's nothing-waiting frame showing the shut eye and "Nothing
       waiting" alone, with no sentence and no Projects section
-- [ ] queue.html's paragraph above the empty frames naming no project list and
+- [x] queue.html's paragraph above the empty frames naming no project list and
       no misconfigured root, as product.md now says
-- [ ] foundations.html's two empty-state specimens that print the agents
+- [x] foundations.html's two empty-state specimens that print the agents
       sentence showing the heading alone, as the third already does
-- [ ] project.html's opening paragraph saying the view is reachable from a
+- [x] project.html's opening paragraph saying the view is reachable from a
       review's header, with the queue no longer named
-- [ ] The tearout judged on the phone by the owner, with any change asked for
+- [x] The tearout judged on the phone by the owner, with any change asked for
       made before the ack
+
+Approved by the owner on 2026-10-21 with no changes.
+
+> **Completed** 2026-10-21 10:31 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 19.7s
+> - `go test -race ./...` — 52.5s
+> - `go test -count=1 -tags browser ./internal/server` — 46.4s
 
 ## Iteration 2: The surface
 
