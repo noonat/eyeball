@@ -44,7 +44,8 @@ func Test_linksResolve(t *testing.T) {
 		}
 	}
 
-	// The empty queue's project rows are links only when nothing waits.
+	// The queue prints a different page with nothing waiting, so it is crawled
+	// again in that state.
 	g.Expect(s.answerAll()).To(Succeed())
 	c.crawl(g, "/")
 	g.Expect(c.problems).To(BeEmpty())

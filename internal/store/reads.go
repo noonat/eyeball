@@ -383,35 +383,20 @@ func rows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]ReviewR
 	return out, errors.Wrap(found.Err(), "read reviews")
 }
 
-// ProjectRow is one project as the empty queue lists it.
-type ProjectRow struct {
-	// Project is the project's id, root and name. Its InsideCheckout is not
-	// read here and stays false, since nothing that lists projects shows it.
-	Project
-	// Agents counts the agents with an open review in the project, which is
-	// what says whether anything is happening there.
-	Agents int
-}
-
 // Projects lists every project eyeball has seen, by name.
-func (s *Store) Projects(ctx context.Context) ([]ProjectRow, error) {
-	query := `SELECT p.id, p.root, p.name, count(DISTINCT r.agent)
-		FROM projects p
-		LEFT JOIN reviews r ON r.project_id = p.id AND r.state = ?
-		GROUP BY p.id
-		ORDER BY p.name, p.id`
-	found, err := s.db.QueryContext(ctx, query, StateOpen)
+func (s *Store) Projects(ctx context.Context) ([]Project, error) {
+	found, err := s.db.QueryContext(ctx, projectQuery+" ORDER BY name, id")
 	if err != nil {
 		return nil, errors.Wrap(err, "read projects")
 	}
 	defer func() { _ = found.Close() }()
-	var out []ProjectRow
+	var out []Project
 	for found.Next() {
-		var row ProjectRow
-		if err := found.Scan(&row.ID, &row.Root, &row.Name, &row.Agents); err != nil {
+		var p Project
+		if err := found.Scan(&p.ID, &p.Root, &p.Name, &p.Repository, &p.InsideCheckout); err != nil {
 			return nil, errors.Wrap(err, "scan project")
 		}
-		out = append(out, row)
+		out = append(out, p)
 	}
 	return out, errors.Wrap(found.Err(), "read projects")
 }

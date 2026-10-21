@@ -248,7 +248,7 @@ func TestServer_Surface_projectFileTooLarge(t *testing.T) {
 	}))
 }
 
-func TestServer_Surface_projectFromTheProjects(t *testing.T) {
+func TestServer_Surface_projectFromAReview(t *testing.T) {
 	g := NewWithT(t)
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	f := newFixture(g, t)
@@ -258,13 +258,10 @@ func TestServer_Surface_projectFromTheProjects(t *testing.T) {
 	f.decide(g, t, id, store.VerdictChanges, "more")
 	g.Expect(os.Rename(filepath.Join(outer, ".git"), filepath.Join(dir, "moved.git"))).To(Succeed())
 
-	// The empty queue lists the project with no flag, since a listing does
-	// not read it. The view reads the project by its id, flag included, so it
-	// still refuses.
-	queue := f.page(g, "/", http.StatusOK)
-	rows := findAll(find(queue, "section"), hasClass("row"))
-	g.Expect(rows).To(HaveLen(1))
-	href := attr(rows[0], "href")
+	// The review's header links to the project view, which reads the project
+	// by its id, flag included, so it still refuses after the .git moved.
+	review := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	href := attr(find(find(review, "who"), "bit"), "href")
 	g.Expect(href).To(Equal(projectHref(1)))
 	doc := f.page(g, href, http.StatusOK)
 	g.Expect(notices(doc)).To(Equal([]string{"warn: Live browsing is unavailable. The checkout the project sat inside has lost its repository."}))

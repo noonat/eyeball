@@ -481,8 +481,9 @@ func pdfDocument(title, line string) string {
 	return b.String()
 }
 
-// answerAll requests changes on every waiting round a minute ago, which leaves
-// the queue with nothing waiting and agents still at work.
+// answerAll requests changes on every waiting round a minute ago. The queue is
+// left with nothing waiting and every review under Working, which is how the
+// empty state looks while reviews are still open.
 func (s *seed) answerAll() error {
 	s.ago(time.Minute)
 	q, err := s.store.Queue(s.ctx, 5)

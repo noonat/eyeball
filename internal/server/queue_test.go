@@ -15,51 +15,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-func Test_emptyQueueSentence(t *testing.T) {
-	cases := []struct {
-		name     string
-		projects []store.ProjectRow
-		want     string
-	}{
-		{
-			name:     "nobody at work",
-			projects: []store.ProjectRow{{Project: store.Project{Name: "harbor"}}},
-			want:     "No agents are working.",
-		},
-		{
-			name:     "one agent",
-			projects: []store.ProjectRow{{Project: store.Project{Name: "harbor"}, Agents: 1}},
-			want:     "One agent is working in harbor.",
-		},
-		{
-			name:     "two agents in one project",
-			projects: []store.ProjectRow{{Project: store.Project{Name: "eyeball"}, Agents: 2}, {Project: store.Project{Name: "idle"}}},
-			want:     "Two agents are working in eyeball.",
-		},
-		{
-			name: "agents across three projects",
-			projects: []store.ProjectRow{
-				{Project: store.Project{Name: "eyeball"}, Agents: 2},
-				{Project: store.Project{Name: "field-notes"}, Agents: 1},
-				{Project: store.Project{Name: "harbor"}, Agents: 1},
-			},
-			want: "Four agents are working across eyeball, field-notes and harbor.",
-		},
-		{
-			name:     "more agents than a sentence spells",
-			projects: []store.ProjectRow{{Project: store.Project{Name: "a"}, Agents: 6}, {Project: store.Project{Name: "b"}, Agents: 6}},
-			want:     "12 agents are working across a and b.",
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			g := NewWithT(t)
-			s := &Server{}
-			g.Expect(s.emptyQueue(c.projects).Sentence).To(Equal(c.want))
-		})
-	}
-}
-
 // A waiting row quotes the note's first paragraph, split as the review page
 // splits the letter, so a note with blank lines around its paragraphs reads the
 // same in both places.
@@ -95,7 +50,8 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)
 	eyeball := q.project(g, t, "/home/a/src/eyeball", "eyeball")
-	fieldNotes := q.project(g, t, "/srv/field-notes", "field-notes")
+	// field-notes has no review, so only a list of projects would name it.
+	q.project(g, t, "/srv/field-notes", "field-notes")
 	harbor := q.project(g, t, "/home/a/src/harbor", "harbor")
 	working := q.open(g, t, eyeball, "one", "first", "a")
 	q.decide(g, t, working, store.VerdictChanges)
@@ -116,73 +72,19 @@ func TestServer_Surface_emptyQueue(t *testing.T) {
 	g.Expect(find(find(doc, "empty"), "eye")).NotTo(BeNil(), "the empty queue's large shut eye")
 	empty := find(doc, "empty")
 	g.Expect(empty).NotTo(BeNil())
-	g.Expect(text(empty)).To(Equal("Nothing waitingThree agents are working across eyeball and harbor."))
+	g.Expect(text(empty)).To(Equal("Nothing waiting"), "the empty state is the heading alone")
 
 	var headings []string
 	for _, h := range findAll(doc, func(n *html.Node) bool { return n.Data == "h2" }) {
 		headings = append(headings, text(h))
 	}
 	// Working still follows the empty state when it has rows.
-	g.Expect(headings).To(Equal([]string{"Projects 3", "Working 3"}))
+	g.Expect(headings).To(Equal([]string{"Working 3"}))
 
-	projects := findAll(find(doc, "section"), hasClass("row"))
-	type shape struct {
-		Element, Href, Project, Activity, Root string
-	}
-	var got []shape
-	for _, p := range projects {
-		got = append(got, shape{Element: p.Data, Href: attr(p, "href"), Project: text(find(p, "project")), Activity: text(find(p, "age")), Root: text(find(p, "agent"))})
-	}
-	// Each row is a link to its project's view.
-	g.Expect(got).To(Equal([]shape{
-		{
-			Element:  "a",
-			Href:     projectHref(eyeball),
-			Project:  "eyeball",
-			Activity: "2 agents",
-			Root:     "~/src/eyeball",
-		},
-		{
-			Element:  "a",
-			Href:     projectHref(fieldNotes),
-			Project:  "field-notes",
-			Activity: "Idle",
-			Root:     q.path("/srv/field-notes"),
-		},
-		{
-			Element:  "a",
-			Href:     projectHref(harbor),
-			Project:  "harbor",
-			Activity: "1 agent",
-			Root:     "~/src/harbor",
-		},
-	}))
-}
-
-// The empty state leaves out a project whose working copies are all gone from
-// disk, and says nothing about having done so. A project whose root is gone
-// but whose worktree is still there stays.
-func TestServer_Surface_emptyQueueLeavesOutGoneProjects(t *testing.T) {
-	g := NewWithT(t)
-	q := newQueueFixture(g, t)
-	q.project(g, t, "/home/a/src/eyeball", "eyeball")
-	q.project(g, t, "/home/a/src/eyeball-018", "eyeball")
-	moved := q.project(g, t, "/home/a/src/harbor", "harbor")
-	_, err := q.store.EnsureWorkingCopy(t.Context(), moved, q.path("/home/a/src/harbor-retry"))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(os.MkdirAll(q.path("/home/a/src/harbor-retry"), 0o700)).To(Succeed())
-	g.Expect(os.RemoveAll(q.path("/home/a/src/eyeball-018"))).To(Succeed())
-	g.Expect(os.RemoveAll(q.path("/home/a/src/harbor"))).To(Succeed())
-
-	res := serveSurface(q.s.Surface(), http.MethodGet, "/")
-	g.Expect(res.Code).To(Equal(http.StatusOK))
-	doc := parse(g, res.Body.String())
-	var roots []string
-	for _, n := range findAll(doc, hasClass("agent")) {
-		roots = append(roots, text(n))
-	}
-	g.Expect(roots).To(Equal([]string{"~/src/eyeball", "~/src/harbor"}))
-	g.Expect(text(doc)).NotTo(ContainSubstring("eyeball-018"))
+	// The project view is reached from a review's header, so the queue links
+	// to none, whatever projects the store holds.
+	links := findAll(doc, func(n *html.Node) bool { return strings.HasPrefix(attr(n, "href"), "/projects/") })
+	g.Expect(links).To(BeEmpty())
 }
 
 func TestServer_Surface_queue(t *testing.T) {

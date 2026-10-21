@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -77,19 +77,31 @@ Approved by the owner on 2026-10-21 with no changes.
 
 ## Iteration 2: The surface
 
-- [ ] web/templates/queue.html printing the empty state as the heading and the
+- [x] web/templates/queue.html printing the empty state as the heading and the
       shut eye alone when nothing waits, with Working and Settled still below it
-- [ ] queue.go without `emptyQueue`, `projectRow`, `projectsOnDisk`, `numbers`,
+- [x] queue.go without `emptyQueue`, `projectRow`, `projectsOnDisk`, `numbers`,
       `number` and `capitalize`, so the empty branch reads nothing from the
       store
-- [ ] `store.Projects` returning `[]Project` by name with no agent count and
+- [x] `store.Projects` returning `[]Project` by name with no agent count and
       `ProjectRow` removed, its comment naming no reader that has gone
-- [ ] reads_test.go testing `Projects` for its order and its columns, in place
+- [x] reads_test.go testing `Projects` for its order and its columns, in place
       of the agent count case
-- [ ] A queue test that the empty state's text is "Nothing waiting" and that no
+- [x] A queue test that the empty state's text is "Nothing waiting" and that no
       element on the page links to `/projects/`, failing with the list restored
-- [ ] `Test_emptyQueueSentence` and
+- [x] `Test_emptyQueueSentence` and
       `TestServer_Surface_emptyQueueLeavesOutGoneProjects` removed, since what
       they tested is gone
-- [ ] tool/seed's `answerAll` comment saying what the state is for without
+- [x] tool/seed's `answerAll` comment saying what the state is for without
       "agents still at work"
+
+One test the spec did not name reached the project view through the empty
+queue's list: `TestServer_Surface_projectFromTheProjects`. It now follows the
+review's link to its project and is named
+`TestServer_Surface_projectFromAReview`. A comment in the seed's crawl test said
+the queue's project rows were links, and is reworded for the same reason.
+
+> **Completed** 2026-10-21 10:38 UTC
+>
+> - `make check` — 6.0s
+> - `go test -race ./...` — 52.1s
+> - `go test -count=1 -tags browser ./internal/server` — 47.4s
