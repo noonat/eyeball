@@ -119,6 +119,8 @@ func TestStore_ProjectByRoot(t *testing.T) {
 	g.Expect(errors.Is(err, ErrNotFound)).To(BeTrue())
 }
 
+// Projects are ordered by name, and two projects with one name by the order
+// they were first seen. Each carries every column a single project read does.
 func TestStore_Projects(t *testing.T) {
 	g := NewWithT(t)
 	s := openStore(g, t)
@@ -126,31 +128,19 @@ func TestStore_Projects(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	eyeball, err := s.EnsureProject(t.Context(), "/home/a/src/eyeball", "eyeball")
 	g.Expect(err).NotTo(HaveOccurred())
-	idle, err := s.EnsureProject(t.Context(), "/home/a/src/idle", "idle")
+	fieldNotes, err := s.EnsureProject(t.Context(), "/srv/field-notes", "field-notes")
+	g.Expect(err).NotTo(HaveOccurred())
+	other, err := s.EnsureProject(t.Context(), "/srv/eyeball", "eyeball")
 	g.Expect(err).NotTo(HaveOccurred())
 
-	// Two agents open reviews in eyeball, one of them twice. An approved and
-	// an abandoned review in harbor count for nothing: nobody is at work
-	// there.
-	agents := []string{"one", "one", "two"}
-	for i, agent := range agents {
-		review := newReview(eyeball.ID, "claim"+strconv.Itoa(i))
-		review.Agent = agent
-		_, _, err := s.OpenReview(t.Context(), review)
-		g.Expect(err).NotTo(HaveOccurred())
-	}
-	_, round := openReview(g, t, s, harbor.ID, "a")
-	g.Expect(s.Decide(t.Context(), round.ID, VerdictApprove, "")).To(Succeed())
-	gone, _ := openReview(g, t, s, harbor.ID, "b")
-	g.Expect(s.Abandon(t.Context(), gone.ID)).To(Succeed())
+	g.Expect(s.SetRepository(t.Context(), harbor.ID, "/home/a/src/harbor/.git")).To(Succeed())
+	harbor.Repository = "/home/a/src/harbor/.git"
+	g.Expect(s.MarkInsideCheckout(t.Context(), fieldNotes.ID)).To(Succeed())
+	fieldNotes.InsideCheckout = true
 
 	got, err := s.Projects(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal([]ProjectRow{
-		{Project: eyeball, Agents: 2},
-		{Project: harbor, Agents: 0},
-		{Project: idle, Agents: 0},
-	}))
+	g.Expect(got).To(Equal([]Project{eyeball, other, fieldNotes, harbor}))
 }
 
 func TestStore_Queue(t *testing.T) {

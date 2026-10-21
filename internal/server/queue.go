@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,8 +17,6 @@ const settledShown = 5
 type queuePage struct {
 	// Waiting, Working and Settled are the three sections, in that order.
 	Waiting, Working, Settled []queueRow
-	// Empty is the empty state, shown when nothing is waiting.
-	Empty *emptyQueue
 	// Stamp is the queue's stamp when the page was rendered, which the
 	// client compares with what its stream sends.
 	Stamp string
@@ -49,24 +46,6 @@ type queueRow struct {
 	Gist string
 }
 
-// emptyQueue is the queue with nothing waiting.
-type emptyQueue struct {
-	// Sentence counts the agents at work and names where.
-	Sentence string
-	// Projects is every project eyeball knows.
-	Projects []projectRow
-}
-
-// projectRow is one project in the empty state.
-type projectRow struct {
-	// Href is the project's view.
-	Href string
-	// Name is the project's name, and Root its root written with ~.
-	Name, Root string
-	// Activity is the count of agents at work, or Idle.
-	Activity string
-}
-
 // handleQueue answers GET /, the page the surface opens on.
 func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 	q, err := s.db.s.Queue(r.Context(), settledShown)
@@ -86,13 +65,6 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 	}
 	for _, row := range q.Settled {
 		body.Settled = append(body.Settled, s.queueRow(row, render.Age(now, row.DecidedAt)))
-	}
-	if len(body.Waiting) == 0 {
-		projects, err := s.projectsOnDisk(r.Context())
-		if err != nil {
-			return err
-		}
-		body.Empty = s.emptyQueue(projects)
 	}
 	// The queue's own Waiting section is the count, read in the same snapshot
 	// as the rows, so the eye cannot disagree with the list under it.
@@ -131,60 +103,6 @@ func gist(note, title string) string {
 	return ""
 }
 
-// projectsOnDisk is every project with a working copy still on disk. A
-// project whose working copies are all gone is left out, usually worktrees
-// removed after their branches merged, since a row for one has nothing behind
-// it to open or act on.
-func (s *Server) projectsOnDisk(ctx context.Context) ([]store.ProjectRow, error) {
-	projects, err := s.db.s.Projects(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var out []store.ProjectRow
-	for _, p := range projects {
-		copies, err := s.db.s.WorkingCopies(ctx, p.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, c := range copies {
-			if onDisk(c.Root) {
-				out = append(out, p)
-				break
-			}
-		}
-	}
-	return out, nil
-}
-
-// emptyQueue builds the empty state from the projects it lists.
-func (s *Server) emptyQueue(projects []store.ProjectRow) *emptyQueue {
-	out := &emptyQueue{}
-	agents := 0
-	var busy []string
-	for _, p := range projects {
-		activity := "Idle"
-		if p.Agents > 0 {
-			activity = count(p.Agents, "agent", "agents")
-			agents += p.Agents
-			busy = append(busy, p.Name)
-		}
-		out.Projects = append(out.Projects, projectRow{Href: projectHref(p.ID), Name: p.Name, Root: s.tilde(p.Root), Activity: activity})
-	}
-	switch agents {
-	case 0:
-		out.Sentence = "No agents are working."
-	case 1:
-		out.Sentence = "One agent is working in " + busy[0] + "."
-	default:
-		where := "in " + busy[0]
-		if len(busy) > 1 {
-			where = "across " + strings.Join(busy[:len(busy)-1], ", ") + " and " + busy[len(busy)-1]
-		}
-		out.Sentence = capitalize(number(agents)) + " agents are working " + where + "."
-	}
-	return out
-}
-
 // tilde writes a path under the home directory with ~ in its place.
 func (s *Server) tilde(path string) string {
 	if s.home == "" {
@@ -205,23 +123,4 @@ func count(n int, one, many string) string {
 		return "1 " + one
 	}
 	return fmt.Sprintf("%d %s", n, many)
-}
-
-// numbers are the counts a sentence spells out.
-var numbers = []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
-
-// number spells a count under ten, and writes digits from ten up.
-func number(n int) string {
-	if n >= 0 && n < len(numbers) {
-		return numbers[n]
-	}
-	return fmt.Sprint(n)
-}
-
-// capitalize upper-cases the first letter of a word that opens a sentence.
-func capitalize(word string) string {
-	if word == "" {
-		return word
-	}
-	return strings.ToUpper(word[:1]) + word[1:]
 }

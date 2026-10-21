@@ -251,7 +251,6 @@ app:
 > - `go test -race ./...` — 4.0s
 > - `go test -count=1 -tags browser ./internal/server` — 45.2s
 
-
 ## Where the investigation stands
 
 Written on 2026-10-19 so a fresh session could pick it up, and carried on

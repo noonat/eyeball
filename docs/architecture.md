@@ -150,10 +150,10 @@ is refused when an open review there already claims one of its paths, the same
 refusal a new review gets.
 
 **A project's root is its main checkout** once one has been seen, and until then
-the first working copy seen. It is what the queue's empty state and the project
-view show. A main checkout is the working copy whose git directory and common
-directory are the same. A repository with no main checkout, a bare clone with
-worktrees, keeps the first working copy seen.
+the first working copy seen. It is what the project view shows. A main checkout
+is the working copy whose git directory and common directory are the same. A
+repository with no main checkout, a bare clone with worktrees, keeps the first
+working copy seen.
 
 **The root is resolved through symlinks for its identity**, so two shells
 reaching one repository by two spellings are one working copy. The common

@@ -232,11 +232,12 @@ to see what is waiting would be the failure.
 answers the question without opening anything, which is the difference between
 checking twenty times a day and checking when there is something to check.
 
-An empty queue says so plainly and lists the projects eyeball knows about, which
-is also how a project with a misconfigured root gets noticed. A project whose
-every working copy is gone from disk is left out, with no count of what was left
-out. A worktree removed after its branch merged is the usual case, and a list of
-them is noise with nothing to act on.
+An empty queue says "Nothing waiting" and nothing else. It once also listed the
+projects eyeball knew about, with a sentence counting the agents at work. That
+sentence counted agents with an open review, so it said no agents were working
+while agents worked on something not yet up for review. The list was meant to
+show a project with a misconfigured root, and nothing on the queue shows one
+now. The owner chose the plain state on 2026-10-18.
 
 ### A review page
 
@@ -468,7 +469,7 @@ round that may never be requested.
 
 ### The project view
 
-Reachable from any review's header and from the queue, one per project.
+Reachable from any review's header, one per project.
 
 **It lists the project's open reviews**, which is the same information the queue
 carries, arranged by project instead of by urgency.

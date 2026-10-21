@@ -14,16 +14,7 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-- [ ] 020 fix: the decision bar floats partway up the screen and drifts as the
-      page scrolls, after the review page reloads itself for a new round while
-      the installed app returns from the background. Seen on the phone twice.
-      Chromium places it correctly, and no WebKit runs on this machine.
-- [ ] 022 product: the main page's empty state says "Nothing waiting" and
-      nothing else, the owner's choice on 2026-10-18. Its list of projects and
-      its sentence counting agents at work go. The sentence counts agents with
-      an open review, so it says no agents are working while agents work on
-      something not yet up for review. Changes product.md's empty queue and an
-      approved screen, so it opens with a tearout.
+Nothing is next. The first item worth scheduling comes from Unscheduled.
 
 ## Unscheduled
 
@@ -154,10 +145,12 @@ requirement in either document that none of them names is a gap in this list.
 - [ ] design: a tearout of the queue filter. product.md says the queue can be
       filtered, every queue row is one link so a filter link inside a row would
       split it, and no tearout shows a filter control.
-- [ ] design: a way from a populated queue to a project's view. product.md says
-      the view is reachable from the queue, and only the empty queue's project
-      rows link there. Every populated row is one link to its review, so a
-      project link inside it would nest links, the problem the queue filter has.
+- [ ] design: a way from the queue to a project's view. Since 022 the view is
+      reached only from a review's header. Every queue row is one link to its
+      review, so a project link inside it would nest links, the problem the
+      queue filter has.
+- [ ] product: a way to notice a project with a misconfigured root. The empty
+      queue's list of projects did this until 022 removed it.
 - [ ] design: a mark on the last line of a file with no final newline. The row
       model carries the flag, and no tearout or class in `app.css` draws it.
 - [ ] design: the queue's Waiting order. 003 lists the longest wait first,
@@ -258,7 +251,7 @@ requirement in either document that none of them names is a gap in this list.
       does not reload the page that wrote it.
 - [ ] product: forgetting a project, or deleting a working copy whose directory
       is gone. Deleting a project row deletes its reviews with it, so 021 only
-      hides a project whose working copies are all gone.
+      hid such a project from the empty queue's list, which 022 removed.
 - [ ] product: showing a worktree no agent has run eyeball in on the project
       view. 021 shows the working copies eyeball has seen, since
       `git worktree list` misnames the main checkout with `--separate-git-dir`
