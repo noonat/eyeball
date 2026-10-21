@@ -14,13 +14,41 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-Nothing. As of 015 the reading desk is applied, as of 017 a card's file header
-stays at the top of the screen, and every requirement product.md and
-architecture.md describe is built as of 010. The next work comes from
-Unscheduled below, once real reviews say which of it matters.
+- [ ] 020 fix: the decision bar floats partway up the screen and drifts as the
+      page scrolls, after the review page reloads itself for a new round while
+      the installed app returns from the background. Seen on the phone twice.
+      Chromium places it correctly, and no WebKit runs on this machine.
+- [ ] 022 product: the main page's empty state says "Nothing waiting" and
+      nothing else, the owner's choice on 2026-10-18. Its list of projects and
+      its sentence counting agents at work go. The sentence counts agents with
+      an open review, so it says no agents are working while agents work on
+      something not yet up for review. Changes product.md's empty queue and an
+      approved screen, so it opens with a tearout.
 
 ## Unscheduled
 
+- [ ] tooling: a notification tapped over Notes brought the installed app
+      forward on the review already open, twice, rather than on the review it
+      named. Tapped over the terminal app, the page loaded fresh by navigation
+      three times, but which review it showed was not checked. Which branch of
+      `openReview` in `web/ts/sw.ts` ran is not known. Seen during 020.
+- [ ] product: agents report status and send messages to the owner through
+      eyeball, in the same place they ask for review, replacing the separate
+      channel used for that today. The empty state would then list active
+      sessions, not projects. The owner's idea, 2026-10-18, for later.
+- [ ] tooling: move finished specs into `specs/done/` with `git mv`, and add
+      `specs/done/AGENTS.md` reading: "Specs in this directory are finished.
+      Each is the record of what was planned and what changed while it ran. None
+      describes the current design: cite `docs/` for that. Do not edit a
+      finished spec except to add a correction or an outcome note." The spec
+      tool walks subdirectories but lists only files whose front matter it
+      recognizes, so compare its list before and after the move. A moved spec's
+      ids change, which is harmless once it is finished. A new spec is numbered
+      after the highest in either directory, and links to moved paths are fixed.
+      It waits on a change to the workflow these specs follow.
+- [ ] docs: one line in AGENTS.md saying the repository is public, so specs,
+      docs and commit messages describe callers generically, such as "a review
+      gate", and name no private repository or tool.
 - [ ] design: markdown rendered as a diff, the owner's words. What form is open:
       today a changed document renders with changed passages marked.
 - [ ] design: show that the page is refreshing when the installed app comes back

@@ -15,6 +15,7 @@ import { followPush } from "./push";
 import { followStream } from "./stream";
 import { refreshOnTap } from "./update";
 import { registerWorker } from "./worker";
+import { restoreViewport } from "./viewport";
 import { catchFailedSaves } from "./unsent";
 import { followTheme } from "./theme";
 import { sendToken, takeToken } from "./token";
@@ -47,4 +48,5 @@ document.addEventListener("DOMContentLoaded", () => {
   holdPlace();
   keepDrafts();
   blinkOnLoad();
+  restoreViewport();
 });
