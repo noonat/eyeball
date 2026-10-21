@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -211,8 +211,8 @@ required_acks:
 With the daemon running this branch's build, the owner checks in the installed
 app:
 
-- [/] The five steps leave the bar against the bottom edge while scrolling
-- [ ] A review opened from the queue still shows the bar at the bottom, and a
+- [x] The five steps leave the bar against the bottom edge while scrolling
+- [x] A review opened from the queue still shows the bar at the bottom, and a
       short page shows it under its content
 
 **Departures, iteration 4.**
@@ -239,9 +239,18 @@ app:
   field loses focus, since a real keyboard is still going away then.
 - The browser tests fail with each part removed: the first-touch reset, the wait
   after a field loses focus, the realign, its second try, and its stopping at
-  the first touch. `TestServer_Surface_browserJump` failed once in 20 runs on
-  master and twice in 11 on this branch, alone, so it fails now and then on
-  both, and whether this branch makes it fail more often is not known.
+  the first touch. `TestServer_Surface_browserJump` fails now and then on master
+  too: 3 times in 50 runs alone. The two failures whose value was kept had the
+  target 3482 pixels from where it belongs, the value it shows when it fails on
+  this branch.
+
+> **Completed** 2026-10-21 09:48 UTC
+>
+> - acks: phone-checked
+> - `make check` — 5.8s
+> - `go test -race ./...` — 4.0s
+> - `go test -count=1 -tags browser ./internal/server` — 45.2s
+
 
 ## Where the investigation stands
 
