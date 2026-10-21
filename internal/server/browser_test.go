@@ -985,10 +985,11 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 }
 
 // A visual viewport a keyboard's height short of the window, with nothing
-// focused, is the fault iOS leaves after the app opens over another app's
-// keyboard. The page answers the next tap by focusing and blurring a hidden
-// field, which has iOS show a keyboard and take it away, and stops after two.
-// Chromium has no such fault, so the test makes the viewport report it.
+// focused, is the fault iOS leaves after a notification is tapped over another
+// app's keyboard. The page answers the next tap by focusing and blurring a
+// hidden field, which has iOS show a keyboard and take it away, and stops
+// after two. Chromium has no such fault, so the test makes the viewport report
+// it.
 func TestServer_Surface_browserViewport(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -1025,6 +1026,59 @@ func TestServer_Surface_browserViewport(t *testing.T) {
 	b.eval(g, `document.dispatchEvent(new Event("visibilitychange"))`)
 	b.eval(g, tap)
 	b.waitFor(g, `window.flicks === 3`)
+}
+
+// Before the reader's first touch, a short viewport that has slid down inside
+// the layout viewport is scrolled past the reader's place by the shortfall and
+// back, which on the phone puts the header and the bar at the screen's edges.
+// After a touch the page leaves scrolling to the reader. Chromium has no such
+// fault, so the test makes the viewport report it and records each scroll.
+func TestServer_Surface_browserViewportRealign(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := longFileReview(g, t, f)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	b.eval(g, `window.scrollTo(0, 2000)`)
+	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(BeEquivalentTo(2000))
+	b.eval(g, `window.scrolls = []; const scroll = window.scrollTo.bind(window); window.scrollTo = (x, y) => { window.scrolls.push(Math.round(y)); scroll(x, y) }`)
+	b.eval(g, `Object.defineProperty(window.visualViewport, "height", {configurable: true, get: () => window.innerHeight - 318})`)
+	b.eval(g, `Object.defineProperty(window.visualViewport, "offsetTop", {configurable: true, get: () => 318})`)
+	b.eval(g, `window.visualViewport.dispatchEvent(new Event("resize"))`)
+	b.waitFor(g, `window.scrolls.length === 4`)
+	g.Expect(b.eval(g, `window.scrolls`)).To(Equal([]any{2318.0, 2000.0, 2318.0, 2000.0}))
+
+	// The touch also resets the viewport, which holds every check for three
+	// seconds while it settles, so the scroll comes after that.
+	b.eval(g, `document.dispatchEvent(new Event("touchstart"))`)
+	g.Expect(b.eval(g, `new Promise((done) => setTimeout(() => { window.dispatchEvent(new Event("scroll")); setTimeout(() => done(window.scrolls.length), 200) }, 3200))`)).To(BeEquivalentTo(4), "no realign after a touch")
+}
+
+// The first touch resets a short viewport as a tap does, since a reader's first
+// gesture is usually a scroll. A short viewport just after a field loses focus
+// is a keyboard on its way down, and is left alone until it has had time to go.
+func TestServer_Surface_browserViewportTouch(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "short"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	b.eval(g, `window.flicks = 0; new MutationObserver((records) => { for (const r of records) for (const n of r.addedNodes) if (n.dataset && "flick" in n.dataset) window.flicks++ }).observe(document.body, {childList: true})`)
+	touch := `document.dispatchEvent(new Event("touchstart"))`
+	b.eval(g, `Object.defineProperty(window.visualViewport, "height", {configurable: true, get: () => window.innerHeight - 318})`)
+	b.eval(g, `document.dispatchEvent(new Event("focusout"))`)
+	b.eval(g, `window.visualViewport.dispatchEvent(new Event("resize"))`)
+	b.eval(g, touch)
+	g.Expect(b.eval(g, `window.flicks`)).To(BeEquivalentTo(0), "a keyboard going away is not the fault")
+	// The page looks again once the keyboard has had its second, by itself.
+	g.Expect(b.eval(g, `new Promise((done) => setTimeout(() => { `+touch+`; setTimeout(() => done(window.flicks), 100) }, 1100))`)).To(BeEquivalentTo(1), "the first touch after it resets")
 }
 
 // The page registers its service worker, scoped to the whole surface, which

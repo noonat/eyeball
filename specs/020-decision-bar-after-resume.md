@@ -215,11 +215,39 @@ app:
 - [ ] A review opened from the queue still shows the bar at the bottom, and a
       short page shows it under its content
 
+**Departures, iteration 4.**
+
+- The fix changed during this iteration. The owner did not accept a page that
+  stays wrong until the first tap, so the cause was found and a reproduction
+  built before anything else was written, as "Where the investigation stands"
+  records. The reset now runs on the first touch as well as on a tap, since iOS
+  honors a focus in the touch that starts a scroll. Before that touch, the page
+  scrolls past the reader's place and back, which puts the header and the bar at
+  the screen's edges while the viewport is still short.
+- That corrects iteration 3's cost. No keyboard was seen at any reset on the
+  phone in this iteration, where iteration 3 saw one flash up once.
+- Laying the header and the bar out against the shortfall was tried and dropped.
+  iOS drew the bar off the screen where the page measured it on it.
+- The five steps are not the reproduction. The phone check uses the one under
+  "What the trials showed": a notification tapped over an app that has had its
+  keyboard up, which an agent can send on request.
+- At the very end of a review the scroll past and back leaves the header off the
+  top and blank space under the last card until the first touch. Three tries did
+  not move it. The bar there sits in its place under the content, so the owner
+  accepted it.
+- A page with no keyboard of its own showing is left alone for a second after a
+  field loses focus, since a real keyboard is still going away then.
+- The browser tests fail with each part removed: the first-touch reset, the wait
+  after a field loses focus, the realign, its second try, and its stopping at
+  the first touch. `TestServer_Surface_browserJump` failed once in 20 runs on
+  master and twice in 11 on this branch, alone, so it fails now and then on
+  both, and whether this branch makes it fail more often is not known.
+
 ## Where the investigation stands
 
-Written on 2026-10-19 so a fresh session can pick it up. Iteration 4 is open.
-The owner is not satisfied with the fix as it stands, for the reason under "What
-is not solved".
+Written on 2026-10-19 so a fresh session could pick it up, and carried on
+2026-10-20 until the cause was read, the fault reproduced on request, and the
+fix measured on the phone.
 
 ### The fault, as measured
 
@@ -471,6 +499,14 @@ try still said 318, so iOS applies a page's scroll later than the next frame,
 and which try did the work is not known. The first touch then reset the
 viewport, at 15.8 seconds.
 
+At the very end of a review the scroll past and back did not reach 0. With the
+reader's place 68 short of the furthest a whole viewport scrolls, the page
+scrolled 17182, 17500, 17250, 17182 and stopped with `offsetTop` at 250. Nothing
+in the page scrolls to 17250, which is exactly that furthest point, so iOS
+appears to stop there on the way up. Bringing the place back to that point
+first, and a third try by way of the very bottom with a wait between, changed
+nothing. The first touch put it right each time.
+
 Opening a different review probably cleared it through this branch's own fix,
 not through the navigation. The fix was armed each time, and the tap on the link
 to the other review is the tap it waits for. The readout cannot show the reset,
@@ -485,30 +521,38 @@ navigation, the notification, or the minute away, is not yet known.
 
 - `web/ts/viewport.ts` is the fix. It counts the fault when the visual viewport
   is more than 100 points short of the window, nothing that takes typing is
-  focused, and the page is not zoomed. It then waits for a click and focuses and
-  blurs a hidden 16px field inside it, at most twice per return to the
-  foreground, with three seconds between tries for the viewport to settle. It
-  checks on each viewport resize, on load, and on `visibilitychange` and
-  `pageshow`.
-- `web/ts/readout.ts` is back, temporarily, and the fix reports to it through an
-  `eyeball:viewport` event: `visible`, `armed`, `reset N`, and each height. Both
-  the readout and the reporting have to go before the branch is reviewed.
-- `TestServer_Surface_browserViewport` makes the viewport report the fault in
-  Chromium, which has none, and counts the hidden field arriving. It fails with
-  the fix off, without the settling wait, and without the foreground check.
-- The daemon on the owner's machine runs this branch, merged with master, with
-  the readout. Test reviews in a scratch repository are open for checking.
+  focused, and the page is not zoomed, and not within a second of a field losing
+  focus. It then waits for the first touch or tap and focuses and blurs a hidden
+  16px field inside it, at most twice per return to the foreground, with three
+  seconds between tries for the viewport to settle. Until that touch, each time
+  it finds the fault with `offsetTop` above 0, at most four times, it scrolls
+  past the reader's place by the shortfall and back, once in one task and again
+  across two frames. It checks on each viewport resize, each scroll, on load,
+  and on `visibilitychange` and `pageshow`.
+- `TestServer_Surface_browserViewport`, `…Realign` and `…Touch` make the
+  viewport report the fault in Chromium, which has none, and count the hidden
+  field arriving and the page's scrolls.
+- The daemon on the owner's machine runs this branch's build. Test reviews in a
+  scratch repository are open for checking.
 
 ### What is not solved
 
-Until the reader's first tap, the page stays wrong. A scroll cannot fix it,
-because iOS honors a focus only during a tap, and a reader's first gesture on a
-review is usually a scroll. The owner does not accept "fixed on the first tap".
+- Why iOS never tells the web view that the other app's keyboard went away when
+  the app is opened from a notification. It happens inside iOS, between the
+  other app and the system, and only Apple can answer it. A report to Apple can
+  give the reproduction above.
+- Why some returns cleared by themselves within a second, and one in Notes never
+  stuck at all.
+- The end of a review before the first touch, under "What the trials showed".
+- Opening the review a notification names, which failed from Notes and from the
+  terminal later in the day. It is in specs/TODO.md.
 
-No workaround is written until the trials settle the cause. The options once
-they do, roughly from cheapest:
+Rejected along the way, with the measurement that settled each:
 
-- A `position: fixed` bar placed from `visualViewport` by script, as some web
-  apps do to sit above a keyboard. It would follow the visual viewport by
-  design, which is the opposite of what is wanted here, unless the script places
-  it against the window instead.
+- `interactive-widget=overlays-content`, which iOS 26.6.2 ignores.
+- Laying out against the shortfall through the sticky offsets, which iOS drew
+  off the screen.
+- A `position: fixed` bar placed from `visualViewport` by script. Not tried. It
+  would follow the visual viewport by design, the opposite of what is wanted,
+  and the sticky offsets showed that where the page places an element in this
+  state is not where iOS draws it.
