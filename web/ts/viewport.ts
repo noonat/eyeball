@@ -28,17 +28,19 @@ export function restoreViewport(): void {
   let tries = 0;
   let armed = false;
   let settling = false;
-  // A click is a tap, the one gesture iOS honours a focus in. A touch that
-  // ends a scroll is not, and spent the tries with nothing to show.
-  const onTap = (): void => {
+  // A click is a tap, which iOS honors a focus in. A touch that ends a
+  // scroll is not, and spent the tries with nothing to show. Whether the touch
+  // that starts one is honoured is what touchstart is armed to find out.
+  const onTap = (event: Event): void => {
+    document.removeEventListener("touchstart", onTap, true);
     document.removeEventListener("click", onTap, true);
     armed = false;
     if (!stuck(view)) {
-      report(`tap, not stuck h${Math.round(view.height)}`);
+      report(`${event.type}, not stuck h${Math.round(view.height)}`);
       return;
     }
     tries++;
-    report(`reset ${tries} h${Math.round(view.height)}`);
+    report(`reset ${tries} ${event.type} h${Math.round(view.height)}`);
     flick();
     settling = true;
     window.setTimeout(() => {
@@ -46,12 +48,21 @@ export function restoreViewport(): void {
       check();
     }, settle);
   };
+  let aligns = 0;
   const check = (): void => {
+    if (!settling && aligns < maxTries && stuck(view) && view.offsetTop >= 1) {
+      aligns++;
+      realign(view);
+    }
     if (armed || settling || tries >= maxTries || !stuck(view)) {
       return;
     }
     armed = true;
     report(`armed h${Math.round(view.height)}`);
+    document.addEventListener("touchstart", onTap, {
+      capture: true,
+      passive: true,
+    });
     document.addEventListener("click", onTap, true);
   };
   view.addEventListener("resize", check);
@@ -63,12 +74,46 @@ export function restoreViewport(): void {
       return;
     }
     tries = 0;
+    aligns = 0;
     report(`visible h${Math.round(view.height)}`);
     check();
   };
   document.addEventListener("visibilitychange", resumed);
   window.addEventListener("pageshow", resumed);
   check();
+}
+
+// realign moves the short visual viewport back to the top of the layout
+// viewport, where the sticky header and the decision bar are drawn at the
+// screen's edges. Scrolling down slides a short visual viewport down inside
+// the layout viewport before the layout viewport moves, so restoring the
+// reader's place on load leaves offsetTop at the shortfall and the bar that
+// far up the screen. Scrolling past the place by the shortfall and back up to
+// it ends on the same place with offsetTop at 0. Whether iOS applies two
+// scrolls in one task separately is not known, so a second try puts the
+// scroll back a frame later.
+function realign(view: VisualViewport): void {
+  const before = Math.round(view.offsetTop);
+  const place = window.scrollY;
+  const gap = window.innerHeight - view.height;
+  window.scrollTo(0, place + gap);
+  window.scrollTo(0, place);
+  window.requestAnimationFrame(() => {
+    const after = Math.round(view.offsetTop);
+    report(`realign ${before}->${after} y${Math.round(window.scrollY)}`);
+    if (after < 1) {
+      return;
+    }
+    window.scrollTo(0, window.scrollY + gap);
+    window.requestAnimationFrame(() => {
+      window.scrollTo(0, place);
+      window.requestAnimationFrame(() => {
+        report(
+          `realign framed ->${Math.round(view.offsetTop)} y${Math.round(window.scrollY)}`,
+        );
+      });
+    });
+  });
 }
 
 // report tells the readout what the fix did, while it is measured on the phone.

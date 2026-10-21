@@ -39,14 +39,32 @@ export function showReadout(): void {
     lastHeight = height;
     const focused = document.activeElement?.tagName.toLowerCase() ?? "none";
     changes.push(`${Math.round(performance.now())}ms h${height} ${focused}`);
-    changes.splice(0, changes.length - 8);
+    changes.splice(0, changes.length - 10);
   };
   // The fix reports what it does here while it is measured on the phone.
   document.addEventListener("eyeball:viewport", (event) => {
     const detail = event instanceof CustomEvent ? String(event.detail) : "";
     changes.push(`${Math.round(performance.now())}ms ${detail}`);
-    changes.splice(0, changes.length - 8);
+    changes.splice(0, changes.length - 10);
     draw();
+  });
+  // Visibility, page loads and the service worker's control, so a screenshot
+  // shows what happened around a notification tap.
+  const mark = (line: string): void => {
+    changes.push(`${Math.round(performance.now())}ms ${line}`);
+    changes.splice(0, changes.length - 10);
+    draw();
+  };
+  document.addEventListener("visibilitychange", () => {
+    mark(
+      `${document.visibilityState} h${Math.round(window.visualViewport?.height ?? -1)}`,
+    );
+  });
+  window.addEventListener("pageshow", (event) => {
+    mark(`pageshow${event.persisted ? " cached" : ""}`);
+  });
+  navigator.serviceWorker?.addEventListener("controllerchange", () => {
+    mark(`controller ${controlled()}`);
   });
   const draw = (): void => {
     note();
@@ -60,8 +78,8 @@ export function showReadout(): void {
       `inner ${window.innerHeight}  client ${document.documentElement.clientHeight}`,
       `visual ${view ? Math.round(view.height) : "-"}  offsetTop ${view ? Math.round(view.offsetTop) : "-"}`,
       `scrollY ${Math.round(window.scrollY)}  pageTop ${view ? Math.round(view.pageTop) : "-"}`,
-      `bar ${bar ? `${Math.round(bar.top)}..${Math.round(bar.bottom)}` : "none"}`,
-      `${document.visibilityState}  ${loaded}`,
+      `bar ${bar ? `${Math.round(bar.top)}..${Math.round(bar.bottom)}` : "none"}  shift ${document.documentElement.style.getPropertyValue("--viewport-shift") || "0"}`,
+      `${document.visibilityState}  ${loaded}  ${controlled()}  ${location.pathname}`,
       ...changes,
     ].join("\n");
   };
@@ -71,4 +89,10 @@ export function showReadout(): void {
   window.visualViewport?.addEventListener("scroll", draw);
   document.addEventListener("visibilitychange", draw);
   draw();
+}
+
+// controlled names whether a service worker controls the page, since the
+// worker's navigate only reaches a window it controls.
+function controlled(): string {
+  return navigator.serviceWorker?.controller ? "sw" : "no sw";
 }

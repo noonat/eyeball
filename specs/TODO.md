@@ -27,6 +27,11 @@ requirement in either document that none of them names is a gap in this list.
 
 ## Unscheduled
 
+- [ ] tooling: a notification tapped over Notes brought the installed app
+      forward on the review already open, twice, rather than on the review it
+      named. Tapped over the terminal app, the page loaded fresh by navigation
+      three times, but which review it showed was not checked. Which branch of
+      `openReview` in `web/ts/sw.ts` ran is not known. Seen during 020.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active

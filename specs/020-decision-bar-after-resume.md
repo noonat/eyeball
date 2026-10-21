@@ -412,6 +412,65 @@ leave it short. Coming back through the app switcher ten seconds later, the page
 was 894 with no dip at all. So the push waking eyeball in the background is not
 the trigger. The tap on the banner is.
 
+From Notes with its keyboard up, the tap left the page short once in two tries,
+so the terminal app is not required. In both tries the app came forward on the
+review already open, with no page load, so the tap did not reach the new review.
+In the terminal runs the readout shows a page loaded fresh by navigation, but
+which review it showed was not checked. The run that stuck fell to 576 15 ms
+before the page turned visible, and showed `offsetTop` 260 and the bar at 474
+to 634. So a page load is not required either. The run that stayed whole is not
+explained. Notes' keyboard leaves the same 576 as the terminal's, which fits
+both being the standard keyboard with its suggestion bar, 380 points tall on a
+956-point screen.
+
+What is left is a tap on the banner over an app that has had its keyboard up.
+The keyboard did not have to be showing at the tap (review 110), and an app that
+never showed one left it whole (review 111). Every other part has been taken
+away once and the fault still followed.
+
+iOS 26.6.2 does not honor `interactive-widget=overlays-content`. In a Safari
+tab, the probe with only that key added to its viewport meta still shrank to 462
+of 836 with its own field focused, as the probe without it does. So that fix is
+closed on this release.
+
+The short state can begin as eyeball is left, not as it comes back. With the
+readout logging visibility, one run fell to 576 while still visible, 49 ms
+before it was hidden, as the terminal app brought its keyboard up during the
+switch, and stayed short while hidden. The banner tap then brought it back
+short, and it cleared 0.7 seconds later. Every run from the terminal that stayed
+short had a page load as the app came back: the service worker's navigation, or
+the page reloading for a new round. The runs with no load cleared within about a
+second, except the second Notes run. That is a pattern across about ten runs,
+not a mechanism.
+
+Laying out against the shortfall was tried and dropped. The header's sticky
+`top`, a card header's, and the bar's sticky `bottom` each grew by
+`visualViewport.offsetTop` while the viewport was short with nothing focused.
+With the page short and `offsetTop` at 193, the header sat at the top of the
+screen as intended, and the bar was nowhere on screen, though the page measured
+it at 734 to 894. As `offsetTop` fell while scrolling up it slid into view from
+below, and reached the bottom edge when `offsetTop` reached 0. So what the page
+measures and where iOS draws a sticky element disagree in this state, and an
+offset the page computes cannot place the bar.
+
+iOS honors a focus in `touchstart`. With the reset armed on the first touch as
+well as on a tap, a run left short by the reproduction above was reset by the
+touch that began a scroll, at 1880 ms, and was whole 92 ms later. Whether a
+keyboard showed was not recorded.
+
+Scrolling past the reader's place by the shortfall and back up to it puts the
+short visual viewport at the top of the layout viewport, where the header and
+the bar are drawn at the screen's edges. Measured on one run of the
+reproduction, reached that time through the home screen and the app switcher
+rather than straight from eyeball to the terminal. The page loaded, fell to 576
+at 235 ms with `offsetTop` 318, and was then scrolled past and back, first with
+both scrolls in one task, then again with the second scroll a frame after the
+first. Before any touch the readout showed 576 tall, `offsetTop` 0, the place
+unchanged at 14617, and the bar at the bottom edge. A read one frame after each
+try still said 318, so iOS applies a page's scroll later than the next frame,
+and which try did the work is not known. The first touch then reset the
+viewport, at 15.8 seconds.
+
 Opening a different review probably cleared it through this branch's own fix,
 not through the navigation. The fix was armed each time, and the tap on the link
 to the other review is the tap it waits for. The readout cannot show the reset,
@@ -449,15 +508,6 @@ review is usually a scroll. The owner does not accept "fixed on the first tap".
 No workaround is written until the trials settle the cause. The options once
 they do, roughly from cheapest:
 
-- `interactive-widget=overlays-content`, under "The cause, as read in WebKit's
-  source" above, if iOS 26.6.2 honors it.
-- Laying out against the shortfall while it lasts. The gap is known at every
-  moment: `innerHeight - visualViewport.height - visualViewport.offsetTop` below
-  the visual viewport. The page could move the bar down and the header up by
-  that much, through custom properties the sticky rules read, and stop once the
-  viewport is whole. The risk is that WebKit already places sticky elements
-  against the visual viewport, so a correction may double-move them, and the
-  amount changes with every scroll.
 - A `position: fixed` bar placed from `visualViewport` by script, as some web
   apps do to sit above a keyboard. It would follow the visual viewport by
   design, which is the opposite of what is wanted here, unless the script places
