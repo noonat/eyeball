@@ -40,8 +40,6 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
 - [ ] docs: one line in AGENTS.md saying the repository is public, so specs,
       docs and commit messages describe callers generically, such as "a review
       gate", and name no private repository or tool.
-- [ ] design: markdown rendered as a diff, the owner's words. What form is open:
-      today a changed document renders with changed passages marked.
 - [ ] design: show that the page is refreshing when the installed app comes back
       to the foreground. Today nothing shows activity, and then new content
       appears all at once.
@@ -81,9 +79,10 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
       makes several placements equally minimal. 004 pins one tie-break and GNU
       diff shifts boundaries with heuristics of its own, so the two differ on
       about a fifth of diffs. Which reads better needs real reviews.
-- [ ] design: whether word marking should be suppressed where a paired line
-      shares almost nothing with the one it replaced. Marking it end to end is
-      noise, and the proportion to cut at needs real reviews.
+- [ ] design: whether word marking should be suppressed where a paired line, or
+      since 023 a paired passage in a document, shares almost nothing with the
+      one it replaced. Marking it end to end is noise, and the proportion to cut
+      at needs real reviews.
 - [ ] product: whether a review's base should follow a branch that moves under
       it. 004 fixes the base at the first round, so a merge landing mid-review
       arrives inside the review as work the agent did not do.
@@ -210,8 +209,17 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
 - [ ] design: a link from an identifier in a hunk to its definition, the notice
       in widening.html's step-one frame. Finding a definition means a rule per
       language, or an index nothing builds yet.
-- [ ] design: marking the items of a list one at a time in a document. 007 marks
-      a whole list as one block, so one changed item marks every item.
+- [ ] design: an item of a nested list, or a passage inside a block quote, as a
+      passage of its own. 023 makes each item of a top-level list a passage, so
+      a changed nested item still marks the whole item it is in.
+- [ ] design: removed text in a document keeping its links and formatting. 023
+      writes it as plain text, since the old passage gives its text and none of
+      its tags.
+- [ ] design: marking a change to formatting alone in a document, such as a word
+      made bold. 023 shows it with the rule beside the passage and marks no
+      word.
+- [ ] design: opening folded lines in place in a code card, as 023 does for a
+      document's folded passages.
 - [ ] product: a lost base on the review page. `capture.Compare` fails when the
       commit a review started from is gone, so the review page fails while its
       file pages fall back to the capture. Fixing it changes how a round is

@@ -305,10 +305,35 @@ delimiters become rules or a heading underline, and its keys run together into a
 paragraph, a list or a heading. A spec's status and acks are part of what is
 reviewed.
 
-**A changed passage in a rendered document is marked, and can show what it
-replaced** without leaving the rendered view. The marking is a rule beside the
-passage rather than a color wash through it, so a heavily edited document stays
-readable as a document.
+**A changed document shows what changed, rendered, and folds the rest.** On the
+review page a document's card shows each changed passage with the nearest
+heading above it and one unchanged passage on each side. Every other run of two
+or more passages folds into one line that says how many passages it holds, and
+opens in place with a tap. A long document with three edits reads as three short
+excerpts instead of the whole document with three edits somewhere in it. The
+file's own page shows the whole document, marked the same way.
+
+A passage is a top-level block, except that each item of a top-level list is a
+passage of its own, so one changed item in a long list shows that item and folds
+the others. A passage that holds a comment on the page is never folded, so no
+comment is hidden in a fold.
+
+**Changed words are marked in place.** In a passage that replaced exactly one
+other, added words are highlighted and removed words show struck through where
+they were, inside links, emphasis and code alike. A rule beside every changed
+passage stays, so a change to formatting alone, which changes no word, still
+shows. Ticking a task box marks the box. A changed block of raw HTML, which
+renders as a placeholder, shows its old source struck through above it. A
+passage whose structure changed, such as a table that gained a column, and a run
+of passages replaced by a different number of them, show the old text struck
+through above the new passage, which is highlighted whole. A passage removed
+with nothing in its place shows struck through where it was.
+
+This replaces an earlier rule, that a changed passage is marked by the rule
+alone and its old text opens with a tap. That rule kept a heavily edited
+document readable as a document. It also left the reviewer comparing two
+versions of every changed paragraph by eye, and rendered the whole document
+around three edits, which in a long spec meant scrolling to find them.
 
 **When the base is empty, nothing is marked.** A document written from scratch
 is entirely new, and marking every line marks nothing. It reads as a document,
