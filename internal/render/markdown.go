@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	ghtml "github.com/yuin/goldmark/renderer/html"
@@ -96,8 +97,8 @@ func keyMarkdown() goldmark.Markdown {
 
 // shownRenderer replaces goldmark's rendering of the nodes that leave the
 // document: links and images, which go through the allowlist, and raw HTML
-// blocks. It also highlights a fenced code block and front matter into the role
-// classes.
+// blocks. It writes struck text as s, and highlights a fenced code block and
+// front matter into the role classes.
 type shownRenderer struct {
 	page Page
 }
@@ -110,6 +111,19 @@ func (r shownRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(ast.KindFencedCodeBlock, r.fencedCode)
 	reg.Register(ast.KindHTMLBlock, r.htmlBlock)
 	reg.Register(kindFrontMatter, r.frontMatter)
+	reg.Register(east.KindStrikethrough, r.strikethrough)
+}
+
+// strikethrough writes a document's own struck text as an s element. goldmark
+// writes del, the element a removed word is marked with, so text the author
+// struck would read as text the round removed.
+func (r shownRenderer) strikethrough(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.WriteString("<s>")
+	} else {
+		w.WriteString("</s>")
+	}
+	return ast.WalkContinue, nil
 }
 
 // link writes an a element around a link's text where its destination passes

@@ -485,9 +485,14 @@ placeholder sentence, so comparing their renderings finds nothing, and the
 block's old source, which the key compared, is what changed. The old source is
 shown struck through above the placeholder.
 
-Everything written comes from goldmark's output, which has already escaped text
-and dropped raw HTML, so assembling it adds no markup of its own beyond the two
-marking elements.
+Everything written is either goldmark's rendering, which has already escaped
+text and dropped raw HTML, or old source passed through goldmark's escaping
+writer: a struck passage's text, and a changed HTML block's source. Assembling
+it adds only fixed elements, and no text but a fold's "N unchanged passages":
+`ins` and `del` around changed words, `del class="old"` around struck text and
+`ins class="whole"` around a passage tinted whole, a `code` element around
+struck HTML source, the list element around a list item, the `.blk` around each
+passage with its line range, and a fold's `details` and `summary`.
 
 **A document's own strikethrough is written as `<s>`.** goldmark writes
 `~~text~~` as `<del>`, the element a removed word is marked with, so struck text

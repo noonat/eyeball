@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"html/template"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -25,7 +26,7 @@ func TestDocument(t *testing.T) {
 		{Text: "Title"},
 		{Text: "A paragraph that stays."},
 		{
-			Mark: markReplaced,
+			Mark: markMarked,
 			Text: "A paragraph that replaced it.",
 			Was:  []string{"A paragraph to replace."},
 		},
@@ -39,7 +40,7 @@ func TestDocument(t *testing.T) {
 		{Text: ""},
 		{Text: "This block is HTML, which is not rendered. Read it in Source."},
 		{Text: "A struck word and www.example.com."},
-		{Mark: markChanged, Text: "An added paragraph."},
+		{Mark: markWhole, Text: "An added paragraph."},
 	}))
 
 	// GFM's extensions: a table aligned by attribute, struck text, an
@@ -50,7 +51,7 @@ func TestDocument(t *testing.T) {
 	g.Expect(attr(cells[0], "align")).To(Equal("left"))
 	g.Expect(attr(cells[1], "align")).To(Equal("right"))
 	g.Expect(findAll(body, hasAttr("style"))).To(BeEmpty())
-	g.Expect(findAll(body, isElement("del"))).To(HaveLen(1))
+	g.Expect(findAll(body, isElement("s"))).To(HaveLen(1))
 	g.Expect(hrefs(body)).To(ContainElement("http://www.example.com"))
 	boxes := findAll(body, isElement("input"))
 	g.Expect(boxes).To(HaveLen(2))
@@ -77,7 +78,7 @@ func TestDocument_appendedBlock(t *testing.T) {
 	g := NewWithT(t)
 	old := "One.\n\nTwo.\n"
 	new := "One.\n\nTwo.\n\nThree.\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", markChanged}))
+	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", markWhole}))
 }
 
 func TestDocument_classesListed(t *testing.T) {
@@ -90,43 +91,10 @@ func TestDocument_classesListed(t *testing.T) {
 			seen[class] = struct{}{}
 		}
 	}
-	documentClasses := []string{classBlk, classChanged, classWas, classWasText, classHint, classCueShow, classCueHide, roleKeyword, roleFunction}
+	documentClasses := []string{classBlk, classChanged, classHint, classOld, classWhole, roleKeyword, roleFunction}
 	for _, class := range documentClasses {
 		g.Expect(seen).To(HaveKey(class), "the fixture renders ."+class)
 	}
-}
-
-func TestDocument_cues(t *testing.T) {
-	g := NewWithT(t)
-	body := parseBody(g, Document([]byte(everyKindOld), []byte(everyKindNew), testPage()))
-	details := findAll(body, isElement("details"))
-	g.Expect(details).NotTo(BeEmpty())
-	for _, d := range details {
-		summary := elementChildren(d)[0]
-		g.Expect(summary.Data).To(Equal("summary"))
-		children := elementChildren(summary)
-		g.Expect(len(children)).To(BeNumerically(">=", 3))
-		show, hide := children[len(children)-2], children[len(children)-1]
-		g.Expect(show.Data).To(Equal("span"))
-		g.Expect(attr(show, "class")).To(Equal("hint cue-show"))
-		g.Expect(textOf(show)).To(Equal("Show what it replaced"))
-		g.Expect(hide.Data).To(Equal("span"))
-		g.Expect(attr(hide, "class")).To(Equal("hint cue-hide"))
-		g.Expect(textOf(hide)).To(Equal("Hide what it replaced"))
-	}
-}
-
-func TestDocument_cuesOnlyInDetails(t *testing.T) {
-	g := NewWithT(t)
-	body := parseBody(g, Document([]byte(everyKindOld), []byte(everyKindNew), testPage()))
-	for _, block := range elementChildren(body) {
-		if block.Data == "details" {
-			continue
-		}
-		g.Expect(findAll(block, hasClass(classCueShow))).To(BeEmpty())
-		g.Expect(findAll(block, hasClass(classCueHide))).To(BeEmpty())
-	}
-	g.Expect(marks(g, Document([]byte(everyKindOld), []byte(everyKindNew), testPage()))).To(ContainElements(markChanged, markRemoved))
 }
 
 func TestDocument_emptiedDocument(t *testing.T) {
@@ -170,7 +138,7 @@ func TestDocument_fencedMiddleLine(t *testing.T) {
 	got := shapesOf(g, Document([]byte(old), []byte(new), testPage()))
 	g.Expect(got).To(Equal([]shape{
 		{Text: "Before."},
-		{Mark: markReplaced, Text: "one TWO three", Was: []string{"one two three"}},
+		{Mark: markMarked, Text: "one TWO three", Was: []string{"one two three"}},
 		{Text: "After one."},
 		{Text: "After two."},
 		{Text: "After three."},
@@ -196,11 +164,11 @@ func TestDocument_fold(t *testing.T) {
 				"Section",
 				"fold 3: A. / B. / C.",
 				"D.",
-				"replaced: New.",
+				"marked: New.",
 				"E.",
 				"F.",
 				"G.",
-				"replaced: New two.",
+				"marked: New two.",
 				"H.",
 				"fold 2: I. / J.",
 			},
@@ -225,7 +193,7 @@ func TestDocument_fold(t *testing.T) {
 			want: []string{
 				"fold 2: One / A.",
 				"B.",
-				"replaced: Second",
+				"marked: Second",
 				"C.",
 				"D.",
 			},
@@ -264,7 +232,7 @@ func TestDocument_foldKeepsComments(t *testing.T) {
 		return ""
 	}
 	g.Expect(outline(g, Document([]byte(old), []byte(new), p))).To(Equal([]string{
-		"replaced: New.",
+		"marked: New.",
 		"A.",
 		"fold 2: B. / C.",
 		"Noted.",
@@ -283,7 +251,7 @@ func TestDocument_foldNumbersItems(t *testing.T) {
 	p := testPage()
 	p.Fold = true
 	out := Document([]byte(old), []byte(new), p)
-	g.Expect(outline(g, out)).To(Equal([]string{"fold 3: a / b / c", "d", "replaced: changed", "f"}))
+	g.Expect(outline(g, out)).To(Equal([]string{"fold 3: a / b / c", "d", "marked: changed", "f"}))
 	var starts []string
 	for _, ol := range findAll(parseBody(g, out), isElement("ol")) {
 		starts = append(starts, attr(ol, "start"))
@@ -297,10 +265,10 @@ func TestDocument_foldWhole(t *testing.T) {
 	g := NewWithT(t)
 	old := "One.\n\nTwo.\n\nThree.\n\nFour.\n"
 	new := "One.\n\nTwo.\n\nThree.\n\nChanged.\n"
-	g.Expect(outline(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"One.", "Two.", "Three.", "replaced: Changed."}))
+	g.Expect(outline(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"One.", "Two.", "Three.", "marked: Changed."}))
 	folded := testPage()
 	folded.Fold = true
-	g.Expect(outline(g, Document([]byte(old), []byte(new), folded))).To(Equal([]string{"fold 2: One. / Two.", "Three.", "replaced: Changed."}))
+	g.Expect(outline(g, Document([]byte(old), []byte(new), folded))).To(Equal([]string{"fold 2: One. / Two.", "Three.", "marked: Changed."}))
 	g.Expect(outline(g, Document(nil, []byte(new), folded))).To(Equal([]string{"One.", "Two.", "Three.", "Changed."}))
 	long := strings.Repeat("a\n\n", 20001)
 	out := outline(g, Document([]byte(long), []byte(long+"b\n"), folded))
@@ -353,7 +321,7 @@ func TestDocument_htmlBlock(t *testing.T) {
 			g.Expect(shapesOf(g, out)).To(Equal([]shape{
 				{Text: "Before."},
 				{
-					Mark: markReplaced,
+					Mark: markStruck,
 					Text: "This block is HTML, which is not rendered. Read it in Source.",
 					Was:  []string{c.was},
 				},
@@ -371,7 +339,7 @@ func TestDocument_htmlBlockPre(t *testing.T) {
 	// attributes included.
 	old := "<pre class=\"x\">\na  b\n</pre>\n"
 	new := "<pre class=\"x\">\na b\n</pre>\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markReplaced}))
+	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markStruck}))
 }
 
 func TestDocument_htmlBlockUnlinked(t *testing.T) {
@@ -455,7 +423,7 @@ func TestDocument_inlineHTMLChanged(t *testing.T) {
 	new := "A <span>y</span> word.\n"
 	out := Document([]byte(old), []byte(new), testPage())
 	g.Expect(shapesOf(g, out)).To(Equal([]shape{
-		{Mark: markReplaced, Text: "A y word.", Was: []string{"A x word."}},
+		{Mark: markMarked, Text: "A y word.", Was: []string{"A x word."}},
 	}))
 }
 
@@ -579,31 +547,31 @@ func TestDocument_listItemChanged(t *testing.T) {
 			name: "one item changed",
 			old:  "- one\n- two\n- three\n",
 			new:  "- one\n- second\n- three\n",
-			want: []string{"", markReplaced, ""},
+			want: []string{"", markMarked, ""},
 		},
 		{
 			name: "a tight list made loose",
 			old:  "- one\n- two\n",
 			new:  "- one\n\n- two\n",
-			want: []string{markReplaced, markReplaced},
+			want: []string{markWhole, markWhole},
 		},
 		{
 			name: "bullets made numbers",
 			old:  "- one\n- two\n",
 			new:  "1. one\n2. two\n",
-			want: []string{markReplaced, markReplaced},
+			want: []string{markWhole, markWhole},
 		},
 		{
 			name: "an item added at the top of a numbered list",
 			old:  "1. one\n2. two\n",
 			new:  "1. zero\n2. one\n3. two\n",
-			want: []string{markChanged, "", ""},
+			want: []string{markWhole, "", ""},
 		},
 		{
 			name: "a ticked box",
 			old:  "- [ ] one\n- [ ] two\n",
 			new:  "- [ ] one\n- [x] two\n",
-			want: []string{"", markReplaced},
+			want: []string{"", markMarked},
 		},
 	}
 	for _, c := range cases {
@@ -653,22 +621,22 @@ func TestDocument_pairing(t *testing.T) {
 			new:  "Kept.\n\nNew one.\n\nNew two.\n",
 			want: []shape{
 				{Text: "Kept."},
-				{Mark: markReplaced, Text: "New one.", Was: []string{"Old one."}},
-				{Mark: markReplaced, Text: "New two.", Was: []string{"Old two."}},
+				{Mark: markMarked, Text: "New one.", Was: []string{"Old one."}},
+				{Mark: markMarked, Text: "New two.", Was: []string{"Old two."}},
 			},
 		},
 		{
-			name: "an unequal run puts its text on its last new block",
+			name: "an unequal run puts its old text above its first new block",
 			old:  "Kept.\n\nOld one.\n\nOld two.\n\nOld three.\n\nEnd.\n",
 			new:  "Kept.\n\nNew one.\n\nNew two.\n\nEnd.\n",
 			want: []shape{
 				{Text: "Kept."},
-				{Mark: markChanged, Text: "New one."},
 				{
-					Mark: markReplaced,
-					Text: "New two.",
+					Mark: markWhole,
+					Text: "New one.",
 					Was:  []string{"Old one.", "Old two.", "Old three."},
 				},
+				{Mark: markWhole, Text: "New two."},
 				{Text: "End."},
 			},
 		},
@@ -678,8 +646,8 @@ func TestDocument_pairing(t *testing.T) {
 			new:  "Kept.\n\nNew one.\n\nNew two.\n",
 			want: []shape{
 				{Text: "Kept."},
-				{Mark: markChanged, Text: "New one."},
-				{Mark: markReplaced, Text: "New two.", Was: []string{"Old one."}},
+				{Mark: markWhole, Text: "New one.", Was: []string{"Old one."}},
+				{Mark: markWhole, Text: "New two."},
 			},
 		},
 		{
@@ -698,7 +666,7 @@ func TestDocument_pairing(t *testing.T) {
 			new:  "Kept.\n\nNew.\n\nEnd.\n",
 			want: []shape{
 				{Text: "Kept."},
-				{Mark: markChanged, Text: "New."},
+				{Mark: markWhole, Text: "New."},
 				{Text: "End."},
 			},
 		},
@@ -796,6 +764,31 @@ func TestDocument_rangesNone(t *testing.T) {
 	g.Expect(findAll(body, hasAttrNamed("data-lines"))).To(HaveLen(1), "the removed block has no range")
 }
 
+// A document's own raw HTML is dropped on both sides before words are
+// compared, so marking cannot carry it through from either.
+func TestDocument_rawHTMLMarked(t *testing.T) {
+	g := NewWithT(t)
+	old := "A <img src=x onerror=alert(1)> word and <script>alert(1)</script> more.\n\n<div onclick=\"alert(2)\">x</div>\n"
+	new := "A <b onmouseover=\"alert(3)\">bold</b> phrase and <script>alert(4)</script> more.\n\n<div onclick=\"alert(5)\">y</div>\n"
+	out := Document([]byte(old), []byte(new), testPage())
+	g.Expect(marks(g, out)).To(Equal([]string{markMarked, markStruck}))
+	body := parseBody(g, out)
+	elements := []string{"img", "script", "b", "div"}
+	for _, name := range elements {
+		g.Expect(findAll(body.FirstChild.FirstChild, isElement(name))).To(BeEmpty(), name)
+	}
+	g.Expect(string(out)).NotTo(ContainSubstring("alert(1)"), "the old side's script text")
+	g.Expect(string(out)).NotTo(ContainSubstring("alert(4)"), "the new side's script text")
+	onAttributes := findAll(body, func(n *html.Node) bool {
+		return slices.ContainsFunc(n.Attr, func(a html.Attribute) bool {
+			return strings.HasPrefix(a.Key, "on")
+		})
+	})
+	g.Expect(onAttributes).To(BeEmpty())
+	// The struck HTML block is its source as text, escaped.
+	g.Expect(string(out)).To(ContainSubstring(`<del class="old"><code>&lt;div onclick=&quot;alert(2)&quot;&gt;x&lt;/div&gt;</code></del>`))
+}
+
 func TestDocument_rawHTMLOmitted(t *testing.T) {
 	g := NewWithT(t)
 	attack := "<script>alert(1)</script>\n\nA paragraph <img src=x onerror=alert(1)> and <a href=\"javascript:x\" onclick=\"alert(1)\">a link</a>.\n\n<style>body { display: none }</style>\n\n- <script>alert(2)</script>\n"
@@ -819,7 +812,7 @@ func TestDocument_reflowedParagraph(t *testing.T) {
 	new := "A paragraph\nwrapped in   another.\n\nAnother.\n"
 	g.Expect(shapesOf(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
 		{
-			Mark: markReplaced,
+			Mark: markMarked,
 			Text: "A paragraph wrapped in another.",
 			Was:  []string{"A paragraph wrapped in one place."},
 		},
@@ -842,14 +835,14 @@ func TestDocument_refusedLinkChanged(t *testing.T) {
 	// destination as written sees the change.
 	old := "Go [here](vscode://a).\n"
 	new := "Go [here](vscode://b).\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markReplaced}))
+	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markChanged}), "the rule alone, since no word changed")
 }
 
 func TestDocument_reindentedCode(t *testing.T) {
 	g := NewWithT(t)
 	old := "Before.\n\n```go\nif x {\n\treturn\n}\n```\n\nAfter.\n"
 	new := "Before.\n\n```go\nif x {\n    return\n}\n```\n\nAfter.\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", markReplaced, ""}))
+	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", markMarked, ""}))
 }
 
 func TestDocument_relativeLinks(t *testing.T) {
@@ -983,7 +976,7 @@ func TestDocument_repeatedHeading(t *testing.T) {
 	old := "## Title\n\nText.\n"
 	new := "## Title\n\nNew text.\n\n## Title\n\nText.\n"
 	out := Document([]byte(old), []byte(new), p)
-	g.Expect(marks(g, out)).To(Equal([]string{markChanged, markChanged, "", ""}))
+	g.Expect(marks(g, out)).To(Equal([]string{markWhole, markWhole, "", ""}))
 	var ids []string
 	for _, h := range findAll(parseBody(g, out), isElement("h2")) {
 		ids = append(ids, attr(h, "id"))
@@ -1046,6 +1039,234 @@ func TestDocument_replacedText(t *testing.T) {
 	}
 }
 
+// A document's own struck text is an s element, so it never reads as a
+// removed word.
+func TestDocument_strikethrough(t *testing.T) {
+	g := NewWithT(t)
+	body := parseBody(g, Document(nil, []byte("A ~~struck~~ word.\n"), testPage()))
+	g.Expect(findAll(body, isElement("del"))).To(BeEmpty())
+	struck := findAll(body, isElement("s"))
+	g.Expect(struck).To(HaveLen(1))
+	g.Expect(textOf(struck[0])).To(Equal("struck"))
+}
+
+// What words cannot mark is shown as the tearout draws it. A removed passage
+// is its old text struck through. A rewrite strikes the old text above its
+// first new passage and tints each new passage whole. A changed HTML block
+// strikes its old source, lines kept, above the placeholder, untinted.
+func TestDocument_struck(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want string
+	}{
+		{
+			name: "a removed passage",
+			old:  "Kept.\n\nGone *now*.\n",
+			new:  "Kept.\n",
+			want: "<div class=\"blk\" data-lines=\"1-1\"><p>Kept.</p></div>\n<div class=\"blk changed\"><del class=\"old\">Gone now.</del>\n</div>\n",
+		},
+		{
+			name: "a removed passage's text, escaped",
+			old:  "Kept.\n\nGone `<b>x</b>` & y.\n",
+			new:  "Kept.\n",
+			want: "<div class=\"blk\" data-lines=\"1-1\"><p>Kept.</p></div>\n<div class=\"blk changed\"><del class=\"old\">Gone &lt;b&gt;x&lt;/b&gt; &amp; y.</del>\n</div>\n",
+		},
+		{
+			name: "one passage made two",
+			old:  "Kept.\n\nOne.\n",
+			new:  "Kept.\n\nFirst.\n\nSecond.\n",
+			want: "<div class=\"blk\" data-lines=\"1-1\"><p>Kept.</p></div>\n<div class=\"blk changed\" data-lines=\"3-3\"><del class=\"old\">One.</del>\n<ins class=\"whole\"><p>First.</p></ins></div>\n<div class=\"blk changed\" data-lines=\"5-5\"><ins class=\"whole\"><p>Second.</p></ins></div>\n",
+		},
+		{
+			name: "a rewrite's old text, escaped",
+			old:  "One < two & \"three\".\n",
+			new:  "First.\n\nSecond.\n",
+			want: "<div class=\"blk changed\" data-lines=\"1-1\"><del class=\"old\">One &lt; two &amp; &quot;three&quot;.</del>\n<ins class=\"whole\"><p>First.</p></ins></div>\n<div class=\"blk changed\" data-lines=\"3-3\"><ins class=\"whole\"><p>Second.</p></ins></div>\n",
+		},
+		{
+			name: "a list item added with nothing replaced",
+			old:  "- one\n",
+			new:  "- one\n- two\n",
+			want: "<div class=\"blk\" data-lines=\"1-1\"><ul>\n<li>one</li>\n</ul></div>\n<div class=\"blk changed\" data-lines=\"2-2\"><ins class=\"whole\"><ul>\n<li>two</li>\n</ul></ins></div>\n",
+		},
+		{
+			name: "a changed HTML block",
+			old:  "<div>\na\n</div>\n",
+			new:  "<div>\nb\n</div>\n",
+			want: "<div class=\"blk changed\" data-lines=\"1-3\"><del class=\"old\"><code>&lt;div&gt;\na\n&lt;/div&gt;</code></del>\n<p class=\"hint\">This block is HTML, which is not rendered. <a href=\"/source\">Read it in Source.</a></p></div>\n",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(string(Document([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
+		})
+	}
+}
+
+// Words are marked only where both passages have the same block tags in the
+// same order. A table that lost a cell, or a paragraph made a heading, is a
+// rewrite, struck above and tinted whole.
+func TestDocument_wordBlocks(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+	}{
+		{
+			name: "a table that lost a column",
+			old:  "| a | b |\n|---|---|\n| 1 | 2 |\n",
+			new:  "| a |\n|---|\n| 1 |\n",
+		},
+		{
+			name: "a paragraph made a heading",
+			old:  "Title words\n",
+			new:  "# Title words\n",
+		},
+		{
+			name: "a quote that gained a paragraph",
+			old:  "> one two\n",
+			new:  "> one\n>\n> two\n",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			s := shapesOf(g, Document([]byte(c.old), []byte(c.new), testPage()))
+			g.Expect(s).To(HaveLen(1))
+			g.Expect(s[0].Mark).To(Equal(markWhole))
+			g.Expect(s[0].Was).To(HaveLen(1))
+		})
+	}
+}
+
+// Each of the four rules in architecture.md that hold the marking together.
+func TestDocument_wordRules(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want string
+	}{
+		{
+			name: "an entity is one token",
+			old:  "If a < b.",
+			new:  "If a > b.",
+			want: "<p>If a <del>&lt;</del><ins>&gt;</ins> b.</p>",
+		},
+		{
+			name: "changes separated by whitespace alone join",
+			old:  "It gives up.",
+			new:  "It records the failure on the job.",
+			want: "<p>It <del>gives up</del><ins>records the failure on the job</ins>.</p>",
+		},
+		{
+			name: "a ticked box marks the new box and strikes none",
+			old:  "- [ ] Record the base\n",
+			new:  "- [x] Record the base\n",
+			want: "<ul>\n<li><ins><input checked=\"\" disabled=\"\" type=\"checkbox\"></ins> Record the base</li>\n</ul>",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(markedBody(g, c.old, c.new)).To(Equal(c.want))
+		})
+	}
+}
+
+// Changed words are marked where they stand, in the new passage's own markup:
+// added text in ins, and removed text in a del where it was removed, inside
+// links, emphasis and code alike.
+func TestDocument_words(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want string
+	}{
+		{
+			name: "a word replaced",
+			old:  "The cost is storage.",
+			new:  "The cost is small.",
+			want: "<p>The cost is <del>storage</del><ins>small</ins>.</p>",
+		},
+		{
+			name: "inside a link",
+			old:  "As [the diff](x.md) shows.",
+			new:  "As [the whole file](x.md) shows.",
+			want: "<p>As <a href=\"/f/docs/x.md\">the <del>diff</del><ins>whole file</ins></a> shows.</p>",
+		},
+		{
+			name: "inside a code span",
+			old:  "Name it with `--base-commit`.",
+			new:  "Name it with `--base`.",
+			want: "<p>Name it with <code>--base<del>-commit</del></code>.</p>",
+		},
+		{
+			name: "an addition at the end of emphasis",
+			old:  "**One control.** Then more.",
+			new:  "**One control with two settings.** Then more.",
+			want: "<p><strong>One control<ins> with two settings</ins>.</strong> Then more.</p>",
+		},
+		{
+			name: "a removal at the end",
+			old:  "One two three.",
+			new:  "One two.",
+			want: "<p>One two<del> three</del>.</p>",
+		},
+		{
+			name: "a removal at the start",
+			old:  "Very well done.",
+			new:  "Well done.",
+			want: "<p><del>Very well</del><ins>Well</ins> done.</p>",
+		},
+		{
+			name: "a change in a list item keeps its number",
+			old:  "3. the third\n",
+			new:  "3. the last\n",
+			want: "<ol start=\"3\">\n<li>the <del>third</del><ins>last</ins></li>\n</ol>",
+		},
+		{
+			name: "a change in a table cell",
+			old:  "| a | b |\n|---|---|\n| 1 | 2 |",
+			new:  "| a | b |\n|---|---|\n| 1 | 3 |",
+			want: "<table>\n<thead>\n<tr>\n<th>a</th>\n<th>b</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td><del>2</del><ins>3</ins></td>\n</tr>\n</tbody>\n</table>",
+		},
+		{
+			name: "formatting alone marks no word",
+			old:  "A word made bold.",
+			new:  "A word made **bold**.",
+			want: "<p>A word made <strong>bold</strong>.</p>",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(markedBody(g, c.old, c.new)).To(Equal(c.want))
+		})
+	}
+}
+
+// The marking copies the new passage through byte for byte, escaped text and
+// attributes included, and writes removed text as the renderer escaped it.
+// Taking out the marking elements leaves exactly the unmarked rendering.
+func TestDocument_wordsEscaped(t *testing.T) {
+	g := NewWithT(t)
+	old := "Use `<old>` & \"x\" in [a link](https://example.com/?q=1&r=2 \"T&#39;s\") <here>.\n"
+	new := "Use `<new>` & \"y\" in [a link](https://example.com/?q=1&r=3 \"T&#39;s\") <there>.\n"
+	marked := markedBody(g, old, new)
+	plain := strings.TrimSuffix(unmarkedBody(g, new), "\n")
+	g.Expect(regexp.MustCompile(`<del>.*?</del>|</?ins>`).ReplaceAllString(marked, "")).To(Equal(plain))
+	g.Expect(marked).To(ContainSubstring("<del>old</del>"))
+	g.Expect(marked).To(ContainSubstring("&quot;<del>x</del><ins>y</ins>&quot;"))
+	g.Expect(marked).To(ContainSubstring(`href="https://example.com/?q=1&amp;r=3"`))
+	removed := markedBody(g, "Keep `a < b && c` here.\n", "Keep here.\n")
+	g.Expect(removed).To(Equal("<p>Keep<del> a &lt; b &amp;&amp; c</del> here.</p>"), "removed text keeps its escaping and none of its tags")
+}
+
 func TestHasBlocks(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -1075,11 +1296,36 @@ func TestHasBlocks(t *testing.T) {
 type shape struct {
 	// Mark is empty for a kept block, or one of the marks.
 	Mark string
-	// Text is the block's text with its whitespace collapsed, less its cues
-	// and its replaced text.
+	// Text is the block's text with its whitespace collapsed, less every
+	// removed word and every struck passage: the new text.
 	Text string
-	// Was is each replaced block's text.
+	// Was is the old text: for a marked block, its text less its added words
+	// and with its removed ones, and otherwise each struck passage's text.
 	Was []string
+}
+
+// markedBody is what a one-passage document marks inside its block, when old
+// is replaced by new.
+func markedBody(g *WithT, old, new string) string {
+	g.THelper()
+	return blockBody(g, Document([]byte(old), []byte(new), testPage()))
+}
+
+// unmarkedBody is a one-passage document's block as it renders unmarked.
+func unmarkedBody(g *WithT, md string) string {
+	g.THelper()
+	return blockBody(g, Document(nil, []byte(md), testPage()))
+}
+
+// oneBlock is a rendering of one block, and what is inside it.
+var oneBlock = regexp.MustCompile(`(?s)^<div class="blk[a-z ]*"(?: data-lines="[0-9-]+")?>(.*)</div>\n$`)
+
+// blockBody is what a rendering of one block holds.
+func blockBody(g *WithT, out template.HTML) string {
+	g.THelper()
+	m := oneBlock.FindStringSubmatch(string(out))
+	g.Expect(m).To(HaveLen(2), string(out))
+	return m[1]
 }
 
 // testPage is a document at docs/product.md whose file pages are /f/ and the
@@ -1098,18 +1344,31 @@ func shapesOf(g *WithT, out template.HTML) []shape {
 	var shapes []shape
 	for _, block := range elementChildren(parseBody(g, out)) {
 		var s shape
-		switch class := attr(block, "class"); {
-		case block.Data == "details" && class == "blk changed":
-			s.Mark = markReplaced
-		case block.Data == "div" && class == "blk changed was":
-			s.Mark = markRemoved
-		case block.Data == "div" && class == "blk changed":
-			s.Mark = markChanged
-		default:
-			g.Expect(block.Data+"."+class).To(Equal("div.blk"), "a block is kept, changed, replaced or removed")
+		g.Expect(block.Data).To(Equal("div"), "a block is a div")
+		old := findAll(block, hasClass(classOld))
+		for _, o := range old {
+			s.Was = append(s.Was, collapsed(textOf(o)))
 		}
-		for _, was := range findAll(block, hasClass(classWasText)) {
-			s.Was = append(s.Was, textOf(was))
+		words := findAll(block, func(n *html.Node) bool {
+			return (n.Data == "ins" || n.Data == "del") && n.Type == html.ElementNode && attr(n, "class") == ""
+		})
+		switch class := attr(block, "class"); {
+		case class == "blk":
+			g.Expect(old).To(BeEmpty())
+			g.Expect(words).To(BeEmpty())
+		case class != "blk changed":
+			g.Expect(class).To(Equal("blk"), "a block is kept or changed")
+		case len(findAll(block, hasClass(classWhole))) > 0:
+			s.Mark = markWhole
+		case len(old) > 0 && hasAttrNamed("data-lines")(block):
+			s.Mark = markStruck
+		case len(old) > 0:
+			s.Mark = markRemoved
+		case len(words) > 0:
+			s.Mark = markMarked
+			s.Was = []string{collapsed(oldText(block))}
+		default:
+			s.Mark = markChanged
 		}
 		s.Text = collapsed(shownText(block))
 		shapes = append(shapes, s)
@@ -1255,9 +1514,20 @@ func textOf(n *html.Node) string {
 	return b.String()
 }
 
-// shownText is the text under a block, less its cues and replaced text.
+// shownText is the text under a block, less its removed words and struck
+// passages.
 func shownText(n *html.Node) string {
-	if hasClass(classWasText)(n) || hasClass(classCueShow)(n) || hasClass(classCueHide)(n) {
+	return textLess(n, "del")
+}
+
+// oldText is the text a marked block replaced: its text less its added words.
+func oldText(n *html.Node) string {
+	return textLess(n, "ins")
+}
+
+// textLess is the text under n, less every element named skip.
+func textLess(n *html.Node, skip string) string {
+	if n.Type == html.ElementNode && n.Data == skip {
 		return ""
 	}
 	if n.Type == html.TextNode {
@@ -1265,7 +1535,7 @@ func shownText(n *html.Node) string {
 	}
 	var b strings.Builder
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		b.WriteString(shownText(c))
+		b.WriteString(textLess(c, skip))
 	}
 	// A block element's text is apart from its neighbors', as a browser
 	// lays it out, where an inline element's runs on.
@@ -1276,7 +1546,7 @@ func shownText(n *html.Node) string {
 }
 
 // inlineElements are the elements a document writes inside a line of text.
-var inlineElements = []string{"a", "code", "del", "em", "span", "strong"}
+var inlineElements = []string{"a", "code", "del", "em", "ins", "s", "span", "strong"}
 
 // collapsed is s with each run of whitespace one space, and none at the ends.
 func collapsed(s string) string {
@@ -1310,7 +1580,9 @@ func attrOf(n *html.Node, name string) string {
 
 // The marks a block can carry, as shapesOf reads them.
 const (
-	markChanged  = "changed"
-	markReplaced = "replaced"
-	markRemoved  = "removed"
+	markChanged = "changed"
+	markMarked  = "marked"
+	markWhole   = "whole"
+	markStruck  = "struck"
+	markRemoved = "removed"
 )

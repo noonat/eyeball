@@ -219,11 +219,11 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 	g.Expect(proseBlocks(cards["docs/product.md"])).To(Equal([]string{
 		"kept: Product",
 		"kept: Kept one.",
-		"replaced: New wording. | Show what it replaced | Hide what it replaced | was: Old wording.",
+		"marked: New wording. | was: Old wording.",
 		"kept: Stays between.",
 		"removed: was: Removed passage.",
 		"kept: Kept two.",
-		"added: Added at the end.",
+		"whole: Added at the end.",
 	}))
 	g.Expect(findAll(find(cards["docs/product.md"], "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
 	link := find(cards["docs/product.md"], "fileopen")
@@ -236,11 +236,11 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 	cards = documentCards(doc)
 	g.Expect(proseBlocks(cards["docs/product.md"])).To(Equal([]string{
 		"kept: Product",
-		"added: Kept one.",
-		"added: New wording.",
-		"added: Stays between.",
-		"added: Kept two.",
-		"added: Added at the end.",
+		"whole: Kept one.",
+		"whole: New wording.",
+		"whole: Stays between.",
+		"whole: Kept two.",
+		"whole: Added at the end.",
 	}))
 	g.Expect(attr(find(cards["docs/product.md"], "fileopen"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
 
@@ -293,7 +293,7 @@ func TestServer_Surface_reviewDocumentFolds(t *testing.T) {
 		"kept: Items",
 		"fold: 2 unchanged passages: one / two",
 		"kept: three",
-		"replaced: 4th | Show what it replaced | Hide what it replaced | was: four",
+		"marked: 4th | was: four",
 		"kept: five",
 		"fold: 3 unchanged passages: six / seven / a",
 		"kept: b",
@@ -1102,8 +1102,27 @@ func documentCards(doc *html.Node) map[string]*html.Node {
 	return out
 }
 
+// textWithout is n's text less every element named skip, as text reads it.
+func textWithout(n *html.Node, skip string) string {
+	var b strings.Builder
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == skip {
+			return
+		}
+		if n.Type == html.TextNode {
+			b.WriteString(n.Data)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(n)
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
 // proseBlocks reads each block of the prose under n: how it is marked, the
-// text it shows, its cues, and the text it replaced.
+// text it shows, and the text it replaced.
 func proseBlocks(n *html.Node) []string {
 	var out []string
 	prose := find(n, "prose")
@@ -1116,27 +1135,27 @@ func proseBlocks(n *html.Node) []string {
 		}
 		var parts []string
 		var was []string
-		for _, w := range findAll(block, hasClass("was-text")) {
+		for _, w := range findAll(block, hasClass("old")) {
 			was = append(was, text(w))
 		}
+		words := findAll(block, func(n *html.Node) bool {
+			return n.Type == html.ElementNode && (n.Data == "ins" || n.Data == "del") && attr(n, "class") == ""
+		})
+		changed := attr(block, "class") == "blk changed"
 		switch {
-		case block.Data == "details" && attr(block, "class") == "blk changed":
-			summary := findAll(block, isElement("summary"))[0]
-			var shown []string
-			for c := summary.FirstChild; c != nil; c = c.NextSibling {
-				if !hasClass("hint")(c) {
-					shown = append(shown, text(c))
-				}
+		case changed && find(block, "whole") != nil:
+			parts = append(parts, "whole: "+text(find(block, "whole")))
+			if len(was) > 0 {
+				parts = append(parts, "was: "+strings.Join(was, " / "))
 			}
-			parts = append(parts, "replaced: "+strings.Join(strings.Fields(strings.Join(shown, " ")), " "))
-			for _, cue := range findAll(summary, hasClass("hint")) {
-				parts = append(parts, text(cue))
-			}
-			parts = append(parts, "was: "+strings.Join(was, " / "))
-		case attr(block, "class") == "blk changed was":
+		case changed && len(was) > 0 && attr(block, "data-lines") == "":
 			parts = append(parts, "removed: was: "+strings.Join(was, " / "))
-		case attr(block, "class") == "blk changed":
-			parts = append(parts, "added: "+text(block))
+		case changed && len(was) > 0:
+			parts = append(parts, "struck: "+textWithout(block, "del"), "was: "+strings.Join(was, " / "))
+		case changed && len(words) > 0:
+			parts = append(parts, "marked: "+textWithout(block, "del"), "was: "+textWithout(block, "ins"))
+		case changed:
+			parts = append(parts, "changed: "+text(block))
 		case attr(block, "class") == "blk":
 			parts = append(parts, "kept: "+text(block))
 		case block.Data == "div" && attr(block, "class") == "" && attr(block, "id") != "":

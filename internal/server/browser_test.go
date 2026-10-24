@@ -644,15 +644,14 @@ func TestServer_Surface_browserPassages(t *testing.T) {
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
 
-	// A tap on a changed passage selects it rather than opening it.
-	changed := `document.querySelector("details.blk.changed")`
-	b.eval(g, changed+`.querySelector("p").click()`)
+	// A tap on a changed passage selects it, a tap on one of its marked
+	// words included.
+	changed := `document.querySelector("div.blk.changed")`
+	g.Expect(b.eval(g, changed+`.querySelector("del").textContent`)).To(Equal("Old"))
+	b.eval(g, changed+`.querySelector("ins").click()`)
 	b.waitFor(g, changed+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
-	g.Expect(b.eval(g, changed+`.open`)).To(BeFalse(), "a tap off the hint opened the replaced text")
 	g.Expect(b.eval(g, changed+`.classList.contains("sel")`)).To(BeTrue())
 	b.eval(g, changed+`.nextElementSibling.querySelector("[data-cancel]").click()`)
-	b.eval(g, changed+`.querySelector(".hint.cue-show").click()`)
-	g.Expect(b.eval(g, changed+`.open`)).To(BeTrue(), "the hint opens the replaced text")
 
 	// A comment on a kept passage lands under it, and stays there.
 	kept := `document.querySelector("div.blk[data-lines='3-3']")`

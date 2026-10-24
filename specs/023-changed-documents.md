@@ -134,21 +134,30 @@ there, and it is spaced as a list of its own.
 
 ## Iteration 3: Word marks
 
-- [ ] internal/render marking added and removed words in a passage that replaced
+- [x] internal/render marking added and removed words in a passage that replaced
       exactly one other, with `<ins>` and `<del>` in its rendered HTML
-- [ ] The four rules in architecture.md, each with a test that fails with its
+- [x] The four rules in architecture.md, each with a test that fails with its
       rule removed: an entity, whitespace joining, same block tags, the task box
-- [ ] A test that escaped text and an attribute in the new passage come through
+- [x] A test that escaped text and an attribute in the new passage come through
       byte for byte, and that removed text is written escaped
-- [ ] A document's own strikethrough written as `<s>` by `shownRenderer`, so
+- [x] A document's own strikethrough written as `<s>` by `shownRenderer`, so
       `~~text~~` is not a removed-word mark, as architecture.md says, with a
       test
-- [ ] An unequal run, a removed passage and a changed HTML block showing the old
+- [x] An unequal run, a removed passage and a changed HTML block showing the old
       text struck through, always visible, and a passage added with nothing
       replaced highlighted whole, as the tearout draws them
-- [ ] The details element, its two cues and their styles removed from
+- [x] The details element, its two cues and their styles removed from
       document.go and app.css, with no class left that no page uses, and the
       amber passage state no longer cited in foundations.html or app.css
+
+Built as follows, where the todos left it open. Words are cut by internal/diff's
+own tokenizer and compared by its own comparison, exported as `diff.Words` and
+`diff.Compare`, with each character reference split off first as one token. A
+pair of passages past 5,000 tokens between them is shown as a rewrite rather
+than compared. An unequal run's old text now goes above its first new passage,
+as the tearout draws it, where the details element held it on the last. A
+changed passage the comparison pairs one to one is marked word by word even when
+the two share almost nothing, which the item already in specs/TODO.md covers.
 
 Decided at iteration 1's review: a document's own strikethrough is written as
 `<s>`, a removed task box is not written, a passage added with nothing replaced
@@ -156,6 +165,12 @@ is highlighted whole, and the wording that still cites the amber passage state
 is corrected with the rest of the old styles. That is foundations.html's "The
 dark highlighter leans toward lemon, away from the amber that marks a passage
 showing what it replaced." and the dark `--hl` comment in app.css.
+
+> **Completed** 2026-10-24 14:30 UTC
+>
+> - `make check` — 7.9s
+> - `go test -race ./...` — 44.7s
+> - `go test -count=1 -tags browser ./internal/server` — 46.6s
 
 ## Iteration 4: On the phone
 

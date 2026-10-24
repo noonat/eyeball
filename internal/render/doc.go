@@ -21,10 +21,13 @@
 // with heading ids off, raw HTML and destinations written as the source has
 // them, an ordered item's number left out, and whitespace collapsed outside
 // pre, then hashed one to a line for the line diff. The pairing is
-// internal/diff's word-marking rule: equal runs pair one to one, an unequal
-// run's replaced text goes on its last new passage, and a removal with nothing
-// in its place is a passage of its own. Nothing is marked when the old side has
-// no passages.
+// internal/diff's word-marking rule: equal runs pair one to one, and a passage
+// that replaced exactly one other with the same block structure has its changed
+// words marked in place, with ins and del, by the tokens a changed code line
+// uses. Everything else is a rewrite: an unequal run's old text is struck
+// through above its first new passage and each new passage is tinted whole, and
+// a removal with nothing in its place is its old text struck through. Nothing
+// is marked when the old side has no passages.
 //
 // A review page's card folds a document to what changed: each changed passage,
 // the nearest heading at or above it, one passage on each side, and every
