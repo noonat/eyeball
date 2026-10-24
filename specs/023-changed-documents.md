@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -179,5 +179,17 @@ required_acks:
   - phone-checked
 ```
 
-- [ ] The owner reads a review of a long changed document on the phone, with the
+- [x] The owner reads a review of a long changed document on the phone, with the
       daemon running this branch's build, and any change asked for is made
+
+The owner read review 137 on the phone on 2026-10-24, with the daemon running
+this branch's build at 5f10cf8: this branch's changes to docs/product.md,
+docs/architecture.md and specs/TODO.md against master. It was approved with no
+changes asked.
+
+> **Completed** 2026-10-24 14:43 UTC
+>
+> - acks: phone-checked
+> - `make check` — 19.7s
+> - `go test -race ./...` — 44.0s
+> - `go test -count=1 -tags browser ./internal/server` — 46.0s
