@@ -193,3 +193,47 @@ changes asked.
 > - `make check` — 19.7s
 > - `go test -race ./...` — 44.0s
 > - `go test -count=1 -tags browser ./internal/server` — 46.0s
+
+## End-of-branch review pass
+
+One review pass read the branch's diff on 2026-10-24 and re-ran its claims in a
+scratch copy. It found one display defect, three guards no test exercised, and
+some wording. Nothing failed at runtime. Each code fix below has a test that
+fails with the fix removed. The wording and the stylesheet have none, and the
+stylesheet was checked in a headless render.
+
+- Removed words were placed by the innermost block that had opened, and a
+  closing tag never returned to the enclosing one. Text removed after a code
+  block inside a tight list item was written inside the code block, and text
+  removed from an emptied code block between `<pre>` and `<code>`. Words are now
+  placed by the stretch between one block tag and the next, after as many of its
+  inline tags as preceded them. The cases are in `TestDocument_words`.
+- Whitespace that only lays out block tags is copied through, so no mark lands
+  between two table cells. A case changing every cell of a row now fails without
+  that guard.
+- Removed words with nothing new left in their stretch go where they stood in
+  it. Writing them after the last token instead put them in the wrong cell. A
+  case emptying one cell, and the code block cases, now fail that way.
+- The 5,000-token limit had no test: raising it passed everything.
+  `TestDocument_wordLimit` marks 1,240 repeated words on each side and shows
+  1,260 as a rewrite.
+- `TestDocument_wordRules` said it held all four rules and held three. Its
+  comment now names the fourth's test.
+- product.md said every changed HTML block shows its old source. Only a
+  top-level one does, and the sentence now says a nested one shows the rule
+  alone.
+- The stylesheet's spacing for consecutive one-item lists did not reach an item
+  tinted whole, whose list sits inside its tint. It does now.
+
+A second pass checked these fixes with fuzzing and found one regression from the
+new placement. Removed text that was only whitespace, in a stretch with no new
+words, was trimmed to nothing and written as an empty `<del>`, a thin tinted
+sliver, as in `- [x] ` turned into `- `. It is now skipped, and a case in
+`TestDocument_words` fails without the skip.
+
+Deferred to specs/TODO.md: a changed HTML block nested in a list item or a block
+quote showing its old source; a block quote that held an HTML block, rewritten
+as text, striking the placeholder as if it were the author's words; a task box
+and its text changed together joining into one change, with a box removed from
+`- [x] Done` shown only as a struck space; and, added to the item on passages
+that share almost nothing, positional pairing in an equal-length run.

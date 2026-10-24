@@ -1142,7 +1142,22 @@ func TestDocument_wordBlocks(t *testing.T) {
 	}
 }
 
-// Each of the four rules in architecture.md that hold the marking together.
+// A pair of passages is compared word by word up to maxWordTokens between
+// them, and shown as a rewrite past it.
+func TestDocument_wordLimit(t *testing.T) {
+	g := NewWithT(t)
+	pair := func(words int) (string, string) {
+		return strings.Repeat("word ", words) + "old.\n", strings.Repeat("word ", words) + "new.\n"
+	}
+	old, new := pair(1240)
+	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markMarked}))
+	old, new = pair(1260)
+	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markWhole}))
+}
+
+// Three of the four rules in architecture.md that hold the marking together:
+// an entity, whitespace joining and the task box. The fourth, same block tags,
+// is TestDocument_wordBlocks.
 func TestDocument_wordRules(t *testing.T) {
 	cases := []struct {
 		name string
@@ -1234,6 +1249,36 @@ func TestDocument_words(t *testing.T) {
 			old:  "| a | b |\n|---|---|\n| 1 | 2 |",
 			new:  "| a | b |\n|---|---|\n| 1 | 3 |",
 			want: "<table>\n<thead>\n<tr>\n<th>a</th>\n<th>b</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td><del>2</del><ins>3</ins></td>\n</tr>\n</tbody>\n</table>",
+		},
+		{
+			name: "every cell of a row changed",
+			old:  "| a | b |\n|---|---|\n| 1 | 2 |",
+			new:  "| a | b |\n|---|---|\n| x | y |",
+			want: "<table>\n<thead>\n<tr>\n<th>a</th>\n<th>b</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><del>1</del><ins>x</ins></td>\n<td><del>2</del><ins>y</ins></td>\n</tr>\n</tbody>\n</table>",
+		},
+		{
+			name: "a cell emptied",
+			old:  "| a | b |\n|---|---|\n| 1 | 2 |",
+			new:  "| a | b |\n|---|---|\n|  | 2 |",
+			want: "<table>\n<thead>\n<tr>\n<th>a</th>\n<th>b</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><del>1</del></td>\n<td>2</td>\n</tr>\n</tbody>\n</table>",
+		},
+		{
+			name: "a removal after a code block inside a list item",
+			old:  "- a\n  ```\n  x\n  ```\n  b\n",
+			new:  "- a\n  ```\n  x\n  ```\n",
+			want: "<ul>\n<li>a\n<pre><code>x\n</code></pre><del>b</del>\n</li>\n</ul>",
+		},
+		{
+			name: "a code block emptied",
+			old:  "```\nx\n```\n",
+			new:  "```\n```\n",
+			want: "<pre><code><del>x</del></code></pre>",
+		},
+		{
+			name: "a box removed with only a space beside it",
+			old:  "- [x] \n",
+			new:  "- \n",
+			want: "<ul>\n<li></li>\n</ul>",
 		},
 		{
 			name: "formatting alone marks no word",

@@ -322,10 +322,11 @@ comment is hidden in a fold.
 other, added words are highlighted and removed words show struck through where
 they were, inside links, emphasis and code alike. A rule beside every changed
 passage stays, so a change to formatting alone, which changes no word, still
-shows. Ticking a task box marks the box. A changed block of raw HTML, which
-renders as a placeholder, shows its old source struck through above it. A
-passage whose structure changed, such as a table that gained a column, and a run
-of passages replaced by a different number of them, show the old text struck
+shows. Ticking a task box marks the box. A changed block of raw HTML at the top
+level of a document, which renders as a placeholder, shows its old source struck
+through above it. One inside a list item or a block quote shows the rule alone.
+A passage whose structure changed, such as a table that gained a column, and a
+run of passages replaced by a different number of them, show the old text struck
 through above the new passage, which is highlighted whole. A new passage with
 nothing replaced is highlighted whole too. A passage removed with nothing in its
 place shows struck through where it was.

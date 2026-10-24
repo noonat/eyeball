@@ -82,7 +82,9 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
 - [ ] design: whether word marking should be suppressed where a paired line, or
       since 023 a paired passage in a document, shares almost nothing with the
       one it replaced. Marking it end to end is noise, and the proportion to cut
-      at needs real reviews.
+      at needs real reviews. In a document an equal-length run pairs passages by
+      position, so reordered or unrelated passages are marked against each
+      other, as seen in 023.
 - [ ] product: whether a review's base should follow a branch that moves under
       it. 004 fixes the base at the first round, so a merge landing mid-review
       arrives inside the review as work the agent did not do.
@@ -220,6 +222,16 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
       word.
 - [ ] design: opening folded lines in place in a code card, as 023 does for a
       document's folded passages.
+- [ ] design: a changed HTML block nested in a list item or a block quote
+      showing its old source. Since 023 only a top-level one does, and a nested
+      one shows the rule alone.
+- [ ] design: a block quote that held an HTML block, rewritten as text, strikes
+      the placeholder sentence as if it were the author's words.
+- [ ] design: a task box and its text changed together, as `- [ ] a` to
+      `- [x] b`, join into one change by the whitespace rule, so the struck word
+      sits before the new box. Turning `- [x] Done` into `- Done` writes
+      `<li><del> </del>Done</li>`, a struck space the only sign the box went,
+      since a removed box is not written.
 - [ ] product: a lost base on the review page. `capture.Compare` fails when the
       commit a review started from is gone, so the review page fails while its
       file pages fall back to the capture. Fixing it changes how a round is

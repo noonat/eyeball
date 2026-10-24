@@ -34,13 +34,20 @@ type piece struct {
 	// cmp is what the comparison reads, or empty for a tag it skips. A task
 	// box is a tag the comparison reads, as [ ] or [x].
 	cmp string
-	// tag reports a tag, which is copied through and never marked.
+	// tag reports a tag, or whitespace that only lays out block tags, which
+	// is copied through and never marked.
 	tag bool
-	// block is the block element the piece sits in, as an index into the
-	// passage's block elements in the order they open, or -1 before any.
-	block int
-	// opens is the index of the block element this tag opens, or -1.
-	opens int
+	// inline reports a tag of an inline element, such as code or a.
+	inline bool
+	// seg is the stretch of the passage the piece sits in: the text between
+	// one block tag and the next, opening or closing, numbered in order from
+	// 0 before the first. Two passages with the same block tags have the same
+	// stretches, so a word removed from one has a place in the other.
+	seg int
+	// starts is the stretch a block tag begins, or -1 for any other piece.
+	starts int
+	// depth is how many inline tags come before the piece in its stretch.
+	depth int
 }
 
 // markWords marks the words a passage changed against the one it replaced.
@@ -68,26 +75,49 @@ func markWords(old, new string) (string, bool) {
 	inserted := make([]bool, len(toTok))
 	before := map[int][]string{}
 	after := map[int][]string{}
-	opened := map[int][]string{}
+	lone := map[placed][]string{}
 	for _, c := range changes {
 		for k := c.To; k < c.ToEnd; k++ {
 			inserted[k] = true
 		}
 		for _, g := range removedText(from, fromTok[c.From:c.FromEnd]) {
 			j := c.To
+			last, first := -1, -1
+			for k := j - 1; k >= 0 && to[toTok[k]].seg >= g.seg; k-- {
+				if to[toTok[k]].seg == g.seg {
+					last = k
+					break
+				}
+			}
+			for k := j; k < len(toTok) && to[toTok[k]].seg <= g.seg; k++ {
+				if to[toTok[k]].seg == g.seg {
+					first = k
+					break
+				}
+			}
 			switch {
-			case c.ToEnd > c.To && j < len(toTok) && to[toTok[j]].block == g.block:
+			case c.ToEnd > c.To && first == j:
 				// A replacement's removed words go just before the words
 				// that replaced them.
 				before[j] = append(before[j], g.text)
-			case j > 0 && to[toTok[j-1]].block == g.block:
-				after[j-1] = append(after[j-1], g.text)
-			case j < len(toTok) && to[toTok[j]].block == g.block:
-				before[j] = append(before[j], g.text)
+			case last >= 0:
+				after[last] = append(after[last], g.text)
+			case first >= 0:
+				before[first] = append(before[first], g.text)
 			default:
-				// Nothing new is left in the block the words were removed
-				// from, so they go at its start.
-				opened[g.block] = append(opened[g.block], g.text)
+				// The stretch the words were removed from holds no new
+				// text, so they go where they stood in it: after as many of
+				// its inline tags as came before them, such as inside an
+				// emptied code block's code element.
+				// With no word beside it, whitespace at either end of it
+				// would be struck as a space of its own, and whitespace alone
+				// as an empty del, a thin tinted sliver with nothing in it.
+				text := strings.TrimSpace(g.text)
+				if text == "" {
+					continue
+				}
+				at := placed{seg: g.seg, depth: g.depth}
+				lone[at] = append(lone[at], text)
 			}
 		}
 	}
@@ -113,13 +143,37 @@ func markWords(old, new string) (string, bool) {
 	for j, pi := range toTok {
 		tokenAt[pi] = j
 	}
+	// A stretch's lone removed text goes after its depth-th inline tag, or at
+	// the stretch's end where the new stretch holds fewer.
+	depths := map[int]int{}
+	for _, p := range to {
+		if p.inline {
+			depths[p.seg]++
+		}
+	}
+	lonely := func(seg, depth int) {
+		var here []placed
+		for at := range lone {
+			if at.seg == seg && min(at.depth, depths[seg]) == depth {
+				here = append(here, at)
+			}
+		}
+		slices.SortFunc(here, func(a, b placed) int { return a.depth - b.depth })
+		for _, at := range here {
+			dels(lone[at])
+		}
+	}
+	lonely(0, 0)
 	for pi, p := range to {
 		j, isToken := tokenAt[pi]
 		if !isToken {
 			closeIns()
 			b.WriteString(p.html)
-			if p.opens >= 0 {
-				dels(opened[p.opens])
+			switch {
+			case p.starts >= 0:
+				lonely(p.starts, 0)
+			case p.inline:
+				lonely(p.seg, p.depth+1)
 			}
 			continue
 		}
@@ -139,14 +193,22 @@ func markWords(old, new string) (string, bool) {
 	return b.String(), true
 }
 
-// removed is removed text bound for one block element.
+// removed is removed text bound for one stretch, with how many inline tags
+// came before it there.
 type removed struct {
-	block int
+	seg   int
+	depth int
 	text  string
 }
 
+// placed is where a stretch's lone removed text goes.
+type placed struct {
+	seg   int
+	depth int
+}
+
 // removedText is the text of a run of removed tokens, split where it crosses
-// from one block element into the next, so each part is written in its own.
+// from one stretch into the next, so each part is written in its own.
 // A removed task box is not written: struck through beside the new box it would
 // read as a second box.
 func removedText(from []piece, run []int) []removed {
@@ -156,8 +218,8 @@ func removedText(from []piece, run []int) []removed {
 		if p.tag {
 			continue
 		}
-		if len(out) == 0 || out[len(out)-1].block != p.block {
-			out = append(out, removed{block: p.block})
+		if len(out) == 0 || out[len(out)-1].seg != p.seg {
+			out = append(out, removed{seg: p.seg, depth: p.depth})
 		}
 		out[len(out)-1].text += p.html
 	}
@@ -203,7 +265,7 @@ func onlySpace(tokens []string) bool {
 func cut(h string) ([]piece, []string) {
 	var pieces []piece
 	var shape []string
-	block, opened := -1, 0
+	seg, depth := 0, 0
 	for i := 0; i < len(h); {
 		if h[i] == '<' {
 			end := strings.IndexByte(h[i:], '>')
@@ -211,7 +273,7 @@ func cut(h string) ([]piece, []string) {
 				end = len(h) - i - 1
 			}
 			tag := h[i : i+end+1]
-			p := piece{html: tag, tag: true, block: block, opens: -1}
+			p := piece{html: tag, tag: true, seg: seg, starts: -1, depth: depth}
 			name, closing := tagName(tag)
 			switch {
 			case name == "input":
@@ -224,9 +286,13 @@ func cut(h string) ([]piece, []string) {
 					shape = append(shape, "/"+name)
 				} else {
 					shape = append(shape, name)
-					p.opens, block = opened, opened
-					opened++
 				}
+				seg++
+				depth = 0
+				p.seg, p.starts = seg, seg
+			case !strings.HasPrefix(tag, "<!"):
+				p.inline = true
+				depth++
 			}
 			pieces = append(pieces, p)
 			i += end + 1
@@ -239,11 +305,11 @@ func cut(h string) ([]piece, []string) {
 		run := h[i : i+end]
 		i += end
 		if strings.TrimSpace(run) == "" && betweenBlocks(h, i, pieces) {
-			pieces = append(pieces, piece{html: run, tag: true, block: block, opens: -1})
+			pieces = append(pieces, piece{html: run, tag: true, seg: seg, starts: -1, depth: depth})
 			continue
 		}
 		for _, t := range textTokens(run) {
-			pieces = append(pieces, piece{html: t, cmp: t, block: block, opens: -1})
+			pieces = append(pieces, piece{html: t, cmp: t, seg: seg, starts: -1, depth: depth})
 		}
 	}
 	return pieces, shape

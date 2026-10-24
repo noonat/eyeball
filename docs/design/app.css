@@ -1341,20 +1341,34 @@ tr.del.sel {
 
 /* A passage that is one item of a top-level list is written as a list of its
  * own, because its comments follow it and nothing but an item is valid inside
- * a list. Two of them in a row are spaced as two items of one list. Every
- * margin between them collapses into one, so a loose item's paragraph margins
- * still win and a loose list stays loose. A comment between two items breaks
- * the pair, and the list reads as two. */
-.blk:has(> :is(ul, ol) > li:only-child)
+ * a list. Two of them in a row are spaced as two items of one list, an item
+ * tinted whole included, whose list sits inside its tint. Every margin between
+ * them collapses into one, so a loose item's paragraph margins still win and
+ * a loose list stays loose. A comment between two items breaks the pair, and
+ * the list reads as two. */
+.blk:has(
+    > :is(ul, ol) > li:only-child,
+    > ins.whole > :is(ul, ol) > li:only-child
+  )
   + .blk
-  > :is(ul, ol):has(> li:only-child) {
+  > :is(
+    :is(ul, ol):has(> li:only-child),
+    ins.whole:has(> :is(ul, ol) > li:only-child)
+  ) {
   margin-top: 0.3em;
 }
 
-.blk:has(> :is(ul, ol) > li:only-child):has(
-    + .blk > :is(ul, ol) > li:only-child
+.blk:has(
+    > :is(ul, ol) > li:only-child,
+    > ins.whole > :is(ul, ol) > li:only-child
+  ):has(
+    + .blk > :is(ul, ol) > li:only-child,
+    + .blk > ins.whole > :is(ul, ol) > li:only-child
   ),
-.blk:has(+ .blk > :is(ul, ol) > li:only-child)
+.blk:has(
+    + .blk > :is(ul, ol) > li:only-child,
+    + .blk > ins.whole > :is(ul, ol) > li:only-child
+  )
   > :is(ul, ol):has(> li:only-child) {
   margin-bottom: 0;
 }
