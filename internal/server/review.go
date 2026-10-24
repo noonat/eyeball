@@ -484,8 +484,12 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		}
 		// Two documents on one page could repeat a heading id, so a card
 		// writes none, and a fragment link goes to the document's own page.
+		// A card shows what changed and folds the rest. The fresh layout
+		// shows this same rendering, which folds nothing, since a document
+		// is fresh only where its old side has no passages to compare.
 		doc := at.page()
 		doc.HeadingIDs = false
+		doc.Fold = true
 		if byRange := passages[m.Path]; byRange != nil {
 			path := m.Path
 			doc.After = func(first, last int) template.HTML {

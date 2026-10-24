@@ -438,7 +438,10 @@ of its rendering, and the two lists of keys are compared as lines, so a passage
 rewrapped without a word changed is not a change. A passage is a top-level
 block, or one item of a top-level list. goldmark renders a list item on its own
 as the same `<li>` it writes inside its list, and keeps an ordered list's first
-number. Measured with goldmark 1.8.6 on 2026-10-23.
+number. Measured with goldmark 1.8.6 on 2026-10-23. An ordered item's key leaves
+out its number, so an item added near the top of a list marks only itself. The
+list element stays in the key, so bullets turned to numbers still mark every
+item.
 
 **Each list item is written as a list of its own.** A passage is a `.blk`
 element carrying its source lines, which the composer finds a tapped passage by,

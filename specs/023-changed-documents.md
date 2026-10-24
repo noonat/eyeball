@@ -103,19 +103,34 @@ approved the tearout on the phone on 2026-10-24 with no changes.
 
 ## Iteration 2: Passages and folds
 
-- [ ] internal/render keying each item of a top-level list as a passage, written
+- [x] internal/render keying each item of a top-level list as a passage, written
       as a one-item list in its own `.blk` with its own line range
-- [ ] A test that one changed item in a list marks only that item, and that a
+- [x] A test that one changed item in a list marks only that item, and that a
       change from a tight list to a loose one marks every item
-- [ ] `render.Document` folding on request: changed passages, their nearest
+- [x] `render.Document` folding on request: changed passages, their nearest
       heading and one passage each side shown, and runs of two or more folded
-- [ ] A passage whose `After` writes a comment is shown, never folded, with
+- [x] A passage whose `After` writes a comment is shown, never folded, with
       `After` called once per passage, and a test that one between two folds
       stays visible
-- [ ] An ordered list's items numbered by `start`, with a test that the item
+- [x] An ordered list's items numbered by `start`, with a test that the item
       after a fold keeps its number, and a passage comment on an item quoting it
-- [ ] The review page's document card folding, and the file's own page and the
+- [x] The review page's document card folding, and the file's own page and the
       fresh layout showing the whole document, each with a test
+
+Built beyond the todos: a draft reopened on a passage inside a fold opens the
+fold, in `web/ts/drafts.ts`, with a browser test. A passage with nothing saved
+under it folds again on reload, and the composer reopened there was hidden.
+
+Where the code differs from the tearout until iteration 3: a replaced passage
+keeps today's details element, so a replaced list item's list sits inside its
+summary. The stylesheet's rule for consecutive one-item lists does not reach it
+there, and it is spaced as a list of its own.
+
+> **Completed** 2026-10-24 14:10 UTC
+>
+> - `make check` — 5.9s
+> - `go test -race ./...` — 44.1s
+> - `go test -count=1 -tags browser ./internal/server` — 47.8s
 
 ## Iteration 3: Word marks
 

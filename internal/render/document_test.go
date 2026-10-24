@@ -29,7 +29,8 @@ func TestDocument(t *testing.T) {
 			Text: "A paragraph that replaced it.",
 			Was:  []string{"A paragraph to replace."},
 		},
-		{Text: "task one task two"},
+		{Text: "task one"},
+		{Text: "task two"},
 		{Mark: markRemoved, Was: []string{"A paragraph to remove."}},
 		{Text: "Left Right a 1"},
 		{Text: "func f() {}"},
@@ -174,6 +175,137 @@ func TestDocument_fencedMiddleLine(t *testing.T) {
 		{Text: "After two."},
 		{Text: "After three."},
 	}))
+}
+
+// A folded document shows each change with the nearest heading at or above it
+// and one passage on each side. Every other run of two or more passages folds
+// into one line, and a run of one is shown.
+func TestDocument_fold(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want []string
+	}{
+		{
+			name: "a change deep in a section",
+			old:  "# Title\n\nIntro one.\n\nIntro two.\n\n## Section\n\nA.\n\nB.\n\nC.\n\nD.\n\nOld.\n\nE.\n\nF.\n\nG.\n\nOld two.\n\nH.\n\nI.\n\nJ.\n",
+			new:  "# Title\n\nIntro one.\n\nIntro two.\n\n## Section\n\nA.\n\nB.\n\nC.\n\nD.\n\nNew.\n\nE.\n\nF.\n\nG.\n\nNew two.\n\nH.\n\nI.\n\nJ.\n",
+			want: []string{
+				"fold 3: Title / Intro one. / Intro two.",
+				"Section",
+				"fold 3: A. / B. / C.",
+				"D.",
+				"replaced: New.",
+				"E.",
+				"F.",
+				"G.",
+				"replaced: New two.",
+				"H.",
+				"fold 2: I. / J.",
+			},
+		},
+		{
+			name: "a removed passage looks above itself for its heading",
+			old:  "## One\n\nA.\n\nB.\n\nC.\n\nGone.\n\nD.\n\nE.\n\nF.\n",
+			new:  "## One\n\nA.\n\nB.\n\nC.\n\nD.\n\nE.\n\nF.\n",
+			want: []string{
+				"One",
+				"fold 2: A. / B.",
+				"C.",
+				"removed: Gone.",
+				"D.",
+				"fold 2: E. / F.",
+			},
+		},
+		{
+			name: "a changed heading names its own section",
+			old:  "## One\n\nA.\n\nB.\n\n## Two\n\nC.\n\nD.\n",
+			new:  "## One\n\nA.\n\nB.\n\n## Second\n\nC.\n\nD.\n",
+			want: []string{
+				"fold 2: One / A.",
+				"B.",
+				"replaced: Second",
+				"C.",
+				"D.",
+			},
+		},
+		{
+			name: "a document whose rendering did not change",
+			old:  "One.\n\nTwo\nwrapped.\n",
+			new:  "One.\n\nTwo wrapped.\n",
+			want: []string{"fold 2: One. / Two wrapped."},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			p := testPage()
+			p.Fold = true
+			g.Expect(outline(g, Document([]byte(c.old), []byte(c.new), p))).To(Equal(c.want))
+		})
+	}
+}
+
+// A passage with a comment under it is never folded, so no comment is hidden
+// in a fold. After is asked once for every passage with a range, folded or not.
+func TestDocument_foldKeepsComments(t *testing.T) {
+	g := NewWithT(t)
+	old := "Old.\n\nA.\n\nB.\n\nC.\n\nNoted.\n\nD.\n\nE.\n"
+	new := "New.\n\nA.\n\nB.\n\nC.\n\nNoted.\n\nD.\n\nE.\n"
+	p := testPage()
+	p.Fold = true
+	var asked []string
+	p.After = func(first, last int) template.HTML {
+		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
+		if first == 9 {
+			return `<aside data-after="9"></aside>`
+		}
+		return ""
+	}
+	g.Expect(outline(g, Document([]byte(old), []byte(new), p))).To(Equal([]string{
+		"replaced: New.",
+		"A.",
+		"fold 2: B. / C.",
+		"Noted.",
+		"after 9",
+		"fold 2: D. / E.",
+	}))
+	g.Expect(asked).To(Equal([]string{"1-1", "3-3", "5-5", "7-7", "9-9", "11-11", "13-13"}))
+}
+
+// An ordered item keeps its own number, so the item after a fold counts on
+// from the items folded above it.
+func TestDocument_foldNumbersItems(t *testing.T) {
+	g := NewWithT(t)
+	old := "1. a\n2. b\n3. c\n4. d\n5. e\n6. f\n"
+	new := "1. a\n2. b\n3. c\n4. d\n5. changed\n6. f\n"
+	p := testPage()
+	p.Fold = true
+	out := Document([]byte(old), []byte(new), p)
+	g.Expect(outline(g, out)).To(Equal([]string{"fold 3: a / b / c", "d", "replaced: changed", "f"}))
+	var starts []string
+	for _, ol := range findAll(parseBody(g, out), isElement("ol")) {
+		starts = append(starts, attr(ol, "start"))
+	}
+	g.Expect(starts).To(Equal([]string{"1", "2", "3", "4", "5", "6"}))
+}
+
+// Nothing folds unless asked, nor where nothing was compared: against an
+// empty base, or past the comparison's limit.
+func TestDocument_foldWhole(t *testing.T) {
+	g := NewWithT(t)
+	old := "One.\n\nTwo.\n\nThree.\n\nFour.\n"
+	new := "One.\n\nTwo.\n\nThree.\n\nChanged.\n"
+	g.Expect(outline(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"One.", "Two.", "Three.", "replaced: Changed."}))
+	folded := testPage()
+	folded.Fold = true
+	g.Expect(outline(g, Document([]byte(old), []byte(new), folded))).To(Equal([]string{"fold 2: One. / Two.", "Three.", "replaced: Changed."}))
+	g.Expect(outline(g, Document(nil, []byte(new), folded))).To(Equal([]string{"One.", "Two.", "Three.", "Changed."}))
+	long := strings.Repeat("a\n\n", 20001)
+	out := outline(g, Document([]byte(long), []byte(long+"b\n"), folded))
+	g.Expect(out).To(HaveLen(20002))
+	g.Expect(slices.Compact(out)).To(Equal([]string{"a", "b"}), "every passage shown, none marked")
 }
 
 func TestDocument_headingIDs(t *testing.T) {
@@ -432,6 +564,82 @@ func TestDocument_links(t *testing.T) {
 	}
 }
 
+// One changed item marks that item alone. Turning a tight list loose changes
+// how every item renders, so it marks every item, and so does turning bullets
+// into numbers. Numbering is not part of a key, so an item added at the top of
+// an ordered list marks only itself.
+func TestDocument_listItemChanged(t *testing.T) {
+	cases := []struct {
+		name string
+		old  string
+		new  string
+		want []string
+	}{
+		{
+			name: "one item changed",
+			old:  "- one\n- two\n- three\n",
+			new:  "- one\n- second\n- three\n",
+			want: []string{"", markReplaced, ""},
+		},
+		{
+			name: "a tight list made loose",
+			old:  "- one\n- two\n",
+			new:  "- one\n\n- two\n",
+			want: []string{markReplaced, markReplaced},
+		},
+		{
+			name: "bullets made numbers",
+			old:  "- one\n- two\n",
+			new:  "1. one\n2. two\n",
+			want: []string{markReplaced, markReplaced},
+		},
+		{
+			name: "an item added at the top of a numbered list",
+			old:  "1. one\n2. two\n",
+			new:  "1. zero\n2. one\n3. two\n",
+			want: []string{markChanged, "", ""},
+		},
+		{
+			name: "a ticked box",
+			old:  "- [ ] one\n- [ ] two\n",
+			new:  "- [ ] one\n- [x] two\n",
+			want: []string{"", markReplaced},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			g.Expect(marks(g, Document([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
+		})
+	}
+}
+
+// Each item of a top-level list is a passage of its own, written as a list of
+// one in its own block with its own lines, so its comments can follow it.
+func TestDocument_listItems(t *testing.T) {
+	g := NewWithT(t)
+	md := "- one\n- two\n  wrapped\n\n3. three\n4. four\n"
+	body := parseBody(g, Document(nil, []byte(md), testPage()))
+	blocks := elementChildren(body)
+	g.Expect(blocks).To(HaveLen(4))
+	var got []string
+	for _, b := range blocks {
+		g.Expect(attr(b, "class")).To(Equal("blk"))
+		lists := elementChildren(b)
+		g.Expect(lists).To(HaveLen(1))
+		items := elementChildren(lists[0])
+		g.Expect(items).To(HaveLen(1))
+		g.Expect(items[0].Data).To(Equal("li"))
+		got = append(got, fmt.Sprintf("%s %s %s %s", attr(b, "data-lines"), lists[0].Data, attr(lists[0], "start"), collapsed(textOf(items[0]))))
+	}
+	g.Expect(got).To(Equal([]string{
+		"1-1 ul  one",
+		"2-3 ul  two wrapped",
+		"5-5 ol 3 three",
+		"6-6 ol 4 four",
+	}))
+}
+
 func TestDocument_pairing(t *testing.T) {
 	cases := []struct {
 		name string
@@ -535,7 +743,11 @@ func TestDocument_ranges(t *testing.T) {
 			md:   "One line\nwrapped onto two\nand three.\n",
 			want: "1-3",
 		},
-		{name: "a nested list", md: "- one\n  - two\n  - three\n- four\n", want: "1-4"},
+		{
+			name: "a nested list in its item",
+			md:   "- one\n  - two\n  - three\n- four\n",
+			want: "1-3,4-4",
+		},
 		{
 			name: "a fenced block without its fences",
 			md:   "```go\nx := 1\ny := 2\n```\n",
@@ -806,8 +1018,9 @@ func TestDocument_replacedText(t *testing.T) {
 			old:  "| a | b |\n|---|---|\n| 1 | 2 |",
 			was:  "a b 1 2",
 		},
-		{name: "task boxes", old: "- [ ] open\n- [x] done", was: "[ ] open [x] done"},
-		{name: "list items", old: "- one\n- two", was: "one two"},
+		{name: "an open task box", old: "- [ ] open", was: "[ ] open"},
+		{name: "a ticked task box", old: "- [x] done", was: "[x] done"},
+		{name: "a nested list's items", old: "- one\n  - two", was: "one two"},
 		{
 			name: "an autolink",
 			old:  "See <https://example.com>.",
@@ -912,6 +1125,50 @@ func marks(g *WithT, out template.HTML) []string {
 		out2 = append(out2, s.Mark)
 	}
 	return out2
+}
+
+// outline reads a rendered document's top level: each passage's mark and
+// text, each fold as its count and the passages in it, and what After wrote.
+// A fold's count must be the number of passages it holds.
+func outline(g *WithT, out template.HTML) []string {
+	g.THelper()
+	var lines []string
+	for _, n := range elementChildren(parseBody(g, out)) {
+		switch {
+		case n.Data == "details" && attr(n, "class") == classFold:
+			children := elementChildren(n)
+			g.Expect(children[0].Data).To(Equal("summary"))
+			var texts []string
+			for _, b := range children[1:] {
+				g.Expect(attr(b, "class")).To(Equal("blk"), "a fold holds unchanged passages alone")
+				texts = append(texts, collapsed(textOf(b)))
+			}
+			g.Expect(textOf(children[0])).To(Equal(fmt.Sprintf("%d unchanged passages", len(texts))))
+			lines = append(lines, fmt.Sprintf("fold %d: %s", len(texts), strings.Join(texts, " / ")))
+		case n.Data == "aside":
+			lines = append(lines, "after "+attr(n, "data-after"))
+		default:
+			s := shapesOf(g, template.HTML(renderHTML(g, n)))
+			g.Expect(s).To(HaveLen(1))
+			switch s[0].Mark {
+			case "":
+				lines = append(lines, s[0].Text)
+			case markRemoved:
+				lines = append(lines, "removed: "+strings.Join(s[0].Was, " / "))
+			default:
+				lines = append(lines, s[0].Mark+": "+s[0].Text)
+			}
+		}
+	}
+	return lines
+}
+
+// renderHTML writes a parsed node back out as HTML.
+func renderHTML(g *WithT, n *html.Node) string {
+	g.THelper()
+	var b strings.Builder
+	g.Expect(html.Render(&b, n)).To(Succeed())
+	return b.String()
 }
 
 // parseBody parses a rendered document as a page's body.

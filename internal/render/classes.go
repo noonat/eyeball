@@ -29,7 +29,9 @@ const (
 	// replaced text does, closed and open.
 	classCueShow = "cue-show"
 	classCueHide = "cue-hide"
+	// classFold is a run of unchanged passages folded into one line.
+	classFold = "fold"
 )
 
 // Classes is every class render chooses at runtime.
-var Classes = []string{classAdd, classDel, classMark, roleKeyword, roleString, roleComment, roleNumber, roleFunction, classBlk, classChanged, classWas, classWasText, classHint, classCueShow, classCueHide}
+var Classes = []string{classAdd, classDel, classMark, roleKeyword, roleString, roleComment, roleNumber, roleFunction, classBlk, classChanged, classWas, classWasText, classHint, classCueShow, classCueHide, classFold}

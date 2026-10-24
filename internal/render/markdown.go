@@ -41,10 +41,14 @@ type Page struct {
 	// for a fragment to land on, so a fragment alone goes to the document's
 	// own page, through Href.
 	HeadingIDs bool
-	// After writes what follows a block that has a range, given its first
+	// After writes what follows a passage that has a range, given its first
 	// and last source line: the comments on that passage, on a page that
-	// shows them. Nil writes nothing.
+	// shows them. Nil writes nothing. It is called once for each such
+	// passage, folded or not, since a passage with a comment is never folded.
 	After func(first, last int) template.HTML
+	// Fold shows only what changed and folds the rest, as a review page's
+	// card does. A document's own page and the fresh layout show it whole.
+	Fold bool
 }
 
 // extensions are GFM's, with a table cell's alignment written as an align

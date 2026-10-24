@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -269,6 +270,49 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 	}
 }
 
+// A document's card shows what changed and folds the rest. Each list item is a
+// passage, an ordered item keeps its number past a fold, and a passage with a
+// comment stays out of the folds, its comment quoting the item alone. The
+// file's own page shows the whole document.
+func TestServer_Surface_reviewDocumentFolds(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	commitFile(g, repo, "docs/spec.md", "# Spec\n\nIntro.\n\n## Items\n\n- one\n- two\n- three\n- four\n- five\n- six\n- seven\n\n1. a\n2. b\n3. c\n4. d\n5. e\n")
+	write(g, repo, "docs/spec.md", "# Spec\n\nIntro.\n\n## Items\n\n- one\n- two\n- three\n- 4th\n- five\n- six\n- seven\n\n1. a\n2. b\n3. c\n4. d\n5. e\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"docs"}, Note: "first"}).Review.ID
+	base := "/reviews/" + itoa(id)
+	form := url.Values{"round": {"1"}, "level": {"passage"}, "path": {"docs/spec.md"}, "start": {"16"}, "end": {"16"}, "body": {"Why b?"}}
+	res := sendForm(f.s.Surface(), http.MethodPost, base+"/comments", form, true)
+	g.Expect(res.Code).To(Equal(http.StatusOK), res.Body.String())
+
+	card := documentCards(f.page(g, base, http.StatusOK))["docs/spec.md"]
+	g.Expect(proseBlocks(card)).To(Equal([]string{
+		"fold: 2 unchanged passages: Spec / Intro.",
+		"kept: Items",
+		"fold: 2 unchanged passages: one / two",
+		"kept: three",
+		"replaced: 4th | Show what it replaced | Hide what it replaced | was: four",
+		"kept: five",
+		"fold: 3 unchanged passages: six / seven / a",
+		"kept: b",
+		"comments: docs/spec.md:16 2. b Why b? EditDelete",
+		"fold: 3 unchanged passages: c / d / e",
+	}))
+	var starts []string
+	for _, ol := range findAll(find(card, "prose"), isElement("ol")) {
+		starts = append(starts, attr(ol, "start"))
+	}
+	g.Expect(starts).To(Equal([]string{"1", "2", "3", "4", "5"}))
+	g.Expect(text(find(find(card, "comment"), "quoted"))).To(Equal("2. b"))
+
+	// The file's own page shows every passage, with nothing folded.
+	doc := f.page(g, base+"/files/docs/spec.md", http.StatusOK)
+	g.Expect(findAll(doc, hasClass("fold"))).To(BeEmpty())
+	g.Expect(proseBlocks(find(doc, "prose").Parent)).To(HaveLen(15))
+}
+
 func TestServer_Surface_reviewDocumentLinks(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -491,6 +535,7 @@ func TestServer_Surface_reviewFresh(t *testing.T) {
 	g.Expect(prose).NotTo(BeNil())
 	g.Expect(hasClass("page")(prose.Parent)).To(BeTrue(), "app.css pulls prose back by the gutter only directly in .page")
 	g.Expect(proseBlocks(prose.Parent)).To(Equal([]string{"kept: Bulk import", "kept: Tagging one at a time.", "kept: Iteration 1"}))
+	g.Expect(findAll(doc, hasClass("fold"))).To(BeEmpty(), "a document with nothing to compare against shows whole")
 	// With no card to hold it, the file's comment joins the review's own.
 	g.Expect(text(find(find(doc, "section"), "comment"))).To(Equal("specs/018.md Name the manifest."))
 
@@ -1094,6 +1139,16 @@ func proseBlocks(n *html.Node) []string {
 			parts = append(parts, "added: "+text(block))
 		case attr(block, "class") == "blk":
 			parts = append(parts, "kept: "+text(block))
+		case block.Data == "div" && attr(block, "class") == "" && attr(block, "id") != "":
+			parts = append(parts, "comments: "+text(block))
+		case block.Data == "details" && attr(block, "class") == "fold":
+			var held []string
+			for c := block.FirstChild; c != nil; c = c.NextSibling {
+				if c.Type == html.ElementNode && c.Data != "summary" {
+					held = append(held, text(c))
+				}
+			}
+			parts = append(parts, "fold: "+text(findAll(block, isElement("summary"))[0])+": "+strings.Join(held, " / "))
 		default:
 			parts = append(parts, "unknown "+block.Data+"."+attr(block, "class")+": "+text(block))
 		}

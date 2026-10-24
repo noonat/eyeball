@@ -473,6 +473,37 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
 }
 
+// A fold opens with a tap on its line, and a passage inside it takes a comment
+// like any other. A draft written there reopens with its fold open, since a
+// passage with nothing saved under it folds again on reload.
+func TestServer_Surface_browserFold(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "notes"))
+	write(g, repo, "a.txt", "one\n")
+	commitFile(g, repo, "doc.md", "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n")
+	write(g, repo, "doc.md", "New.\n\nA.\n\nB.\n\nC.\n\nD.\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"doc.md"}, Note: "docs"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+
+	fold := `document.querySelector("details.fold")`
+	inside := fold + `.querySelector(".blk[data-lines='7-7']")`
+	g.Expect(b.eval(g, fold+`.querySelector("summary").textContent`)).To(Equal("3 unchanged passages"))
+	g.Expect(b.eval(g, inside+`.checkVisibility()`)).To(BeFalse(), "a closed fold hides its passages")
+	b.eval(g, fold+`.querySelector("summary").click()`)
+	b.waitFor(g, fold+`.open && `+inside+`.checkVisibility()`)
+	b.eval(g, inside+`.click()`)
+	b.waitFor(g, inside+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
+	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Is C still true?")
+
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, inside+`?.nextElementSibling?.querySelector("form.composer textarea")?.value === "Is C still true?"`)
+	g.Expect(b.eval(g, fold+`.open`)).To(BeTrue(), "the draft's passage is folded out of sight")
+}
+
 // The stylesheet's three faces and the eye load under the surface's own
 // policy. A font the policy blocks falls back to the system face and a mask it
 // blocks draws nothing, and both look close enough to right that nobody
@@ -650,8 +681,6 @@ func TestServer_Surface_browserPassages(t *testing.T) {
 	g.Expect(f.comments(g, t, f.latestRound(g, t, fresh))[0].Quoted).To(Equal("A new document."))
 }
 
-// A change request with nothing in it is refused on the bar, and sent again
-// with a note it goes out.
 // A page in a review is a program the agent wrote. Framed as the surface
 // frames it, its script runs, cannot read the loopback token, and its write is
 // refused by the cross-origin check on the tailnet listener, which has no
@@ -726,6 +755,8 @@ func TestServer_Surface_browserPreviewStylesheet(t *testing.T) {
 	g.Expect(b.eval(g, `window.__got`)).To(Equal("rgb(1, 2, 3)"))
 }
 
+// A change request with nothing in it is refused on the bar, and sent again
+// with a note it goes out.
 func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
