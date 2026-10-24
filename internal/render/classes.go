@@ -18,18 +18,15 @@ const (
 	// classBlk is a document's block, and classChanged marks one.
 	classBlk     = "blk"
 	classChanged = "changed"
-	// classWas is a removed run with nothing in its place, and classWasText
-	// the text of one block it replaced.
-	classWas     = "was"
-	classWasText = "was-text"
-	// classHint is small faint text: a block's cue, and an HTML block's
-	// placeholder.
+	// classHint is small faint text: an HTML block's placeholder.
 	classHint = "hint"
-	// classCueShow and classCueHide are what a tap on a block holding
-	// replaced text does, closed and open.
-	classCueShow = "cue-show"
-	classCueHide = "cue-hide"
+	// classOld is the struck text of a passage a change replaced, and
+	// classWhole a new passage tinted as a whole.
+	classOld   = "old"
+	classWhole = "whole"
+	// classFold is a run of unchanged passages folded into one line.
+	classFold = "fold"
 )
 
 // Classes is every class render chooses at runtime.
-var Classes = []string{classAdd, classDel, classMark, roleKeyword, roleString, roleComment, roleNumber, roleFunction, classBlk, classChanged, classWas, classWasText, classHint, classCueShow, classCueHide}
+var Classes = []string{classAdd, classDel, classMark, roleKeyword, roleString, roleComment, roleNumber, roleFunction, classBlk, classChanged, classHint, classOld, classWhole, classFold}

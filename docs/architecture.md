@@ -431,6 +431,73 @@ a fifth of diffs measured over three thousand random pairs. Which reads better
 needs real reviews and is in [specs/TODO.md](../specs/TODO.md). A golden file
 pins the current answer, so a version bump that changes it is noticed.
 
+### Marking a rendered document
+
+**A document is compared passage by passage.** Each passage is keyed by a hash
+of its rendering, and the two lists of keys are compared as lines, so a passage
+rewrapped without a word changed is not a change. A passage is a top-level
+block, or one item of a top-level list. goldmark renders a list item on its own
+as the same `<li>` it writes inside its list, and keeps an ordered list's first
+number. Measured with goldmark 1.8.6 on 2026-10-23. An ordered item's key leaves
+out its number, so an item added near the top of a list marks only itself. The
+list element stays in the key, so bullets turned to numbers still mark every
+item.
+
+**Each list item is written as a list of its own.** A passage is a `.blk`
+element carrying its source lines, which the composer finds a tapped passage by,
+and its comments are written after it. Neither is valid as a child of a `<ul>`,
+so an item is written as a one-item `<ul>`, or `<ol start>` with its own number,
+inside its own `.blk`, and the stylesheet spaces consecutive one-item lists as
+one list. The alternative, the `.blk` and its source lines on the `<li>` itself,
+leaves comments with nowhere valid to go between two items.
+
+**Changed words are found in the rendered HTML, not in the markdown.** Both
+passages are rendered, cut into tags and text, and only the text is compared,
+with the same word and separator tokens a changed code line uses. The new
+passage's tags are copied through where they stand, added text is wrapped in
+`<ins>`, and the removed text is written in a `<del>` at the point it was
+removed. The markdown is the wrong place to compare: wrapping a word inside a
+link's or a code span's syntax in a marker breaks the syntax. The cost is that
+removed text keeps none of its formatting, since the old passage contributes its
+text and none of its tags.
+
+Four rules hold the marking together. The second and fourth were measured on
+2026-10-23, through eyeball's own renderer. The other two are reasoned, not
+measured:
+
+- An entity such as `&lt;` is one token. Cut on word characters it would be
+  three, and `&lt;` against `&gt;` would mark only the letters, leaving half an
+  entity on each side of a marking element.
+- A change separated from the next only by whitespace joins it. Kept as a match,
+  a lone space cut "gives up" against "records the failure on the job" into two
+  pairs of marks.
+- Words are marked only where the two passages have the same block tags in the
+  same order, such as the same rows and cells of a table. Removed text is
+  written where it was removed, and in a table that lost a cell that point is
+  between two cells, where text is not valid.
+- A task item's box is a token, `[ ]` or `[x]`. It renders as an `<input>` tag
+  and no text, so ticking a box changed no word and marked nothing. The new box
+  is wrapped in `<ins>`, and the box it replaced is not written, since struck
+  through beside the new one it would read as a second box.
+
+**A changed HTML block is shown as a rewrite.** Both sides render the same
+placeholder sentence, so comparing their renderings finds nothing, and the
+block's old source, which the key compared, is what changed. The old source is
+shown struck through above the placeholder.
+
+Everything written is either goldmark's rendering, which has already escaped
+text and dropped raw HTML, or old source passed through goldmark's escaping
+writer: a struck passage's text, and a changed HTML block's source. Assembling
+it adds only fixed elements, and no text but a fold's "N unchanged passages":
+`ins` and `del` around changed words, `del class="old"` around struck text and
+`ins class="whole"` around a passage tinted whole, a `code` element around
+struck HTML source, the list element around a list item, the `.blk` around each
+passage with its line range, and a fold's `details` and `summary`.
+
+**A document's own strikethrough is written as `<s>`.** goldmark writes
+`~~text~~` as `<del>`, the element a removed word is marked with, so struck text
+the author wrote would read as text the round removed.
+
 ## Checking a merge
 
 **`eyeball check --base <old> <new>` is `GET /agent/check` on the agent

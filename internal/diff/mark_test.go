@@ -114,3 +114,31 @@ func Test_tokenizeSplitsWordsFromEverythingElse(t *testing.T) {
 		})
 	}
 }
+
+func TestCompare(t *testing.T) {
+	g := NewWithT(t)
+	from := Words("the cost is storage, nobody measured")
+	to := Words("the cost is small, nobody measured it")
+	g.Expect(Compare(from, to)).To(Equal([]Change{
+		{
+			From:    6,
+			FromEnd: 7,
+			To:      6,
+			ToEnd:   7,
+		},
+		{
+			From:    11,
+			FromEnd: 11,
+			To:      11,
+			ToEnd:   13,
+		},
+	}))
+	g.Expect(Compare(from, from)).To(BeEmpty())
+}
+
+func TestWords(t *testing.T) {
+	g := NewWithT(t)
+	g.Expect(Words("ctx, base_id)")).To(Equal([]string{"ctx", ", ", "base_id", ")"}))
+	g.Expect(strings.Join(Words("a b, c"), "")).To(Equal("a b, c"))
+	g.Expect(Words("")).To(BeEmpty())
+}

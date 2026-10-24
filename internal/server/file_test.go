@@ -476,7 +476,7 @@ func TestServer_Surface_fileDocument(t *testing.T) {
 	g.Expect(hasClass("page")(prose.Parent)).To(BeTrue())
 	g.Expect(proseBlocks(prose.Parent)).To(Equal([]string{
 		"kept: Product",
-		"replaced: First, reworded again. | Show what it replaced | Hide what it replaced | was: First, reworded.",
+		"marked: First, reworded again. | was: First, reworded.",
 		"kept: Part two",
 		"kept: See part two and the guide.",
 		"kept: This block is HTML, which is not rendered. Read it in Source.",

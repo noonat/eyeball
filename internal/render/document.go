@@ -21,66 +21,139 @@ import (
 const (
 	// keptHTML opens a block that did not change, with its range.
 	keptHTML = `<div class="` + classBlk + `"%s>`
-	// addedHTML opens a changed block with nothing replaced, with its range.
-	addedHTML = `<div class="` + classBlk + ` ` + classChanged + `"%s>`
-	// removedHTML opens a removed run with nothing in its place. It is not
-	// in the round's file, so it has no range and takes no comment.
-	removedHTML = `<div class="` + classBlk + ` ` + classChanged + ` ` + classWas + `">`
-	// replacedHTML opens a changed block that holds the text it replaced,
-	// with its range.
-	replacedHTML = `<details class="` + classBlk + ` ` + classChanged + `"%s><summary>`
-	// cuesHTML ends that block's summary with what a tap does, one span for
-	// each state. app.css shows one and hides the other by the details
-	// element's open attribute, with no script.
-	cuesHTML = `<span class="` + classHint + ` ` + classCueShow + `">Show what it replaced</span><span class="` + classHint + ` ` + classCueHide + `">Hide what it replaced</span></summary>`
-	// wasTextHTML opens the text of one replaced block.
-	wasTextHTML = `<span class="` + classWasText + `">`
+	// changedHTML opens a changed block, with its range. A changed block
+	// with no range is a removed run, which is not in the round's file and
+	// takes no comment.
+	changedHTML = `<div class="` + classBlk + ` ` + classChanged + `"%s>`
+	// oldHTML opens the text of one passage a change replaced, struck through
+	// above what replaced it, or alone where nothing did.
+	oldHTML = `<del class="` + classOld + `">`
+	// wholeHTML opens a new passage that replaced no one passage, tinted as a
+	// whole rather than marked word by word.
+	wholeHTML = `<ins class="` + classWhole + `">`
+	// foldHTML opens a run of unchanged passages folded into one line, with
+	// the count it holds. It is a details element, so it opens with no
+	// script. A run is two or more, so the count is never one.
+	foldHTML = `<details class="` + classFold + `"><summary>%d unchanged passages</summary>` + "\n"
 )
 
 // Document renders a markdown document with what changed against old marked
-// block by block. An old side with no blocks marks nothing: an empty base and
-// a new file read the same way, and marking every passage marks none.
+// passage by passage. An old side with no passages marks nothing: an empty
+// base and a new file read the same way, and marking every passage marks none.
+//
+// With p.Fold set, only what changed is shown: each changed passage, the
+// nearest heading at or above it, one passage on each side, and any passage
+// After writes a comment under. Every other run of two or more passages folds
+// into one line that opens in place. A run of one is shown, since its fold line
+// would take as much room as the passage. Nothing folds where nothing was
+// compared, against an empty base or past the comparison's limit.
 func Document(old, new []byte, p Page) template.HTML {
 	oldSide, newSide := keyed(old), keyed(new)
 	shown := shownMarkdown(p)
 	doc := shown.Parser().Parse(text.NewReader(new))
 	// The shown parse and the key parse differ only in heading ids, which are
-	// attributes on a node, so both find the same top-level blocks in order.
-	var blocks []string
-	var ranges [][2]int
+	// attributes on a node, so both find the same passages in order.
+	passages := passagesOf(doc)
 	starts := lineStarts(new)
-	for _, n := range topLevel(doc) {
-		blocks = append(blocks, strings.TrimSuffix(renderNode(shown.Renderer(), new, n), "\n"))
-		first, last := blockRange(n, starts)
-		ranges = append(ranges, [2]int{first, last})
+	items, compared := plan(oldSide, newSide)
+	// Each item is written whole first, comments and all, because whether a
+	// passage folds depends on whether After wrote anything under it. After
+	// is asked once per passage, since the page counts what it placed.
+	written := make([]string, len(items))
+	commented := make([]bool, len(items))
+	var oldShown []passage
+	if len(oldSide.keys) > 0 {
+		oldShown = passagesOf(shown.Parser().Parse(text.NewReader(old)))
 	}
-	var b strings.Builder
-	for _, it := range plan(oldSide, newSide) {
+	for i, it := range items {
 		if it.block < 0 {
-			b.WriteString(removedHTML + wasTexts(it.replaced) + "</div>\n")
+			written[i] = fmt.Sprintf(changedHTML, "") + oldSide.struck(it.old) + "</div>\n"
 			continue
 		}
-		rng := ranges[it.block]
+		ps := passages[it.block]
+		body := strings.TrimSuffix(ps.render(shown.Renderer(), new, true), "\n")
+		first, last := blockRange(ps.node, starts)
 		lines := ""
-		if rng[0] > 0 {
-			lines = fmt.Sprintf(` data-lines="%d-%d"`, rng[0], rng[1])
+		if first > 0 {
+			lines = fmt.Sprintf(` data-lines="%d-%d"`, first, last)
 		}
 		switch {
-		case len(it.replaced) > 0:
-			b.WriteString(fmt.Sprintf(replacedHTML, lines) + blocks[it.block] + cuesHTML + wasTexts(it.replaced) + "</details>")
-		case it.changed:
-			b.WriteString(fmt.Sprintf(addedHTML, lines) + blocks[it.block] + "</div>")
+		case !it.changed:
+			written[i] = fmt.Sprintf(keptHTML, lines) + body + "</div>"
+		case it.paired && !isHTMLBlock(ps.node) && !isHTMLBlock(oldSide.blocks[it.old[0]]):
+			was := strings.TrimSuffix(oldShown[it.old[0]].render(shown.Renderer(), old, true), "\n")
+			if marked, ok := markWords(was, body); ok {
+				written[i] = fmt.Sprintf(changedHTML, lines) + marked + "</div>"
+				break
+			}
+			written[i] = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
 		default:
-			b.WriteString(fmt.Sprintf(keptHTML, lines) + blocks[it.block] + "</div>")
+			written[i] = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
 		}
-		b.WriteString("\n")
-		if rng[0] > 0 && p.After != nil {
-			b.WriteString(string(p.After(rng[0], rng[1])))
+		written[i] += "\n"
+		if first > 0 && p.After != nil {
+			after := string(p.After(first, last))
+			written[i] += after
+			commented[i] = after != ""
 		}
+	}
+	var visible []bool
+	if p.Fold && compared {
+		visible = shownItems(items, passages, commented)
+	}
+	var b strings.Builder
+	for i := 0; i < len(items); {
+		end := i + 1
+		if visible != nil && !visible[i] {
+			for end < len(items) && !visible[end] {
+				end++
+			}
+		}
+		if end-i < 2 {
+			b.WriteString(written[i])
+			i = end
+			continue
+		}
+		b.WriteString(fmt.Sprintf(foldHTML, end-i))
+		for _, w := range written[i:end] {
+			b.WriteString(w)
+		}
+		b.WriteString("</details>\n")
+		i = end
 	}
 	// Raw HTML is omitted, every destination went through the allowlist, and
 	// goldmark escapes text, so the markup is the renderer's own.
 	return template.HTML(b.String())
+}
+
+// shownItems says which items a folded document shows: every changed item,
+// the item on each side of it, the nearest heading at or above it, and every
+// item with a comment under it.
+func shownItems(items []item, passages []passage, commented []bool) []bool {
+	visible := make([]bool, len(items))
+	heading := func(i int) bool {
+		return items[i].block >= 0 && passages[items[i].block].node.Kind() == ast.KindHeading
+	}
+	for i, it := range items {
+		if commented[i] {
+			visible[i] = true
+		}
+		if !it.changed {
+			continue
+		}
+		for n := max(i-1, 0); n <= min(i+1, len(items)-1); n++ {
+			visible[n] = true
+		}
+		// A removed run is no heading of its own, so its search starts above
+		// it. A changed heading names its own section.
+		for n := i; n >= 0; n-- {
+			if heading(n) {
+				visible[n] = true
+				break
+			}
+		}
+	}
+	return visible
 }
 
 // HasBlocks reports whether a document holds any block, by the rule Document
@@ -91,13 +164,50 @@ func HasBlocks(source []byte) bool {
 	return len(topLevel(doc)) > 0
 }
 
-// wasTexts writes one was-text span for each replaced block's text.
-func wasTexts(replaced []string) string {
+// whole writes a new passage that replaced no one passage, tinted as a whole.
+// A block of raw HTML renders as a placeholder sentence, which is not new text,
+// so it is left untinted.
+func whole(n ast.Node, body string) string {
+	if isHTMLBlock(n) {
+		return body
+	}
+	return wholeHTML + body + "</ins>"
+}
+
+// isHTMLBlock reports whether a passage is a block of raw HTML, which renders
+// as the same placeholder whatever it holds, so its words are never compared.
+func isHTMLBlock(n ast.Node) bool {
+	return n.Kind() == ast.KindHTMLBlock
+}
+
+// struck writes the text of each old passage a change replaced, struck
+// through, one del element each. A block of raw HTML is struck as its source,
+// line by line, since that is what changed.
+func (s side) struck(old []int) string {
 	var b strings.Builder
-	for _, t := range replaced {
-		b.WriteString(wasTextHTML + t + "</span>")
+	for _, k := range old {
+		n := s.blocks[k]
+		if isHTMLBlock(n) {
+			b.WriteString(oldHTML + "<code>" + htmlSource(s.source, n.(*ast.HTMLBlock)) + "</code></del>\n")
+			continue
+		}
+		b.WriteString(oldHTML + plainText(s.source, n) + "</del>\n")
 	}
 	return b.String()
+}
+
+// htmlSource is a block of raw HTML's source, escaped, with its lines kept.
+func htmlSource(source []byte, n *ast.HTMLBlock) string {
+	var b strings.Builder
+	w := bufio.NewWriter(&b)
+	writeLines(w, source, n.Lines())
+	// goldmark keeps the closing line of HTML block types 1 to 5 out of
+	// Lines, as plainText says.
+	if n.HasClosure() {
+		ghtml.DefaultWriter.RawWrite(w, n.ClosureLine.Value(source))
+	}
+	w.Flush()
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // side is one version of a document, cut into its top-level blocks, each with
@@ -121,12 +231,64 @@ func keyed(source []byte) side {
 	md := keyMarkdown()
 	doc := md.Parser().Parse(text.NewReader(source))
 	s := side{source: source}
-	for _, n := range topLevel(doc) {
-		sum := sha256.Sum256([]byte(collapse(renderNode(md.Renderer(), source, n))))
-		s.blocks = append(s.blocks, n)
+	for _, p := range passagesOf(doc) {
+		sum := sha256.Sum256([]byte(collapse(p.render(md.Renderer(), source, false))))
+		s.blocks = append(s.blocks, p.node)
 		s.keys = append(s.keys, hex.EncodeToString(sum[:]))
 	}
 	return s
+}
+
+// passage is one passage of a document: a top-level block, or one item of a
+// top-level list.
+type passage struct {
+	// node is the block, or the list item.
+	node ast.Node
+	// list is the list an item belongs to, and nil for a block.
+	list *ast.List
+	// number is an ordered item's number in its list.
+	number int
+}
+
+// passagesOf cuts a parse into its passages. Each item of a top-level list is a
+// passage of its own, so one changed item in a long list marks that item and
+// the rest can fold. A nested list stays inside the item that holds it.
+func passagesOf(doc ast.Node) []passage {
+	var out []passage
+	for _, n := range topLevel(doc) {
+		l, ok := n.(*ast.List)
+		if !ok {
+			out = append(out, passage{node: n})
+			continue
+		}
+		number := l.Start
+		for it := l.FirstChild(); it != nil; it = it.NextSibling() {
+			out = append(out, passage{node: it, list: l, number: number})
+			number++
+		}
+	}
+	return out
+}
+
+// render writes a passage. An item is written as a list of one, since a
+// passage's block and the comments after it are not valid inside a list, and
+// goldmark writes an item alone as the li it writes inside its list. numbered
+// writes an ordered item's own number as the list's start. A key leaves it
+// out, so an item added near the top of a list does not mark every item
+// renumbered below it, while the list element still tells a bullet from a
+// number.
+func (p passage) render(r renderer.Renderer, source []byte, numbered bool) string {
+	if p.list == nil {
+		return renderNode(r, source, p.node)
+	}
+	open, end := "<ul>\n", "</ul>\n"
+	if p.list.IsOrdered() {
+		open, end = "<ol>\n", "</ol>\n"
+		if numbered {
+			open = fmt.Sprintf("<ol start=\"%d\">\n", p.number)
+		}
+	}
+	return open + renderNode(r, source, p.node) + end
 }
 
 // topLevel is a document's blocks: its top-level nodes, less its link
@@ -191,39 +353,46 @@ func collapse(s string) string {
 	return b.String()
 }
 
-// item is one block of the rendering: a block of the new side, or a removed
-// run with nothing in its place.
+// item is one passage of the rendering: a passage of the new side, or a
+// removed run with nothing in its place.
 type item struct {
-	// block is the new side's block, or -1 for a removed run.
+	// block is the new side's passage, or -1 for a removed run.
 	block int
-	// changed marks the block.
+	// changed marks the passage.
 	changed bool
-	// replaced is the text of each old block it replaced, as HTML.
-	replaced []string
+	// old is each old passage it replaced, by index into the old side.
+	old []int
+	// paired is a passage that replaced exactly one other, whose words can
+	// be marked.
+	paired bool
 }
 
-// plan compares two sides by their keys and says how each block is shown.
+// plan compares two sides by their keys and says how each passage is shown,
+// and whether the two were compared at all.
 //
-// The pairing is internal/diff's word-marking rule. A run of removed blocks
-// followed by as many added ones pairs one to one, and each added block holds
-// the text of the one it replaced. An unequal run is a rewrite, and pairing
-// across it would claim to know which passage replaced which, so each block of
-// it is marked and the whole run's replaced text goes on its last new block,
-// read after the new passage.
-func plan(old, new side) []item {
+// The pairing is internal/diff's word-marking rule. A run of removed passages
+// followed by as many added ones pairs one to one, and each added passage is
+// marked word by word against the one it replaced. An unequal run is a
+// rewrite, and pairing across it would claim to know which passage replaced
+// which, so the whole run's old text goes above its first new passage and each
+// new passage is tinted whole.
+func plan(old, new side) ([]item, bool) {
 	items := make([]item, len(new.keys))
 	for i := range items {
 		items[i].block = i
 	}
 	if len(old.keys) == 0 {
-		return items
+		return items, false
 	}
 	// diff.Whole gives every line in one hunk, or no hunk where nothing
 	// moved. Past diff's line limit it gives none either, and the document
-	// shows with nothing marked.
+	// shows with nothing marked and nothing compared.
 	r := diff.Whole(old.lines(), new.lines())
+	if r.TooLarge {
+		return items, false
+	}
 	if len(r.Hunks) == 0 {
-		return items
+		return items, true
 	}
 	items = items[:0]
 	lines := r.Hunks[0].Lines
@@ -243,20 +412,23 @@ func plan(old, new side) []item {
 		removed, added := lines[i:mid], lines[mid:end]
 		switch {
 		case len(added) == 0:
-			items = append(items, item{block: -1, changed: true, replaced: old.texts(removed)})
+			items = append(items, item{block: -1, changed: true, old: olds(removed)})
 		case len(added) == len(removed):
 			for n, a := range added {
-				items = append(items, item{block: a.New - 1, changed: true, replaced: old.texts(removed[n : n+1])})
+				items = append(items, item{block: a.New - 1, changed: true, old: olds(removed[n : n+1]), paired: true})
 			}
 		default:
-			for _, a := range added {
-				items = append(items, item{block: a.New - 1, changed: true})
+			for n, a := range added {
+				it := item{block: a.New - 1, changed: true}
+				if n == 0 {
+					it.old = olds(removed)
+				}
+				items = append(items, it)
 			}
-			items[len(items)-1].replaced = old.texts(removed)
 		}
 		i = end
 	}
-	return items
+	return items, true
 }
 
 // run is the index just past a run of one op starting at from.
@@ -267,11 +439,11 @@ func run(lines []diff.Line, from int, op diff.Op) int {
 	return from
 }
 
-// texts is the replaced text of each removed line's block.
-func (s side) texts(removed []diff.Line) []string {
-	out := make([]string, 0, len(removed))
+// olds is the old side's passage for each removed line.
+func olds(removed []diff.Line) []int {
+	out := make([]int, 0, len(removed))
 	for _, l := range removed {
-		out = append(out, plainText(s.source, s.blocks[l.Old-1]))
+		out = append(out, l.Old-1)
 	}
 	return out
 }

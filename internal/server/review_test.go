@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -218,11 +219,11 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 	g.Expect(proseBlocks(cards["docs/product.md"])).To(Equal([]string{
 		"kept: Product",
 		"kept: Kept one.",
-		"replaced: New wording. | Show what it replaced | Hide what it replaced | was: Old wording.",
+		"marked: New wording. | was: Old wording.",
 		"kept: Stays between.",
 		"removed: was: Removed passage.",
 		"kept: Kept two.",
-		"added: Added at the end.",
+		"whole: Added at the end.",
 	}))
 	g.Expect(findAll(find(cards["docs/product.md"], "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
 	link := find(cards["docs/product.md"], "fileopen")
@@ -235,11 +236,11 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 	cards = documentCards(doc)
 	g.Expect(proseBlocks(cards["docs/product.md"])).To(Equal([]string{
 		"kept: Product",
-		"added: Kept one.",
-		"added: New wording.",
-		"added: Stays between.",
-		"added: Kept two.",
-		"added: Added at the end.",
+		"whole: Kept one.",
+		"whole: New wording.",
+		"whole: Stays between.",
+		"whole: Kept two.",
+		"whole: Added at the end.",
 	}))
 	g.Expect(attr(find(cards["docs/product.md"], "fileopen"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
 
@@ -267,6 +268,49 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 			g.Expect(href).To(HavePrefix(base+"/files/"), page)
 		}
 	}
+}
+
+// A document's card shows what changed and folds the rest. Each list item is a
+// passage, an ordered item keeps its number past a fold, and a passage with a
+// comment stays out of the folds, its comment quoting the item alone. The
+// file's own page shows the whole document.
+func TestServer_Surface_reviewDocumentFolds(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	commitFile(g, repo, "docs/spec.md", "# Spec\n\nIntro.\n\n## Items\n\n- one\n- two\n- three\n- four\n- five\n- six\n- seven\n\n1. a\n2. b\n3. c\n4. d\n5. e\n")
+	write(g, repo, "docs/spec.md", "# Spec\n\nIntro.\n\n## Items\n\n- one\n- two\n- three\n- 4th\n- five\n- six\n- seven\n\n1. a\n2. b\n3. c\n4. d\n5. e\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"docs"}, Note: "first"}).Review.ID
+	base := "/reviews/" + itoa(id)
+	form := url.Values{"round": {"1"}, "level": {"passage"}, "path": {"docs/spec.md"}, "start": {"16"}, "end": {"16"}, "body": {"Why b?"}}
+	res := sendForm(f.s.Surface(), http.MethodPost, base+"/comments", form, true)
+	g.Expect(res.Code).To(Equal(http.StatusOK), res.Body.String())
+
+	card := documentCards(f.page(g, base, http.StatusOK))["docs/spec.md"]
+	g.Expect(proseBlocks(card)).To(Equal([]string{
+		"fold: 2 unchanged passages: Spec / Intro.",
+		"kept: Items",
+		"fold: 2 unchanged passages: one / two",
+		"kept: three",
+		"marked: 4th | was: four",
+		"kept: five",
+		"fold: 3 unchanged passages: six / seven / a",
+		"kept: b",
+		"comments: docs/spec.md:16 2. b Why b? EditDelete",
+		"fold: 3 unchanged passages: c / d / e",
+	}))
+	var starts []string
+	for _, ol := range findAll(find(card, "prose"), isElement("ol")) {
+		starts = append(starts, attr(ol, "start"))
+	}
+	g.Expect(starts).To(Equal([]string{"1", "2", "3", "4", "5"}))
+	g.Expect(text(find(find(card, "comment"), "quoted"))).To(Equal("2. b"))
+
+	// The file's own page shows every passage, with nothing folded.
+	doc := f.page(g, base+"/files/docs/spec.md", http.StatusOK)
+	g.Expect(findAll(doc, hasClass("fold"))).To(BeEmpty())
+	g.Expect(proseBlocks(find(doc, "prose").Parent)).To(HaveLen(15))
 }
 
 func TestServer_Surface_reviewDocumentLinks(t *testing.T) {
@@ -491,6 +535,7 @@ func TestServer_Surface_reviewFresh(t *testing.T) {
 	g.Expect(prose).NotTo(BeNil())
 	g.Expect(hasClass("page")(prose.Parent)).To(BeTrue(), "app.css pulls prose back by the gutter only directly in .page")
 	g.Expect(proseBlocks(prose.Parent)).To(Equal([]string{"kept: Bulk import", "kept: Tagging one at a time.", "kept: Iteration 1"}))
+	g.Expect(findAll(doc, hasClass("fold"))).To(BeEmpty(), "a document with nothing to compare against shows whole")
 	// With no card to hold it, the file's comment joins the review's own.
 	g.Expect(text(find(find(doc, "section"), "comment"))).To(Equal("specs/018.md Name the manifest."))
 
@@ -1057,8 +1102,27 @@ func documentCards(doc *html.Node) map[string]*html.Node {
 	return out
 }
 
+// textWithout is n's text less every element named skip, as text reads it.
+func textWithout(n *html.Node, skip string) string {
+	var b strings.Builder
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == skip {
+			return
+		}
+		if n.Type == html.TextNode {
+			b.WriteString(n.Data)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(n)
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
 // proseBlocks reads each block of the prose under n: how it is marked, the
-// text it shows, its cues, and the text it replaced.
+// text it shows, and the text it replaced.
 func proseBlocks(n *html.Node) []string {
 	var out []string
 	prose := find(n, "prose")
@@ -1071,29 +1135,39 @@ func proseBlocks(n *html.Node) []string {
 		}
 		var parts []string
 		var was []string
-		for _, w := range findAll(block, hasClass("was-text")) {
+		for _, w := range findAll(block, hasClass("old")) {
 			was = append(was, text(w))
 		}
+		words := findAll(block, func(n *html.Node) bool {
+			return n.Type == html.ElementNode && (n.Data == "ins" || n.Data == "del") && attr(n, "class") == ""
+		})
+		changed := attr(block, "class") == "blk changed"
 		switch {
-		case block.Data == "details" && attr(block, "class") == "blk changed":
-			summary := findAll(block, isElement("summary"))[0]
-			var shown []string
-			for c := summary.FirstChild; c != nil; c = c.NextSibling {
-				if !hasClass("hint")(c) {
-					shown = append(shown, text(c))
-				}
+		case changed && find(block, "whole") != nil:
+			parts = append(parts, "whole: "+text(find(block, "whole")))
+			if len(was) > 0 {
+				parts = append(parts, "was: "+strings.Join(was, " / "))
 			}
-			parts = append(parts, "replaced: "+strings.Join(strings.Fields(strings.Join(shown, " ")), " "))
-			for _, cue := range findAll(summary, hasClass("hint")) {
-				parts = append(parts, text(cue))
-			}
-			parts = append(parts, "was: "+strings.Join(was, " / "))
-		case attr(block, "class") == "blk changed was":
+		case changed && len(was) > 0 && attr(block, "data-lines") == "":
 			parts = append(parts, "removed: was: "+strings.Join(was, " / "))
-		case attr(block, "class") == "blk changed":
-			parts = append(parts, "added: "+text(block))
+		case changed && len(was) > 0:
+			parts = append(parts, "struck: "+textWithout(block, "del"), "was: "+strings.Join(was, " / "))
+		case changed && len(words) > 0:
+			parts = append(parts, "marked: "+textWithout(block, "del"), "was: "+textWithout(block, "ins"))
+		case changed:
+			parts = append(parts, "changed: "+text(block))
 		case attr(block, "class") == "blk":
 			parts = append(parts, "kept: "+text(block))
+		case block.Data == "div" && attr(block, "class") == "" && attr(block, "id") != "":
+			parts = append(parts, "comments: "+text(block))
+		case block.Data == "details" && attr(block, "class") == "fold":
+			var held []string
+			for c := block.FirstChild; c != nil; c = c.NextSibling {
+				if c.Type == html.ElementNode && c.Data != "summary" {
+					held = append(held, text(c))
+				}
+			}
+			parts = append(parts, "fold: "+text(findAll(block, isElement("summary"))[0])+": "+strings.Join(held, " / "))
 		default:
 			parts = append(parts, "unknown "+block.Data+"."+attr(block, "class")+": "+text(block))
 		}

@@ -97,8 +97,8 @@
   --accent-wash: #2b2d33;
   --on-accent: #17181c;
 
-  /* Toward lemon, away from the amber that marks a passage showing what it
-   * replaced. At #e8c93a the two read as one color. */
+  /* Toward lemon, away from the amber of a warning. At #e8c93a the two read
+   * as one color. */
   --hl: #ecd64b;
   --hl-line: #403a17;
   --on-hl: #17181c;
@@ -1313,8 +1313,9 @@ tr.del.sel {
   text-align: left;
 }
 
-/* A changed passage gets a rule beside it, not a wash through it. A heavily
- * edited document has to stay readable as a document. */
+/* A changed passage gets a rule beside it, which is what finds it while
+ * scrolling, and what shows a change to formatting alone, which marks no
+ * word. */
 .blk {
   position: relative;
   padding-left: 14px;
@@ -1338,72 +1339,199 @@ tr.del.sel {
   border-left-color: var(--add-vivid);
 }
 
-/* A changed passage with replaced text is a details element, so showing what
- * it replaced is one tap with no script. Its rendering is the summary, and the
- * summary has to read as the passage rather than as a control. The file card's
- * summary rules select only a direct child of .file, so they never reach here. */
-.blk > summary {
-  display: block;
-  list-style: none;
+/* A passage that is one item of a top-level list is written as a list of its
+ * own, because its comments follow it and nothing but an item is valid inside
+ * a list. Two of them in a row are spaced as two items of one list, an item
+ * tinted whole included, whose list sits inside its tint. Every margin between
+ * them collapses into one, so a loose item's paragraph margins still win and
+ * a loose list stays loose. A comment between two items breaks the pair, and
+ * the list reads as two. */
+.blk:has(
+    > :is(ul, ol) > li:only-child,
+    > ins.whole > :is(ul, ol) > li:only-child
+  )
+  + .blk
+  > :is(
+    :is(ul, ol):has(> li:only-child),
+    ins.whole:has(> :is(ul, ol) > li:only-child)
+  ) {
+  margin-top: 0.3em;
 }
 
-.blk > summary::-webkit-details-marker {
-  display: none;
-}
-
-/* A margin inside a details element stays inside it, where the same margin in
- * a div collapses through. Left alone, the rule beside a details passage ran a
- * line above and below its text, and the passage read as a taller block than
- * the div passages around it. The summary holds one block and its two hint
- * spans, one per state, and the hints set their own margin above them, so
- * zeroing them here is safe. */
-.blk > summary > * {
-  margin-top: 0;
+.blk:has(
+    > :is(ul, ol) > li:only-child,
+    > ins.whole > :is(ul, ol) > li:only-child
+  ):has(
+    + .blk > :is(ul, ol) > li:only-child,
+    + .blk > ins.whole > :is(ul, ol) > li:only-child
+  ),
+.blk:has(
+    + .blk > :is(ul, ol) > li:only-child,
+    + .blk > ins.whole > :is(ul, ol) > li:only-child
+  )
+  > :is(ul, ol):has(> li:only-child) {
   margin-bottom: 0;
 }
 
-/* Amber means the passage is showing what it replaced: open, or removed with
- * nothing in its place, where there is nothing to collapse it to. */
-.blk.changed.was,
-.blk.changed[open] {
-  border-left-color: var(--warn-vivid);
+/* A run of unchanged passages folds into one line that opens in place. The
+ * line spans the card, as a hunk header spans a code card, so a gap in a
+ * document reads as the same thing as a gap between hunks. The card body is a
+ * size container so the line can reach past the prose column's 68ch on a wide
+ * screen, where stopping short of the card's edge looks like a broken element.
+ * A fold is a details element, so opening it needs no script, and it never
+ * holds a passage with a comment, so a comment is never hidden in one. */
+.filebody {
+  container-type: inline-size;
 }
 
-.was-text {
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: calc(100cqw + 14px);
+  min-height: 40px;
+  padding: 6px 14px 6px 17px;
+  list-style: none;
+  background: var(--bg-sunk);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font: 600 var(--t-sm) / 1.4 var(--prose);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold > summary::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background-color: var(--ink-faint);
+  -webkit-mask: var(--icon-chevron-right) center / contain no-repeat;
+  mask: var(--icon-chevron-right) center / contain no-repeat;
+}
+
+.fold[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.fold[open] > summary {
+  margin-bottom: 0.85em;
+}
+
+/* A passage inside an opened fold is spaced as it is in the whole document,
+ * which a rule on the document's own children would not reach. */
+.fold > .blk {
+  margin: 0 0 0.85em;
+}
+
+.fold > .blk:last-child {
+  margin-bottom: 0;
+}
+
+/* A fold at either end of the card meets the card's edge, rather than leaving
+ * a strip of the card body above or below it. */
+.prose > .fold:first-child > summary {
+  margin-top: -14px;
+  border-top: 0;
+}
+
+.prose > .fold:last-child:not([open]) {
+  margin-bottom: -14px;
+}
+
+.prose > .fold:last-child:not([open]) > summary {
+  border-bottom: 0;
+}
+
+/* Changed words, marked where they stand, in a passage that replaced exactly
+ * one other. Hue is never the only signal. A removed word is struck through,
+ * and an added one carries a bar under it, which a link's own underline does
+ * not hide, since the bar is heavier and sits lower. The tints are the code
+ * diff's word marks. Clone keeps a mark's ends on every line it wraps across. */
+.prose ins,
+.prose del {
+  border-radius: 3px;
+  padding: 0 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.prose ins {
+  text-decoration: none;
+  background: var(--add-word);
+  box-shadow: inset 0 -2px 0 var(--add-vivid);
+}
+
+.prose del {
+  background: var(--del-word);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--del);
+}
+
+/* A removed word and the word that replaced it touch in the source, and drawn
+ * touching, "a" and "one" read as one word, "aone". */
+.prose del:not(.old) + ins {
+  margin-left: 2px;
+}
+
+/* What a passage replaced, struck through above it, where a passage changed
+ * its structure, a run was replaced by a different number of passages, or a
+ * block of raw HTML changed. A removed passage holds only this. It is always
+ * shown, because there is nothing smaller to show in its place, and it is set
+ * smaller than the document so the new text stays the thing being read. */
+.prose del.old {
   display: block;
   font-size: var(--t-sm);
+  line-height: 1.55;
   color: var(--del);
   background: var(--del-wash);
   border-radius: var(--r-sm);
   padding: 8px 10px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--del) 55%, transparent);
+}
+
+.prose del.old + del.old {
   margin-top: 6px;
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--del) 45%, transparent);
 }
 
-/* A closed passage holding replaced text otherwise looks the same as a plain
- * insertion, so a reviewer could not tell which passages open without tapping
- * each one. A hint line under the passage says what a tap does, with one
- * wording per state. The owner chose it on the phone on 2026-10-05, over the
- * file card's chevron and a dashed rule. By this file's own reckoning rather
- * than the owner's, the chevron took a strip down the right of every such
- * passage, and the dashed rule was a pattern a reader had to learn.
- *
- * The hints are the second and third children in the summary on purpose, so
- * these selectors have to outrank the margin reset on .blk > summary > *. */
-details.blk.changed > summary > .cue-show,
-details.blk.changed > summary > .cue-hide {
+.prose del.old + * {
+  margin-top: 8px;
+}
+
+/* A block of raw HTML is struck through as its source, so the markup keeps its
+ * lines. */
+.prose del.old code {
   display: block;
-  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: none;
+  padding: 0;
+  font-size: var(--t-xs);
 }
 
-details.blk.changed > summary > .cue-hide,
-details.blk.changed[open] > summary > .cue-show {
-  display: none;
-}
-
-details.blk.changed[open] > summary > .cue-hide {
+/* A passage with no one passage it replaced is new as a whole, so it is
+ * tinted as a whole rather than marked word by word. */
+.prose ins.whole {
   display: block;
+  box-shadow: none;
+  background: var(--add-wash);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+}
+
+.prose ins.whole > :first-child {
+  margin-top: 0;
+}
+
+.prose ins.whole > :last-child {
+  margin-bottom: 0;
 }
 
 /* --------------------------------------------------------- small print */

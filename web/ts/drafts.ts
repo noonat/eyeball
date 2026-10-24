@@ -161,6 +161,12 @@ async function reopen(
   if (row === null && query["level"] !== "file") {
     return;
   }
+  // A passage with no comment saved under it can sit in a fold, which would
+  // hide the composer reopened there.
+  const fold = row?.closest<HTMLDetailsElement>("details.fold");
+  if (fold) {
+    fold.open = true;
+  }
   await anchor(at, file, row, query, text);
 }
 

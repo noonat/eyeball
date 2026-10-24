@@ -79,6 +79,32 @@ func pair(removed, added *Line, maxTokens int) {
 	}
 }
 
+// Words cuts text into the tokens a paired line's marks are found over: runs of
+// word characters, and runs of everything else. Joined, they are the text.
+func Words(text string) []string {
+	return texts(tokenize(text))
+}
+
+// Change is one place two token lists differ: tokens From up to FromEnd of the
+// first were replaced by tokens To up to ToEnd of the second. Either range can
+// be empty.
+type Change struct {
+	// From and FromEnd are the range in the first list.
+	From, FromEnd int
+	// To and ToEnd are the range in the second list.
+	To, ToEnd int
+}
+
+// Compare finds where two token lists differ, by the comparison a paired
+// line's marks use, in order.
+func Compare(from, to []string) []Change {
+	var out []Change
+	for _, c := range lcs.DiffLines(from, to) {
+		out = append(out, Change{From: c.Start, FromEnd: c.End, To: c.ReplStart, ToEnd: c.ReplEnd})
+	}
+	return out
+}
+
 // texts is the token strings, which is what the comparison is over.
 func texts(tokens []token) []string {
 	out := make([]string, len(tokens))
