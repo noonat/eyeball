@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -43,6 +43,9 @@ End-of-branch review pass: requested, because the word marks assemble HTML that
 the page prints without escaping, and a mistake there breaks a page's markup or
 passes text through unescaped.
 
+The owner approved the spec as review 127 on 2026-10-23 without the spec review
+pass, which the request note offered.
+
 ## Out of scope
 
 - Opening folded lines in place in a code card. Code keeps its hunks.
@@ -67,23 +70,36 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] review.html drawing a long document's card on a second round: two changed
+- [x] review.html drawing a long document's card on a second round: two changed
       passages, each under its heading with one passage of context, and fold
       lines between them giving a count
-- [ ] review.html drawing one fold opened in place, and the passages it held
+- [x] review.html drawing one fold opened in place, and the passages it held
       shown as they are in the whole document
-- [ ] review.html drawing word marks in a paragraph, inside a link and inside a
+- [x] review.html drawing word marks in a paragraph, inside a link and inside a
       code span, distinguishable without hue in both themes
-- [ ] review.html drawing a changed item in a long list with the other items
+- [x] review.html drawing a changed item in a long list with the other items
       folded, each item a one-item list in its own passage as architecture.md
       says, and an ordered list numbered on past a fold
-- [ ] review.html drawing a run replaced by a different number of passages, a
+- [x] review.html drawing a run replaced by a different number of passages, a
       removed passage, a ticked task box, a changed HTML block, and a passage
       changed only in formatting
-- [ ] foundations.html's changed-passage specimens matching, with the styles
+- [x] foundations.html's changed-passage specimens matching, with the styles
       added to app.css and the old ones kept until iteration 3 removes them
-- [ ] The tearout judged on the phone by the owner, with any change asked for
+- [x] widening.html drawing a markdown file's own page in both themes: the whole
+      document with nothing folded, marked with rules and word marks as
+      review.html's second round is
+- [x] The tearout judged on the phone by the owner, with any change asked for
       made before the ack
+
+The todo for the file's own page was added at this iteration's review. The owner
+approved the tearout on the phone on 2026-10-24 with no changes.
+
+> **Completed** 2026-10-24 13:51 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 20.1s
+> - `go test -race ./...` — 46.6s
+> - `go test -count=1 -tags browser ./internal/server` — 50.3s
 
 ## Iteration 2: Passages and folds
 
@@ -109,10 +125,22 @@ required_acks:
       rule removed: an entity, whitespace joining, same block tags, the task box
 - [ ] A test that escaped text and an attribute in the new passage come through
       byte for byte, and that removed text is written escaped
+- [ ] A document's own strikethrough written as `<s>` by `shownRenderer`, so
+      `~~text~~` is not a removed-word mark, as architecture.md says, with a
+      test
 - [ ] An unequal run, a removed passage and a changed HTML block showing the old
-      text struck through, always visible, as the tearout draws them
+      text struck through, always visible, and a passage added with nothing
+      replaced highlighted whole, as the tearout draws them
 - [ ] The details element, its two cues and their styles removed from
-      document.go and app.css, with no class left that no page uses
+      document.go and app.css, with no class left that no page uses, and the
+      amber passage state no longer cited in foundations.html or app.css
+
+Decided at iteration 1's review: a document's own strikethrough is written as
+`<s>`, a removed task box is not written, a passage added with nothing replaced
+is highlighted whole, and the wording that still cites the amber passage state
+is corrected with the rest of the old styles. That is foundations.html's "The
+dark highlighter leans toward lemon, away from the amber that marks a passage
+showing what it replaced." and the dark `--hl` comment in app.css.
 
 ## Iteration 4: On the phone
 

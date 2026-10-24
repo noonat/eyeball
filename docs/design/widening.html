@@ -203,6 +203,1426 @@
 
 <hr class="rule">
 
+<section class="spec" id="whole-doc">
+  <h2>A document&rsquo;s own page <span class="tag">the whole document, still marked</span></h2>
+  <p>The file&rsquo;s own page shows the whole document with nothing folded, marked
+  as the review page&rsquo;s card marks it: the rule beside each changed passage,
+  changed words where they stand, and a removed passage struck through where it
+  was. It is the second round of <code>docs/product.md</code> from the review
+  page, all 184 passages of it.</p>
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html#round2"><span class="i i-chevron-left" aria-hidden="true"></span>Change</a>
+          <h1>product.md</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>docs/</bdi></span><span class="name">product.md</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#whole-doc" aria-current="true">Document</a><a href="#whole-doc">Source</a></span>
+          </div>
+          <div class="prose">
+          <div class="blk"><h1>Product</h1></div>
+          <div class="blk"><p>eyeball is a review surface for work done by agents. Agents ask for review, a
+          person reads and comments on a phone or a laptop, and the verdict releases the
+          agent to continue. One instance serves every project on the machine.</p></div>
+          <div class="blk"><blockquote>
+          <p>Written as the target, not as a report. None of it exists yet. How it is built
+          is <a href="widening.html#whole">architecture.md</a>, derived from this document and not the
+          other way round. How its prose reads is <a href="widening.html#whole">voice.md</a>.</p>
+          </blockquote></div>
+          <div class="blk"><h2>The problem</h2></div>
+          <div class="blk"><p>Several agents work at once. Each reaches a point where it should stop and get a
+          human judgment before going further: a spec to agree on, a design to settle, a
+          change to accept. The person is one, the agents are many, and the work is
+          asynchronous.</p></div>
+          <div class="blk"><p>Everything hard about this follows from that ratio. The scarce resource is the
+          reviewer's attention, not compute and not the agent's time. It arrives in
+          whatever fragment is available, often on a phone, often away from the desk. A
+          review that takes ten minutes to open, orient in and act on does not get done.
+          It gets postponed, and three agents idle behind it.</p></div>
+          <div class="blk"><p>So eyeball is a queue for one person's attention, plus a surface that makes each
+          item in it answerable in a couple of minutes. Every decision below is downstream
+          of that.</p></div>
+          <div class="blk"><p>Two failures matter more than the rest.</p></div>
+          <div class="blk"><p><strong>A lost comment.</strong> A reviewer who writes a paragraph of careful reading and
+          watches it vanish stops writing careful paragraphs.</p></div>
+          <div class="blk"><p><strong>Work that moves while it is being read.</strong> A file an agent is still editing
+          cannot be reviewed at all. Half the reading is invalidated by the time the rest
+          is done, and there is no way to tell which half.</p></div>
+          <div class="blk"><h2>The loop</h2></div>
+          <div class="blk"><pre><code>agent            eyeball                      reviewer
+  │
+  ├─ request ───► review opens, round 1
+  │               content frozen  ──────────► notification, one per request
+  │                                              │
+  │  (waiting)                                   ├─ reads the change
+  │                                              ├─ comments, any number
+  │                                              └─ approves, or asks for changes
+  │                                                        │
+  ◄─── every comment and the verdict, at once ─────────────┘
+  │
+  ├─ makes the changes
+  └─ request ───► round 2, frozen against round 1
+</code></pre></div>
+          <div class="blk"><p>The agent learns nothing until the verdict. That is the point, and it is covered
+          below.</p></div>
+          <div class="blk"><h2>A review is an object with a declared scope</h2></div>
+          <div class="blk"><p>A review has a project, an agent, a title, a set of paths, and a state. It is
+          created deliberately, not inferred from whatever happens to be dirty in the
+          working copy.</p></div>
+          <div class="blk"><p><strong>Several reviews are open at once in one project.</strong> A spec waiting for
+          agreement and a code change waiting for acceptance are two different questions,
+          asked by possibly two different agents, and they get two rows in the queue and
+          two pages. Sharing a working copy is not a reason to share a verdict.</p></div>
+          <div class="blk"><p><strong>A review names its paths.</strong> There is no implicit &quot;everything that changed&quot;,
+          because that is exactly what merges two pieces of work into one. Naming the
+          paths is the agent's job and costs it one argument.</p></div>
+          <div class="blk"><p><strong>A path is a file or a directory, which covers everything under it.</strong> Not a
+          glob. Whether two glob patterns can match the same file has no cheap answer, so
+          overlap could only be guessed at. A guess merges two pieces of work under one
+          verdict, or blocks work that never conflicted.</p></div>
+          <div class="blk"><p><strong>Overlapping scopes are refused.</strong> A path already claimed by an open review in
+          the same working copy cannot be claimed by a second one, because the same change
+          would then appear in two places with two verdicts. The refusal names the review
+          holding it. Two worktrees of one repository hold two different changes to the
+          same path, so a claim in one does not refuse the other.</p></div>
+          <div class="blk"><p>A review ends when it is approved. Asking for changes closes a round and opens
+          the next one. A review can also be abandoned, which is the agent saying the
+          question no longer needs an answer.</p></div>
+          <div class="blk"><h2>A round is frozen</h2></div>
+          <div class="blk"><p><strong>Every round captures the content it is asking about, at the moment it asks.</strong>
+          The reviewer reads that capture. The agent can do whatever it likes to the
+          working copy afterward without touching what is on screen.</p></div>
+          <div class="blk"><p>This one decision pays for itself four times.</p></div>
+          <div class="blk"><ul>
+          <li><strong>Nothing moves under the reviewer.</strong> The reading stays valid for as long as
+          it takes.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A comment points at an exact line and never drifts.</strong> The content it refers
+          to is immutable, so a line number is a permanent address. No content hashing,
+          no anchor rot, no list of detached comments to reconcile.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>&quot;What changed since the last look&quot; is a real diff</strong>, computed between round
+          N-1's capture and round N's, rather than inferred.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Any file can be opened as it was</strong>, not as it is now, and not only the files
+          the review covers.</li>
+          </ul></div>
+          <div class="blk"><p><strong>A capture is a base commit and the content of every file that differs from
+          it.</strong> Nothing else is copied. A file that matches the base matches it byte for
+          byte, so it resolves out of git at that commit and costs nothing to keep. A file
+          the agent has touched will move, so eyeball stores its own copy of that one.</p></div>
+          <div class="blk"><p>Storage is therefore proportional to what the agent changed rather than to the
+          size of the repository. A six-file change in a repository of five thousand files
+          stores six files. Copying the tree is the obvious reading of &quot;capture the
+          project&quot; and the wrong one: it buys nothing, because the untouched remainder is
+          already immutable in git and addressed by the base commit.</p></div>
+          <div class="blk"><p>The reviewer still sees exactly what the agent had, whichever file they open.
+          Clean files come from git, dirty ones from the capture, and clean means
+          identical, so there is no third case.</p></div>
+          <div class="blk"><p><strong>Files the agent changed outside the review's scope are captured too.</strong> They
+          cost the same as anything else touched, and without them a file opened for
+          context would show the base rather than what the agent was working with, which
+          is a difference the reviewer has no way to detect.</p></div>
+          <div class="blk"><p><strong>A file opens from the first of three sources that has it</strong>, and says which one
+          it came from:</p></div>
+          <div class="blk"><ol start="1">
+          <li><strong>The round's capture.</strong> Frozen, exact, and the only source a file under
+          review is ever read from.</li>
+          </ol></div>
+          <div class="blk"><ol start="2">
+          <li><strong>The base commit.</strong> Exact as well, because a file that matches the base
+          matches it byte for byte.</li>
+          </ol></div>
+          <div class="blk"><ol start="3">
+          <li><strong>The working copy, as it is now.</strong> The one the round was captured from. Not
+          frozen, and possibly moved since the round was taken.</li>
+          </ol></div>
+          <div class="blk"><p>The third exists because the alternative is showing nothing, and a reviewer who
+          cannot look up a definition goes to a computer, which ends the review. It covers
+          a base commit lost to a rebase or a garbage collection, a file created after the
+          base, and a project with no git at all.</p></div>
+          <div class="blk"><p><strong>Only the third can mislead, and only ever about context.</strong> A file the review
+          covers is always in the capture, so a verdict is never given against a live
+          reading. What can go wrong is looking up a helper, seeing a version the agent
+          did not have, and drawing a conclusion from it. The label is the whole
+          mitigation and it is not a complete one. Showing nothing instead trades a small
+          risk for a certain cost.</p></div>
+          <div class="blk"><p>The alternative is to read files from disk on every request and compensate for
+          the movement. That forces a comment anchor to be a hash of the text it attaches
+          to, because a line number means nothing once the file has shifted. Editing a
+          paragraph then changes its hash and detaches its comments, so the tool grows a
+          list of comments it can no longer place, and the reviewer reads bookkeeping.
+          Freezing removes the problem rather than compensating for it.</p></div>
+          <div class="blk changed"><p><strong>A review's first round needs something to change against.</strong> In a git
+          repository the base is <code>HEAD</code><ins> by default</ins>, and the agent can name <del>another</del><ins>a different one</ins>
+          with <code>--base<del>-commit</del></code>. Elsewhere <ins>there is no record of the file before the edit, so</ins> the
+          base is empty and the first round shows whole files.<ins> That is the right reading
+          for a document being written from scratch and a poor one for a change to existing
+          code, which is the concrete cost of running eyeball outside git.</ins></p></div>
+          <div class="blk"><h2>Comments release as a batch</h2></div>
+          <div class="blk"><p><strong>A comment is invisible to the agent until the verdict is submitted.</strong> The
+          agent is not notified, and a waiting agent does not wake. Nothing about it is
+          merely deferred, because nothing is delivered.</p></div>
+          <div class="blk"><p>The reason is that a reviewer forms an opinion while reading. A first comment
+          written on line 20 may be answered by line 90, or may turn out to be the small
+          half of a larger point. An agent that receives it immediately starts working on
+          a reading that is not finished, and the reviewer is then arguing with edits made
+          underneath an unfinished thought.</p></div>
+          <div class="blk"><p>Making this the transport's behavior rather than a rule the agent follows is
+          deliberate. An agent told &quot;wait for the verdict&quot; while being handed each comment
+          as it lands will eventually not wait. Nothing is delivered, so nothing can be
+          acted on early.</p></div>
+          <div class="blk"><p>Both verdicts release the batch. Asking for changes finishes a reading as
+          completely as approving does.</p></div>
+          <div class="blk"><h2>Comments are ephemeral, the agent's note is not</h2></div>
+          <div class="blk"><p>Once a new round starts, the previous round's comments are done. What the
+          reviewer needs on screen is the current state of the work. Earlier rounds stay
+          reachable, one tap away, and out of the default view.</p></div>
+          <div class="blk"><p><strong>Every request carries a note from the agent</strong>, and it is required. On the
+          first round it says what to look at. On later rounds it says what changed and
+          what was done about the last round's comments. This is the one piece of history
+          that stays in front of the reviewer, because a second round opens on what was
+          done about the first one.</p></div>
+          <div class="blk"><p>Per-comment replies from the agent are allowed and optional. They live with the
+          comment they answer, inside the round that is now history.</p></div>
+          <div class="blk"><h2>The surface</h2></div>
+          <div class="blk"><p>One surface, one layout, at every size. The phone is the hard case and the
+          common one, so the phone layout is the design and a wider screen gets a wider
+          column with more of it visible at once. There is no separate desktop
+          application, and no separate mobile one to keep in step with it.</p></div>
+          <div class="blk"><p><strong>Every view has an address.</strong> A notification opens its round directly, a link
+          to a file opens that file at that round, and going back goes back. A review
+          half-read and closed reopens where it was.</p></div>
+          <div class="blk"><h3>The queue</h3></div>
+          <div class="blk"><p>The home screen answers one question: what needs attention.</p></div>
+          <div class="blk"><p><strong>Waiting</strong> is the top of the screen and nothing competes with it. One row per
+          review with a request outstanding, naming the project, the agent, the title, the
+          round number, the size of the change, and how long it has been waiting.</p></div>
+          <div class="blk"><p>The size is measured against the previous round from round two onward, which is
+          the change the round opens on. Measuring against the review's base instead would
+          put the size of the whole review above a diff of what moved since the last
+          reading.</p></div>
+          <div class="blk"><p><strong>Working</strong> is below it: reviews the agent holds, either acting on a verdict or
+          not yet ready to ask. Informational, and never above the reviews that are not.</p></div>
+          <div class="blk"><p><strong>Settled</strong> is a short collapsed tail of what was approved recently, so a
+          verdict given an hour ago can be found without a search.</p></div>
+          <div class="blk"><p>The project and the agent are part of every row rather than a filter to apply,
+          because several of each feed one surface. A filter exists. Needing it in order
+          to see what is waiting would be the failure.</p></div>
+          <div class="blk"><p><strong>The number waiting is on the installed icon.</strong> A glance at the home screen
+          answers the question without opening anything, which is the difference between
+          checking twenty times a day and checking when there is something to check.</p></div>
+          <div class="blk"><p>An empty queue says &quot;Nothing waiting&quot; and nothing else. It once also listed the
+          projects eyeball knew about, with a sentence counting the agents at work. That
+          sentence counted agents with an open review, so it said no agents were working
+          while agents worked on something not yet up for review. The list was meant to
+          show a project with a misconfigured root, and nothing on the queue shows one
+          now. The owner chose the plain state on 2026-10-18.</p></div>
+          <div class="blk"><h3>A review page</h3></div>
+          <div class="blk"><p>The page opens on the current round, with the brief before the work:</p></div>
+          <div class="blk"><ol start="1">
+          <li>the title, the project, and the agent</li>
+          </ol></div>
+          <div class="blk"><ol start="2">
+          <li>the state and the round number</li>
+          </ol></div>
+          <div class="blk"><ol start="3">
+          <li>the agent's note, in full and never truncated</li>
+          </ol></div>
+          <div class="blk"><ol start="4">
+          <li>the size of the change, as files touched and lines added and removed</li>
+          </ol></div>
+          <div class="blk"><ol start="5">
+          <li>how long the request has been waiting</li>
+          </ol></div>
+          <div class="blk"><p>The note is third rather than buried because it is the reviewer's brief. On a
+          second round it says what was done about the last one, which is the question the
+          reviewer opens with.</p></div>
+          <div class="blk"><p><strong>Every file opens, at any size.</strong> Reviewing means reading every file, so
+          scrolling is reading however long the change is. A large change once opened as a
+          list of collapsed files, which turned reading nineteen files into nineteen taps.
+          What the list did is now done separately:</p></div>
+          <div class="blk"><ul>
+          <li><strong>A list of files tops a change past ten files</strong>, each path with its counts
+          and a link to its card. It is for finding a file. Reading is the scroll below
+          it.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A large change sends its files' bodies as they near the screen</strong>, not with
+          the page, so four thousand lines do not arrive at once on a phone. Until a
+          body comes, its card holds the space the body will take, so a jump from the
+          list lands on its file and stays there.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A file past 500 changed lines waits behind a link</strong> naming its size. A lock
+          file or a generated file is usually skimmed, and loading one by accident means
+          scrolling past all of it to reach the next file.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Folding a file marks it read</strong>, as GitHub's Viewed does. The fold is
+          remembered on the device. Nothing else is kept, and the agent sees none of it.</li>
+          </ul></div>
+          <div class="blk"><p>Ten files and 500 lines are guesses, written down to be corrected against real
+          reviews.</p></div>
+          <div class="blk"><h3>Reading the change</h3></div>
+          <div class="blk"><p><strong>Unified, never side by side.</strong> Two columns of code on a phone screen leaves
+          about twenty characters each, which is not reading. One column with removals
+          above additions works at every width.</p></div>
+          <div class="blk"><p><strong>Changed words are marked inside a changed line</strong>, but only where a run of
+          removals pairs one to one with the additions that replaced it. An unequal run is
+          a rewrite rather than an edit, and guessing which line replaced which marks the
+          wrong words with confidence.</p></div>
+          <div class="blk"><p><strong>Code scrolls sideways inside its own block.</strong> The page itself never scrolls
+          horizontally. A page that does is a page where the decision bar drifts off the
+          screen.</p></div>
+          <div class="blk"><p><strong>Additions and removals differ by more than hue.</strong> Red against green is the one
+          pair some readers cannot separate at all, and a review surface that depends on
+          it is unreadable rather than inconvenient for them.</p></div>
+          <div class="blk"><p><strong>Markdown opens as a rendered document. Code opens as a diff.</strong> A spec is read
+          as prose because prose is what it is, and a patch of a paragraph is a poor way
+          to read a paragraph. Code is read as a change because the change is the unit.
+          Either can be flipped to the other, since sometimes the exact edit to a document
+          is the question and sometimes the whole file is what a code change needs.</p></div>
+          <div class="blk"><p><strong>Front matter reads as the YAML it is.</strong> A document that opens with YAML
+          between <code>---</code> lines shows it as a code block at the top. Read as markdown, its
+          delimiters become rules or a heading underline, and its keys run together into a
+          paragraph, a list or a heading. A spec's status and acks are part of what is
+          reviewed.</p></div>
+          <div class="blk"><p><strong>A changed document shows what changed, rendered, and folds the rest.</strong> On the
+          review page a document's card shows each changed passage with the nearest
+          heading above it and one unchanged passage on each side. Every other run of two
+          or more passages folds into one line that says how many passages it holds, and
+          opens in place with a tap. A long document with three edits reads as three short
+          excerpts instead of the whole document with three edits somewhere in it. The
+          file's own page shows the whole document, marked the same way.</p></div>
+          <div class="blk"><p>A passage is a top-level block, except that each item of a top-level list is a
+          passage of its own, so one changed item in a long list shows that item and folds
+          the others. A passage that holds a comment on the page is never folded, so no
+          comment is hidden in a fold.</p></div>
+          <div class="blk"><p><strong>Changed words are marked in place.</strong> In a passage that replaced exactly one
+          other, added words are highlighted and removed words show struck through where
+          they were, inside links, emphasis and code alike. A rule beside every changed
+          passage stays, so a change to formatting alone, which changes no word, still
+          shows. Ticking a task box marks the box. A changed block of raw HTML, which
+          renders as a placeholder, shows its old source struck through above it. A
+          passage whose structure changed, such as a table that gained a column, and a run
+          of passages replaced by a different number of them, show the old text struck
+          through above the new passage, which is highlighted whole. A passage removed
+          with nothing in its place shows struck through where it was.</p></div>
+          <div class="blk"><p>This replaces an earlier rule, that a changed passage is marked by the rule
+          alone and its old text opens with a tap. That rule kept a heavily edited
+          document readable as a document. It also left the reviewer comparing two
+          versions of every changed paragraph by eye, and rendered the whole document
+          around three edits, which in a long spec meant scrolling to find them.</p></div>
+          <div class="blk"><p><strong>When the base is empty, nothing is marked.</strong> A document written from scratch
+          is entirely new, and marking every line marks nothing. It reads as a document,
+          which is the correct reading.</p></div>
+          <div class="blk"><p><strong>Code is syntax highlighted</strong>, in a diff and in a whole file alike.</p></div>
+          <div class="blk"><p><strong>A file that a browser can display is displayed.</strong> An image is an image, a page
+          is a page, a recording plays. Reading every file as text would make the surface
+          useless for whole categories of work: a design mockup is an HTML file, and
+          reviewing one means looking at the page rather than at the markup. So is a
+          chart, an icon set, a screenshot attached to a bug, a sound a game will play.</p></div>
+          <div class="blk"><p><strong>A file with both a source and a rendering offers both</strong>, one control apart,
+          the way markdown already does. Which one opens first depends on the kind:</p></div>
+          <div class="blk"><table>
+          <thead>
+          <tr>
+          <th>Kind</th>
+          <th>Opens as</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+          <td>Markdown</td>
+          <td>The rendered document</td>
+          </tr>
+          <tr>
+          <td>Image, audio, video, PDF</td>
+          <td>The thing itself</td>
+          </tr>
+          <tr>
+          <td>HTML, SVG, and every other text format</td>
+          <td>The source</td>
+          </tr>
+          <tr>
+          <td>Anything else</td>
+          <td>A line naming its type and size</td>
+          </tr>
+          </tbody>
+          </table></div>
+          <div class="blk"><p><strong>The agent can override that per file</strong>, because it knows which question it is
+          asking. A change to a page's styling wants the page. A change to the same file's
+          markup wants the source. Nothing else in the request knows the difference.</p></div>
+          <div class="blk"><p><strong>A changed image shows before and after, stacked at the same width</strong>, with the
+          dimensions and byte size of each. Stacked rather than side by side for the same
+          reason diffs are unified: two images across a phone screen are two thumbnails. A
+          new image has no before and is shown on its own.</p></div>
+          <div class="blk"><p><strong>Rendering a project's own files is the one place this surface runs something
+          an agent wrote.</strong> An HTML file in a review is not a document, it is a program,
+          and a page that executes with the surface's privileges can read the queue, post
+          comments, and approve its own review. The agent that wrote it has every reason
+          to and no way to be trusted not to.</p></div>
+          <div class="blk"><p>So anything that can execute renders in a sandbox, from an origin that is not
+          the surface's, with no access back to it. That covers HTML, and it covers SVG,
+          which is a document format that can carry script and is routinely mistaken for
+          an image format. An SVG shown as an image is safe, because an image cannot
+          execute. The same file opened as a page is not.</p></div>
+          <div class="blk"><p><strong>A file too large to send to a phone is not sent until asked.</strong> The surface
+          names it, says it is past the limit, and offers to load it anyway. The limit is
+          a real one: a review is read over whatever connection the reviewer has, and a
+          video that would take a minute to arrive has already cost more than the review
+          was worth. The surface cannot tell wifi from cellular, so it names the limit
+          rather than the connection, and the reviewer who knows decides.</p></div>
+          <div class="blk"><h3>Widening</h3></div>
+          <div class="blk"><p>Three steps out, each one control rather than a navigation.</p></div>
+          <div class="blk"><p><strong>From a hunk to the whole file</strong>, with the change still marked in place.</p></div>
+          <div class="blk"><p><strong>From a file to any other file in the project</strong>, as it was at that round. A
+          diff often refers to something it does not contain, and walking to a computer to
+          look it up ends the review. It costs nothing extra: the round already holds
+          every file the agent touched, and everything else is in git at the base commit.</p></div>
+          <div class="blk changed"><p><strong>What the change is measured against is <del>a</del><ins>one</ins> control<ins> with two
+          settings</ins>.</strong> The previous round is the default from round two onward and
+          answers what moved since the last reading. The review's base answers what this
+          review has done in total<ins>, which is what a reviewer wants before approving
+          something that took four rounds</ins>. The control sits in the toolbar of
+          <a href="widening.html#whole"><del>each</del><ins>the</ins> review<ins> page</ins></a>.</p></div>
+          <div class="blk"><h3>Making a comment</h3></div>
+          <div class="blk"><p><strong>A comment attaches at one of four levels.</strong> To a line or a range of lines. To
+          a passage, which is what a rendered document offers instead of lines. To a file,
+          for a point about the file rather than a place in it. To the review, for the
+          point that the approach is wrong, which has nowhere else to go and is the most
+          important comment anybody writes.</p></div>
+          <div class="blk"><p><strong>The reviewer selects in whatever they are reading, and the agent always
+          receives a path, a line range, and the quoted text.</strong> A passage in a rendered
+          document maps to lines in the frozen source exactly, because the source cannot
+          move. So an agent never has to work out what a comment was pointing at, whatever
+          view produced it.</p></div>
+          <div class="blk"><p><strong>A comment is saved the moment it is written.</strong> Storing and releasing are
+          different things: the comment is durable immediately and invisible to the agent
+          until the verdict. Holding a round's comments in the page until submission would
+          be simpler and would lose a review to a closed tab, a dead battery, or a phone
+          that decided to reclaim some memory.</p></div>
+          <div class="blk"><p><strong>A comment is durable once eyeball has acknowledged it, and visible until
+          then.</strong> A save that fails leaves the text on screen, marked as not sent, with a
+          retry. The surface never discards what somebody typed, and never claims to have
+          stored something it has not.</p></div>
+          <div class="blk"><p><strong>A live connection is assumed.</strong> This is a conversation with an agent that is
+          running right now, on a machine reachable from the phone, and the reviewer is
+          holding one side of it. Reviewing with no connection is not a case worth
+          building for, any more than a terminal is worth building for a network that is
+          not there.</p></div>
+          <div class="blk"><p>That assumption is worth stating rather than leaving implied, because the
+          alternative was designed and rejected. Storing comments on the device and
+          draining them later means a second copy of every comment, a reconciliation on
+          boot, and a write path that has to be correct in a case nobody will hit. What it
+          buys is a comment typed in a basement, on a phone that could not have loaded the
+          review in the first place.</p></div>
+          <div class="blk"><p><strong>Assuming a connection is not the same as ignoring its absence.</strong> The surface
+          does not work offline. It does have to say when it is offline, and the
+          difference between those two is the whole of this section.</p></div>
+          <div class="blk"><p>A surface that renders from the server and acts through it has one failure worse
+          than any other: a tap that does nothing. The button looks the same before and
+          after, so the reviewer taps it again, then holds it, then assumes they missed.
+          Nothing on screen separates an unreachable server from a mis-aimed thumb. This
+          has been watched happening on a surface built this way, which is why it is a
+          requirement here rather than an afterthought.</p></div>
+          <div class="blk"><p>So:</p></div>
+          <div class="blk"><ul>
+          <li><strong>Losing the connection is stated, not implied.</strong> A visible notice, present
+          for as long as the condition is, saying what cannot be done and offering to
+          try again.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Every action that needs the server reports its own failure</strong>, on the control
+          that was used, in words. Not a spinner that stops, and never nothing.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Nothing is shown while the connection is healthy.</strong> A permanent indicator
+          becomes furniture within a day and stops being read, which leaves the reviewer
+          with no signal at the moment one matters.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Text already typed survives the failure.</strong> A comment whose save did not land
+          keeps its text and offers a retry.</li>
+          </ul></div>
+          <div class="blk"><p><strong>This round's comments are listed, editable, and deletable until the verdict.</strong>
+          Nothing has been released yet, so a point that turned out to be wrong by the end
+          of the reading can be removed rather than explained away.</p></div>
+          <div class="blk"><h3>Deciding</h3></div>
+          <div class="blk"><p><strong>The decision bar is pinned to the bottom of the review page.</strong> Approving a
+          long document must not require scrolling to the end of it, and the bar is where
+          the reviewer already looks.</p></div>
+          <div class="blk"><p><strong>Two verdicts: approve, or request changes.</strong> Both release the round.</p></div>
+          <div class="blk"><p><strong>A verdict carries an optional note</strong>, which is the place for the judgment that
+          is about the whole thing rather than any line of it.</p></div>
+          <div class="blk"><p><strong>Requesting changes with no comment and no note is refused.</strong> The agent would
+          receive an instruction to change something with no statement of what, and would
+          either guess or come back to ask. The refusal names the fix.</p></div>
+          <div class="blk"><p><strong>The bar says what is about to be sent</strong>, as a count of comments. Submitting is
+          the moment a reading becomes irreversible, and the reviewer should not have to
+          remember how many points they made.</p></div>
+          <div class="blk"><p><strong>After a verdict the round is closed</strong>, the page shows the decision, and the
+          review leaves the waiting list. A comment written on a closed round is allowed
+          and goes out on its own immediately. Batching exists to protect a reading in
+          progress, and that reading is over, so holding the comment would hold it until a
+          round that may never be requested.</p></div>
+          <div class="blk"><h3>The project view</h3></div>
+          <div class="blk"><p>Reachable from any review's header, one per project.</p></div>
+          <div class="blk"><p><strong>It lists the project's open reviews</strong>, which is the same information the queue
+          carries, arranged by project instead of by urgency.</p></div>
+          <div class="blk"><p><strong>It shows each working copy</strong>, meaning everything currently changed on disk in
+          each working copy an agent has used that is still on disk, including work no
+          agent has submitted for review. A worktree no agent has run eyeball in is not
+          shown, since git's own list of worktrees misnames the main checkout in some
+          layouts. This is the step back: what is going on in this repository right now,
+          across every review and outside all of them. It is read-only context rather than
+          a reviewable object, and it is live rather than frozen, because showing the
+          present is its whole job.</p></div>
+          <div class="blk"><h3>First run</h3></div>
+          <div class="blk"><p><strong>The surface is installed to the home screen once, and granted notification
+          permission once.</strong> Until that happens, notifications do not arrive, which makes
+          this the one setup step that has to be impossible to miss rather than something
+          found later in a settings screen.</p></div>
+          <div class="blk"><p>So an uninstalled surface says what is missing and offers the two steps in
+          order, and a surface whose push subscription has lapsed says that too. A queue
+          that looks empty because nothing is arriving is the failure mode this prevents.</p></div>
+          <div class="blk"><h2>Notification</h2></div>
+          <div class="blk"><p><strong>One notification per request, deep linked to the review.</strong> Opening it lands on
+          the round, not on the home screen.</p></div>
+          <div class="blk"><p>Comments and verdicts generate none: they travel toward the agent, which is
+          waiting on a command rather than watching a phone.</p></div>
+          <div class="blk"><p>The channel has to reach a phone that is locked, with the surface not open, and
+          it has to work while away from home.</p></div>
+          <div class="blk"><p><strong>Web push carries them</strong>, from the surface itself. The page is installed to the
+          home screen and granted permission once, and after that a request wakes the
+          phone with no other software involved. Nothing to run, no bot to register, no
+          token to hold, and no third party between an agent and the person reviewing its
+          work.</p></div>
+          <div class="blk"><p>The cost is a real setup step and a platform constraint. iOS delivers web push
+          only to a page installed to the home screen, served over HTTPS with a
+          certificate the phone already trusts, so the surface has to be installable and
+          properly served before a single notification arrives. A subscription can also
+          lapse silently, which means the surface has to notice a dead subscription rather
+          than assume delivery.</p></div>
+          <div class="blk"><p><strong>A chat bot is the escape hatch</strong>, wired the same way and used if web push
+          proves unreliable in practice. Telegram is the obvious candidate, because a bot
+          there is the shortest path to a phone that already exists. The two things such a
+          bot is good at do not help here. A bot is bidirectional, and the reply path is
+          the surface rather than the message. A bot carries pictures and files, and the
+          payload is a link. What is left is a credential to hold and a service to depend
+          on, weighed against a delivery mechanism the surface owns outright.</p></div>
+          <div class="blk"><h2>The agent's side</h2></div>
+          <div class="blk"><p>An agent drives eyeball through a command-line tool. The target is that an agent
+          gets it right with no worked example in front of it, which is a stricter bar
+          than a person needs and settles most of the interface.</p></div>
+          <div class="blk"><ul>
+          <li><strong>Flags parse in any position.</strong> Argument order is the thing a model gets
+          wrong once per session forever.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong><code>--json</code> on everything</strong>, with a documented, stable schema, and a <code>--format</code>
+          template over the same shape.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong><code>eyeball doc</code> prints the manual</strong>, complete enough that an agent can drive
+          the tool from it alone.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Every mutation prints what to do next</strong>, including, at the one place it
+          matters, an instruction to stop and wait rather than to continue.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A refusal explains and names the fix</strong>, rather than reporting an error.</li>
+          </ul></div>
+          <div class="blk"><p>The verbs an agent needs:</p></div>
+          <div class="blk"><pre><code>eyeball request &lt;paths...&gt; -m &quot;what to look at&quot;   opens a review, returns its id
+eyeball wait &lt;id&gt;                                 blocks until the verdict, prints the batch
+eyeball status                                    this agent's reviews, and their states
+eyeball reply &lt;comment-id&gt; -m &quot;what was done&quot;     optional, per comment
+eyeball abandon &lt;id&gt;                              withdraw the question
+</code></pre></div>
+          <div class="blk"><p><code>request</code> also takes <code>--view &lt;path&gt;=rendered</code> or <code>--view &lt;path&gt;=source</code>, the
+          per-file override described under Reading the change, for the round it opens.</p></div>
+          <div class="blk"><p><strong>Waiting is a blocking command, not a poll.</strong> An agent that polls burns context
+          on nothing happening. <code>wait</code> returns once, with every comment and the verdict
+          together, which is also exactly what a monitor in a harness needs.</p></div>
+          <div class="blk"><p><strong>State survives a cleared context and a restarted session.</strong> Everything lives
+          in eyeball, not in the conversation. An agent that has lost its memory runs
+          <code>eyeball status</code> in its working copy and gets back the reviews it owns, their
+          states, and what it is waiting on. Nothing has to be remembered across a restart
+          except the working directory, which the shell already knows.</p></div>
+          <div class="blk"><p><strong>An agent sees its own reviews.</strong> The reviewer's surface combines every project
+          and every agent. An agent's view is its own slice, so a spec review in another
+          project is not something it has to read past or, worse, act on.</p></div>
+          <div class="blk"><p>Identity has to survive a restart, so an agent is identified by the working copy
+          it runs in, with an explicit name available for the case of two agents in one
+          directory. A session id would be the obvious choice and is the wrong one: it
+          dies with the session, which is the exact event this has to survive.</p></div>
+          <div class="blk"><h2>One instance, many projects</h2></div>
+          <div class="blk"><p>One eyeball runs. Every project on the machine uses it.</p></div>
+          <div class="blk"><p><strong>A project is discovered by walking up from the working directory</strong>, so an
+          agent does not have to be told which project it is in, and does not have to get
+          it right after a restart. The first <code>.git</code> above the working directory is the
+          working copy, and the repository it belongs to is the project, so a main
+          checkout and every worktree of it are one project. A directory that is not a git
+          repository is named by a marker file a person writes there once, which is the
+          only setup eyeball ever asks for and is asked for only where the free answer is
+          unavailable. It is a project with one working copy.</p></div>
+          <div class="blk"><p><strong>A review can move between working copies of its project.</strong> An agent that did
+          the work in a worktree can ask for the next round from the main checkout, which
+          is where the merge happens. That round is captured from the main checkout, and
+          its context is read from there. The agent passes its name, since by default an
+          agent is named by the working copy it runs in.</p></div>
+          <div class="blk"><p><strong>eyeball does not modify the project.</strong> No state written into the repository,
+          no files added to a git project at all, no changes to its build or tooling. It
+          reads. Its own state lives in its own store, keyed by the project it belongs to.</p></div>
+          <div class="blk"><p>That is a hard constraint rather than a preference. A control surface each
+          project has to adopt is one that gets adopted where somebody remembered, which
+          is not everywhere, and the projects it misses are the ones where an agent is
+          working unattended.</p></div>
+          <div class="blk"><p><strong>Git earns its place three times and is not otherwise required.</strong> It answers
+          where the project root is. It answers what has changed on disk, which is what
+          the working copy view shows and what a first round diffs against. And it holds
+          every file the agent did not touch, which is what makes opening one for context
+          free rather than a reason to copy a repository.</p></div>
+          <div class="blk"><p>None of those answers is available cheaply anywhere else. Everything after that
+          is eyeball's own: a round is a diff between two captures it holds, so rounds two
+          and later never consult git for the change itself.</p></div>
+          <div class="blk"><p>Without git there is no base commit, so the middle source is gone and browsing
+          falls back to the working copy as it is now. Reviews work, and a file opened for
+          context is labeled as live rather than as of the round. That is the second cost
+          of running outside git, after a first round that shows whole files.</p></div>
+          <div class="blk"><p><strong>The tool is harness independent.</strong> It is a command-line program with JSON
+          output. Anything that can run a process can drive it. Convenience glue for one
+          harness, such as an installable skill pointing an agent at <code>eyeball doc</code>, is
+          additive and never required.</p></div>
+          <div class="blk"><h2>An approval is a fact, not a claim</h2></div>
+          <div class="blk"><p>A gate on a piece of work is either a <strong>proof</strong>, which is a command that can be
+          run and can fail, or a <strong>claim</strong>, which is a label a person asserts and nothing
+          verifies. Proofs are worth more, so the useful move is to convert claims into
+          proofs wherever one can be built. Human review is the standing example of a
+          claim that resists it: no command can establish that a person read something and
+          agreed to it.</p></div>
+          <div class="blk"><p>eyeball turns that one into a proof. An approval is a record of which review,
+          which round, what content, and when, held outside the session that asked for it.
+          Anything that gates on human review can read it instead of trusting a label.</p></div>
+          <div class="blk"><p>The line eyeball does not cross: an approval records that a person approved
+          something, and nothing else. It never advances a spec, checks a box, or writes
+          to another system. That state has an owner already, and an unauthenticated page
+          on a private network is not it.</p></div>
+          <div class="blk"><h2>Out of scope for now</h2></div>
+          <div class="blk"><p>Named, because each is a plausible next step and none is in the first version.</p></div>
+          <div class="blk"><ul>
+          <li><strong>Commenting on a file no agent has submitted</strong>, from the working copy view,
+          as a way to open a review the agent did not ask for. Useful, and reachable
+          once that view exists. Today the same thing happens by telling the agent.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Threaded discussion.</strong> A comment and an optional reply is the whole model. A
+          conversation on a phone about a line of code is a worse version of talking to
+          the agent.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>More than one reviewer.</strong> One person, one queue. Multiple reviewers change
+          the meaning of a verdict and most of the design with it.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Authentication.</strong> The surface is reachable on a private network only, which
+          is the same protection the machine itself has.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Editing from the surface.</strong> An edit made there is a change nobody reviewed,
+          and the surface is a worse editor than the one the agent already has.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Anything that runs the project's build.</strong> eyeball reads and displays. Proofs
+          belong to whatever already owns them.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Downloading a file the surface cannot render.</strong> A binary saved to a phone is
+          not a thing anybody reviews. Naming the file, its type and its size answers
+          what the reviewer actually asked.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Side by side diffs.</strong> Unified reads at every width, and a second column that
+          only works on a desktop is a second layout to maintain for the case that
+          matters least.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Search across a project.</strong> A review names its paths and a diff links to what
+          it references, which covers finding things by following them. Finding things
+          by guessing at a word is a different tool.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A native application.</strong> An installed page delivers notifications, an icon
+          and a badge. What is left needs a store account and a build per platform.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Reviewing with no connection.</strong> The work being reviewed is on a machine the
+          phone has to reach anyway, and the agent waiting for the verdict is running on
+          it. A surface that works without the network is a surface that cannot do
+          anything useful when it gets one.</li>
+          </ul></div>
+          <div class="blk"><h2>Open questions</h2></div>
+          <div class="blk"><ul>
+          <li><strong>What a scope is made of.</strong> Paths are the obvious answer and cover the cases
+          named here. Whether a review ever needs to name something other than a path is
+          not yet known.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Whether web push holds up on a locked iPhone</strong> across days of real use, and
+          what the surface does about a subscription that has silently lapsed. The
+          escape hatch exists because this is unproven here, not because it is expected
+          to fail.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>What a marker file contains</strong> beyond naming a project root. Nothing yet
+          requires a second field, and adding one before something does is how a
+          zero-setup tool acquires configuration.</li>
+          </ul></div>
+          <div class="blk changed"><del class="old">Whether a first round outside git has a base at all. With no record of the file
+          before the edit, it could show whole files or refuse the request.</del></div>
+          <div class="blk"><ul>
+          <li><strong>How a range of lines is selected on a touch screen.</strong> A single line is a tap
+          and a range is not obviously anything. The fallback is that a comment on one
+          line of a hunk is usually enough, which would make ranges a desktop
+          convenience rather than a feature.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Where the list of files and a deferred file start.</strong> Ten files and 500
+          changed lines are guesses written down so they can be corrected, and the
+          correction needs real reviews rather than reasoning.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>How long a decided review is kept</strong>, and whether captures are pruned with
+          it. Comments are ephemeral by design. The record of what was approved may not
+          want to be.</li>
+          </ul></div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar">
+          <a class="back" href="review.html#round2"><span class="i i-chevron-left" aria-hidden="true"></span>Change</a>
+          <h1>product.md</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
+        </div>
+        <div class="scroll"><div class="page">
+          <div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>docs/</bdi></span><span class="name">product.md</span></div>
+          <div class="toolbar">
+            <span class="counts"><span class="plus">+9</span> <span class="minus">&minus;4</span> <span class="hint">in this round</span></span>
+            <span class="segmented"><a href="#whole-doc" aria-current="true">Document</a><a href="#whole-doc">Source</a></span>
+          </div>
+          <div class="prose">
+          <div class="blk"><h1>Product</h1></div>
+          <div class="blk"><p>eyeball is a review surface for work done by agents. Agents ask for review, a
+          person reads and comments on a phone or a laptop, and the verdict releases the
+          agent to continue. One instance serves every project on the machine.</p></div>
+          <div class="blk"><blockquote>
+          <p>Written as the target, not as a report. None of it exists yet. How it is built
+          is <a href="widening.html#whole">architecture.md</a>, derived from this document and not the
+          other way round. How its prose reads is <a href="widening.html#whole">voice.md</a>.</p>
+          </blockquote></div>
+          <div class="blk"><h2>The problem</h2></div>
+          <div class="blk"><p>Several agents work at once. Each reaches a point where it should stop and get a
+          human judgment before going further: a spec to agree on, a design to settle, a
+          change to accept. The person is one, the agents are many, and the work is
+          asynchronous.</p></div>
+          <div class="blk"><p>Everything hard about this follows from that ratio. The scarce resource is the
+          reviewer's attention, not compute and not the agent's time. It arrives in
+          whatever fragment is available, often on a phone, often away from the desk. A
+          review that takes ten minutes to open, orient in and act on does not get done.
+          It gets postponed, and three agents idle behind it.</p></div>
+          <div class="blk"><p>So eyeball is a queue for one person's attention, plus a surface that makes each
+          item in it answerable in a couple of minutes. Every decision below is downstream
+          of that.</p></div>
+          <div class="blk"><p>Two failures matter more than the rest.</p></div>
+          <div class="blk"><p><strong>A lost comment.</strong> A reviewer who writes a paragraph of careful reading and
+          watches it vanish stops writing careful paragraphs.</p></div>
+          <div class="blk"><p><strong>Work that moves while it is being read.</strong> A file an agent is still editing
+          cannot be reviewed at all. Half the reading is invalidated by the time the rest
+          is done, and there is no way to tell which half.</p></div>
+          <div class="blk"><h2>The loop</h2></div>
+          <div class="blk"><pre><code>agent            eyeball                      reviewer
+  │
+  ├─ request ───► review opens, round 1
+  │               content frozen  ──────────► notification, one per request
+  │                                              │
+  │  (waiting)                                   ├─ reads the change
+  │                                              ├─ comments, any number
+  │                                              └─ approves, or asks for changes
+  │                                                        │
+  ◄─── every comment and the verdict, at once ─────────────┘
+  │
+  ├─ makes the changes
+  └─ request ───► round 2, frozen against round 1
+</code></pre></div>
+          <div class="blk"><p>The agent learns nothing until the verdict. That is the point, and it is covered
+          below.</p></div>
+          <div class="blk"><h2>A review is an object with a declared scope</h2></div>
+          <div class="blk"><p>A review has a project, an agent, a title, a set of paths, and a state. It is
+          created deliberately, not inferred from whatever happens to be dirty in the
+          working copy.</p></div>
+          <div class="blk"><p><strong>Several reviews are open at once in one project.</strong> A spec waiting for
+          agreement and a code change waiting for acceptance are two different questions,
+          asked by possibly two different agents, and they get two rows in the queue and
+          two pages. Sharing a working copy is not a reason to share a verdict.</p></div>
+          <div class="blk"><p><strong>A review names its paths.</strong> There is no implicit &quot;everything that changed&quot;,
+          because that is exactly what merges two pieces of work into one. Naming the
+          paths is the agent's job and costs it one argument.</p></div>
+          <div class="blk"><p><strong>A path is a file or a directory, which covers everything under it.</strong> Not a
+          glob. Whether two glob patterns can match the same file has no cheap answer, so
+          overlap could only be guessed at. A guess merges two pieces of work under one
+          verdict, or blocks work that never conflicted.</p></div>
+          <div class="blk"><p><strong>Overlapping scopes are refused.</strong> A path already claimed by an open review in
+          the same working copy cannot be claimed by a second one, because the same change
+          would then appear in two places with two verdicts. The refusal names the review
+          holding it. Two worktrees of one repository hold two different changes to the
+          same path, so a claim in one does not refuse the other.</p></div>
+          <div class="blk"><p>A review ends when it is approved. Asking for changes closes a round and opens
+          the next one. A review can also be abandoned, which is the agent saying the
+          question no longer needs an answer.</p></div>
+          <div class="blk"><h2>A round is frozen</h2></div>
+          <div class="blk"><p><strong>Every round captures the content it is asking about, at the moment it asks.</strong>
+          The reviewer reads that capture. The agent can do whatever it likes to the
+          working copy afterward without touching what is on screen.</p></div>
+          <div class="blk"><p>This one decision pays for itself four times.</p></div>
+          <div class="blk"><ul>
+          <li><strong>Nothing moves under the reviewer.</strong> The reading stays valid for as long as
+          it takes.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A comment points at an exact line and never drifts.</strong> The content it refers
+          to is immutable, so a line number is a permanent address. No content hashing,
+          no anchor rot, no list of detached comments to reconcile.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>&quot;What changed since the last look&quot; is a real diff</strong>, computed between round
+          N-1's capture and round N's, rather than inferred.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Any file can be opened as it was</strong>, not as it is now, and not only the files
+          the review covers.</li>
+          </ul></div>
+          <div class="blk"><p><strong>A capture is a base commit and the content of every file that differs from
+          it.</strong> Nothing else is copied. A file that matches the base matches it byte for
+          byte, so it resolves out of git at that commit and costs nothing to keep. A file
+          the agent has touched will move, so eyeball stores its own copy of that one.</p></div>
+          <div class="blk"><p>Storage is therefore proportional to what the agent changed rather than to the
+          size of the repository. A six-file change in a repository of five thousand files
+          stores six files. Copying the tree is the obvious reading of &quot;capture the
+          project&quot; and the wrong one: it buys nothing, because the untouched remainder is
+          already immutable in git and addressed by the base commit.</p></div>
+          <div class="blk"><p>The reviewer still sees exactly what the agent had, whichever file they open.
+          Clean files come from git, dirty ones from the capture, and clean means
+          identical, so there is no third case.</p></div>
+          <div class="blk"><p><strong>Files the agent changed outside the review's scope are captured too.</strong> They
+          cost the same as anything else touched, and without them a file opened for
+          context would show the base rather than what the agent was working with, which
+          is a difference the reviewer has no way to detect.</p></div>
+          <div class="blk"><p><strong>A file opens from the first of three sources that has it</strong>, and says which one
+          it came from:</p></div>
+          <div class="blk"><ol start="1">
+          <li><strong>The round's capture.</strong> Frozen, exact, and the only source a file under
+          review is ever read from.</li>
+          </ol></div>
+          <div class="blk"><ol start="2">
+          <li><strong>The base commit.</strong> Exact as well, because a file that matches the base
+          matches it byte for byte.</li>
+          </ol></div>
+          <div class="blk"><ol start="3">
+          <li><strong>The working copy, as it is now.</strong> The one the round was captured from. Not
+          frozen, and possibly moved since the round was taken.</li>
+          </ol></div>
+          <div class="blk"><p>The third exists because the alternative is showing nothing, and a reviewer who
+          cannot look up a definition goes to a computer, which ends the review. It covers
+          a base commit lost to a rebase or a garbage collection, a file created after the
+          base, and a project with no git at all.</p></div>
+          <div class="blk"><p><strong>Only the third can mislead, and only ever about context.</strong> A file the review
+          covers is always in the capture, so a verdict is never given against a live
+          reading. What can go wrong is looking up a helper, seeing a version the agent
+          did not have, and drawing a conclusion from it. The label is the whole
+          mitigation and it is not a complete one. Showing nothing instead trades a small
+          risk for a certain cost.</p></div>
+          <div class="blk"><p>The alternative is to read files from disk on every request and compensate for
+          the movement. That forces a comment anchor to be a hash of the text it attaches
+          to, because a line number means nothing once the file has shifted. Editing a
+          paragraph then changes its hash and detaches its comments, so the tool grows a
+          list of comments it can no longer place, and the reviewer reads bookkeeping.
+          Freezing removes the problem rather than compensating for it.</p></div>
+          <div class="blk changed"><p><strong>A review's first round needs something to change against.</strong> In a git
+          repository the base is <code>HEAD</code><ins> by default</ins>, and the agent can name <del>another</del><ins>a different one</ins>
+          with <code>--base<del>-commit</del></code>. Elsewhere <ins>there is no record of the file before the edit, so</ins> the
+          base is empty and the first round shows whole files.<ins> That is the right reading
+          for a document being written from scratch and a poor one for a change to existing
+          code, which is the concrete cost of running eyeball outside git.</ins></p></div>
+          <div class="blk"><h2>Comments release as a batch</h2></div>
+          <div class="blk"><p><strong>A comment is invisible to the agent until the verdict is submitted.</strong> The
+          agent is not notified, and a waiting agent does not wake. Nothing about it is
+          merely deferred, because nothing is delivered.</p></div>
+          <div class="blk"><p>The reason is that a reviewer forms an opinion while reading. A first comment
+          written on line 20 may be answered by line 90, or may turn out to be the small
+          half of a larger point. An agent that receives it immediately starts working on
+          a reading that is not finished, and the reviewer is then arguing with edits made
+          underneath an unfinished thought.</p></div>
+          <div class="blk"><p>Making this the transport's behavior rather than a rule the agent follows is
+          deliberate. An agent told &quot;wait for the verdict&quot; while being handed each comment
+          as it lands will eventually not wait. Nothing is delivered, so nothing can be
+          acted on early.</p></div>
+          <div class="blk"><p>Both verdicts release the batch. Asking for changes finishes a reading as
+          completely as approving does.</p></div>
+          <div class="blk"><h2>Comments are ephemeral, the agent's note is not</h2></div>
+          <div class="blk"><p>Once a new round starts, the previous round's comments are done. What the
+          reviewer needs on screen is the current state of the work. Earlier rounds stay
+          reachable, one tap away, and out of the default view.</p></div>
+          <div class="blk"><p><strong>Every request carries a note from the agent</strong>, and it is required. On the
+          first round it says what to look at. On later rounds it says what changed and
+          what was done about the last round's comments. This is the one piece of history
+          that stays in front of the reviewer, because a second round opens on what was
+          done about the first one.</p></div>
+          <div class="blk"><p>Per-comment replies from the agent are allowed and optional. They live with the
+          comment they answer, inside the round that is now history.</p></div>
+          <div class="blk"><h2>The surface</h2></div>
+          <div class="blk"><p>One surface, one layout, at every size. The phone is the hard case and the
+          common one, so the phone layout is the design and a wider screen gets a wider
+          column with more of it visible at once. There is no separate desktop
+          application, and no separate mobile one to keep in step with it.</p></div>
+          <div class="blk"><p><strong>Every view has an address.</strong> A notification opens its round directly, a link
+          to a file opens that file at that round, and going back goes back. A review
+          half-read and closed reopens where it was.</p></div>
+          <div class="blk"><h3>The queue</h3></div>
+          <div class="blk"><p>The home screen answers one question: what needs attention.</p></div>
+          <div class="blk"><p><strong>Waiting</strong> is the top of the screen and nothing competes with it. One row per
+          review with a request outstanding, naming the project, the agent, the title, the
+          round number, the size of the change, and how long it has been waiting.</p></div>
+          <div class="blk"><p>The size is measured against the previous round from round two onward, which is
+          the change the round opens on. Measuring against the review's base instead would
+          put the size of the whole review above a diff of what moved since the last
+          reading.</p></div>
+          <div class="blk"><p><strong>Working</strong> is below it: reviews the agent holds, either acting on a verdict or
+          not yet ready to ask. Informational, and never above the reviews that are not.</p></div>
+          <div class="blk"><p><strong>Settled</strong> is a short collapsed tail of what was approved recently, so a
+          verdict given an hour ago can be found without a search.</p></div>
+          <div class="blk"><p>The project and the agent are part of every row rather than a filter to apply,
+          because several of each feed one surface. A filter exists. Needing it in order
+          to see what is waiting would be the failure.</p></div>
+          <div class="blk"><p><strong>The number waiting is on the installed icon.</strong> A glance at the home screen
+          answers the question without opening anything, which is the difference between
+          checking twenty times a day and checking when there is something to check.</p></div>
+          <div class="blk"><p>An empty queue says &quot;Nothing waiting&quot; and nothing else. It once also listed the
+          projects eyeball knew about, with a sentence counting the agents at work. That
+          sentence counted agents with an open review, so it said no agents were working
+          while agents worked on something not yet up for review. The list was meant to
+          show a project with a misconfigured root, and nothing on the queue shows one
+          now. The owner chose the plain state on 2026-10-18.</p></div>
+          <div class="blk"><h3>A review page</h3></div>
+          <div class="blk"><p>The page opens on the current round, with the brief before the work:</p></div>
+          <div class="blk"><ol start="1">
+          <li>the title, the project, and the agent</li>
+          </ol></div>
+          <div class="blk"><ol start="2">
+          <li>the state and the round number</li>
+          </ol></div>
+          <div class="blk"><ol start="3">
+          <li>the agent's note, in full and never truncated</li>
+          </ol></div>
+          <div class="blk"><ol start="4">
+          <li>the size of the change, as files touched and lines added and removed</li>
+          </ol></div>
+          <div class="blk"><ol start="5">
+          <li>how long the request has been waiting</li>
+          </ol></div>
+          <div class="blk"><p>The note is third rather than buried because it is the reviewer's brief. On a
+          second round it says what was done about the last one, which is the question the
+          reviewer opens with.</p></div>
+          <div class="blk"><p><strong>Every file opens, at any size.</strong> Reviewing means reading every file, so
+          scrolling is reading however long the change is. A large change once opened as a
+          list of collapsed files, which turned reading nineteen files into nineteen taps.
+          What the list did is now done separately:</p></div>
+          <div class="blk"><ul>
+          <li><strong>A list of files tops a change past ten files</strong>, each path with its counts
+          and a link to its card. It is for finding a file. Reading is the scroll below
+          it.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A large change sends its files' bodies as they near the screen</strong>, not with
+          the page, so four thousand lines do not arrive at once on a phone. Until a
+          body comes, its card holds the space the body will take, so a jump from the
+          list lands on its file and stays there.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A file past 500 changed lines waits behind a link</strong> naming its size. A lock
+          file or a generated file is usually skimmed, and loading one by accident means
+          scrolling past all of it to reach the next file.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Folding a file marks it read</strong>, as GitHub's Viewed does. The fold is
+          remembered on the device. Nothing else is kept, and the agent sees none of it.</li>
+          </ul></div>
+          <div class="blk"><p>Ten files and 500 lines are guesses, written down to be corrected against real
+          reviews.</p></div>
+          <div class="blk"><h3>Reading the change</h3></div>
+          <div class="blk"><p><strong>Unified, never side by side.</strong> Two columns of code on a phone screen leaves
+          about twenty characters each, which is not reading. One column with removals
+          above additions works at every width.</p></div>
+          <div class="blk"><p><strong>Changed words are marked inside a changed line</strong>, but only where a run of
+          removals pairs one to one with the additions that replaced it. An unequal run is
+          a rewrite rather than an edit, and guessing which line replaced which marks the
+          wrong words with confidence.</p></div>
+          <div class="blk"><p><strong>Code scrolls sideways inside its own block.</strong> The page itself never scrolls
+          horizontally. A page that does is a page where the decision bar drifts off the
+          screen.</p></div>
+          <div class="blk"><p><strong>Additions and removals differ by more than hue.</strong> Red against green is the one
+          pair some readers cannot separate at all, and a review surface that depends on
+          it is unreadable rather than inconvenient for them.</p></div>
+          <div class="blk"><p><strong>Markdown opens as a rendered document. Code opens as a diff.</strong> A spec is read
+          as prose because prose is what it is, and a patch of a paragraph is a poor way
+          to read a paragraph. Code is read as a change because the change is the unit.
+          Either can be flipped to the other, since sometimes the exact edit to a document
+          is the question and sometimes the whole file is what a code change needs.</p></div>
+          <div class="blk"><p><strong>Front matter reads as the YAML it is.</strong> A document that opens with YAML
+          between <code>---</code> lines shows it as a code block at the top. Read as markdown, its
+          delimiters become rules or a heading underline, and its keys run together into a
+          paragraph, a list or a heading. A spec's status and acks are part of what is
+          reviewed.</p></div>
+          <div class="blk"><p><strong>A changed document shows what changed, rendered, and folds the rest.</strong> On the
+          review page a document's card shows each changed passage with the nearest
+          heading above it and one unchanged passage on each side. Every other run of two
+          or more passages folds into one line that says how many passages it holds, and
+          opens in place with a tap. A long document with three edits reads as three short
+          excerpts instead of the whole document with three edits somewhere in it. The
+          file's own page shows the whole document, marked the same way.</p></div>
+          <div class="blk"><p>A passage is a top-level block, except that each item of a top-level list is a
+          passage of its own, so one changed item in a long list shows that item and folds
+          the others. A passage that holds a comment on the page is never folded, so no
+          comment is hidden in a fold.</p></div>
+          <div class="blk"><p><strong>Changed words are marked in place.</strong> In a passage that replaced exactly one
+          other, added words are highlighted and removed words show struck through where
+          they were, inside links, emphasis and code alike. A rule beside every changed
+          passage stays, so a change to formatting alone, which changes no word, still
+          shows. Ticking a task box marks the box. A changed block of raw HTML, which
+          renders as a placeholder, shows its old source struck through above it. A
+          passage whose structure changed, such as a table that gained a column, and a run
+          of passages replaced by a different number of them, show the old text struck
+          through above the new passage, which is highlighted whole. A passage removed
+          with nothing in its place shows struck through where it was.</p></div>
+          <div class="blk"><p>This replaces an earlier rule, that a changed passage is marked by the rule
+          alone and its old text opens with a tap. That rule kept a heavily edited
+          document readable as a document. It also left the reviewer comparing two
+          versions of every changed paragraph by eye, and rendered the whole document
+          around three edits, which in a long spec meant scrolling to find them.</p></div>
+          <div class="blk"><p><strong>When the base is empty, nothing is marked.</strong> A document written from scratch
+          is entirely new, and marking every line marks nothing. It reads as a document,
+          which is the correct reading.</p></div>
+          <div class="blk"><p><strong>Code is syntax highlighted</strong>, in a diff and in a whole file alike.</p></div>
+          <div class="blk"><p><strong>A file that a browser can display is displayed.</strong> An image is an image, a page
+          is a page, a recording plays. Reading every file as text would make the surface
+          useless for whole categories of work: a design mockup is an HTML file, and
+          reviewing one means looking at the page rather than at the markup. So is a
+          chart, an icon set, a screenshot attached to a bug, a sound a game will play.</p></div>
+          <div class="blk"><p><strong>A file with both a source and a rendering offers both</strong>, one control apart,
+          the way markdown already does. Which one opens first depends on the kind:</p></div>
+          <div class="blk"><table>
+          <thead>
+          <tr>
+          <th>Kind</th>
+          <th>Opens as</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+          <td>Markdown</td>
+          <td>The rendered document</td>
+          </tr>
+          <tr>
+          <td>Image, audio, video, PDF</td>
+          <td>The thing itself</td>
+          </tr>
+          <tr>
+          <td>HTML, SVG, and every other text format</td>
+          <td>The source</td>
+          </tr>
+          <tr>
+          <td>Anything else</td>
+          <td>A line naming its type and size</td>
+          </tr>
+          </tbody>
+          </table></div>
+          <div class="blk"><p><strong>The agent can override that per file</strong>, because it knows which question it is
+          asking. A change to a page's styling wants the page. A change to the same file's
+          markup wants the source. Nothing else in the request knows the difference.</p></div>
+          <div class="blk"><p><strong>A changed image shows before and after, stacked at the same width</strong>, with the
+          dimensions and byte size of each. Stacked rather than side by side for the same
+          reason diffs are unified: two images across a phone screen are two thumbnails. A
+          new image has no before and is shown on its own.</p></div>
+          <div class="blk"><p><strong>Rendering a project's own files is the one place this surface runs something
+          an agent wrote.</strong> An HTML file in a review is not a document, it is a program,
+          and a page that executes with the surface's privileges can read the queue, post
+          comments, and approve its own review. The agent that wrote it has every reason
+          to and no way to be trusted not to.</p></div>
+          <div class="blk"><p>So anything that can execute renders in a sandbox, from an origin that is not
+          the surface's, with no access back to it. That covers HTML, and it covers SVG,
+          which is a document format that can carry script and is routinely mistaken for
+          an image format. An SVG shown as an image is safe, because an image cannot
+          execute. The same file opened as a page is not.</p></div>
+          <div class="blk"><p><strong>A file too large to send to a phone is not sent until asked.</strong> The surface
+          names it, says it is past the limit, and offers to load it anyway. The limit is
+          a real one: a review is read over whatever connection the reviewer has, and a
+          video that would take a minute to arrive has already cost more than the review
+          was worth. The surface cannot tell wifi from cellular, so it names the limit
+          rather than the connection, and the reviewer who knows decides.</p></div>
+          <div class="blk"><h3>Widening</h3></div>
+          <div class="blk"><p>Three steps out, each one control rather than a navigation.</p></div>
+          <div class="blk"><p><strong>From a hunk to the whole file</strong>, with the change still marked in place.</p></div>
+          <div class="blk"><p><strong>From a file to any other file in the project</strong>, as it was at that round. A
+          diff often refers to something it does not contain, and walking to a computer to
+          look it up ends the review. It costs nothing extra: the round already holds
+          every file the agent touched, and everything else is in git at the base commit.</p></div>
+          <div class="blk changed"><p><strong>What the change is measured against is <del>a</del><ins>one</ins> control<ins> with two
+          settings</ins>.</strong> The previous round is the default from round two onward and
+          answers what moved since the last reading. The review's base answers what this
+          review has done in total<ins>, which is what a reviewer wants before approving
+          something that took four rounds</ins>. The control sits in the toolbar of
+          <a href="widening.html#whole"><del>each</del><ins>the</ins> review<ins> page</ins></a>.</p></div>
+          <div class="blk"><h3>Making a comment</h3></div>
+          <div class="blk"><p><strong>A comment attaches at one of four levels.</strong> To a line or a range of lines. To
+          a passage, which is what a rendered document offers instead of lines. To a file,
+          for a point about the file rather than a place in it. To the review, for the
+          point that the approach is wrong, which has nowhere else to go and is the most
+          important comment anybody writes.</p></div>
+          <div class="blk"><p><strong>The reviewer selects in whatever they are reading, and the agent always
+          receives a path, a line range, and the quoted text.</strong> A passage in a rendered
+          document maps to lines in the frozen source exactly, because the source cannot
+          move. So an agent never has to work out what a comment was pointing at, whatever
+          view produced it.</p></div>
+          <div class="blk"><p><strong>A comment is saved the moment it is written.</strong> Storing and releasing are
+          different things: the comment is durable immediately and invisible to the agent
+          until the verdict. Holding a round's comments in the page until submission would
+          be simpler and would lose a review to a closed tab, a dead battery, or a phone
+          that decided to reclaim some memory.</p></div>
+          <div class="blk"><p><strong>A comment is durable once eyeball has acknowledged it, and visible until
+          then.</strong> A save that fails leaves the text on screen, marked as not sent, with a
+          retry. The surface never discards what somebody typed, and never claims to have
+          stored something it has not.</p></div>
+          <div class="blk"><p><strong>A live connection is assumed.</strong> This is a conversation with an agent that is
+          running right now, on a machine reachable from the phone, and the reviewer is
+          holding one side of it. Reviewing with no connection is not a case worth
+          building for, any more than a terminal is worth building for a network that is
+          not there.</p></div>
+          <div class="blk"><p>That assumption is worth stating rather than leaving implied, because the
+          alternative was designed and rejected. Storing comments on the device and
+          draining them later means a second copy of every comment, a reconciliation on
+          boot, and a write path that has to be correct in a case nobody will hit. What it
+          buys is a comment typed in a basement, on a phone that could not have loaded the
+          review in the first place.</p></div>
+          <div class="blk"><p><strong>Assuming a connection is not the same as ignoring its absence.</strong> The surface
+          does not work offline. It does have to say when it is offline, and the
+          difference between those two is the whole of this section.</p></div>
+          <div class="blk"><p>A surface that renders from the server and acts through it has one failure worse
+          than any other: a tap that does nothing. The button looks the same before and
+          after, so the reviewer taps it again, then holds it, then assumes they missed.
+          Nothing on screen separates an unreachable server from a mis-aimed thumb. This
+          has been watched happening on a surface built this way, which is why it is a
+          requirement here rather than an afterthought.</p></div>
+          <div class="blk"><p>So:</p></div>
+          <div class="blk"><ul>
+          <li><strong>Losing the connection is stated, not implied.</strong> A visible notice, present
+          for as long as the condition is, saying what cannot be done and offering to
+          try again.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Every action that needs the server reports its own failure</strong>, on the control
+          that was used, in words. Not a spinner that stops, and never nothing.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Nothing is shown while the connection is healthy.</strong> A permanent indicator
+          becomes furniture within a day and stops being read, which leaves the reviewer
+          with no signal at the moment one matters.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Text already typed survives the failure.</strong> A comment whose save did not land
+          keeps its text and offers a retry.</li>
+          </ul></div>
+          <div class="blk"><p><strong>This round's comments are listed, editable, and deletable until the verdict.</strong>
+          Nothing has been released yet, so a point that turned out to be wrong by the end
+          of the reading can be removed rather than explained away.</p></div>
+          <div class="blk"><h3>Deciding</h3></div>
+          <div class="blk"><p><strong>The decision bar is pinned to the bottom of the review page.</strong> Approving a
+          long document must not require scrolling to the end of it, and the bar is where
+          the reviewer already looks.</p></div>
+          <div class="blk"><p><strong>Two verdicts: approve, or request changes.</strong> Both release the round.</p></div>
+          <div class="blk"><p><strong>A verdict carries an optional note</strong>, which is the place for the judgment that
+          is about the whole thing rather than any line of it.</p></div>
+          <div class="blk"><p><strong>Requesting changes with no comment and no note is refused.</strong> The agent would
+          receive an instruction to change something with no statement of what, and would
+          either guess or come back to ask. The refusal names the fix.</p></div>
+          <div class="blk"><p><strong>The bar says what is about to be sent</strong>, as a count of comments. Submitting is
+          the moment a reading becomes irreversible, and the reviewer should not have to
+          remember how many points they made.</p></div>
+          <div class="blk"><p><strong>After a verdict the round is closed</strong>, the page shows the decision, and the
+          review leaves the waiting list. A comment written on a closed round is allowed
+          and goes out on its own immediately. Batching exists to protect a reading in
+          progress, and that reading is over, so holding the comment would hold it until a
+          round that may never be requested.</p></div>
+          <div class="blk"><h3>The project view</h3></div>
+          <div class="blk"><p>Reachable from any review's header, one per project.</p></div>
+          <div class="blk"><p><strong>It lists the project's open reviews</strong>, which is the same information the queue
+          carries, arranged by project instead of by urgency.</p></div>
+          <div class="blk"><p><strong>It shows each working copy</strong>, meaning everything currently changed on disk in
+          each working copy an agent has used that is still on disk, including work no
+          agent has submitted for review. A worktree no agent has run eyeball in is not
+          shown, since git's own list of worktrees misnames the main checkout in some
+          layouts. This is the step back: what is going on in this repository right now,
+          across every review and outside all of them. It is read-only context rather than
+          a reviewable object, and it is live rather than frozen, because showing the
+          present is its whole job.</p></div>
+          <div class="blk"><h3>First run</h3></div>
+          <div class="blk"><p><strong>The surface is installed to the home screen once, and granted notification
+          permission once.</strong> Until that happens, notifications do not arrive, which makes
+          this the one setup step that has to be impossible to miss rather than something
+          found later in a settings screen.</p></div>
+          <div class="blk"><p>So an uninstalled surface says what is missing and offers the two steps in
+          order, and a surface whose push subscription has lapsed says that too. A queue
+          that looks empty because nothing is arriving is the failure mode this prevents.</p></div>
+          <div class="blk"><h2>Notification</h2></div>
+          <div class="blk"><p><strong>One notification per request, deep linked to the review.</strong> Opening it lands on
+          the round, not on the home screen.</p></div>
+          <div class="blk"><p>Comments and verdicts generate none: they travel toward the agent, which is
+          waiting on a command rather than watching a phone.</p></div>
+          <div class="blk"><p>The channel has to reach a phone that is locked, with the surface not open, and
+          it has to work while away from home.</p></div>
+          <div class="blk"><p><strong>Web push carries them</strong>, from the surface itself. The page is installed to the
+          home screen and granted permission once, and after that a request wakes the
+          phone with no other software involved. Nothing to run, no bot to register, no
+          token to hold, and no third party between an agent and the person reviewing its
+          work.</p></div>
+          <div class="blk"><p>The cost is a real setup step and a platform constraint. iOS delivers web push
+          only to a page installed to the home screen, served over HTTPS with a
+          certificate the phone already trusts, so the surface has to be installable and
+          properly served before a single notification arrives. A subscription can also
+          lapse silently, which means the surface has to notice a dead subscription rather
+          than assume delivery.</p></div>
+          <div class="blk"><p><strong>A chat bot is the escape hatch</strong>, wired the same way and used if web push
+          proves unreliable in practice. Telegram is the obvious candidate, because a bot
+          there is the shortest path to a phone that already exists. The two things such a
+          bot is good at do not help here. A bot is bidirectional, and the reply path is
+          the surface rather than the message. A bot carries pictures and files, and the
+          payload is a link. What is left is a credential to hold and a service to depend
+          on, weighed against a delivery mechanism the surface owns outright.</p></div>
+          <div class="blk"><h2>The agent's side</h2></div>
+          <div class="blk"><p>An agent drives eyeball through a command-line tool. The target is that an agent
+          gets it right with no worked example in front of it, which is a stricter bar
+          than a person needs and settles most of the interface.</p></div>
+          <div class="blk"><ul>
+          <li><strong>Flags parse in any position.</strong> Argument order is the thing a model gets
+          wrong once per session forever.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong><code>--json</code> on everything</strong>, with a documented, stable schema, and a <code>--format</code>
+          template over the same shape.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong><code>eyeball doc</code> prints the manual</strong>, complete enough that an agent can drive
+          the tool from it alone.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Every mutation prints what to do next</strong>, including, at the one place it
+          matters, an instruction to stop and wait rather than to continue.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A refusal explains and names the fix</strong>, rather than reporting an error.</li>
+          </ul></div>
+          <div class="blk"><p>The verbs an agent needs:</p></div>
+          <div class="blk"><pre><code>eyeball request &lt;paths...&gt; -m &quot;what to look at&quot;   opens a review, returns its id
+eyeball wait &lt;id&gt;                                 blocks until the verdict, prints the batch
+eyeball status                                    this agent's reviews, and their states
+eyeball reply &lt;comment-id&gt; -m &quot;what was done&quot;     optional, per comment
+eyeball abandon &lt;id&gt;                              withdraw the question
+</code></pre></div>
+          <div class="blk"><p><code>request</code> also takes <code>--view &lt;path&gt;=rendered</code> or <code>--view &lt;path&gt;=source</code>, the
+          per-file override described under Reading the change, for the round it opens.</p></div>
+          <div class="blk"><p><strong>Waiting is a blocking command, not a poll.</strong> An agent that polls burns context
+          on nothing happening. <code>wait</code> returns once, with every comment and the verdict
+          together, which is also exactly what a monitor in a harness needs.</p></div>
+          <div class="blk"><p><strong>State survives a cleared context and a restarted session.</strong> Everything lives
+          in eyeball, not in the conversation. An agent that has lost its memory runs
+          <code>eyeball status</code> in its working copy and gets back the reviews it owns, their
+          states, and what it is waiting on. Nothing has to be remembered across a restart
+          except the working directory, which the shell already knows.</p></div>
+          <div class="blk"><p><strong>An agent sees its own reviews.</strong> The reviewer's surface combines every project
+          and every agent. An agent's view is its own slice, so a spec review in another
+          project is not something it has to read past or, worse, act on.</p></div>
+          <div class="blk"><p>Identity has to survive a restart, so an agent is identified by the working copy
+          it runs in, with an explicit name available for the case of two agents in one
+          directory. A session id would be the obvious choice and is the wrong one: it
+          dies with the session, which is the exact event this has to survive.</p></div>
+          <div class="blk"><h2>One instance, many projects</h2></div>
+          <div class="blk"><p>One eyeball runs. Every project on the machine uses it.</p></div>
+          <div class="blk"><p><strong>A project is discovered by walking up from the working directory</strong>, so an
+          agent does not have to be told which project it is in, and does not have to get
+          it right after a restart. The first <code>.git</code> above the working directory is the
+          working copy, and the repository it belongs to is the project, so a main
+          checkout and every worktree of it are one project. A directory that is not a git
+          repository is named by a marker file a person writes there once, which is the
+          only setup eyeball ever asks for and is asked for only where the free answer is
+          unavailable. It is a project with one working copy.</p></div>
+          <div class="blk"><p><strong>A review can move between working copies of its project.</strong> An agent that did
+          the work in a worktree can ask for the next round from the main checkout, which
+          is where the merge happens. That round is captured from the main checkout, and
+          its context is read from there. The agent passes its name, since by default an
+          agent is named by the working copy it runs in.</p></div>
+          <div class="blk"><p><strong>eyeball does not modify the project.</strong> No state written into the repository,
+          no files added to a git project at all, no changes to its build or tooling. It
+          reads. Its own state lives in its own store, keyed by the project it belongs to.</p></div>
+          <div class="blk"><p>That is a hard constraint rather than a preference. A control surface each
+          project has to adopt is one that gets adopted where somebody remembered, which
+          is not everywhere, and the projects it misses are the ones where an agent is
+          working unattended.</p></div>
+          <div class="blk"><p><strong>Git earns its place three times and is not otherwise required.</strong> It answers
+          where the project root is. It answers what has changed on disk, which is what
+          the working copy view shows and what a first round diffs against. And it holds
+          every file the agent did not touch, which is what makes opening one for context
+          free rather than a reason to copy a repository.</p></div>
+          <div class="blk"><p>None of those answers is available cheaply anywhere else. Everything after that
+          is eyeball's own: a round is a diff between two captures it holds, so rounds two
+          and later never consult git for the change itself.</p></div>
+          <div class="blk"><p>Without git there is no base commit, so the middle source is gone and browsing
+          falls back to the working copy as it is now. Reviews work, and a file opened for
+          context is labeled as live rather than as of the round. That is the second cost
+          of running outside git, after a first round that shows whole files.</p></div>
+          <div class="blk"><p><strong>The tool is harness independent.</strong> It is a command-line program with JSON
+          output. Anything that can run a process can drive it. Convenience glue for one
+          harness, such as an installable skill pointing an agent at <code>eyeball doc</code>, is
+          additive and never required.</p></div>
+          <div class="blk"><h2>An approval is a fact, not a claim</h2></div>
+          <div class="blk"><p>A gate on a piece of work is either a <strong>proof</strong>, which is a command that can be
+          run and can fail, or a <strong>claim</strong>, which is a label a person asserts and nothing
+          verifies. Proofs are worth more, so the useful move is to convert claims into
+          proofs wherever one can be built. Human review is the standing example of a
+          claim that resists it: no command can establish that a person read something and
+          agreed to it.</p></div>
+          <div class="blk"><p>eyeball turns that one into a proof. An approval is a record of which review,
+          which round, what content, and when, held outside the session that asked for it.
+          Anything that gates on human review can read it instead of trusting a label.</p></div>
+          <div class="blk"><p>The line eyeball does not cross: an approval records that a person approved
+          something, and nothing else. It never advances a spec, checks a box, or writes
+          to another system. That state has an owner already, and an unauthenticated page
+          on a private network is not it.</p></div>
+          <div class="blk"><h2>Out of scope for now</h2></div>
+          <div class="blk"><p>Named, because each is a plausible next step and none is in the first version.</p></div>
+          <div class="blk"><ul>
+          <li><strong>Commenting on a file no agent has submitted</strong>, from the working copy view,
+          as a way to open a review the agent did not ask for. Useful, and reachable
+          once that view exists. Today the same thing happens by telling the agent.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Threaded discussion.</strong> A comment and an optional reply is the whole model. A
+          conversation on a phone about a line of code is a worse version of talking to
+          the agent.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>More than one reviewer.</strong> One person, one queue. Multiple reviewers change
+          the meaning of a verdict and most of the design with it.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Authentication.</strong> The surface is reachable on a private network only, which
+          is the same protection the machine itself has.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Editing from the surface.</strong> An edit made there is a change nobody reviewed,
+          and the surface is a worse editor than the one the agent already has.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Anything that runs the project's build.</strong> eyeball reads and displays. Proofs
+          belong to whatever already owns them.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Downloading a file the surface cannot render.</strong> A binary saved to a phone is
+          not a thing anybody reviews. Naming the file, its type and its size answers
+          what the reviewer actually asked.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Side by side diffs.</strong> Unified reads at every width, and a second column that
+          only works on a desktop is a second layout to maintain for the case that
+          matters least.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Search across a project.</strong> A review names its paths and a diff links to what
+          it references, which covers finding things by following them. Finding things
+          by guessing at a word is a different tool.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>A native application.</strong> An installed page delivers notifications, an icon
+          and a badge. What is left needs a store account and a build per platform.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Reviewing with no connection.</strong> The work being reviewed is on a machine the
+          phone has to reach anyway, and the agent waiting for the verdict is running on
+          it. A surface that works without the network is a surface that cannot do
+          anything useful when it gets one.</li>
+          </ul></div>
+          <div class="blk"><h2>Open questions</h2></div>
+          <div class="blk"><ul>
+          <li><strong>What a scope is made of.</strong> Paths are the obvious answer and cover the cases
+          named here. Whether a review ever needs to name something other than a path is
+          not yet known.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Whether web push holds up on a locked iPhone</strong> across days of real use, and
+          what the surface does about a subscription that has silently lapsed. The
+          escape hatch exists because this is unproven here, not because it is expected
+          to fail.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>What a marker file contains</strong> beyond naming a project root. Nothing yet
+          requires a second field, and adding one before something does is how a
+          zero-setup tool acquires configuration.</li>
+          </ul></div>
+          <div class="blk changed"><del class="old">Whether a first round outside git has a base at all. With no record of the file
+          before the edit, it could show whole files or refuse the request.</del></div>
+          <div class="blk"><ul>
+          <li><strong>How a range of lines is selected on a touch screen.</strong> A single line is a tap
+          and a range is not obviously anything. The fallback is that a comment on one
+          line of a hunk is usually enough, which would make ranges a desktop
+          convenience rather than a feature.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>Where the list of files and a deferred file start.</strong> Ten files and 500
+          changed lines are guesses written down so they can be corrected, and the
+          correction needs real reviews rather than reasoning.</li>
+          </ul></div>
+          <div class="blk"><ul>
+          <li><strong>How long a decided review is kept</strong>, and whether captures are pruned with
+          it. Comments are ephemeral by design. The record of what was approved may not
+          want to be.</li>
+          </ul></div>
+          </div>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+  <ul class="note-list">
+    <li><b>Nothing folds here.</b> The review page folds a document to what
+    changed. This page is where the whole document is read, so the changes sit
+    in it at their own places, and scrolling finds them by their rules.</li>
+    <li><b>The marks are the review page&rsquo;s</b>, so a passage reads the same
+    in both places, and <b>Source</b> is one tap away for the exact edit.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
 <section class="spec" id="file">
   <h2>Step three: any file at that round <span class="tag">context, not change</span></h2>
   <p>A file the review does not touch, opened because the change refers to it.

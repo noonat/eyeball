@@ -556,36 +556,61 @@
 <section class="spec" id="prose">
   <h2>Rendered prose <span class="tag">markdown</span></h2>
   <p>Markdown opens as a document, because a patch of a paragraph is a poor way
-  to read a paragraph. A changed passage gets a rule beside it rather than a
-  wash through it, so a heavily edited document stays readable as a document.
-  Tapping a marked passage shows what it replaced without leaving the rendered
-  view.</p>
+  to read a paragraph. On the review page a document&rsquo;s card shows what
+  changed and folds the rest. A changed passage gets a rule beside it, and its
+  changed words are marked where they stand, so the old and the new text are
+  read in one place rather than compared by eye.</p>
 
   <div class="pair">
     <figure class="frame">
       <figcaption>light</figcaption>
       <div class="slab" data-theme="light"><div class="app"><div class="page">
-        <div class="prose">
+        <details class="file" open><summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;7</span></span></summary>
+        <div class="filebody"><div class="prose">
+          <details class="fold"><summary>6 unchanged passages</summary>
+            <div class="blk"><h1>Product</h1></div>
+            <div class="blk"><p>A review surface for work done by agents. Agents ask for
+            review, a person reads and comments on a phone, and the verdict releases
+            the agent to continue.</p></div>
+            <div class="blk"><h2>The problem</h2></div>
+            <div class="blk"><p>Several agents work at once. Each reaches a point where it
+            should stop and have its work looked at.</p></div>
+            <div class="blk"><p>Everything hard about this follows from that ratio. The
+            scarce resource is the reviewer&rsquo;s attention.</p></div>
+            <div class="blk"><p>Two failures matter more than the rest.</p></div>
+          </details>
           <div class="blk"><h2>A round is frozen</h2></div>
           <div class="blk"><p>Every round captures the content it is asking
           about, at the moment it asks. The reviewer reads that capture.</p></div>
           <div class="blk changed"><p>Nothing moves under the reviewer, and a
-          comment points at an exact line that never drifts.</p></div>
-          <details class="blk changed"><summary><p>The cost is storage, and it
-          is small: captures are content addressed, so a round that changes four
-          files stores four new blobs and a list of names.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The cost is storage, and nobody has measured
-          it yet.</span></details>
-          <details class="blk changed" open><summary><p>A review&rsquo;s first
-          round needs something to change against. In a git repository the base
-          is HEAD by default, and the agent can name a different one.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The base of a first round is always the empty
-          tree.</span></details>
-          <div class="blk changed was"><span class="was-text">Rounds are numbered
-          from zero, so the first request is round 0.</span></div>
-          <div class="blk"><ul>
-            <li><input checked="" disabled="" type="checkbox"> Capture the files under the review&rsquo;s paths</li>
-            <li><input checked="" disabled="" type="checkbox"> Record the base commit</li>
-            <li><input disabled="" type="checkbox"> Drop blobs no round refers to</li>
-          </ul></div>
+          comment points at <del>a</del><ins>an exact</ins> line that never drifts, as
+          <a href="widening.html#whole">the <del>diff</del><ins>whole file</ins></a> shows.</p></div>
+          <div class="blk changed"><p>In a git repository the base is <code>HEAD</code>
+          unless the agent names one with <code>--base<del>-commit</del></code>.</p></div>
+          <div class="blk changed"><del class="old">Rounds are numbered from zero, so the
+          first request is round 0.</del></div>
+          <div class="blk"><p>A capture is a base commit and the content of every file
+          that differs from it. Nothing else is copied.</p></div>
+          <details class="fold" open><summary>2 unchanged passages</summary>
+            <div class="blk"><p>The cost is storage, and it is small: captures are content
+            addressed, so a round that changes four files stores four new blobs.</p></div>
+            <div class="blk"><p>A file that matches the base resolves out of git and costs
+            nothing to keep.</p></div>
+          </details>
+          <div class="blk"><p>The reviewer still sees exactly what the agent had,
+          whichever file they open.</p></div>
+          <div class="blk changed"><del class="old">A review&rsquo;s first round compares
+          against the empty tree.</del>
+          <ins class="whole"><p>A review&rsquo;s first round needs something to change
+          against.</p></ins></div>
+          <div class="blk changed"><ins class="whole"><p>Elsewhere the base is empty and the
+          first round shows whole files.</p></ins></div>
+          <div class="blk"><ul><li><input checked="" disabled="" type="checkbox"> Capture the files under the review&rsquo;s paths</li></ul></div>
+          <div class="blk changed"><ul><li><ins><input checked="" disabled="" type="checkbox"></ins> Record the base commit</li></ul></div>
+          <div class="blk"><p>A file opens from the first of three sources that has it:</p></div>
+          <div class="blk"><ol start="1"><li><p><strong>The round&rsquo;s capture.</strong> Frozen and exact.</p></li></ol></div>
+          <div class="blk changed"><ol start="2"><li><p><strong>The base commit.</strong> Exact as <del>well</del><ins>the capture</ins>.</p></li></ol></div>
+          <div class="blk"><ol start="3"><li><p><strong>The working copy.</strong> Possibly moved since.</p></li></ol></div>
           <div class="blk"><pre><code><span class="k">func</span> (s *Store) <span class="f">Freeze</span>(ctx context.Context, id <span class="k">int64</span>) <span class="k">error</span> {
 	<span class="c">// Capture before the reply, so a crash cannot leave a round with no content.</span>
 	<span class="k">if</span> err := s.<span class="f">capture</span>(ctx, id, <span class="n">0</span>); err != <span class="k">nil</span> {
@@ -594,44 +619,78 @@
 	<span class="k">return</span> <span class="k">nil</span>
 }
 </code></pre></div>
-          <div class="blk"><table>
+          <div class="blk changed"><table>
             <thead>
               <tr><th>Link</th><th>Route</th><th align="right">Iteration</th></tr>
             </thead>
             <tbody>
               <tr><td>a code card&rsquo;s &ldquo;Whole file&rdquo;</td><td>file route</td><td align="right">5</td></tr>
               <tr><td>the review page&rsquo;s &ldquo;All files&rdquo; row</td><td>file route, tree</td><td align="right">6</td></tr>
-              <tr><td>the brief&rsquo;s project</td><td>project view</td><td align="right">9</td></tr>
+              <tr><td>the brief&rsquo;s project</td><td>project view</td><td align="right"><del>9</del><ins>10</ins></td></tr>
             </tbody>
           </table></div>
-        </div>
+          <div class="blk"><h2>Comments release as a batch</h2></div>
+          <details class="fold"><summary>3 unchanged passages</summary>
+            <div class="blk"><p>A comment is invisible to the agent until the verdict is
+            submitted.</p></div>
+            <div class="blk"><p>The reviewer can write ten comments, delete three, and
+            send the rest with the verdict.</p></div>
+            <div class="blk"><p>The agent receives them together, once.</p></div>
+          </details>
+        </div></div>
+        </details>
       </div></div></div>
     </figure>
 
     <figure class="frame">
       <figcaption>dark</figcaption>
       <div class="slab" data-theme="dark"><div class="app"><div class="page">
-        <div class="prose">
+        <details class="file" open><summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+9</span> <span class="minus">&minus;7</span></span></summary>
+        <div class="filebody"><div class="prose">
+          <details class="fold"><summary>6 unchanged passages</summary>
+            <div class="blk"><h1>Product</h1></div>
+            <div class="blk"><p>A review surface for work done by agents. Agents ask for
+            review, a person reads and comments on a phone, and the verdict releases
+            the agent to continue.</p></div>
+            <div class="blk"><h2>The problem</h2></div>
+            <div class="blk"><p>Several agents work at once. Each reaches a point where it
+            should stop and have its work looked at.</p></div>
+            <div class="blk"><p>Everything hard about this follows from that ratio. The
+            scarce resource is the reviewer&rsquo;s attention.</p></div>
+            <div class="blk"><p>Two failures matter more than the rest.</p></div>
+          </details>
           <div class="blk"><h2>A round is frozen</h2></div>
           <div class="blk"><p>Every round captures the content it is asking
           about, at the moment it asks. The reviewer reads that capture.</p></div>
           <div class="blk changed"><p>Nothing moves under the reviewer, and a
-          comment points at an exact line that never drifts.</p></div>
-          <details class="blk changed"><summary><p>The cost is storage, and it
-          is small: captures are content addressed, so a round that changes four
-          files stores four new blobs and a list of names.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The cost is storage, and nobody has measured
-          it yet.</span></details>
-          <details class="blk changed" open><summary><p>A review&rsquo;s first
-          round needs something to change against. In a git repository the base
-          is HEAD by default, and the agent can name a different one.</p><span class="hint cue-show">Show what it replaced</span><span class="hint cue-hide">Hide what it replaced</span></summary><span class="was-text">The base of a first round is always the empty
-          tree.</span></details>
-          <div class="blk changed was"><span class="was-text">Rounds are numbered
-          from zero, so the first request is round 0.</span></div>
-          <div class="blk"><ul>
-            <li><input checked="" disabled="" type="checkbox"> Capture the files under the review&rsquo;s paths</li>
-            <li><input checked="" disabled="" type="checkbox"> Record the base commit</li>
-            <li><input disabled="" type="checkbox"> Drop blobs no round refers to</li>
-          </ul></div>
+          comment points at <del>a</del><ins>an exact</ins> line that never drifts, as
+          <a href="widening.html#whole">the <del>diff</del><ins>whole file</ins></a> shows.</p></div>
+          <div class="blk changed"><p>In a git repository the base is <code>HEAD</code>
+          unless the agent names one with <code>--base<del>-commit</del></code>.</p></div>
+          <div class="blk changed"><del class="old">Rounds are numbered from zero, so the
+          first request is round 0.</del></div>
+          <div class="blk"><p>A capture is a base commit and the content of every file
+          that differs from it. Nothing else is copied.</p></div>
+          <details class="fold" open><summary>2 unchanged passages</summary>
+            <div class="blk"><p>The cost is storage, and it is small: captures are content
+            addressed, so a round that changes four files stores four new blobs.</p></div>
+            <div class="blk"><p>A file that matches the base resolves out of git and costs
+            nothing to keep.</p></div>
+          </details>
+          <div class="blk"><p>The reviewer still sees exactly what the agent had,
+          whichever file they open.</p></div>
+          <div class="blk changed"><del class="old">A review&rsquo;s first round compares
+          against the empty tree.</del>
+          <ins class="whole"><p>A review&rsquo;s first round needs something to change
+          against.</p></ins></div>
+          <div class="blk changed"><ins class="whole"><p>Elsewhere the base is empty and the
+          first round shows whole files.</p></ins></div>
+          <div class="blk"><ul><li><input checked="" disabled="" type="checkbox"> Capture the files under the review&rsquo;s paths</li></ul></div>
+          <div class="blk changed"><ul><li><ins><input checked="" disabled="" type="checkbox"></ins> Record the base commit</li></ul></div>
+          <div class="blk"><p>A file opens from the first of three sources that has it:</p></div>
+          <div class="blk"><ol start="1"><li><p><strong>The round&rsquo;s capture.</strong> Frozen and exact.</p></li></ol></div>
+          <div class="blk changed"><ol start="2"><li><p><strong>The base commit.</strong> Exact as <del>well</del><ins>the capture</ins>.</p></li></ol></div>
+          <div class="blk"><ol start="3"><li><p><strong>The working copy.</strong> Possibly moved since.</p></li></ol></div>
           <div class="blk"><pre><code><span class="k">func</span> (s *Store) <span class="f">Freeze</span>(ctx context.Context, id <span class="k">int64</span>) <span class="k">error</span> {
 	<span class="c">// Capture before the reply, so a crash cannot leave a round with no content.</span>
 	<span class="k">if</span> err := s.<span class="f">capture</span>(ctx, id, <span class="n">0</span>); err != <span class="k">nil</span> {
@@ -640,44 +699,57 @@
 	<span class="k">return</span> <span class="k">nil</span>
 }
 </code></pre></div>
-          <div class="blk"><table>
+          <div class="blk changed"><table>
             <thead>
               <tr><th>Link</th><th>Route</th><th align="right">Iteration</th></tr>
             </thead>
             <tbody>
               <tr><td>a code card&rsquo;s &ldquo;Whole file&rdquo;</td><td>file route</td><td align="right">5</td></tr>
               <tr><td>the review page&rsquo;s &ldquo;All files&rdquo; row</td><td>file route, tree</td><td align="right">6</td></tr>
-              <tr><td>the brief&rsquo;s project</td><td>project view</td><td align="right">9</td></tr>
+              <tr><td>the brief&rsquo;s project</td><td>project view</td><td align="right"><del>9</del><ins>10</ins></td></tr>
             </tbody>
           </table></div>
-        </div>
+          <div class="blk"><h2>Comments release as a batch</h2></div>
+          <details class="fold"><summary>3 unchanged passages</summary>
+            <div class="blk"><p>A comment is invisible to the agent until the verdict is
+            submitted.</p></div>
+            <div class="blk"><p>The reviewer can write ten comments, delete three, and
+            send the rest with the verdict.</p></div>
+            <div class="blk"><p>The agent receives them together, once.</p></div>
+          </details>
+        </div></div>
+        </details>
       </div></div></div>
     </figure>
   </div>
 
   <ul class="note-list">
-    <li><b>A teal rule marks a changed passage, an amber rule marks one that is
-    showing what it replaced.</b> Two states of the same control, so the reader
-    can tell an expanded passage from a collapsed one while scrolling past.</li>
-    <li><b>The control is a <code>details</code> element.</b> The passage is its
-    summary and the replaced text is its body, so a tap opens it with no script.
-    The surface&rsquo;s policy blocks inline styles, so both states are rules in
-    <code>app.css</code>. A passage with nothing replaced stays a <code>div</code> with the
-    teal rule.</li>
-    <li><b>A passage that opens says so in a hint line under it.</b> It reads
-    &ldquo;Show what it replaced&rdquo; closed and &ldquo;Hide what it
-    replaced&rdquo; open. Without it, a closed passage and a plain insertion
-    draw the same teal rule, and the only way to find which passages open is to
-    tap each one. The hint costs a line per passage that opens. A chevron and a
-    dashed rule were the alternatives the owner chose against on the phone. As
-    this sheet reads them, the chevron took a strip down the right of the text,
-    and the dashed rule was a pattern a reader had to learn. The
-    two hints are spans in the summary, switched by the <code>open</code>
-    attribute in <code>app.css</code>, so the tap target is still the whole
-    passage.</li>
-    <li><b>A removed passage keeps the amber rule and holds only what was
-    removed.</b> Nothing is left to collapse it to, and a removal with no rule
-    beside it would not show in the rendered view at all.</li>
+    <li><b>A teal rule marks a changed passage.</b> It finds a change while
+    scrolling, and it is the only mark on a change to formatting alone, which
+    changes no word.</li>
+    <li><b>Changed words are marked where they stand</b>, in a plain sentence,
+    inside a link and inside a code span. An added word is tinted with a bar
+    under it, and a removed one is tinted and struck through. The strike is the
+    signal that survives without hue, and the bar marks an addition with no
+    removal beside it. The tints are the code diff&rsquo;s word marks. A removed
+    word and the word that replaced it are drawn two pixels apart, since they
+    touch in the source and drawn touching they read as one word.</li>
+    <li><b>A fold is a <code>details</code> element</b>, so it opens with no
+    script. Its line spans the card like a hunk header, says how many passages
+    it holds, and turns its chevron when open. A fold at either end of the card
+    meets the card&rsquo;s edge.</li>
+    <li><b>What a passage replaced is struck through above it</b> when words
+    cannot be marked: a run replaced by a different number of passages, or a
+    passage whose structure changed. Each new passage in the run is tinted
+    whole. The struck text is smaller and in the removal color, so the new text
+    stays the thing being read. A removed passage holds only its struck text,
+    with the rule beside it.</li>
+    <li><b>A ticked task box marks the box</b>, since the box is the only thing
+    that changed.</li>
+    <li><b>Each list item is a passage, written as a list of one.</b> Two in a
+    row are spaced as two items of one list, so the tight task list and the
+    loose numbered list here read as the lists they are, and an ordered item
+    keeps its own number.</li>
     <li><b>A code block and a table scroll inside the passage</b>, as the diff
     does, so a long line never takes the page sideways. The code block uses the
     diff&rsquo;s five syntax roles.</li>

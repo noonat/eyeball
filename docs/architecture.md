@@ -473,7 +473,9 @@ measured:
   written where it was removed, and in a table that lost a cell that point is
   between two cells, where text is not valid.
 - A task item's box is a token, `[ ]` or `[x]`. It renders as an `<input>` tag
-  and no text, so ticking a box changed no word and marked nothing.
+  and no text, so ticking a box changed no word and marked nothing. The new box
+  is wrapped in `<ins>`, and the box it replaced is not written, since struck
+  through beside the new one it would read as a second box.
 
 **A changed HTML block is shown as a rewrite.** Both sides render the same
 placeholder sentence, so comparing their renderings finds nothing, and the
@@ -483,6 +485,10 @@ shown struck through above the placeholder.
 Everything written comes from goldmark's output, which has already escaped text
 and dropped raw HTML, so assembling it adds no markup of its own beyond the two
 marking elements.
+
+**A document's own strikethrough is written as `<s>`.** goldmark writes
+`~~text~~` as `<del>`, the element a removed word is marked with, so struck text
+the author wrote would read as text the round removed.
 
 ## Checking a merge
 

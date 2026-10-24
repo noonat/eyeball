@@ -1406,6 +1406,187 @@ details.blk.changed[open] > summary > .cue-hide {
   display: block;
 }
 
+/* A passage that is one item of a top-level list is written as a list of its
+ * own, because its comments follow it and nothing but an item is valid inside
+ * a list. Two of them in a row are spaced as two items of one list. Every
+ * margin between them collapses into one, so a loose item's paragraph margins
+ * still win and a loose list stays loose. A comment between two items breaks
+ * the pair, and the list reads as two. */
+.blk:has(> :is(ul, ol) > li:only-child)
+  + .blk
+  > :is(ul, ol):has(> li:only-child) {
+  margin-top: 0.3em;
+}
+
+.blk:has(> :is(ul, ol) > li:only-child):has(
+    + .blk > :is(ul, ol) > li:only-child
+  ),
+.blk:has(+ .blk > :is(ul, ol) > li:only-child)
+  > :is(ul, ol):has(> li:only-child) {
+  margin-bottom: 0;
+}
+
+/* A run of unchanged passages folds into one line that opens in place. The
+ * line spans the card, as a hunk header spans a code card, so a gap in a
+ * document reads as the same thing as a gap between hunks. The card body is a
+ * size container so the line can reach past the prose column's 68ch on a wide
+ * screen, where stopping short of the card's edge looks like a broken element.
+ * A fold is a details element, so opening it needs no script, and it never
+ * holds a passage with a comment, so a comment is never hidden in one. */
+.filebody {
+  container-type: inline-size;
+}
+
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: calc(100cqw + 14px);
+  min-height: 40px;
+  padding: 6px 14px 6px 17px;
+  list-style: none;
+  background: var(--bg-sunk);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font: 600 var(--t-sm) / 1.4 var(--prose);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold > summary::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background-color: var(--ink-faint);
+  -webkit-mask: var(--icon-chevron-right) center / contain no-repeat;
+  mask: var(--icon-chevron-right) center / contain no-repeat;
+}
+
+.fold[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.fold[open] > summary {
+  margin-bottom: 0.85em;
+}
+
+/* A passage inside an opened fold is spaced as it is in the whole document,
+ * which a rule on the document's own children would not reach. */
+.fold > .blk {
+  margin: 0 0 0.85em;
+}
+
+.fold > .blk:last-child {
+  margin-bottom: 0;
+}
+
+/* A fold at either end of the card meets the card's edge, rather than leaving
+ * a strip of the card body above or below it. */
+.prose > .fold:first-child > summary {
+  margin-top: -14px;
+  border-top: 0;
+}
+
+.prose > .fold:last-child:not([open]) {
+  margin-bottom: -14px;
+}
+
+.prose > .fold:last-child:not([open]) > summary {
+  border-bottom: 0;
+}
+
+/* Changed words, marked where they stand, in a passage that replaced exactly
+ * one other. Hue is never the only signal. A removed word is struck through,
+ * and an added one carries a bar under it, which a link's own underline does
+ * not hide, since the bar is heavier and sits lower. The tints are the code
+ * diff's word marks. Clone keeps a mark's ends on every line it wraps across. */
+.prose ins,
+.prose del {
+  border-radius: 3px;
+  padding: 0 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.prose ins {
+  text-decoration: none;
+  background: var(--add-word);
+  box-shadow: inset 0 -2px 0 var(--add-vivid);
+}
+
+.prose del {
+  background: var(--del-word);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--del);
+}
+
+/* A removed word and the word that replaced it touch in the source, and drawn
+ * touching, "a" and "one" read as one word, "aone". */
+.prose del:not(.old) + ins {
+  margin-left: 2px;
+}
+
+/* What a passage replaced, struck through above it, where a passage changed
+ * its structure, a run was replaced by a different number of passages, or a
+ * block of raw HTML changed. A removed passage holds only this. It is always
+ * shown, because there is nothing smaller to show in its place, and it is set
+ * smaller than the document so the new text stays the thing being read. */
+.prose del.old {
+  display: block;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--del);
+  background: var(--del-wash);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--del) 55%, transparent);
+}
+
+.prose del.old + del.old {
+  margin-top: 6px;
+}
+
+.prose del.old + * {
+  margin-top: 8px;
+}
+
+/* A block of raw HTML is struck through as its source, so the markup keeps its
+ * lines. */
+.prose del.old code {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: none;
+  padding: 0;
+  font-size: var(--t-xs);
+}
+
+/* A passage with no one passage it replaced is new as a whole, so it is
+ * tinted as a whole rather than marked word by word. */
+.prose ins.whole {
+  display: block;
+  box-shadow: none;
+  background: var(--add-wash);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+}
+
+.prose ins.whole > :first-child {
+  margin-top: 0;
+}
+
+.prose ins.whole > :last-child {
+  margin-bottom: 0;
+}
+
 /* --------------------------------------------------------- small print */
 
 .hint {

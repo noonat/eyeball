@@ -326,8 +326,9 @@ shows. Ticking a task box marks the box. A changed block of raw HTML, which
 renders as a placeholder, shows its old source struck through above it. A
 passage whose structure changed, such as a table that gained a column, and a run
 of passages replaced by a different number of them, show the old text struck
-through above the new passage, which is highlighted whole. A passage removed
-with nothing in its place shows struck through where it was.
+through above the new passage, which is highlighted whole. A new passage with
+nothing replaced is highlighted whole too. A passage removed with nothing in its
+place shows struck through where it was.
 
 This replaces an earlier rule, that a changed passage is marked by the rule
 alone and its old text opens with a tap. That rule kept a heavily edited
