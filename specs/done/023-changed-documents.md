@@ -15,10 +15,11 @@ with the new by eye. The owner named this on 2026-10-23 as the thing that makes
 reviewing documents hardest: the whole document renders where only the changed
 sections are wanted.
 
-The design is in [docs/product.md](../docs/product.md), under A changed document
-shows what changed, and Changed words are marked in place. The mechanism and
-what probing it found are in [docs/architecture.md](../docs/architecture.md),
-under Marking a rendered document. The owner chose, on 2026-10-23:
+The design is in [docs/product.md](../../docs/product.md), under A changed
+document shows what changed, and Changed words are marked in place. The
+mechanism and what probing it found are in
+[docs/architecture.md](../../docs/architecture.md), under Marking a rendered
+document. The owner chose, on 2026-10-23:
 
 - the nearest heading and one passage each side as context, over one passage
   each side alone, which leaves a change deep in a long section with no section

@@ -611,6 +611,13 @@ words, not two hundred.
 **Judgment.** Update todos in the same commits as the work, never batched at the
 end.
 
+**Judgment.** A finished spec moves into `specs/done/` once its last iteration
+closes, before the branch review. `specs/done/AGENTS.md` tells an agent that
+opens one that it is a record. Cite `docs/` for the current design, never a
+finished spec, because a spec keeps what was planned and `docs/` is corrected
+when the target moves. A new spec is numbered after the highest in either
+directory, so a number is never reused.
+
 **Judgment.** Decisions that outlive a spec get promoted into code, into a
 package's `doc.go`, or into `docs/` before it closes. The spec is ephemeral. The
 code and the documents are the long-term source of truth.

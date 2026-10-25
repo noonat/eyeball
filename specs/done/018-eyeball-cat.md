@@ -26,7 +26,7 @@ approved review holds the path, or when two approved reviews hold different
 bytes for it. The gate asks eyeball rather than reading the blob store from
 disk, because the gate's trust rests on eyeball's answer, and a file on disk is
 not one. How it answers, and why in JSON, is in
-[docs/architecture.md](../docs/architecture.md), under "Reading the approved
+[docs/architecture.md](../../docs/architecture.md), under "Reading the approved
 bytes".
 
 **The gate checks a commit that no ref names.** It builds a throwaway commit

@@ -15,11 +15,12 @@ working on something it has not yet put up for review has no open review, so the
 sentence says no agents are working while agents work. The owner chose on
 2026-10-18 to drop the sentence and the list, and leave the heading alone.
 
-The design is in [docs/product.md](../docs/product.md), under The queue and The
-project view, and the paragraph there names what the list was for. Two things go
-with it. A project with a misconfigured root no longer shows on the queue. The
-project view is reached only from a review's header, the owner's choice over
-keeping one link to a list of projects, which would have added a page.
+The design is in [docs/product.md](../../docs/product.md), under The queue and
+The project view, and the paragraph there names what the list was for. Two
+things go with it. A project with a misconfigured root no longer shows on the
+queue. The project view is reached only from a review's header, the owner's
+choice over keeping one link to a list of projects, which would have added a
+page.
 
 Rewording the sentence to count agents with an open review would make it
 accurate and add nothing. A review is open while its round waits or after

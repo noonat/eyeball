@@ -18,10 +18,10 @@ from, holding the product's invariants rather than trusting whatever calls it.
 Nothing here is reachable from a command line and nothing renders.
 
 Two failures shape the design. A lost comment is the one
-[product.md](../docs/product.md) says this must not have, so a write is fsynced
-before it is acknowledged. A round that names content the disk does not hold is
-a review that cannot be displayed at all, so content is made durable before the
-row referencing it.
+[product.md](../../docs/product.md) says this must not have, so a write is
+fsynced before it is acknowledged. A round that names content the disk does not
+hold is a review that cannot be displayed at all, so content is made durable
+before the row referencing it.
 
 ## Design
 
@@ -65,8 +65,8 @@ reads whatever the caller asked for.
 **No verification on read, and no garbage collection.** Re-hashing a file on
 every page view costs time proportional to its size, to catch corruption nothing
 here has seen. Collecting unreferenced blobs waits on the retention question
-[product.md](../docs/product.md) leaves open, because what is kept decides what
-is collected.
+[product.md](../../docs/product.md) leaves open, because what is kept decides
+what is collected.
 
 **Pragmas go in the connection string, not in an `Exec` after opening.**
 `journal_mode`, `synchronous`, `foreign_keys` and `busy_timeout` are
@@ -138,7 +138,7 @@ ordering came out arbitrary.
 an address bar. An opaque token buys unguessability, which is worth nothing on a
 surface that has no authentication and sits on a private network. A round is
 addressed by its number within its review, which is the form the routes in
-[architecture.md](../docs/architecture.md) already use.
+[architecture.md](../../docs/architecture.md) already use.
 
 **A round is created together with its file list, in one transaction.** Capture
 writes and fsyncs every blob first, then hands the whole list to the call that
@@ -188,7 +188,7 @@ one, which `UNIQUE(round_id)` states exactly. Undecided is then a missing row
 rather than three columns that have to be NULL together. The cost is a join on
 every read of a round.
 
-It is also the record [product.md](../docs/product.md) asks for: an approval
+It is also the record [product.md](../../docs/product.md) asks for: an approval
 names the review, the round, the content and the time, in one row that outlives
 the session that asked for it.
 
@@ -258,7 +258,7 @@ Named because each one is close enough to this work to be assumed part of it.
 - **What a file is, and how it opens.** `internal/kind` and the per-file view
   override are the rendered-files spec (008).
 - **Retention and pruning.** How long a decided review is kept, and whether its
-  blobs go with it, is an open question in [product.md](../docs/product.md).
+  blobs go with it, is an open question in [product.md](../../docs/product.md).
   Blobs are therefore never removed, and an abandoned review keeps everything it
   captured.
 - **Line counts on a round.** The queue shows a change's size as files touched

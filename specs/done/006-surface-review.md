@@ -301,7 +301,7 @@ checked to reproduce it exactly. A review pass confirmed that the Makefile lexer
 appends a newline and the Go lexer turns `\r` into `\n`, and either would shift
 every word mark after it, so a line whose tokens differ from it is plain.
 Highlighting a line alone also loses state that spans lines, such as a block
-comment, which is in [specs/TODO.md](TODO.md).
+comment, which is in [specs/TODO.md](../TODO.md).
 
 **A binary file and a file past the diff limits get no rows**: the file's header
 and a line saying which. What a browser could display instead is rendered files
