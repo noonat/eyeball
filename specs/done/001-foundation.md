@@ -24,7 +24,7 @@ iteration in every later spec closes on it, so it has to exist before anything
 else and has to stay fast enough that nobody avoids it.
 
 **Every check corresponds to an entry in
-[conventions.md](../docs/conventions.md) marked "Enforced by
+[conventions.md](../../docs/conventions.md) marked "Enforced by
 `internal/convention`".** A check that enforces an unwritten rule is a rule
 nobody can look up, and a written rule with no check is one that gets violated.
 The document and the package are written together or neither is worth much.
@@ -70,7 +70,7 @@ line in a capture rather than to text that is still being edited.
 **Oxfmt formats CSS as well as markdown.** The generated table in `app.css` is
 already what oxfmt would write, so it and `tool/icons` do not disagree. HTML is
 the exclusion instead, for the reason in
-[conventions.md](../docs/conventions.md).
+[conventions.md](../../docs/conventions.md).
 
 **`app.css` does not move yet.** The architecture document has it shipping from
 `web/`. Moving it before anything serves it would leave the tearouts pointing

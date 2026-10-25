@@ -83,19 +83,19 @@ The cost is a base that goes stale. A branch that has main merged into it
 mid-review is still measured from the old commit, so the merge arrives inside
 the review as work the agent did not do. The fix available today is to abandon
 the review and open a new one. Whether the base should follow a moving branch is
-in [specs/TODO.md](TODO.md).
+in [specs/TODO.md](../TODO.md).
 
 **A base that no longer resolves is a refusal, not a fallback.** A commit lost
 to a rebase or a garbage collection cannot be enumerated against, so there is no
 capture to take. The refusal names the commit and says to open a new review. The
-three-source read in [product.md](../docs/product.md) does fall back for a lost
-base, and that is about displaying a file, which is a different question from
-whether a round can be taken at all.
+three-source read in [product.md](../../docs/product.md) does fall back for a
+lost base, and that is about displaying a file, which is a different question
+from whether a round can be taken at all.
 
 ### Asking git
 
-**git is a subprocess, per [architecture.md](../docs/architecture.md).** Every
-call is `git -C <root> --no-optional-locks <verb>`, run through
+**git is a subprocess, per [architecture.md](../../docs/architecture.md).**
+Every call is `git -C <root> --no-optional-locks <verb>`, run through
 `exec.CommandContext` so the caller's context cancels it. `--no-optional-locks`
 stops an enumeration from taking `index.lock`, which an agent's own git may be
 holding.
@@ -320,7 +320,7 @@ sides is also what makes the digest mean what it says.
 ### Reading a file back
 
 **A frozen read and a browse read are different calls.** Both follow the
-three-source order from [product.md](../docs/product.md), and they end
+three-source order from [product.md](../../docs/product.md), and they end
 differently:
 
 - `Frozen` tries the round's capture, then the base commit, and reports that the
@@ -409,8 +409,8 @@ no-newline note.
 diff shifts boundaries with heuristics of its own and lands elsewhere, on about
 a fifth of diffs measured over three thousand random pairs. Both are minimal and
 both replay correctly, so this is a question about reading rather than
-correctness, and it needs real reviews. It is in [specs/TODO.md](TODO.md), and a
-golden file pins the current answer so a version bump that changes it is
+correctness, and it needs real reviews. It is in [specs/TODO.md](../TODO.md),
+and a golden file pins the current answer so a version bump that changes it is
 noticed.
 
 **There is no flag for a wholesale replacement.** The earlier design had one,
@@ -458,7 +458,7 @@ is left unmarked.
 **No similarity floor.** Two paired lines with almost nothing in common get
 marked nearly end to end, which is noise. Whether to suppress marking below some
 proportion of shared tokens needs real reviews to tune against, and it is in
-[specs/TODO.md](TODO.md) rather than guessed at here.
+[specs/TODO.md](../TODO.md) rather than guessed at here.
 
 ### The size of a round
 
@@ -560,7 +560,7 @@ Named because each is close enough to this work to be assumed part of it.
   override, images shown before and after, and the sandbox are rendered files
   (008). The diff's binary test is a NUL scan and is not that classification.
 - **Rename detection.** A rename is a delete and an add. Reading it as a rename
-  is a rendering, and it is in [specs/TODO.md](TODO.md).
+  is a rendering, and it is in [specs/TODO.md](../TODO.md).
 - **File modes.** A mode-only change shows as a file with no changed lines. 003
   declined to add a column nothing writes, and nothing writes one yet.
 - **A size cap on what is captured.** Every file git reports is written to the
@@ -569,7 +569,7 @@ Named because each is close enough to this work to be assumed part of it.
   column to record that a file was seen and skipped, which is the guess 003
   refused.
 - **Pruning.** Blobs are never removed, and retention is an open question in
-  [product.md](../docs/product.md).
+  [product.md](../../docs/product.md).
 - **Delivery, comments and verdicts.** 003 owns them, and what an agent has
   already been handed arrives with the daemon and the CLI (005).
 - **Text encoding.** Content is bytes, and lines are split on `\n`. A UTF-16
@@ -577,7 +577,7 @@ Named because each is close enough to this work to be assumed part of it.
   a line diff and the wrong one for a display, and display is elsewhere.
 - **Running anything the project configures.** No textconv, no smudge filters,
   no diff drivers. eyeball reads and displays, per
-  [product.md](../docs/product.md).
+  [product.md](../../docs/product.md).
 
 ## Iteration 1: Running git, and resolving a base
 

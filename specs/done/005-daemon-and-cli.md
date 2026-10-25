@@ -188,7 +188,7 @@ identifier is a variable the tests set, because a test binary carries no VCS
 information.
 
 **It does not exit when idle**, per architecture.md. That rule and the smaller
-alternative are already in [specs/TODO.md](TODO.md).
+alternative are already in [specs/TODO.md](../TODO.md).
 
 **Bare `eyeball` prints help.** The comment in `cmd/eyeball` says that with no
 subcommand the binary is the daemon. That was written ahead of the CLI and is
@@ -204,9 +204,9 @@ wins, whichever it is. That is the rule product.md states for git, extended to
 the marker, and it agrees with 004, which decides whether a root is a git
 project by whether the root itself holds `.git`. A marker inside a repository
 therefore names a project that is walked rather than diffed, which is the case
-already in [specs/TODO.md](TODO.md). Reaching `/` with neither is a refusal that
-says to run from inside a git repository or to create `.eyeball` at the project
-root.
+already in [specs/TODO.md](../TODO.md). Reaching `/` with neither is a refusal
+that says to run from inside a git repository or to create `.eyeball` at the
+project root.
 
 **The root's identity and the home directory are resolved through symlinks, and
 review paths are computed against the root as it was reached.** `os.Getwd`
@@ -775,17 +775,17 @@ Named because each is close enough to this work to be assumed part of it.
 - **The per-file view override.** product.md lets an agent say a file should
   open as its page or its source. That is a flag on `request`, and it arrives
   with rendered files (009), the first spec with a view to override.
-- **Exiting when idle.** In [specs/TODO.md](TODO.md) already.
+- **Exiting when idle.** In [specs/TODO.md](../TODO.md) already.
 - **Log rotation.** `eyeball.log` grows without bound. At a few lines per
   request that is assumed harmless for a long time, and it is added to
-  [specs/TODO.md](TODO.md).
+  [specs/TODO.md](../TODO.md).
 - **What a marker file contains.** An open question in product.md. `.eyeball` is
   read for its existence only.
 - **Pruning.** Refused reviews leave blobs behind, like everything else
   captured. Retention is an open question in product.md.
 - **macOS.** `flock`, `Setsid` and unix sockets exist there and nothing here is
   Linux-only by intent, but nothing is tested on it. It is added to
-  [specs/TODO.md](TODO.md).
+  [specs/TODO.md](../TODO.md).
 
 ## Not converged
 

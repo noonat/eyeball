@@ -17,9 +17,9 @@ refuse review 58, approved from a worktree, so the same tree needed a third
 approval as review 59.
 
 This spec makes a project the repository, and a worktree one of its working
-copies. The design is in [docs/product.md](../docs/product.md), under One
+copies. The design is in [docs/product.md](../../docs/product.md), under One
 instance, many projects, the project view and the queue's empty state, and in
-[docs/architecture.md](../docs/architecture.md), under The project and the
+[docs/architecture.md](../../docs/architecture.md), under The project and the
 agent, Storage and Checking a merge. Both name the earlier rule they correct.
 The owner chose this over only hiding projects whose root is gone. Hiding is
 cheaper, and it leaves a worktree's approval unable to pass the gate. Claims
