@@ -1,19 +1,21 @@
 import { classes } from "./classes";
 import { eltOf } from "./events";
+import { setDeciding } from "./state";
 
-// Approving answers with HX-Refresh, so the eye blinks on the page that loads
-// next, which already shows the new count. A mark naming the review is set
-// when the Approve request starts and cleared when it fails, so nothing
-// depends on whether htmx raises an event between reading HX-Refresh and
-// reloading. It lives in sessionStorage, which belongs to this tab alone: an
-// approval in one tab does not blink another.
+// A verdict answers with HX-Redirect to the queue, so the eye blinks on the
+// page that loads next, which already shows the new count. A mark naming the
+// review is set when the verdict request starts and cleared when it fails, so
+// nothing depends on an event htmx raises after it reads HX-Redirect. htmx 2
+// sets location.href and returns from the response there, before it raises
+// afterRequest or any swap event, so the failure events are the only ones that
+// can clear the mark. It lives in sessionStorage, which belongs to this tab
+// alone: a verdict in one tab does not blink another.
 
 const markKey = "eyeball:blink";
 
 let verdict = "";
 
-// keepBlink records an Approve as it is sent, and blinks the eye once on the
-// page an approval reloads to.
+// keepBlink records a verdict as it is sent, for the queue it returns to.
 export function keepBlink(): void {
   document.addEventListener(
     "submit",
@@ -35,42 +37,51 @@ export function keepBlink(): void {
       return;
     }
     const review = document.querySelector(".page")?.getAttribute("data-review");
-    if (verdict === "approve" && review) {
+    // Both verdicts lower the waiting count, so both blink.
+    if ((verdict === "approve" || verdict === "changes") && review) {
       write(review);
+      setDeciding(true);
     }
   });
   // Only the events htmx raises for a failure clear the mark. Its
-  // afterRequest for an answer carrying HX-Refresh does not count the request
-  // successful, because htmx reloads and returns before it says so, and
-  // reading that as a failure cleared the mark before the reload could read it.
+  // afterRequest for an answer carrying HX-Redirect does not count the request
+  // successful, because htmx navigates and returns before it says so, and
+  // reading that as a failure cleared the mark before the queue could read it.
+  // A refused change request is a 422, which app's htmx config swaps in as an
+  // answer rather than an error, so it raises no failure event. beforeSwap is
+  // raised for it, while a redirect returns before any swap event.
+  document.addEventListener("htmx:beforeSwap", clear);
   document.addEventListener("htmx:responseError", clear);
   document.addEventListener("htmx:sendError", clear);
   document.addEventListener("htmx:timeout", clear);
 }
 
-// clear drops the mark when the bar's request failed.
+// clear drops the mark and the flag when the bar's request was answered with
+// something other than the redirect.
 function clear(event: Event): void {
   if (eltOf(event)?.id === "bar") {
     write(null);
+    setDeciding(false);
   }
 }
 
-// blinkOnLoad reads the mark once and clears it, and blinks the eye if the mark
-// names the review on screen and that review is approved. Under reduced motion
-// app.css draws .blink as no motion at all.
+// blinkOnLoad reads the mark once and clears it. On the queue it blinks the eye
+// when the marked review has a row and that row is not under Waiting, which is
+// where a verdict puts it: Approved goes to Settled and changes requested to
+// Working. A mark left by a request whose answer never arrived names a review
+// that is still under Waiting, or has no row, and does not blink. Under reduced
+// motion app.css draws .blink as no motion at all.
 export function blinkOnLoad(): void {
   const marked = read();
   if (marked === null) {
     return;
   }
   write(null);
-  // The current round has two addresses, the review's own and its round's,
-  // and an approval reloads whichever it was made on.
-  const here = /^\/reviews\/(\d+)(?:\/rounds\/\d+)?$/.exec(
-    location.pathname,
-  )?.[1];
-  const approved = document.querySelector(".brief .pill.approved") !== null;
-  if (here === marked && approved) {
+  if (location.pathname !== "/") {
+    return;
+  }
+  const row = document.querySelector(`a.row[href="/reviews/${marked}"]`);
+  if (row !== null && !row.classList.contains("waiting")) {
     document.querySelector(".topbar .eye")?.classList.add(classes.blink);
   }
 }

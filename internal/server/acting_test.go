@@ -324,7 +324,8 @@ func TestServer_Surface_decide(t *testing.T) {
 
 	res = sendForm(f.s.Surface(), http.MethodPost, path, url.Values{"round": {"1"}, "verdict": {"approve"}, "note": {"Good."}}, true)
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	g.Expect(res.Header().Get("HX-Refresh")).To(Equal("true"))
+	g.Expect(res.Header().Get("HX-Redirect")).To(Equal("/"), "a verdict returns to the queue")
+	g.Expect(res.Header().Get("HX-Refresh")).To(BeEmpty(), "a reload would leave the reviewer on the decided round")
 	d, err := f.store.Decision(t.Context(), f.latestRound(g, t, id))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))

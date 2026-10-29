@@ -128,32 +128,35 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	_, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).To(MatchError(store.ErrNotFound), "a verdict went out while a comment was being written")
 
-	// Once the text is gone, Approve records the verdict and the page reloads
-	// as the decided page.
+	// Once the text is gone, Approve records the verdict and the page returns to
+	// the queue.
 	b.typeInto(g, ".page > form.composer textarea", "")
 	g.Expect(b.eval(g, `document.getElementById("unsaved").hidden`)).To(BeTrue())
 	b.eval(g, `window.__before = true`)
 	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
 	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
-	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
 	d, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
-// Approving blinks the eye once, on the page the approval reloads to, and a
-// reload after it does not. A failed approval leaves no mark, and under
-// reduced motion the eye does not move.
+// A verdict returns to the queue, and the eye blinks there once, whichever
+// verdict it was. A failed verdict leaves no mark, a mark left by a request
+// whose answer never arrived does not blink, and under reduced motion the eye
+// does not move.
 func TestServer_Surface_browserBlink(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	write(g, repo, "b.txt", "b\n")
 	write(g, repo, "c.txt", "c\n")
+	write(g, repo, "d.txt", "d\n")
 	me := api.Caller{Dir: repo}
 	first := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
 	second := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "second"}).Review.ID
 	third := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"c.txt"}, Note: "third"}).Review.ID
+	fourth := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"d.txt"}, Note: "fourth"}).Review.ID
 	var failing sync.Mutex
 	fail := false
 	surface := f.s.Surface()
@@ -169,27 +172,43 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
-	approve := func(id int64) {
+	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
+	// decide sends a verdict from a review's page and waits for the queue.
+	decide := func(id int64, verdict string) {
 		b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+		if verdict == "changes" {
+			b.typeInto(g, "#bar textarea", "Rework this.")
+		}
 		b.eval(g, `window.__before = true`)
-		b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+		b.eval(g, `document.querySelector("#bar button[value=`+verdict+`]").click()`)
 		b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
 	}
-	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
+	section := func(id int64) string {
+		return `document.querySelector("a.row[href='/reviews/` + itoa(id) + `']").closest(".section").querySelector("h2").firstChild.textContent.trim()`
+	}
 
-	// The reloaded page is decided, at the new count, and blinks once.
-	approve(first)
-	g.Expect(b.eval(g, `!!document.querySelector(".brief .pill.approved")`)).To(BeTrue())
-	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("2 waiting"))
+	// Approve lands on the queue at the new count with the review in Settled,
+	// and the eye blinks once.
+	decide(first, "approve")
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
+	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("3 waiting"))
+	g.Expect(b.eval(g, section(first))).To(Equal("Settled"))
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("eye-blink"))
 	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil(), "the mark is read once")
 
-	// The same page loaded again is only a decided round.
-	b.navigate(g, srv.URL+"/reviews/"+itoa(first))
+	// The queue loaded again does not blink.
+	b.navigate(g, srv.URL+"/")
 	g.Expect(b.eval(g, blinking)).To(BeFalse())
 
-	// An approval the server refuses leaves no mark for a later load.
+	// Request changes returns to the queue too, with the review in Working.
+	decide(fourth, "changes")
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
+	g.Expect(b.eval(g, section(fourth))).To(Equal("Working"))
+	g.Expect(b.eval(g, blinking)).To(BeTrue())
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
+
+	// A verdict the server refuses leaves no mark for a later load.
 	failing.Lock()
 	fail = true
 	failing.Unlock()
@@ -202,29 +221,25 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	failing.Unlock()
 
 	// A mark left by a request whose answer never arrived, as when a tab is
-	// closed mid-request, names a review that is still open. It does not blink.
-	b.navigate(g, srv.URL+"/reviews/"+itoa(third))
+	// closed mid-request, names a review that is still under Waiting. It does
+	// not blink.
 	b.eval(g, `sessionStorage.setItem("eyeball:blink", "`+itoa(third)+`")`)
-	b.navigate(g, srv.URL+"/reviews/"+itoa(third))
-	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeTrue(), "the review is still open")
+	b.navigate(g, srv.URL+"/")
+	g.Expect(b.eval(g, section(third))).To(Equal("Waiting on you"))
 	g.Expect(b.eval(g, blinking)).To(BeFalse())
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 
-	// The current round has a second address, its round's, and an approval
-	// made there reloads there and blinks too.
-	write(g, repo, "d.txt", "d\n")
-	fourth := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"d.txt"}, Note: "fourth"}).Review.ID
-	b.navigate(g, srv.URL+"/reviews/"+itoa(fourth)+"/rounds/1")
-	b.eval(g, `window.__before = true`)
-	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
-	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
-	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/reviews/" + itoa(fourth) + "/rounds/1"))
-	g.Expect(b.eval(g, blinking)).To(BeTrue())
+	// A mark naming a review with no row on the queue does not blink either.
+	b.eval(g, `sessionStorage.setItem("eyeball:blink", "999999")`)
+	b.navigate(g, srv.URL+"/")
+	g.Expect(b.eval(g, blinking)).To(BeFalse())
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 
 	// Under reduced motion the eye takes the class and does not move.
 	b.call(g, "Emulation.setEmulatedMedia", map[string]any{
 		"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "reduce"}},
 	})
-	approve(third)
+	decide(third, "approve")
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("none"))
 }
@@ -754,8 +769,9 @@ func TestServer_Surface_browserPreviewStylesheet(t *testing.T) {
 	g.Expect(b.eval(g, `window.__got`)).To(Equal("rgb(1, 2, 3)"))
 }
 
-// A change request with nothing in it is refused on the bar, and sent again
-// with a note it goes out.
+// A change request with nothing in it is refused on the bar, which leaves the
+// page free to reload for a verdict recorded elsewhere. Sent again with a note
+// it goes out, and lands on the queue.
 func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -770,7 +786,20 @@ func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	b.waitFor(g, `!!document.querySelector("#bar .notice.warn")`)
 	_, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).To(MatchError(store.ErrNotFound))
+	// The refusal is swapped in as an answer, so it must clear the mark a
+	// verdict leaves, and the flag that holds the stream's reload back.
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
+	b.eval(g, `window.__before = true`)
+	f.decide(g, t, id, store.VerdictApprove, "")
+	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse(), "the page did not reload for the decided review")
 
+	// Sent again with a note, on a review of its own, it goes out.
+	id = actingReview(g, t, f)
+	round = f.latestRound(g, t, id)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.eval(g, `document.querySelector("#bar button[value=changes]").click()`)
+	b.waitFor(g, `!!document.querySelector("#bar .notice.warn")`)
 	b.typeInto(g, "#bar textarea", "Name the control.")
 	b.eval(g, `window.__before = true`)
 	b.eval(g, `document.querySelector("#bar button[value=changes]").click()`)
@@ -779,6 +808,7 @@ func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictChanges))
 	g.Expect(d.Note).To(Equal("Name the control."))
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
 }
 
 // A large review reopens where it was left: the same card folded, the others

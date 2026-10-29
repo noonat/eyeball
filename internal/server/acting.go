@@ -358,7 +358,9 @@ func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) error {
 	case err != nil:
 		return err
 	}
-	w.Header().Set("HX-Refresh", "true")
+	// A redirect rather than HX-Location, which swaps the queue in without a page
+	// load, so blinkOnLoad would never run on it.
+	w.Header().Set("HX-Redirect", "/")
 	w.WriteHeader(http.StatusOK)
 	return nil
 }

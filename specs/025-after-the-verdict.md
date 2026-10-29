@@ -119,15 +119,38 @@ The owner approved the tearout on 2026-10-29, after changing the two sentences.
 
 ## Iteration 2: Back to the queue
 
-- [ ] `handleDecide` answering `HX-Redirect: /` and no `HX-Refresh`, with
+Deviations found while building:
+
+- After a verdict, the decided review's new stamp reaches the open page over the
+  stream, and its `location.reload()` replaced the `HX-Redirect` navigation, so
+  the browser stayed on `/reviews/N`. The spec did not foresee it. The fix is a
+  `deciding` flag in `web/ts/state.ts`, set when a verdict request starts and
+  checked by `stream.ts` before it reloads.
+- htmx 2.0.11, read in `web/vendor/htmx.min.js`: with `HX-Redirect` it sets
+  `location.href` and returns before it raises `afterRequest` or any swap event.
+  Only the failure events can clear the mark, as with `HX-Refresh`.
+- A refused change request is a 422, and `layout.html` sets htmx's
+  `responseHandling` to swap it in with `error: false`. It raises no
+  `htmx:responseError`, so the mark and the flag outlived it, and a stuck flag
+  stops the stream reloading that page. Marking both verdicts introduced this,
+  since only a change request gets a 422. `htmx:beforeSwap` on the bar clears
+  both.
+
+- [x] `handleDecide` answering `HX-Redirect: /` and no `HX-Refresh`, with
       acting_test.go asserting both, failing with `HX-Refresh` restored
-- [ ] blink.ts marking both verdicts, and blinking on the queue when the marked
+- [x] blink.ts marking both verdicts, and blinking on the queue when the marked
       review's row is outside Waiting, its comments saying why
-- [ ] The browser test after Approve finding the location `/`, the eye blinking
+- [x] The browser test after Approve finding the location `/`, the eye blinking
       once and the mark cleared, failing with the reload restored
-- [ ] A browser test that Request changes lands on the queue and blinks
-- [ ] The stale-mark browser test kept: a mark naming a review still under
+- [x] A browser test that Request changes lands on the queue and blinks
+- [x] The stale-mark browser test kept: a mark naming a review still under
       Waiting does not blink on the queue
+
+> **Completed** 2026-10-29 16:06 UTC
+>
+> - `make check` — 6.6s
+> - `go test -race ./...` — 48.8s
+> - `go test -count=1 -tags browser ./internal/server` — 46.6s
 
 ## Iteration 3: Taps on a decided round
 
