@@ -251,9 +251,6 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
 - [ ] design: commenting from a file page: the whole file, the tree's file and
       the project's live file. 008 puts the composer on the review page only,
       where the bar and the tally are.
-- [ ] design: a decided round gives no sign that its lines take no tap. The
-      owner spent a while tapping lines on approved reviews before finding that
-      only open rounds open a composer.
 - [ ] design: the top bar's eye on a page other than the queue counts what
       waited when the page loaded, and does not follow the stream. 015 left it:
       a reviewer reads the count on arrival, and the queue corrects it.
@@ -272,13 +269,9 @@ Nothing is next. The first item worth scheduling comes from Unscheduled.
 - [ ] product: a default agent name shared across a repository's working copies.
       021 lets a round come from another working copy when the agent passes
       `--agent`, since the default name is the working copy's path.
-- [ ] design: submitting a verdict returns the reviewer to the queue, the
-      owner's words. Today the page reloads to the decided round, as the review
-      tearout's Approve frame draws it, so the tearout changes first.
-- [ ] design: the decision bar's notice while eyeball cannot be reached, "A
-      verdict needs eyeball. Both become available when the connection is
-      back.", wraps to two lines on the phone, the owner's words. A shorter
-      sentence or a layout that allows two lines are the options.
+- [ ] design: a comment on an earlier round, one a newer round has replaced. Its
+      page is built with no acting view, so nothing on it opens a composer,
+      where product.md allows a comment on any closed round. 025 left it.
 
 ## Open questions
 

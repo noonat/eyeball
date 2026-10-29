@@ -1,4 +1,4 @@
-import { setOffline, unsavedText } from "./state";
+import { isDeciding, setOffline, unsavedText } from "./state";
 import { followBuild } from "./update";
 
 // noticeDelay is how long a stream may be down before the notice shows, so a
@@ -17,7 +17,7 @@ export function followStream(): void {
   let stale = false;
 
   const reload = (): void => {
-    if (stale && !unsavedText(true)) {
+    if (stale && !isDeciding() && !unsavedText(true)) {
       window.location.reload();
     }
   };

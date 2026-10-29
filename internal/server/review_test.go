@@ -663,6 +663,31 @@ func TestServer_Surface_reviewHoldsAFilePastFiveHundred(t *testing.T) {
 	}
 }
 
+// A late comment on a line sits under that line on a decided round, marked as
+// after the verdict, with nothing to edit or delete, and the file keeps a slot
+// for a late comment on the file as an open round does.
+func TestServer_Surface_reviewLateLineComment(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	roundID := f.latestRound(g, t, id)
+	f.addComment(g, t, store.NewComment{RoundID: roundID, Level: store.LevelLine, Path: "a.txt", StartLine: 2, EndLine: 2, Quoted: "two", Body: "Before."})
+	f.decide(g, t, id, store.VerdictApprove, "")
+	nextMillisecond()
+	f.addComment(g, t, store.NewComment{RoundID: roundID, Level: store.LevelLine, Path: "a.txt", StartLine: 2, EndLine: 2, Quoted: "two", Body: "After."})
+
+	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
+	thread := byID(doc, threadID("a.txt", 2))
+	g.Expect(thread).NotTo(BeNil(), "both comments sit under their line")
+	var cards []string
+	for _, c := range findAll(thread, hasClass("comment")) {
+		cards = append(cards, text(c))
+		g.Expect(find(c, "acts")).To(BeNil(), "released comments cannot change")
+	}
+	g.Expect(cards).To(Equal([]string{"a.txt:2 two Before.", "a.txt:2after the verdict two After."}))
+	g.Expect(byID(doc, slotID("a.txt"))).NotTo(BeNil(), "a late comment on the file has somewhere to open")
+}
+
 // A review past ten files lists them above the cards, each linking to its
 // card, so a reader can jump to one. At ten files there is no list.
 func TestServer_Surface_reviewListsFilesPastTen(t *testing.T) {

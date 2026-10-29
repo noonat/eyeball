@@ -591,8 +591,8 @@
   background-color: var(--ink-faint);
 }
 
-/* Approving blinks the eye once, on the page the approval reloads to, which
- * already shows the new count. The client adds .blink. The blink is the only
+/* A verdict blinks the eye once, on the queue it returns to, which already
+ * shows the new count. The client adds .blink. The blink is the only
  * motion on the surface, and under reduced motion there is none. */
 @keyframes eye-blink {
   0%,
@@ -1148,13 +1148,13 @@ tr.del .w {
  * the click heard nothing from a line or a passage until the pointer said so.
  * Found on the owner's phone on 2026-10-06; a desktop browser has no such
  * rule, so the browser tests could not catch it. */
-.page[data-acting="open"] .code tr[data-line],
-.page[data-acting="open"] .code tr[data-old],
-.page[data-acting="open"] .toobig,
-.page[data-acting="open"] .file > .filefacts,
-.page[data-acting="open"] .file > .rendered .shot,
-.page[data-acting="open"] .file > .rendered .cap,
-.page[data-acting="open"] .prose .blk[data-lines] {
+.page[data-acting] .code tr[data-line],
+.page[data-acting] .code tr[data-old],
+.page[data-acting] .toobig,
+.page[data-acting] .file > .filefacts,
+.page[data-acting] .file > .rendered .shot,
+.page[data-acting] .file > .rendered .cap,
+.page[data-acting] .prose .blk[data-lines] {
   cursor: pointer;
 }
 
@@ -1900,14 +1900,22 @@ tr.del.sel {
   color: var(--ink-faint);
 }
 
+/* A late comment adds "after the verdict" beside the place. Wrapping drops it
+ * to its own line, where one line of flex cut the path to "sync.g…" and the
+ * label to two lines at 390 pixels. */
 .comment .anchor {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0 6px;
   font-size: var(--t-xs);
   color: var(--ink-faint);
   font-family: var(--mono);
   min-width: 0;
+}
+
+.comment .anchor > :not(.where) {
+  white-space: nowrap;
 }
 
 .comment .anchor .where {

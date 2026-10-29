@@ -237,7 +237,7 @@ body {
  * cannot show.
  *
  * A page has one target at a time, so a link inside an expanded view that
- * targets something of its own, as an Approve moment does, would close the
+ * targets something of its own, as the queue after Approve does, would close the
  * view. :has(:target) keeps it open while anything inside it is the target. */
 .full {
   display: none;
@@ -286,15 +286,10 @@ body {
 
 /* --------------------------------------------------------------- moment */
 
-/* A frame that answers a tap, such as Approve, targets itself, because a
- * tearout has no script. The frame then shows its after state. The live page
- * reaches the same state by reloading, and blinks the eye by adding .blink,
- * which app.css animates with the same keyframes. */
-.moment:not(:target) .is-after,
-.moment:target .is-before {
-  display: none;
-}
-
+/* A frame that answers a tap, such as the queue after Approve, is reached by a
+ * link to its id, because a tearout has no script. The eye in it blinks when it
+ * is the target. The live page blinks the eye on load by adding .blink, which
+ * app.css animates with the same keyframes. */
 .moment:target .eye {
   animation: eye-blink 420ms ease-in-out 200ms 1 both;
 }

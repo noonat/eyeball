@@ -540,9 +540,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			p := view.Shown[i].Path
 			view.Shown[i].List = &listView{ID: listID(store.LevelFile, p)}
 			view.Shown[i].Threads = map[int]*threadView{}
-			if open {
-				view.Shown[i].Slot = slotID(p)
-			}
+			view.Shown[i].Slot = slotID(p)
 		}
 	}
 
@@ -751,13 +749,11 @@ func thousands(n int) string {
 // acting is what the current round offers the reviewer.
 func (s *Server) acting(review store.Review, round store.Round, open bool, against string) *actingView {
 	a := &actingView{Review: review.ID, Round: round.Number, State: "late", Against: against}
-	a.Composer, _ = composer(review.ID, round.Number, store.LevelReview, "", 0, 0, 0, "")
+	a.Composer, _ = composer(review.ID, round.Number, store.LevelReview, "", 0, 0, 0, "", !open)
 	a.List = listView{ID: listID(store.LevelReview, "")}
 	if open {
 		a.State = "open"
 		a.Bar = &barView{Action: decisionHref(review.ID), Round: round.Number}
-	} else {
-		a.Composer.Hint, a.Composer.Button = "Sends immediately", "Send"
 	}
 	return a
 }

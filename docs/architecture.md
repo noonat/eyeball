@@ -725,8 +725,8 @@ job each.
 Every interaction on this surface is the same shape: something is tapped, the
 server does it, and a piece of the page is replaced by what the server now says.
 Selecting a line asks for a composer anchored to it. Adding a comment returns
-the comment list and the tally. A verdict returns the decided page. That is what
-htmx does, and doing it by hand means fetch calls, response parsing and DOM
+the comment list and the tally. A verdict sends the page to the queue. That is
+what htmx does, and doing it by hand means fetch calls, response parsing and DOM
 replacement written once per interaction.
 
 The alternative is client-side state, which means the tally, the comment list

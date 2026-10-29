@@ -5,7 +5,7 @@
 <div id="unsaved" hidden><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
 {{template "tally" .Tally}}<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…">{{.Note}}</textarea>
 <div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
-<div id="whynot" hidden><span class="why-not">A verdict needs eyeball. Both become available when the connection is back.</span></div>
+<div id="whynot" hidden><span class="why-not">You can&rsquo;t submit a review while offline.</span></div>
 </form>
 {{end}}
 {{define "tally"}}<div class="tally" id="tally"{{if .OOB}} hx-swap-oob="true"{{end}}>{{if .Count}}<span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">{{.Count}} comment{{if ne .Count 1}}s{{end}}</span><span>Ready to send</span>{{else}}<span>No comments yet</span>{{end}}</div>
@@ -46,7 +46,8 @@
 {{end}}<input type="hidden" name="submission" value="">
 <div class="anchor">{{.Anchor}}</div>
 <textarea class="field" name="body" aria-label="Comment" placeholder="{{.Placeholder}}"></textarea>
-<div class="foot">
+{{if and .Late .Chips}}<span class="hint">{{.Hint}}</span>
+{{end}}<div class="foot">
 {{if .Chips}}<span class="levels">{{range .Chips}}<button type="button" class="chip" data-level="{{.Level}}" data-target="{{.Target}}" aria-pressed="{{.Pressed}}">{{.Label}}</button>{{end}}</span>
 {{else}}<span class="hint">{{.Hint}}</span>
 {{end}}<span class="acts">{{if or .ThreadID .PassageID .Slot}}<button type="button" class="btn small ghost" data-cancel><span class="i i-x" aria-hidden="true"></span>Cancel</button>{{end}}<button type="submit" class="btn small accent">{{.Button}}</button></span>

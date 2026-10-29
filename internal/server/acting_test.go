@@ -303,6 +303,51 @@ func TestServer_Surface_composer(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 }
 
+// A decided round takes a comment at every level and sends it at once, so each
+// composer says so, and a level with chips shows the hint on a line above them.
+func TestServer_Surface_composerDecided(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	levels := []struct {
+		name  string
+		query string
+		chips bool
+	}{
+		{name: "review", query: "level=review"},
+		{name: "file", query: "level=file&path=a.txt", chips: true},
+		{
+			name:  "removed line",
+			query: "level=file&path=a.txt&oldline=2&against=base",
+			chips: true,
+		},
+		{name: "line", query: "level=line&path=a.txt&start=2", chips: true},
+		{name: "passage", query: "level=passage&path=a.txt&start=1&end=2", chips: true},
+	}
+	read := func(query string) *html.Node {
+		res := serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/composer?round=1&"+query)
+		g.Expect(res.Code).To(Equal(http.StatusOK), query)
+		return find(parseFragment(g, res.Body.String()), "composer")
+	}
+	for _, l := range levels {
+		form := read(l.query)
+		g.Expect(text(find(form, "acts"))).To(HaveSuffix("Add"), l.name)
+		g.Expect(text(form)).NotTo(ContainSubstring("Sends immediately"), l.name)
+	}
+	f.decide(g, t, id, store.VerdictApprove, "")
+	for _, l := range levels {
+		form := read(l.query)
+		g.Expect(text(form)).To(ContainSubstring("Sends immediately"), l.name)
+		g.Expect(text(form)).NotTo(ContainSubstring("Saved as you type"), l.name)
+		g.Expect(text(find(form, "acts"))).To(HaveSuffix("Send"), l.name)
+		g.Expect(text(find(form, "acts"))).NotTo(ContainSubstring("Add"), l.name)
+		if l.chips {
+			g.Expect(text(find(form, "foot"))).NotTo(ContainSubstring("Sends immediately"), l.name+": the hint is above the chips")
+			g.Expect(find(form, "levels")).NotTo(BeNil(), l.name)
+		}
+	}
+}
+
 func TestServer_Surface_decide(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -324,7 +369,8 @@ func TestServer_Surface_decide(t *testing.T) {
 
 	res = sendForm(f.s.Surface(), http.MethodPost, path, url.Values{"round": {"1"}, "verdict": {"approve"}, "note": {"Good."}}, true)
 	g.Expect(res.Code).To(Equal(http.StatusOK))
-	g.Expect(res.Header().Get("HX-Refresh")).To(Equal("true"))
+	g.Expect(res.Header().Get("HX-Redirect")).To(Equal("/"), "a verdict returns to the queue")
+	g.Expect(res.Header().Get("HX-Refresh")).To(BeEmpty(), "a reload would leave the reviewer on the decided round")
 	d, err := f.store.Decision(t.Context(), f.latestRound(g, t, id))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))

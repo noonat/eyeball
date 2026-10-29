@@ -2,6 +2,7 @@
 // down, and whether anything typed is not yet stored.
 
 let offline = false;
+let deciding = false;
 
 export function isOffline(): boolean {
   return offline;
@@ -35,4 +36,16 @@ export function unsavedText(note: boolean): boolean {
     }
   }
   return false;
+}
+
+// isDeciding says a verdict has been sent and the page is on its way to the
+// queue. The stream announces the decided review's new stamp, and a reload
+// then replaces the navigation HX-Redirect started with a reload of the
+// review the reviewer is leaving.
+export function isDeciding(): boolean {
+  return deciding;
+}
+
+export function setDeciding(on: boolean): void {
+  deciding = on;
 }
