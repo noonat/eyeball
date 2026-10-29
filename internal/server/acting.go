@@ -99,6 +99,9 @@ type composerView struct {
 	Placeholder string
 	// Hint is the line beside the button, and Button what the button reads.
 	Hint, Button string
+	// Late says the round is decided, so a comment is sent at once. A composer
+	// with level chips then shows its hint on a line of its own above them.
+	Late bool
 	// Slot is the element id of the slot a composer fills for an anchor with
 	// no row, such as a binary file's line, and empty otherwise.
 	Slot string
@@ -378,13 +381,20 @@ func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
 		plain(w, http.StatusNotFound, noRound)
 		return nil
 	}
-	if _, err := s.db.s.Round(r.Context(), review.ID, number); err != nil {
+	round, err := s.db.s.Round(r.Context(), review.ID, number)
+	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			plain(w, http.StatusNotFound, noRound)
 			return nil
 		}
 		return err
 	}
+	// A decided round sends a comment at once, so its composer says so.
+	_, err = s.db.s.Decision(r.Context(), round.ID)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return err
+	}
+	late := err == nil
 	start, startErr := optionalLine(q.Get("start"))
 	end, endErr := optionalLine(q.Get("end"))
 	old, oldErr := optionalLine(q.Get("oldline"))
@@ -392,16 +402,12 @@ func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
 		plain(w, http.StatusBadRequest, notThisForm)
 		return nil
 	}
-	c, ok := composer(review.ID, number, store.Level(q.Get("level")), q.Get("path"), start, end, old, q.Get("against"))
+	c, ok := composer(review.ID, number, store.Level(q.Get("level")), q.Get("path"), start, end, old, q.Get("against"), late)
 	if !ok {
 		plain(w, http.StatusBadRequest, notThisForm)
 		return nil
 	}
 	if c.Level == string(store.LevelLine) || c.Level == string(store.LevelPassage) {
-		round, err := s.db.s.Round(r.Context(), review.ID, number)
-		if err != nil {
-			return err
-		}
 		if c.Cards, err = s.rangeCards(r.Context(), review, round, store.Level(c.Level), c.Path, c.Start, c.End); err != nil {
 			return err
 		}
@@ -411,7 +417,7 @@ func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
 
 // composer builds a composer for one anchor, and reports a level and fields
 // that do not go together.
-func composer(reviewID int64, round int, level store.Level, path string, start, end, old int, against string) (composerView, bool) {
+func composer(reviewID int64, round int, level store.Level, path string, start, end, old int, against string, late bool) (composerView, bool) {
 	c := composerView{
 		Action:  commentsHref(reviewID),
 		Round:   round,
@@ -423,6 +429,10 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 		Against: against,
 		Hint:    "Saved as you type",
 		Button:  "Add",
+		Late:    late,
+	}
+	if late {
+		c.Hint, c.Button = "Sends immediately", "Send"
 	}
 	switch {
 	case level == store.LevelLine:

@@ -321,6 +321,102 @@ func TestServer_Surface_browserCommentJump(t *testing.T) {
 	g.Expect(b.eval(g, below)).To(BeNumerically("<", 40), "the comment landed far below the card's header")
 }
 
+// A tap on a line of a decided round opens a composer that sends at once, the
+// comment lands under its line as late and reaches the agent as late, and
+// nothing typed there is kept as a draft, since it is sent and never held.
+func TestServer_Surface_browserDecidedTap(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	write(g, repo, "b.txt", "b\n")
+	open := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "open"}).Review.ID
+	write(g, repo, "blob.bin", "\x00\x01\x02")
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt", "blob.bin"}, Note: "first"}).Review.ID
+	round := f.latestRound(g, t, id)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	drafts := func(review int64) string {
+		return `localStorage.getItem("eyeball:drafts:` + itoa(review) + `:1")`
+	}
+	line2 := `document.querySelector("details.file tr[data-line='2']")`
+
+	// On an open round typing is kept, which is what the check below is
+	// measured against.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(open)+"#token="+browserToken)
+	b.eval(g, `document.querySelector("details.file tr[data-line='1']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Kept")
+	b.waitFor(g, drafts(open)+` !== null`)
+
+	f.decide(g, t, id, store.VerdictApprove, "")
+	nextMillisecond()
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	g.Expect(b.eval(g, `document.querySelector(".page").dataset.acting`)).To(Equal("late"))
+	b.eval(g, line2+`.click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer").textContent`)).To(ContainSubstring("Sends immediately"))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").textContent`)).To(Equal("Send"))
+	b.typeInto(g, "tr.thread form.composer textarea", "Not kept")
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, drafts(id))).To(BeNil(), "a decided round kept a draft of a comment it sends at once")
+
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	thread := `document.getElementById("` + threadID("a.txt", 2) + `")`
+	b.waitFor(g, thread+`?.querySelectorAll(".comment").length === 1`)
+	g.Expect(b.eval(g, thread+`.querySelector(".comment .anchor").textContent`)).To(ContainSubstring("after the verdict"))
+	g.Expect(b.eval(g, thread+`.querySelector(".comment .acts")`)).To(BeNil())
+	g.Expect(b.eval(g, drafts(id))).To(BeNil())
+	comments := f.comments(g, t, round)
+	g.Expect(comments).To(HaveLen(1))
+	g.Expect(comments[0].Body).To(Equal("Not kept"))
+
+	// The agent reads it as late.
+	got := f.wait(g, t, id, me)
+	g.Expect(got.Kind).To(Equal(api.KindVerdict))
+	g.Expect(got.Comments).To(HaveLen(1))
+	g.Expect(got.Comments[0].Body).To(Equal("Not kept"))
+	g.Expect(got.Comments[0].Late).To(BeTrue())
+
+	// A tap on a line switched to the File chip sends a late comment on the
+	// file, which lands in that file's list.
+	list := listID(store.LevelFile, "a.txt")
+	b.eval(g, `document.querySelector("details.file tr[data-line='1']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.eval(g, `document.querySelector("tr.thread form.composer .chip[data-level=file]").click()`)
+	b.typeInto(g, "tr.thread form.composer textarea", "About the file.")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	// The file's list holds every comment on it, the line comment as well.
+	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment").length === 2`, list))
+	card := fmt.Sprintf(`[...document.querySelectorAll("#%s .comment")].find((c) => c.querySelector("p").textContent === "About the file.")`, list)
+	g.Expect(b.eval(g, card+`.querySelector(".anchor").textContent`)).To(ContainSubstring("after the verdict"))
+	g.Expect(b.eval(g, card+`.querySelector(".acts")`)).To(BeNil())
+	// A file with no rows to tap takes its comment in the file's slot.
+	binary := `document.querySelector("details.file[data-path='blob.bin']")`
+	b.eval(g, binary+`.querySelector(".filefacts").click()`)
+	b.waitFor(g, `!!`+binary+`.querySelector("form.composer textarea")`)
+	g.Expect(b.eval(g, binary+`.querySelector("form.composer").textContent`)).To(ContainSubstring("Sends immediately"))
+	b.typeInto(g, `details.file[data-path='blob.bin'] form.composer textarea`, "About the binary.")
+	b.eval(g, binary+`.querySelector("form.composer button[type=submit]").click()`)
+	b.waitFor(g, `document.querySelectorAll("#`+listID(store.LevelFile, "blob.bin")+` .comment").length === 1`)
+	g.Expect(b.eval(g, `document.querySelector("#`+listID(store.LevelFile, "blob.bin")+` .comment .anchor").textContent`)).To(ContainSubstring("after the verdict"))
+
+	var onFile store.Comment
+	for _, c := range f.comments(g, t, round) {
+		if c.Body == "About the file." {
+			onFile = c
+		}
+	}
+	g.Expect(onFile.Level).To(Equal(store.LevelFile))
+	got = f.wait(g, t, id, me)
+	late := map[string]bool{}
+	for _, c := range got.Comments {
+		late[c.Body] = c.Late
+	}
+	g.Expect(late).To(Equal(map[string]bool{"Not kept": true, "About the file.": true, "About the binary.": true}))
+}
+
 // The document scrolls, not .scroll, since iOS sends its status bar tap only to
 // the document's scroller. The header stays at the top as it does.
 func TestServer_Surface_browserDocumentScrolls(t *testing.T) {

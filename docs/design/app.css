@@ -1148,13 +1148,13 @@ tr.del .w {
  * the click heard nothing from a line or a passage until the pointer said so.
  * Found on the owner's phone on 2026-10-06; a desktop browser has no such
  * rule, so the browser tests could not catch it. */
-.page[data-acting="open"] .code tr[data-line],
-.page[data-acting="open"] .code tr[data-old],
-.page[data-acting="open"] .toobig,
-.page[data-acting="open"] .file > .filefacts,
-.page[data-acting="open"] .file > .rendered .shot,
-.page[data-acting="open"] .file > .rendered .cap,
-.page[data-acting="open"] .prose .blk[data-lines] {
+.page[data-acting] .code tr[data-line],
+.page[data-acting] .code tr[data-old],
+.page[data-acting] .toobig,
+.page[data-acting] .file > .filefacts,
+.page[data-acting] .file > .rendered .shot,
+.page[data-acting] .file > .rendered .cap,
+.page[data-acting] .prose .blk[data-lines] {
   cursor: pointer;
 }
 

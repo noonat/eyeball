@@ -154,18 +154,24 @@ Deviations found while building:
 
 ## Iteration 3: Taps on a decided round
 
-- [ ] A tap on a line or passage of a decided current round opening its
+- [x] A tap on a line or passage of a decided current round opening its
       composer, through a check of its own beside `acting()`
-- [ ] `keepDrafts` still saving nothing on a decided round, with a browser test
+- [x] `keepDrafts` still saving nothing on a decided round, with a browser test
       that fails if `acting()` is widened instead
-- [ ] `handleComposer` reading the round's state, and every composer on a
+- [x] `handleComposer` reading the round's state, and every composer on a
       decided round reading "Sends immediately" and "Send", tested per level
-- [ ] A file-level late comment reachable from a decided round's file card, as
+- [x] A file-level late comment reachable from a decided round's file card, as
       the open round's is
-- [ ] A late line comment shown under its line marked "after the verdict", with
+- [x] A late line comment shown under its line marked "after the verdict", with
       no Edit or Delete, tested in review_test.go
-- [ ] A browser test: tap a line on an approved review, send, and find the
+- [x] A browser test: tap a line on an approved review, send, and find the
       comment delivered to the agent as late
+
+> **Completed** 2026-10-29 16:20 UTC
+>
+> - `make check` — 22.4s
+> - `go test -race ./...` — 48.3s
+> - `go test -count=1 -tags browser ./internal/server` — 52.6s
 
 ## Iteration 4: The notice
 

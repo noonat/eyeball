@@ -46,7 +46,8 @@
 {{end}}<input type="hidden" name="submission" value="">
 <div class="anchor">{{.Anchor}}</div>
 <textarea class="field" name="body" aria-label="Comment" placeholder="{{.Placeholder}}"></textarea>
-<div class="foot">
+{{if and .Late .Chips}}<span class="hint">{{.Hint}}</span>
+{{end}}<div class="foot">
 {{if .Chips}}<span class="levels">{{range .Chips}}<button type="button" class="chip" data-level="{{.Level}}" data-target="{{.Target}}" aria-pressed="{{.Pressed}}">{{.Label}}</button>{{end}}</span>
 {{else}}<span class="hint">{{.Hint}}</span>
 {{end}}<span class="acts">{{if or .ThreadID .PassageID .Slot}}<button type="button" class="btn small ghost" data-cancel><span class="i i-x" aria-hidden="true"></span>Cancel</button>{{end}}<button type="submit" class="btn small accent">{{.Button}}</button></span>

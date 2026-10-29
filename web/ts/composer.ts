@@ -11,7 +11,19 @@ export interface Acting {
 }
 
 export function acting(): Acting | null {
-  const page = document.querySelector<HTMLElement>(".page[data-acting='open']");
+  return actingOn(".page[data-acting='open']");
+}
+
+// tapping is acting() widened to a decided round, which still takes a tap: a
+// comment there is sent at once as a late one. It is a check of its own,
+// because acting() also gates the drafts, and a late comment is sent, never
+// kept as a draft.
+export function tapping(): Acting | null {
+  return actingOn(".page[data-acting='open'], .page[data-acting='late']");
+}
+
+function actingOn(selector: string): Acting | null {
+  const page = document.querySelector<HTMLElement>(selector);
   const { review, round } = page?.dataset ?? {};
   if (page === null || review === undefined || round === undefined) {
     return null;
@@ -34,7 +46,7 @@ export function openComposers(): void {
       updateGuard();
       return;
     }
-    const at = acting();
+    const at = tapping();
     const block = target?.closest<HTMLElement>(".prose .blk[data-lines]");
     if (at !== null && block) {
       openPassage(event, at, block);
