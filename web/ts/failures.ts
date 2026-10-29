@@ -2,7 +2,7 @@ import { classes } from "./classes";
 import { eltOf, xhrOf } from "./events";
 
 // The three fixed sentences, for an answer that carries none of its own.
-const noAnswer = "Could not reach eyeball. Nothing was sent.";
+const noAnswer = "Cannot reach eyeball.";
 const anError = "eyeball could not do that.";
 const tooSlow =
   "eyeball did not answer in time. Nothing is known to have been sent.";

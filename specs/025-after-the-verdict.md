@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -175,7 +175,14 @@ Deviations found while building:
 
 ## Iteration 4: The notice
 
-- [ ] web/templates/acting.html carrying "You can't submit a review while
+- [x] web/templates/acting.html carrying "You can't submit a review while
       offline.", and the browser test at the offline bar asserting its text
-- [ ] `noAnswer` in web/ts/failures.ts reading "Cannot reach eyeball.", with
+- [x] `noAnswer` in web/ts/failures.ts reading "Cannot reach eyeball.", with
       every test that asserts the old sentence updated
+
+> **Completed** 2026-10-29 16:29 UTC
+>
+> - `make check` — 19.8s
+> - `go test -race ./...` — 44.9s
+> - `go test -count=1 -tags browser ./internal/server` — 52.7s
+
