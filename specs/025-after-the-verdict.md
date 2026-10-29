@@ -88,6 +88,13 @@ Corrections found while building the tearout:
   (`{{if .Chips}}...{{else}}hint{{end}}`). Iteration 3 has to change
   `composerform` to draw both, not only set Hint as `acting()` does for the
   review box.
+- The owner changed two sentences on the phone. The offline notice in the
+  decision bar is "You can't submit a review while offline." in place of the
+  candidate. A request that got no answer says "Cannot reach eyeball." and
+  nothing more, in place of "Could not reach eyeball. The text is still here."
+  and "Could not reach eyeball. Nothing was sent, and the note is still here."
+  The reason for the second: "The text is still here" states what is already
+  visible, since the text and its Retry button are on screen.
 
 - [x] review.html's Approve section landing on a queue.html frame after the tap,
       with its paragraph and notes saying the blink plays on the queue
@@ -130,5 +137,7 @@ Corrections found while building the tearout:
 
 ## Iteration 4: The notice
 
-- [ ] web/templates/acting.html carrying the sentence the tearout settled, and
-      the browser test at the offline bar asserting its text
+- [ ] web/templates/acting.html carrying "You can't submit a review while
+      offline.", and the browser test at the offline bar asserting its text
+- [ ] `noAnswer` in web/ts/failures.ts reading "Cannot reach eyeball.", with
+      every test that asserts the old sentence updated

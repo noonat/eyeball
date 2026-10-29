@@ -1018,7 +1018,7 @@
           <div class="comment unsent">
             <div class="anchor"><span class="where">docs/product.md:214</span></div>
             <p>The compare control needs naming, not describing.</p>
-            <span class="failed"><span class="i i-circle-alert" aria-hidden="true"></span><span>Could not reach eyeball. The text is still here.</span></span>
+            <span class="failed"><span class="i i-circle-alert" aria-hidden="true"></span><span>Cannot reach eyeball.</span></span>
             <div class="acts"><a href="#connection"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a href="#connection"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
           </div>
         </div>
@@ -1028,7 +1028,7 @@
             <a class="btn danger" href="#connection" aria-disabled="true">Request changes</a>
             <a class="btn primary" href="#connection" aria-disabled="true">Approve</a>
           </div>
-          <span class="why-not">Offline. A verdict needs eyeball.</span>
+          <span class="why-not">You can&rsquo;t submit a review while offline.</span>
         </div>
         </div>
       </div></div>
@@ -1046,8 +1046,8 @@
     a button and leaving the reason to be inferred is the same failure in a
     quieter voice.</li>
     <li><b>A request that failed reports on the control that made it.</b> The
-    banner says the connection is gone; this says what happened to the thing that
-    was just attempted, which is a different question.</li>
+    message sits on that control, where the banner sits under the top bar for as
+    long as the connection is gone.</li>
     <li><b>The typed text is still there</b>, on a card marked as not saved.
     Retry and Delete are both offered, because a failed save is either worth
     another attempt or was not worth keeping, and only the reviewer knows
