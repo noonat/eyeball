@@ -96,6 +96,8 @@ Corrections found while building the tearout:
   The reason for the second: "The text is still here" states what is already
   visible, since the text and its Retry button are on screen.
 
+The owner approved the tearout on 2026-10-29, after changing the two sentences.
+
 - [x] review.html's Approve section landing on a queue.html frame after the tap,
       with its paragraph and notes saying the blink plays on the queue
 - [x] queue.html frame after a verdict: the review's row under Settled, the eye
@@ -105,8 +107,15 @@ Corrections found while building the tearout:
 - [x] The offline notice reworded in foundations.html, rendered headless at 390
       pixels in both themes on one line, with the width measured
 - [x] docs/design/README.md's table naming the new frames and no reload
-- [ ] The tearout judged on the phone by the owner, with any change asked for
+- [x] The tearout judged on the phone by the owner, with any change asked for
       made before the ack
+
+> **Completed** 2026-10-29 15:59 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 6.4s
+> - `go test -race ./...` — 46.8s
+> - `go test -count=1 -tags browser ./internal/server` — 47.1s
 
 ## Iteration 2: Back to the queue
 
