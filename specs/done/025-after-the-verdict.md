@@ -15,8 +15,8 @@ nothing, and the owner spent a while tapping lines on approved reviews before
 finding that only open rounds open a composer. The decision bar's notice while
 eyeball cannot be reached wraps to two lines on the phone.
 
-The design is in [docs/product.md](../docs/product.md), under Deciding, changed
-in this spec's first commit.
+The design is in [docs/product.md](../../docs/product.md), under Deciding,
+changed in this spec's first commit.
 
 **A verdict returns to the queue.** `handleDecide` answers `HX-Refresh` today,
 and will answer `HX-Redirect: /`. `HX-Location` was rejected because it swaps
@@ -185,4 +185,3 @@ Deviations found while building:
 > - `make check` — 19.8s
 > - `go test -race ./...` — 44.9s
 > - `go test -count=1 -tags browser ./internal/server` — 52.7s
-
