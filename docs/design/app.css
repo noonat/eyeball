@@ -591,8 +591,8 @@
   background-color: var(--ink-faint);
 }
 
-/* Approving blinks the eye once, on the page the approval reloads to, which
- * already shows the new count. The client adds .blink. The blink is the only
+/* A verdict blinks the eye once, on the queue it returns to, which already
+ * shows the new count. The client adds .blink. The blink is the only
  * motion on the surface, and under reduced motion there is none. */
 @keyframes eye-blink {
   0%,
@@ -1900,14 +1900,22 @@ tr.del.sel {
   color: var(--ink-faint);
 }
 
+/* A late comment adds "after the verdict" beside the place. Wrapping drops it
+ * to its own line, where one line of flex cut the path to "sync.g…" and the
+ * label to two lines at 390 pixels. */
 .comment .anchor {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0 6px;
   font-size: var(--t-xs);
   color: var(--ink-faint);
   font-family: var(--mono);
   min-width: 0;
+}
+
+.comment .anchor > :not(.where) {
+  white-space: nowrap;
 }
 
 .comment .anchor .where {

@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -74,15 +74,30 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] review.html's Approve section landing on a queue.html frame after the tap,
+Corrections found while building the tearout:
+
+- The opening says the narrow layout already puts the notice on a line of its
+  own above the buttons. That was wrong.
+  `.decide .why-not { order: -1; flex-basis: 100% }` sits inside
+  `@media (min-width: 720px)`, so on the phone the notice sits under the
+  buttons, and above them only at 720px and wider. The shorter sentence is still
+  what fixes the wrap. Measured at 390px: 172px of text in a 356px box, one
+  line, where the old sentence took two.
+- The decided-round composer frame draws the hint and the level chips together.
+  `composerform` in `web/templates/acting.html` draws one or the other
+  (`{{if .Chips}}...{{else}}hint{{end}}`). Iteration 3 has to change
+  `composerform` to draw both, not only set Hint as `acting()` does for the
+  review box.
+
+- [x] review.html's Approve section landing on a queue.html frame after the tap,
       with its paragraph and notes saying the blink plays on the queue
-- [ ] queue.html frame after a verdict: the review's row under Settled, the eye
+- [x] queue.html frame after a verdict: the review's row under Settled, the eye
       at its new count, and a note that a changes request moves it to Working
-- [ ] review.html frame of a decided round with a line tapped, its composer
+- [x] review.html frame of a decided round with a line tapped, its composer
       reading "Sends immediately" and "Send", and a late comment under a line
-- [ ] The offline notice reworded in foundations.html, rendered headless at 390
+- [x] The offline notice reworded in foundations.html, rendered headless at 390
       pixels in both themes on one line, with the width measured
-- [ ] docs/design/README.md's table naming the new frames and no reload
+- [x] docs/design/README.md's table naming the new frames and no reload
 - [ ] The tearout judged on the phone by the owner, with any change asked for
       made before the ack
 

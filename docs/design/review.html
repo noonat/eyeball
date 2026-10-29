@@ -16,7 +16,7 @@
   itself, and a pinned decision bar. Shown as a second round of a long document
   folded to what changed, with a fold opened, a changed list item and the changes
   words cannot mark, as a large change with every file open under a list of them, as a long file whose header stays at the top, as a first round with an empty base, with a
-  comment being written, and after the verdict.</p>
+  comment being written, after the verdict, a tap on a line of a decided round, and Approve, which lands on the queue.</p>
   <nav>
     <a href="foundations.html">Foundations</a>
     <a href="queue.html">Queue</a>
@@ -6657,19 +6657,130 @@ eyeball abandon &lt;id&gt;                              withdraw the question
 
 <hr class="rule">
 
-<section class="spec" id="approve">
-  <h2>Approve <span class="tag">tap it</span></h2>
-  <p>Approving reloads the page, so what follows the tap is the decided round:
-  no decision bar, the Approved notice and pill, and the eye at its new count,
-  blinking once. Tap Approve in either frame to see it. Reset puts both back.</p>
+<section class="spec" id="decided">
+  <h2>A decided round, a line tapped <span class="tag">a comment sent at once</span></h2>
+  <p>A tap on a line of a decided round opens a composer under it, as on an open
+  round. Nothing is held for a batch, so the composer reads Sends immediately
+  and its button reads Send. A comment sent this way sits under its line,
+  marked as after the verdict.</p>
 
   <div class="pair">
     <figure class="frame">
-      <figcaption>light <a class="exp" href="#approve">Reset</a> <a class="exp" href="#full-approve"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
-      <div class="phone" data-theme="light"><div class="app moment" id="approve-light">
+      <figcaption>light &mdash; a line tapped on a decided round</figcaption>
+      <div class="phone" data-theme="light"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Delta sync</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill approved">Approved 2h ago</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span></div>
+            <h2 class="title">Delta sync watermark</h2>
+          </div>
+          <div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> 3 comments and the verdict went out 2 hours ago.</span></div>
+          <details class="file" open><summary><span class="path"><bdi>internal/storage/sync.go</bdi></span><span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 118,6 +118,12 @@ func (s *Sync) advance</td></tr>
+                <tr><td class="ln">118</td><td class="sign"></td><td class="src">	next := s.clock.<span class="f">Now</span>()</td></tr>
+                <tr class="add"><td class="ln">119</td><td class="sign">+</td><td class="src">	<span class="k">if</span> next.<span class="f">Before</span>(s.watermark) {</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/storage/sync.go:119</span><span>after the verdict</span></div>
+                    <p>Say why the clock can go backwards, or the next reader deletes this.</p>
+                  </div>
+                </div></td></tr>
+                <tr class="add sel"><td class="ln">120</td><td class="sign">+</td><td class="src">		next = s.watermark</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <form class="composer">
+                    <div class="anchor">internal/storage/sync.go:120</div>
+                    <textarea class="field" aria-label="Comment" placeholder="Comment on line 120&hellip;"></textarea>
+                    <span class="hint">Sends immediately</span>
+                    <div class="foot">
+                      <span class="levels"><a class="chip" href="#decided" aria-pressed="true">Line 120</a><a class="chip" href="#decided">File</a><a class="chip" href="#decided">Review</a></span>
+                      <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Send</button></span>
+                    </div>
+                  </form>
+                </div></td></tr>
+                <tr class="add"><td class="ln">121</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr><td class="ln">122</td><td class="sign"></td><td class="src">	<span class="k">return</span> s.<span class="f">store</span>(next)</td></tr>
+              </table>
+            </div>
+          </details>
+        </div></div>
+      </div></div>
+    </figure>
+    <figure class="frame">
+      <figcaption>dark</figcaption>
+      <div class="phone" data-theme="dark"><div class="app">
+        <div class="topbar"><a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Delta sync</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span></div>
+        <div class="scroll"><div class="page">
+          <div class="brief">
+            <div class="where"><span class="pill approved">Approved 2h ago</span><span class="pill plain">Round 2</span><span class="who"><span class="bit"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></span><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/outbox-drain</span></span></span></div>
+            <h2 class="title">Delta sync watermark</h2>
+          </div>
+          <div class="notice"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> 3 comments and the verdict went out 2 hours ago.</span></div>
+          <details class="file" open><summary><span class="path"><bdi>internal/storage/sync.go</bdi></span><span class="counts"><span class="plus">+96</span> <span class="minus">&minus;14</span></span><a class="fileopen" href="widening.html#whole" aria-label="Whole file" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+            <div class="code narrow">
+              <table>
+                <tr class="hunkhead"><td colspan="3">@@ 118,6 +118,12 @@ func (s *Sync) advance</td></tr>
+                <tr><td class="ln">118</td><td class="sign"></td><td class="src">	next := s.clock.<span class="f">Now</span>()</td></tr>
+                <tr class="add"><td class="ln">119</td><td class="sign">+</td><td class="src">	<span class="k">if</span> next.<span class="f">Before</span>(s.watermark) {</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <div class="comment">
+                    <div class="anchor"><span class="where">internal/storage/sync.go:119</span><span>after the verdict</span></div>
+                    <p>Say why the clock can go backwards, or the next reader deletes this.</p>
+                  </div>
+                </div></td></tr>
+                <tr class="add sel"><td class="ln">120</td><td class="sign">+</td><td class="src">		next = s.watermark</td></tr>
+                <tr class="thread"><td colspan="3"><div class="thread-body">
+                  <form class="composer">
+                    <div class="anchor">internal/storage/sync.go:120</div>
+                    <textarea class="field" aria-label="Comment" placeholder="Comment on line 120&hellip;"></textarea>
+                    <span class="hint">Sends immediately</span>
+                    <div class="foot">
+                      <span class="levels"><a class="chip" href="#decided" aria-pressed="true">Line 120</a><a class="chip" href="#decided">File</a><a class="chip" href="#decided">Review</a></span>
+                      <span class="acts"><button type="button" class="btn small ghost"><span class="i i-x" aria-hidden="true"></span>Cancel</button><button type="button" class="btn small accent">Send</button></span>
+                    </div>
+                  </form>
+                </div></td></tr>
+                <tr class="add"><td class="ln">121</td><td class="sign">+</td><td class="src">	}</td></tr>
+                <tr><td class="ln">122</td><td class="sign"></td><td class="src">	<span class="k">return</span> s.<span class="f">store</span>(next)</td></tr>
+              </table>
+            </div>
+          </details>
+        </div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <ul class="note-list">
+    <li><b>A tap works on a decided round because the comment box does.</b> The
+    round already takes a comment on the whole review, and a line is a more exact
+    place to put one. A sign saying lines are closed would explain a limit that
+    does not exist.</li>
+    <li><b>The hint is the only difference from an open round.</b> The reviewer
+    needs to know the comment leaves at once, with no draft to come back to, so
+    it says so where Saved as you type would say it.</li>
+    <li><b>A late comment has no Edit or Delete.</b> It has already gone to the
+    agent. The mark after the verdict is how it reads next to the comments made
+    while the round was open.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section class="spec" id="approve">
+  <h2>Approve <span class="tag">tap it</span></h2>
+  <p>Approving returns to the queue, so what follows the tap is
+  <a href="queue.html#verdict-light">the queue</a>: the review out of Waiting and
+  the eye at its new count, blinking once. Tap Approve in either frame to land
+  on it. Back returns here.</p>
+
+  <div class="pair">
+    <figure class="frame">
+      <figcaption>light <a class="exp" href="#full-approve"><span class="i i-maximize-2" aria-hidden="true"></span> Expand</a></figcaption>
+      <div class="phone" data-theme="light"><div class="app">
         <div class="topbar">
           <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
-          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris"><span class="is-before">3</span><span class="is-after">2</span></span></span>
+          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
         </div>
         <div class="scroll"><div class="page">
 
@@ -6683,10 +6794,9 @@ eyeball abandon &lt;id&gt;                              withdraw the question
             <span class="sig"><span class="agent">spec/012-surface</span></span>
           </div>
           <div class="brief">
-            <div class="where"><span class="pill waiting is-before">Waiting 12m</span><span class="pill approved is-after">Approved just now</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
             <h2 class="title">Product doc, second pass</h2>
           </div>
-          <div class="notice is-after"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> The verdict and 2 comments went out just now.</span></div>
 
 
           <div class="toolbar">
@@ -7403,9 +7513,9 @@ eyeball abandon &lt;id&gt;                              withdraw the question
           </div>
 
         </div>
-        <div class="decide is-before">
+        <div class="decide">
           <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
-          <div class="buttons"><a class="btn danger" href="#approve">Request changes</a><a class="btn primary" href="#approve-light">Approve</a></div>
+          <div class="buttons"><a class="btn danger" href="#approve">Request changes</a><a class="btn primary" href="queue.html#verdict-light">Approve</a></div>
         </div>
         </div>
       </div></div>
@@ -7413,10 +7523,10 @@ eyeball abandon &lt;id&gt;                              withdraw the question
 
     <figure class="frame">
       <figcaption>dark</figcaption>
-      <div class="phone" data-theme="dark"><div class="app moment" id="approve-dark">
+      <div class="phone" data-theme="dark"><div class="app">
         <div class="topbar">
           <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
-          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris"><span class="is-before">3</span><span class="is-after">2</span></span></span>
+          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
         </div>
         <div class="scroll"><div class="page">
 
@@ -7430,10 +7540,9 @@ eyeball abandon &lt;id&gt;                              withdraw the question
             <span class="sig"><span class="agent">spec/012-surface</span></span>
           </div>
           <div class="brief">
-            <div class="where"><span class="pill waiting is-before">Waiting 12m</span><span class="pill approved is-after">Approved just now</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
             <h2 class="title">Product doc, second pass</h2>
           </div>
-          <div class="notice is-after"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> The verdict and 2 comments went out just now.</span></div>
 
 
           <div class="toolbar">
@@ -8150,9 +8259,9 @@ eyeball abandon &lt;id&gt;                              withdraw the question
           </div>
 
         </div>
-        <div class="decide is-before">
+        <div class="decide">
           <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
-          <div class="buttons"><a class="btn danger" href="#approve">Request changes</a><a class="btn primary" href="#approve-dark">Approve</a></div>
+          <div class="buttons"><a class="btn danger" href="#approve">Request changes</a><a class="btn primary" href="queue.html#verdict-dark">Approve</a></div>
         </div>
         </div>
       </div></div>
@@ -8160,11 +8269,13 @@ eyeball abandon &lt;id&gt;                              withdraw the question
   </div>
 
   <ul class="note-list">
-    <li><b>The blink plays on the page the approval reloads to.</b> That page
-    already shows the new count. This sheet has no reload, so here the eye
-    closes on 3 and opens on 2. The live page blinks on 2.</li>
+    <li><b>The blink plays on the queue.</b> The tap loads the queue as a new
+    page, so the eye there closes on 3 and opens on 2, as it does when the page
+    is built. The review page itself never reloads and never blinks.</li>
     <li><b>The blink is the only motion on the surface.</b> Under reduced motion
-    the reloaded page appears without it.</li>
+    the queue appears without it.</li>
+    <li><b>Request changes lands there too.</b> It also lowers the waiting
+    count, so it blinks the same way. The review leaves Waiting for Working.</li>
   </ul>
 </section>
 
@@ -8550,10 +8661,10 @@ eyeball abandon &lt;id&gt;                              withdraw the question
 
 <div class="full" id="full-approve" data-theme="light">
   <div class="closebar"><span>approve &mdash; wide layout, tap it</span><a href="#approve">close</a></div>
-  <div class="app moment" id="full-approve-go">
+  <div class="app">
         <div class="topbar">
           <a class="back" href="queue.html"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a>
-          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris"><span class="is-before">3</span><span class="is-after">2</span></span></span>
+          <h1>Product doc</h1><span class="eye" role="img" aria-label="3 waiting"><span class="iris">3</span></span>
         </div>
         <div class="scroll"><div class="page">
 
@@ -8567,10 +8678,9 @@ eyeball abandon &lt;id&gt;                              withdraw the question
             <span class="sig"><span class="agent">spec/012-surface</span></span>
           </div>
           <div class="brief">
-            <div class="where"><span class="pill waiting is-before">Waiting 12m</span><span class="pill approved is-after">Approved just now</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+            <div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="project.html"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
             <h2 class="title">Product doc, second pass</h2>
           </div>
-          <div class="notice is-after"><span class="glyph i i-check" aria-hidden="true"></span><span><strong>Approved.</strong> The verdict and 2 comments went out just now.</span></div>
 
 
           <div class="toolbar">
@@ -9287,9 +9397,9 @@ eyeball abandon &lt;id&gt;                              withdraw the question
           </div>
 
         </div>
-        <div class="decide is-before">
+        <div class="decide">
           <div class="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
-          <div class="buttons"><a class="btn danger" href="#approve">Request changes</a><a class="btn primary" href="#full-approve-go">Approve</a></div>
+          <div class="buttons"><a class="btn danger" href="#approve">Request changes</a><a class="btn primary" href="queue.html#full-verdict-go">Approve</a></div>
         </div>
         </div>
       </div>
