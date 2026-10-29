@@ -488,11 +488,19 @@ either guess or come back to ask. The refusal names the fix.
 the moment a reading becomes irreversible, and the reviewer should not have to
 remember how many points they made.
 
-**After a verdict the round is closed**, the page shows the decision, and the
-review leaves the waiting list. A comment written on a closed round is allowed
-and goes out on its own immediately. Batching exists to protect a reading in
+**After a verdict the round is closed**, the review leaves the waiting list, and
+the reviewer is returned to the queue. A reading ends in a verdict, and the next
+thing to read is on the queue. The cost is that the decision is not shown at the
+moment it is made, so the eye in the top bar blinks to its new count and the
+review's row is seen to move out of Waiting. The decided page still shows the
+decision to anyone who opens it later.
+
+**A comment written on a closed round is allowed** wherever a comment can be
+written on an open one, on a line, a passage, a file or the whole review, and it
+goes out on its own immediately. Batching exists to protect a reading in
 progress, and that reading is over, so holding the comment would hold it until a
-round that may never be requested.
+round that may never be requested. Its composer says it sends immediately,
+because the same tap on an open round adds to a batch that can still be edited.
 
 ### The project view
 
