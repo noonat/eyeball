@@ -18,10 +18,6 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] design: the foundations, spec [027](027-react-foundations.md). The Vite,
-      Storybook, vendoring and esbuild build, the strict settings, and the
-      foundation components as stories, approved on the phone against
-      `foundations.html`.
 - [ ] product: the JSON API with generated types, and the queue as the first
       screen in React, end to end. It also builds the shell, the router, the
       service worker's shell cache and the tap handling, which need a screen to

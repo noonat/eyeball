@@ -9,12 +9,12 @@ required_commands:
 # 027 The React foundations
 
 The surface is moving from htmx and Go templates to React, as
-[docs/architecture.md](../docs/architecture.md) describes under The surface and
-The client code. This spec builds what every later screen stands on: the Node
-toolchain for development, the strictest TypeScript over the app, the vendored
-packages and the Go bundle that keep `go install` working, and the foundation
-components as Storybook stories, which are their tearout
-([docs/design/README.md](../docs/design/README.md)). No screen moves here.
+[docs/architecture.md](../../docs/architecture.md) describes under The surface
+and The client code. This spec builds what every later screen stands on: the
+Node toolchain for development, the strictest TypeScript over the app, the
+vendored packages and the Go bundle that keep `go install` working, and the
+foundation components as Storybook stories, which are their tearout
+([docs/design/README.md](../../docs/design/README.md)). No screen moves here.
 
 **The shell, the router, the service worker's shell cache and the tap handling
 move to the queue spec** (the JSON API and the queue, 028). A shell with no
