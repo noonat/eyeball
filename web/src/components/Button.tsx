@@ -11,7 +11,7 @@ interface ButtonProps {
   readonly icon?: IconName;
   /** A control that goes somewhere is a link. One that acts is a button. */
   readonly href?: string;
-  readonly onClick?: () => void;
+  readonly onClick?: (() => void) | undefined;
 }
 
 /** A pill-shaped control. Approve is the filled one and sits on the right. */

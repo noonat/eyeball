@@ -11,7 +11,6 @@ import { trackHead } from "./head";
 import { reportFailures } from "./failures";
 import { keepPlace } from "./place";
 import { prune } from "./storage";
-import { followPush } from "./push";
 import { followStream } from "./stream";
 import { refreshOnTap } from "./update";
 import { registerWorker } from "./worker";
@@ -41,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
   trackHead();
   refreshOnTap();
   followStream();
-  followPush();
   prune();
   keepPlace();
   loadBodies();

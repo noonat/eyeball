@@ -1,4 +1,5 @@
 import type { Queue as QueueView } from "../api/types";
+import { Banners } from "./Banners";
 import { EmptyState } from "./EmptyState";
 import { QueueSection } from "./QueueSection";
 import { QueueSetup, type Setup } from "./QueueSetup";
@@ -11,6 +12,13 @@ interface QueueProps {
   readonly setup?: Setup | undefined;
   /** Blinks the eye once, as the queue does after a verdict. */
   readonly blink?: boolean | undefined;
+  /** The stream has been down long enough to say so. */
+  readonly offline?: boolean | undefined;
+  /** The daemon runs a newer build than the one that served this page. */
+  readonly updateReady?: boolean | undefined;
+  readonly onRetry?: (() => void) | undefined;
+  readonly onAllow?: (() => void) | undefined;
+  readonly onResubscribe?: (() => void) | undefined;
 }
 
 /**
@@ -18,16 +26,36 @@ interface QueueProps {
  * order the API sent each. With nothing waiting, the shut eye stands where the
  * Waiting section would be.
  */
-export function Queue({ queue, setup = "ready", blink }: QueueProps) {
+export function Queue({
+  queue,
+  setup = "ready",
+  blink,
+  offline,
+  updateReady,
+  onRetry,
+  onAllow,
+  onResubscribe,
+}: QueueProps) {
   const waiting = queue.waiting ?? [];
   const working = queue.working ?? [];
   const settled = queue.settled ?? [];
   return (
     <>
-      <TopBar waiting={queue.waiting_count} blink={blink} />
+      <div className="head">
+        <TopBar waiting={queue.waiting_count} blink={blink} />
+        <Banners
+          offline={offline}
+          updateReady={updateReady}
+          onRetry={onRetry}
+        />
+      </div>
       <div className="scroll">
         <div className="page">
-          <QueueSetup setup={setup} />
+          <QueueSetup
+            setup={setup}
+            onAllow={onAllow}
+            onResubscribe={onResubscribe}
+          />
           {waiting.length > 0 ? (
             <QueueSection
               title="Waiting on you"

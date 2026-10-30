@@ -6,7 +6,7 @@ import { awkward, nothingWaiting, populated } from "../fixtures";
 import awkwardHtml from "../fixtures/queue-awkward.html?raw";
 import nothingWaitingHtml from "../fixtures/queue-nothing-waiting.html?raw";
 import populatedHtml from "../fixtures/queue-populated.html?raw";
-import { screenMarkup, templateMarkup } from "./markup";
+import { screenMarkup, approvedMarkup } from "./markup";
 
 const meta = {
   title: "Queue/Screen",
@@ -27,20 +27,20 @@ function firstWaiting(queue: QueueView, n: number): QueueView {
 }
 
 /**
- * A data state is the markup the template page renders for the same server
- * state. Both are normalized the same way, so a class changed in a component
- * fails here.
+ * A data state draws the markup the owner approved for it, which its fixture
+ * file holds. Both are normalized the same way, so a class changed in a
+ * component fails here.
  */
-function sameAsTemplate(html: string): NonNullable<Story["play"]> {
+function sameAsApproved(html: string): NonNullable<Story["play"]> {
   return async ({ canvasElement }) => {
-    await expect(screenMarkup(canvasElement)).toEqual(templateMarkup(html));
+    await expect(screenMarkup(canvasElement)).toEqual(approvedMarkup(html));
   };
 }
 
 /** Three projects, four agents, every section. */
 export const Populated: Story = {
   args: { queue: populated },
-  play: sameAsTemplate(populatedHtml),
+  play: sameAsApproved(populatedHtml),
 };
 
 /**
@@ -54,7 +54,7 @@ export const AfterAVerdict: Story = {
 /** The shut eye stands where Waiting would be, and Working follows it. */
 export const NothingWaiting: Story = {
   args: { queue: nothingWaiting },
-  play: sameAsTemplate(nothingWaitingHtml),
+  play: sameAsApproved(nothingWaitingHtml),
 };
 
 /** Neither step is done, so the notice and both steps lead the queue. */
@@ -78,7 +78,7 @@ export const Lapsed: Story = {
  */
 export const AwkwardWeek: Story = {
   args: { queue: awkward },
-  play: sameAsTemplate(awkwardHtml),
+  play: sameAsApproved(awkwardHtml),
 };
 
 /**

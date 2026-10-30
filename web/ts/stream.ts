@@ -1,9 +1,6 @@
+import { openStream } from "./connection";
 import { isDeciding, setOffline, unsavedText } from "./state";
-import { followBuild } from "./update";
-
-// noticeDelay is how long a stream may be down before the notice shows, so a
-// phone waking from sleep does not flash it. Two seconds is a guess.
-const noticeDelay = 2000;
+import { newerBuild, pageBuild } from "./update";
 
 // followStream opens the page's live stream. A page that prints a stamp
 // reloads when the stream sends a different one, once nothing on it is
@@ -12,8 +9,6 @@ export function followStream(): void {
   const page = document.querySelector<HTMLElement>(".page[data-stream]");
   const url = page?.dataset["stream"] ?? "/events";
   const stamp = page?.dataset["stamp"] ?? "";
-  let source: EventSource | null = null;
-  let timer: number | undefined;
   let stale = false;
 
   const reload = (): void => {
@@ -21,32 +16,22 @@ export function followStream(): void {
       window.location.reload();
     }
   };
-  const open = (): void => {
-    source?.close();
-    source = new EventSource(url);
-    followBuild(source);
-    source.addEventListener("open", () => {
-      window.clearTimeout(timer);
-      timer = undefined;
-      showNotice(false);
-    });
-    source.addEventListener("error", () => {
-      timer ??= window.setTimeout(() => {
-        showNotice(true);
-      }, noticeDelay);
-    });
-    source.addEventListener("message", (event) => {
-      if (stamp !== "" && event.data !== stamp) {
+  const stream = openStream(url, {
+    stamp: (next) => {
+      if (stamp !== "" && next !== stamp) {
         stale = true;
         reload();
       }
-    });
-  };
-
-  // navigator.onLine is trusted only when it says false.
-  window.addEventListener("offline", () => {
-    showNotice(true);
+    },
+    build: (newest) => {
+      const holder = document.getElementById("update");
+      if (holder) {
+        holder.hidden = !newerBuild(pageBuild(), newest);
+      }
+    },
+    connection: showNotice,
   });
+
   document.addEventListener("click", (event) => {
     const retry =
       event.target instanceof Element
@@ -54,14 +39,13 @@ export function followStream(): void {
         : null;
     if (retry) {
       event.preventDefault();
-      open();
+      stream.reopen();
     }
   });
   // A reload waiting on unsaved text happens once the text is stored, sent
   // or discarded.
   document.addEventListener("input", reload);
   document.addEventListener("htmx:afterSwap", reload);
-  open();
 }
 
 // showNotice shows or hides the bar under the top bar. It is shown and hidden

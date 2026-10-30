@@ -97,14 +97,22 @@ Where the work went differently from the paragraphs above.
 - Iteration 3's first item says the components' markup equals queue.html's.
   `docs/design/queue.html` is the design frame, which draws newest first and
   includes the "Not requested yet" row, so equality with it was never possible.
-  The components are compared with the template queue page's render for each
-  seeded state. `tool/fixtures` writes that render as
-  `web/src/fixtures/queue-*.html`, and each data story compares its own markup
-  with it.
-- That comparison leaves out `#firstrun` and `#lapsed`, since `QueueSetup` takes
-  those states as a prop. It also leaves out `data-stream` and `data-stamp` on
-  the page's column. The stream script reads both, so iteration 4's shell has to
-  carry them.
+  The components were compared with the template queue page's render for each
+  seeded state, which `tool/fixtures` wrote as `web/src/fixtures/queue-*.html`.
+  Iteration 4 removes the template page, so those files are now committed as
+  they were, with a comment saying so, and each data story still compares its
+  markup with them. The comparison no longer follows a live template, which was
+  its whole purpose while both existed. What it holds now is the markup the
+  owner approved on the phone, and a change to it is made by hand with the
+  component. Rendering the row partials that project.html still uses would have
+  compared the rows alone, and left the sections, the empty state and the top
+  bar unchecked.
+- That comparison left out `#firstrun` and `#lapsed`, since `QueueSetup` takes
+  those states as a prop. It also left out `data-stream` and `data-stamp` on the
+  page's column. This corrects an earlier note here, that iteration 4's shell
+  has to carry them. The app opens its own stream and takes the stamp from the
+  view, so the shell prints none. A stamp in the shell would be a second read of
+  the queue, which is the gap the view's stamp closes.
 - The client-only states (after a verdict, not installed, notifications not
   allowed and a lapsed subscription) are compared with nothing beyond the text
   the template and the frames give them.
@@ -119,6 +127,20 @@ Where the work went differently from the paragraphs above.
 - The owner's approval of the sheet settled two open questions. Waiting rows are
   longest wait first, the order the store and the template page use, and the
   "Not requested yet" row stays out. The question in specs/TODO.md is removed.
+- The template pages' wiring for the first-run steps and the blink was removed
+  with the queue's template page, since no template page holds that markup any
+  more and nothing would exercise it. `push.ts` keeps the logic the app calls
+  (`pushState`, `allowPush`, `resubscribePush`, `installed`, `setBadge`), and
+  `blink.ts` keeps `takeBlinkMark` and `blinks`. A template page still clears a
+  stale blink mark on load, so it cannot blink a later queue.
+- The stream's connection logic moved to `web/ts/connection.ts`, with no page in
+  it. The template pages wire it to `#offline` and `#update`, and the app wires
+  it to state. `update.ts` keeps `pageBuild`, `newerBuild` and `refreshOnTap`.
+- The React bundle imports no stylesheet, so `AppBundle` has no `Stylesheet` and
+  the build fails if an import collects one. The shell links `app.css` and
+  `shell.css`, as the template pages do.
+- The queue's template tests were rewritten over `GET /api/`, since the page
+  they parsed is gone. The shell has a test of its own.
 
 ## Iteration 1: The documents
 
@@ -196,19 +218,25 @@ required_acks:
 
 ## Iteration 4: The shell
 
-- [ ] `GET /{$}` answers the shell: the head the layout writes,
+- [x] `GET /{$}` answers the shell: the head the layout writes,
       `/static/react.js` and a root element. Every other page stays a template.
-- [ ] The app draws the queue with React Router and TanStack Query from `/api/`,
+- [x] The app draws the queue with React Router and TanStack Query from `/api/`,
       and refetches when the stream's stamp differs from the view's.
-- [ ] The app shows the offline notice, the update notice and the first-run,
+- [x] The app shows the offline notice, the update notice and the first-run,
       lapsed and blink states by calling the `web/ts` modules, split where a
       module mixed its logic with template DOM.
-- [ ] `App()` embeds and stages `web/ts`, and the module zip test covers it.
-- [ ] browserApp, browserBlink, browserFirstRun and browserUpdate run against
+- [x] `App()` embeds and stages `web/ts`, and the module zip test covers it.
+- [x] browserApp, browserBlink, browserFirstRun and browserUpdate run against
       the React queue, and each fails with `GET /{$}` answering the template.
-- [ ] A browser test opens a review through the agent socket while the queue is
+- [x] A browser test opens a review through the agent socket while the queue is
       open, and the row appears with a value set on `window` still there.
-- [ ] queue.html's page block and `handleQueue`'s template path are removed.
+- [x] queue.html's page block and `handleQueue`'s template path are removed.
+
+> **Completed** 2026-10-30 13:41 UTC
+>
+> - `make check` — 13.9s
+> - `go test -race ./...` — 4.1s
+> - `go test -count=1 -tags browser ./internal/server` — 46.9s
 
 ## Iteration 5: On the phone
 

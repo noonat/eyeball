@@ -55,11 +55,16 @@ client code. Each item is a spec.
 ## Unscheduled
 
 - [ ] tooling: a flaky browser test. `TestServer_Surface_browserJump`
-      (`internal/server/browser_test.go`) failed once under `-tags browser` on
-      2026-10-30, at "the target moved as bodies loaded around it", with the
-      target 3482px from the head where the limit is 4. It passed on a re-run
-      with no code change. The cause is not found. A read that raced the click's
-      scroll, or the bodies loading, is a guess.
+      (`internal/server/browser_test.go`) fails at "the target moved as bodies
+      loaded around it", with the target 3482px from the head where the limit
+      is 4. Measured on 2026-10-30: on the 028 branch it failed about 2 times in
+      6 browser-suite runs, and on master's tree, a `git archive` of master in a
+      scratch directory, `go test -count=20 -tags browser ./internal/server`
+      with `-run` set to `TestServer_Surface_browserJump$` failed 2 of 20. Every
+      failure was at exactly 3482px, so the fault predates the branch. The cause
+      is not found. An identical offset each time is a guess that points at a
+      scroll that did not happen, or at a layout that comes out the same way
+      every time it fails, more than at a timing race.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active

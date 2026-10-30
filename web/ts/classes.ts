@@ -6,5 +6,4 @@ export const classes = Object.freeze({
   whyNot: "why-not",
   offline: "offline",
   retry: "retry",
-  blink: "blink",
 } as const);

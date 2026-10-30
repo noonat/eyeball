@@ -1,7 +1,7 @@
-// Comparing the markup of a component with the markup the template page renders
-// for the same state. Both are reduced to one string by the rules below, so a
-// difference that changes how a class selector or a layout reads is a
-// difference here, and a difference that does not is not.
+// Comparing the markup of a component with the markup the owner approved for the
+// same state, which the fixture files hold. Both are reduced to one string by
+// the rules below, so a difference that changes how a class selector or a layout
+// reads is a difference here, and a difference that does not is not.
 
 /** Whitespace-only text that a browser draws: a space between two inline spans. */
 function keepsSpace(text: Node): boolean {
@@ -64,8 +64,12 @@ export function screenMarkup(root: ParentNode): string[] {
   });
 }
 
-/** The markup the template page rendered, as tool/fixtures wrote it. */
-export function templateMarkup(html: string): string[] {
+/**
+ * The approved markup of a state: what the template queue page rendered when
+ * the owner approved the sheet, frozen in a fixture file when the template was
+ * removed.
+ */
+export function approvedMarkup(html: string): string[] {
   const holder = document.createElement("div");
   holder.innerHTML = html;
   return screenMarkup(holder);

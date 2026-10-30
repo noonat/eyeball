@@ -15,9 +15,6 @@ import (
 type AppBundle struct {
 	// Script is the app's bundle, to load as a classic script.
 	Script []byte
-	// Stylesheet is the CSS its imports collected. Its font urls are left as
-	// written, for the surface to serve beside it under /static/fonts/.
-	Stylesheet []byte
 }
 
 var (
@@ -44,8 +41,8 @@ func App() (AppBundle, error) {
 }
 
 // BuildApp bundles the app over a tree of packages, as the layout of
-// node_modules. It writes the embedded sources, the stylesheet and the packages
-// to a temporary directory and bundles from there, since esbuild resolves a
+// node_modules. It writes the embedded sources, the shared scripts and the
+// packages to a temporary directory and bundles from there, since esbuild resolves a
 // package through its package.json exports on a real directory. The write is
 // about 0.8 MB today, with React alone, and grows toward the 1.4 MB measured
 // once the router and the query library are imported. The directory is removed
@@ -67,12 +64,11 @@ func BuildApp(deps fs.FS) (AppBundle, error) {
 	if err := os.WriteFile(manifest, []byte(`{"type":"module"}`), 0o644); err != nil {
 		return AppBundle{}, errors.WithStack(err)
 	}
-	design := filepath.Join(dir, "docs", "design")
-	if err := os.MkdirAll(design, 0o755); err != nil {
-		return AppBundle{}, errors.WithStack(err)
-	}
-	if err := os.WriteFile(filepath.Join(design, "app.css"), Stylesheet, 0o644); err != nil {
-		return AppBundle{}, errors.WithStack(err)
+	// The app calls the framework-free modules the template pages run, so a
+	// storage key or a header name has one copy. They sit beside web/src, where
+	// its imports reach them.
+	if err := writeTree(Scripts, "web/ts", filepath.Join(dir, "web", "ts")); err != nil {
+		return AppBundle{}, err
 	}
 	modules := filepath.Join(dir, "node_modules")
 	if err := writeTree(deps, ".", modules); err != nil {
@@ -82,7 +78,7 @@ func BuildApp(deps fs.FS) (AppBundle, error) {
 	if err != nil {
 		return AppBundle{}, err
 	}
-	return AppBundle{Script: res.Script, Stylesheet: res.Stylesheet}, nil
+	return AppBundle{Script: res.Script}, nil
 }
 
 // writeTree writes the files under a directory of a file system into dest.

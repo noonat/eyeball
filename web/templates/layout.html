@@ -1,7 +1,4 @@
-{{define "layout"}}<!doctype html>
-<html lang="en" data-theme="light">
-<head>
-<meta charset="utf-8">
+{{define "headmeta"}}<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} &middot; Eyeball</title>
 <link rel="stylesheet" href="/static/app.css">
@@ -13,8 +10,11 @@
 <meta name="apple-mobile-web-app-title" content="Eyeball">
 {{with .VAPID}}<meta name="vapid-key" content="{{.}}">
 {{end}}<meta name="eyeball-build" content="{{.Build}}">
-
-<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"historyEnabled":false,"timeout":10000,"defaultSettleDelay":0,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
+{{end}}
+{{define "layout"}}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+{{template "headmeta" .}}<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"historyEnabled":false,"timeout":10000,"defaultSettleDelay":0,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
 <script src="/static/htmx.js"></script>
 <script src="/static/app.js"></script>
 </head>
@@ -27,6 +27,17 @@
 </div>
 {{template "page" .Body}}
 </div>
+</body>
+</html>
+{{end}}
+
+{{define "shell"}}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+{{template "headmeta" .}}<script src="/static/react.js"></script>
+</head>
+<body>
+<div id="root"></div>
 </body>
 </html>
 {{end}}

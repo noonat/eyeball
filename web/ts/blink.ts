@@ -1,4 +1,3 @@
-import { classes } from "./classes";
 import { eltOf } from "./events";
 import { setDeciding } from "./state";
 
@@ -65,25 +64,35 @@ function clear(event: Event): void {
   }
 }
 
-// blinkOnLoad reads the mark once and clears it. On the queue it blinks the eye
-// when the marked review has a row and that row is not under Waiting, which is
-// where a verdict puts it: Approved goes to Settled and changes requested to
-// Working. A mark left by a request whose answer never arrived names a review
-// that is still under Waiting, or has no row, and does not blink. Under reduced
-// motion app.css draws .blink as no motion at all.
-export function blinkOnLoad(): void {
+// takeBlinkMark reads the mark once and clears it, so it blinks one load and no
+// other. It is the review a verdict was just sent for, or null.
+export function takeBlinkMark(): string | null {
   const marked = read();
-  if (marked === null) {
-    return;
+  if (marked !== null) {
+    write(null);
   }
-  write(null);
-  if (location.pathname !== "/") {
-    return;
-  }
-  const row = document.querySelector(`a.row[href="/reviews/${marked}"]`);
-  if (row !== null && !row.classList.contains("waiting")) {
-    document.querySelector(".topbar .eye")?.classList.add(classes.blink);
-  }
+  return marked;
+}
+
+// blinks says whether the queue's eye blinks for a marked review: when the
+// review has a row and that row is not under Waiting, which is where a verdict
+// puts it. Approved goes to Settled and changes requested to Working. A mark
+// left by a request whose answer never arrived names a review that is still
+// under Waiting, or has no row, and does not blink. Under reduced motion
+// app.css draws .blink as no motion at all.
+export function blinks(
+  marked: string,
+  rows: readonly { readonly id: string; readonly waiting: boolean }[],
+): boolean {
+  const row = rows.find((candidate) => candidate.id === marked);
+  return row !== undefined && !row.waiting;
+}
+
+// blinkOnLoad clears a mark left on a page that is not the queue, so it cannot
+// blink a later load of the queue. The queue is the React app, which takes the
+// mark itself.
+export function blinkOnLoad(): void {
+  takeBlinkMark();
 }
 
 function read(): string | null {

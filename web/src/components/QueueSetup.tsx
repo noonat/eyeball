@@ -10,10 +10,12 @@ export type Setup = "ready" | "not-installed" | "not-allowed" | "lapsed";
 
 interface QueueSetupProps {
   readonly setup: Setup;
+  readonly onAllow?: (() => void) | undefined;
+  readonly onResubscribe?: (() => void) | undefined;
 }
 
 /** The setup notice and steps above the queue, or nothing once all is well. */
-export function QueueSetup({ setup }: QueueSetupProps) {
+export function QueueSetup({ setup, onAllow, onResubscribe }: QueueSetupProps) {
   if (setup === "ready") {
     return null;
   }
@@ -22,7 +24,7 @@ export function QueueSetup({ setup }: QueueSetupProps) {
       <Notice tone="warn" icon="bell">
         <strong>Notifications stopped arriving.</strong> This device&rsquo;s
         subscription lapsed.{" "}
-        <a role="button" tabIndex={0}>
+        <a role="button" tabIndex={0} onClick={onResubscribe}>
           Re-subscribe
         </a>
       </Notice>
@@ -54,7 +56,7 @@ export function QueueSetup({ setup }: QueueSetupProps) {
           number={2}
           what="Allow notifications"
           action={
-            <Button small tone="accent">
+            <Button small tone="accent" onClick={onAllow}>
               Allow
             </Button>
           }

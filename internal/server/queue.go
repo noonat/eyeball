@@ -14,15 +14,6 @@ import (
 // to find a verdict given an hour ago without a search, not to be a history.
 const settledShown = 5
 
-// queuePage is what the queue template prints.
-type queuePage struct {
-	// Waiting, Working and Settled are the three sections, in that order.
-	Waiting, Working, Settled []queueRow
-	// Stamp is the queue's stamp when the page was rendered, which the
-	// client compares with what its stream sends.
-	Stamp string
-}
-
 // queueRow is one review as a queue row shows it. The template and the JSON
 // view share the type, so a row cannot read differently in the two.
 type queueRow = view.Row
@@ -53,30 +44,6 @@ func (s *Server) handleQueueView(w http.ResponseWriter, r *http.Request) error {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, s.queueView(q))
-	return nil
-}
-
-// handleQueue answers GET /, the page the surface opens on.
-func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
-	q, err := s.db.s.Queue(r.Context(), settledShown)
-	if err != nil {
-		return err
-	}
-	now := s.now()
-	body := queuePage{}
-	body.Stamp = queueStampOf(q)
-	for _, row := range q.Waiting {
-		body.Waiting = append(body.Waiting, s.queueRow(row, render.Age(now, row.RequestedAt)))
-	}
-	for _, row := range q.Working {
-		body.Working = append(body.Working, s.queueRow(row, render.Age(now, row.DecidedAt)))
-	}
-	for _, row := range q.Settled {
-		body.Settled = append(body.Settled, s.queueRow(row, render.Age(now, row.DecidedAt)))
-	}
-	// The queue's own Waiting section is the count, read in the same snapshot
-	// as the rows, so the eye cannot disagree with the list under it.
-	s.renderPage(w, http.StatusOK, "queue", page{Title: "Queue", Eye: &eye{Count: len(body.Waiting)}, Body: body})
 	return nil
 }
 

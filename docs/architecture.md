@@ -667,6 +667,13 @@ document.
 address. Links, bookmarks and a notification's deep link keep the addresses they
 have now, and a page loaded cold lands on the right screen.
 
+**The shell holds nothing the store changes.** It is the head every page writes,
+the bundle and a root element. It prints no stamp: a stamp printed with the page
+would be a second read of the store beside the view's, so a change between the
+two would be missed. The app fetches the view, takes the stamp the view carries,
+opens the live stream itself, and refetches when the stream's stamp differs from
+the view's.
+
 **The API path is the page path under `/api`.** `GET /api/reviews/42` is the
 view the page at `/reviews/42` draws. One rule instead of a second address
 scheme means a page and its data cannot drift apart in name, and a person
@@ -704,7 +711,7 @@ describes and no spec has built yet.
 
 | Pattern                                                    | Answers                                             | Spec    |
 | ---------------------------------------------------------- | --------------------------------------------------- | ------- |
-| `GET /{$}`                                                 | the shell, drawing the queue                        | planned |
+| `GET /{$}`                                                 | the shell, drawing the queue                        | 028     |
 | `GET /reviews/{review}`                                    | the shell, drawing the current round                | planned |
 | `GET /reviews/{review}/rounds/{round}`                     | the shell, drawing that round                       | planned |
 | `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | planned |
@@ -724,7 +731,7 @@ describes and no spec has built yet.
 | `GET /sw.js`                                               | the service worker, scoped to the surface           | 009     |
 | `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009     |
 | `GET /static/app.js`                                       | the app, bundled once from the binary               | 008     |
-| `GET /static/react.js`                                     | the React app, while screens are mixed              | planned |
+| `GET /static/react.js`                                     | the React app, while screens are mixed              | 028     |
 | `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006     |
 | `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015     |
 | `POST /subscriptions`                                      | a device's push subscription                        | 009     |
@@ -797,10 +804,12 @@ The packages have to resolve through their `package.json` `exports` maps, which
 esbuild's resolver reads and a hand-written plugin would have to copy. A resolve
 plugin that pointed every bare import at a vendored directory was rejected for
 that reason. The cost of the replacement is a write to a temporary directory the
-first time a page asks for the bundle. Measured today, with React alone, that is
-about 0.8 MB: 670 KB of vendored packages in 13 files, 50 KB of the app's
-sources and 67 KB of `app.css`. It grows toward the 1.4 MB measured below once
-the router and the query library are imported.
+first time a page asks for the bundle. Measured 2026-10-30 with the router and
+the query library imported, that is about 1.6 MB: 1.4 MB of vendored packages in
+68 files, 110 KB of the app's sources and fixtures, and 76 KB of the scripts it
+shares with the template pages. The bundle it builds is 313,446 bytes minified
+and 98,259 gzipped at level 9, which agrees with the 313 KB and 98 KB first
+written.
 
 Measured 2026-10-29, in scratch projects: React 19.3.1, React Router 7.18.5 and
 TanStack Query 5.105.0 bundled by esbuild 0.28.2 through its Go API. Copying
@@ -957,10 +966,11 @@ that is the same for every address, the launch is the one fetch worth saving.
 **A new build takes effect on the next launch.** The worker installs it when it
 appears and the open app keeps running the build it started with. The one case
 that cannot wait is a shell older than the daemon's API, which can break a
-screen. Every API answer carries the daemon's build, and when it differs from
-the shell's, the app shows a notice offering to reload. A reload prompt on every
-new build was rejected: nearly every build changes nothing a running screen
-depends on, and a prompt shown for those teaches the reader to dismiss it.
+screen. The live stream sends the daemon's build each time it connects, and when
+it differs from the build that served the page, the app shows a notice offering
+to reload. A reload prompt on every new build was rejected: nearly every build
+changes nothing a running screen depends on, and a prompt shown for those
+teaches the reader to dismiss it.
 
 **The service worker also exists for push.** iOS delivers web push only to an
 installed page with a registered worker, so one would be required even with
@@ -1076,7 +1086,7 @@ closes.
 | `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                    |
 | `github.com/yuin/goldmark`              | markdown with GFM's tables and task lists, which specs are written in |
 | `golang.org/x/mod` (test)               | the module zip's rules, to check an embedded file reaches go install  |
-| `golang.org/x/net/html` (test, tool)    | tokenizing the tearouts, parsing rendered pages, trimming the queue   |
+| `golang.org/x/net/html` (test)          | tokenizing the tearouts, and parsing rendered pages                   |
 | `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires         |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |

@@ -17,9 +17,6 @@ const Entry = "web/src/main.tsx"
 type Result struct {
 	// Script is the bundle, minified, to be loaded as a classic script.
 	Script []byte
-	// Stylesheet is the CSS the entry's imports collected. A font url in it is
-	// left as written, to be served beside the stylesheet.
-	Stylesheet []byte
 	// Inputs are the files the bundle read, relative to the build's root.
 	Inputs []string
 }
@@ -45,11 +42,7 @@ func Build(root string, nodePaths []string) (Result, error) {
 		Conditions:    []string{"production"},
 		// React reads this to choose its production build, and without it the
 		// bundle holds both.
-		Define: map[string]string{"process.env.NODE_ENV": `"production"`},
-		// app.css names its fonts relative to itself, and the surface serves
-		// them beside the stylesheet under /static/fonts/. Neither spelling is a
-		// file in the bundle's tree.
-		External:          []string{"/static/fonts/*", "fonts/*"},
+		Define:            map[string]string{"process.env.NODE_ENV": `"production"`},
 		TsconfigRaw:       `{"compilerOptions":{"verbatimModuleSyntax":true}}`,
 		MinifyWhitespace:  true,
 		MinifyIdentifiers: true,
@@ -69,7 +62,9 @@ func Build(root string, nodePaths []string) (Result, error) {
 		case ".js":
 			out.Script = file.Contents
 		case ".css":
-			out.Stylesheet = file.Contents
+			// The surface links app.css and shell.css itself, so a bundle that
+			// collects a stylesheet would load a second copy beside them.
+			return Result{}, errors.Newf("bundling %s: the entry's imports collected a stylesheet, %s", Entry, file.Path)
 		}
 	}
 	if out.Script == nil {

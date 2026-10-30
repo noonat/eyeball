@@ -389,7 +389,8 @@ func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {
 func TestServer_Surface_htmxConfig(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	doc := f.page(g, "/", http.StatusOK)
+	// A template page, since the queue is the React app and loads no htmx.
+	doc := f.page(g, "/reviews/"+itoa(actingReview(g, t, f)), http.StatusOK)
 	meta := findAll(doc, func(n *html.Node) bool {
 		return n.Type == html.ElementNode && n.Data == "meta" && attr(n, "name") == "htmx-config"
 	})

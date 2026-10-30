@@ -15,7 +15,7 @@ func TestGenerate_committedFilesAreCurrent(t *testing.T) {
 	g := NewWithT(t)
 	files, err := Generate(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(files).To(HaveLen(2 * len(states)))
+	g.Expect(files).To(HaveLen(len(states)))
 	for name, body := range files {
 		have, err := os.ReadFile(filepath.Join("../..", outDir, name))
 		g.Expect(err).NotTo(HaveOccurred())
