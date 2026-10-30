@@ -14,15 +14,11 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-Nothing is next. The first item worth scheduling comes from Unscheduled.
+- [ ] tooling: a tapped notification opens the review it names. Spec
+      [026](026-tap-opens-the-review.md).
 
 ## Unscheduled
 
-- [ ] tooling: a notification tapped over Notes brought the installed app
-      forward on the review already open, twice, rather than on the review it
-      named. Tapped over the terminal app, the page loaded fresh by navigation
-      three times, but which review it showed was not checked. Which branch of
-      `openReview` in `web/ts/sw.ts` ran is not known. Seen during 020.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active
