@@ -40,7 +40,11 @@ client code. Each item is a spec.
       a guess. `focus()` stays after an answer, since a page cannot bring itself
       forward. Measured 2026-10-29 in headless Chromium: a page answered on a
       `MessageChannel` in under a millisecond, and a page with no listener gave
-      nothing until the worker's one-second timeout.
+      nothing until the worker's one-second timeout. A relaunch of the installed
+      app with the daemon down shows a black screen today, measured on the phone
+      on 2026-10-30 with the React queue's build. Master is expected to behave
+      the same, since the worker intercepts no fetches. The shell cache is what
+      fixes it.
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.

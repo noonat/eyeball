@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -262,9 +262,29 @@ required_acks:
 With the daemon running this branch's build, the owner checks in the installed
 app:
 
-- [ ] The queue opens and matches the approved sheet.
-- [ ] A review an agent opens appears in the queue with no reload.
-- [ ] A row opens its review, a verdict returns to the queue, and the eye
+- [x] The queue opens and matches the approved sheet.
+- [x] A review an agent opens appears in the queue with no reload.
+- [x] A row opens its review, a verdict returns to the queue, and the eye
       blinks.
-- [ ] Stopping the daemon shows the offline notice, and a rebuilt daemon shows
+- [x] Stopping the daemon shows the offline notice, and a rebuilt daemon shows
       the update notice.
+
+Results, from the owner's checks on the phone on 2026-10-30:
+
+- Reviews 186 and 187 appeared in the queue live with no reload. A verdict
+  returned to the queue and the eye blinked.
+- The eye first showed the lower count before the blink. The fix, commit
+  f7664c1, keeps the old count until the lid shuts. Reviews 189, 190 and 191
+  confirmed the swap on the phone.
+- Stopping the daemon with the app open showed the offline notice. Starting the
+  f7664c1 build showed the update notice.
+- A relaunch of the installed app while the daemon was down showed a black
+  screen. That is expected, since `web/ts/sw.ts` caches no pages, and master
+  behaves the same. The worker's shell cache item in specs/TODO.md covers it.
+
+> **Completed** 2026-10-30 23:30 UTC
+>
+> - acks: phone-checked
+> - `make check` — 14.2s
+> - `go test -race ./...` — 5.0s
+> - `go test -count=1 -tags browser ./internal/server` — 48.5s
