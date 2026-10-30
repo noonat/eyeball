@@ -44,12 +44,12 @@ whole access control story for it.
 ## The binary
 
 **Go, one statically linked binary, `CGO_ENABLED=0`.** Everything is embedded:
-the templates, the stylesheet and its fonts, the TypeScript sources, the icon
-masks, the SQL migrations.
+the app's TypeScript sources and the packages they import, the stylesheets and
+their fonts, the icon masks, the SQL migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: app.css and its fonts, shell.css, the templates, the TypeScript and htmx
+assets.go             the files the binary embeds: the app's sources, web/vendor, the stylesheets and fonts
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
@@ -66,8 +66,10 @@ internal/tailnet/     the tsnet node behind an interface, and the goroutine owni
 tool/appicon/         renders the installed page's icons, committed under web/static/icons
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
-tool/tearout/         serves docs/design over the tailnet
-web/                  the templates, shell.css, the TypeScript sources, the manifest
+tool/tearout/         serves the built Storybook over the tailnet
+web/src/              the app: routes, components and their stylesheets, the API client, the stream
+web/vendor/           the production files of each pinned package the app imports
+web/                  the manifest, the icons, the service worker
 ```
 
 **A new package is listed here in the change that creates it**, with one line
@@ -75,8 +77,9 @@ saying what it is. A list missing entries stops being read as a list of what
 exists, and `internal/convention` fails when the two disagree.
 
 `go install` has to produce a working binary. Nothing in the build may require
-Node, a bundler on the path, or a committed build artifact. That constraint
-decides more of this document than any other.
+Node, a bundler on the path, or a committed build artifact. The packages under
+`web/vendor/` are committed sources the build reads, not its output. That
+constraint decides more of this document than any other.
 
 ## The daemon's lifetime
 
@@ -617,55 +620,85 @@ phone to re-derive what the server already knows.
 
 ## The surface
 
-**Server-rendered `html/template`, with htmx for the interactions.** The
-tearouts under `docs/design/` are HTML and CSS already, and `app.css` ships as
-it is. Templates are seeded from the tearout markup rather than written a second
-time from a description of it.
+**A React app in the browser, over data the Go server builds.** The server
+compares, highlights, renders markdown and marks changed words, exactly as it
+does for the templates today. What changes is what it sends: JSON views of the
+same models, which the app draws and keeps in a cache. Moving between screens
+then loads no page, a change reported by the live stream updates the screen in
+place, and the installed app opens from a cached shell without asking the daemon
+for HTML.
 
-**`app.css` stays in `docs/design/`, where every tearout links it.** Moving it
-to `web/` would mean editing the stylesheet link in every tearout, and the
-tearouts are approved against the real phone, so they are not edited for a
-file's location. `go:embed` cannot reach a parent directory, so `assets.go` at
-the repository root embeds both `docs/design/app.css` and `web/templates`. The
-tearouts and the surface then use one stylesheet, not two copies that drift.
+The alternative, server-rendered `html/template` with htmx, is what the surface
+was built on first. Every review, round and file was a page load, every change
+the stream reported reloaded the page, and every launch fetched HTML from the
+daemon. Each of those waits on the daemon before anything on the screen changes.
+htmx can swap a page's body without a full load, but the markup still comes from
+the daemon on every move, and nothing is drawn until it arrives. What the switch
+costs is client state, which the htmx design avoided on purpose. How the two
+copies are kept from disagreeing is under "Client state" below.
 
-**`web/static/shell.css` holds the page around the app**, which a tearout's
-phone frame provides and a real page does not: no margin on the body, and a
-height for `.app`'s to resolve against. It stays out of `app.css` because every
-tearout loads `app.css` too, and a height on the body would change how the
-tearout pages lay out.
+**Go keeps every rendering decision.** A code row arrives as a list of tokens,
+each with its syntax role, so the app maps roles to classes and does no
+highlighting of its own. A document passage arrives as HTML the server made,
+which the app inserts as it is. That HTML comes only from goldmark with raw HTML
+off and from the word marking, the same places `template.HTML` is used today, so
+the set of places that produce trusted markup does not grow. Rendering markdown
+in the browser was rejected: the word marking in "Marking a rendered document"
+works on goldmark's output, and a second renderer would mark a different
+document.
 
-Routes, with the spec that builds each:
+**Every page address answers the same shell**, and the app's router reads the
+address. Links, bookmarks and a notification's deep link keep the addresses they
+have now, and a page loaded cold lands on the right screen.
 
-| Pattern                                                | Answers                                             | Spec |
-| ------------------------------------------------------ | --------------------------------------------------- | ---- |
-| `GET /{$}`                                             | the queue                                           | 006  |
-| `GET /reviews/{review}`                                | the current round                                   | 006  |
-| `GET /reviews/{review}/rounds/{round}`                 | any round, earlier ones as closed                   | 006  |
-| `GET /reviews/{review}/files/{path...}`                | a file or a directory, at the current round         | 007  |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}` | a file or a directory, at that round                | 007  |
-| `GET /reviews/{review}/raw/{round}/{path...}`          | a file's bytes as of a round, 0 the base            | 010  |
-| `GET /projects/{project}`                              | the project view and its working copies             | 007  |
-| `GET /projects/{project}/files/{path...}`              | one changed file in a working copy, live, by `copy` | 007  |
-| `POST /reviews/{review}/comments`                      | one comment                                         | 008  |
-| `PUT /reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | 008  |
-| `DELETE /reviews/{review}/comments/{comment}`          | drop one before the verdict                         | 008  |
-| `GET /reviews/{review}/comments/{comment}`             | a comment's card, or its edit form                  | 008  |
-| `POST /reviews/{review}/decision`                      | the verdict, releasing the round                    | 008  |
-| `GET /reviews/{review}/composer`                       | a composer anchored where the query says            | 008  |
-| `GET /reviews/{review}/rounds/{round}/cards/{path...}` | a file card's body, as the card nears view          | 008  |
-| `GET /events`                                          | the live stream, and therefore the connection       | 008  |
-| `GET /static/htmx.js`                                  | the vendored htmx, from the binary                  | 008  |
-| `GET /manifest.webmanifest`                            | what makes the page installable                     | 009  |
-| `GET /sw.js`                                           | the service worker, scoped to the surface           | 009  |
-| `GET /static/icons/{name}`                             | the installed page's icons, from the binary         | 009  |
-| `GET /static/app.js`                                   | the TypeScript, bundled once from the binary        | 008  |
-| `POST /subscriptions`                                  | a device's push subscription                        | 009  |
-| `POST /taps`                                           | a beacon from a notification tap, logged            | 026  |
-| `GET /static/app.css`                                  | the stylesheet, from the binary                     | 006  |
-| `GET /static/shell.css`                                | the page around the app, from the binary            | 006  |
-| `GET /static/fonts/{path...}`                          | a font app.css names, from the binary, with an ETag | 015  |
-| `GET /healthz`                                         | liveness, after touching the database               | 006  |
+**The API path is the page path under `/api`.** `GET /api/reviews/42` is the
+view the page at `/reviews/42` draws. One rule instead of a second address
+scheme means a page and its data cannot drift apart in name, and a person
+debugging can fetch the view of the page in front of them by adding four
+characters.
+
+**Types come from Go.** The API's response structs are the source, and a
+generator writes the TypeScript types from them into a committed file.
+`make check` regenerates it and fails on any difference, so a renamed field
+breaks the build rather than a screen. Which generator is not decided, and is
+listed under "Not decided here". Hand-written types with a contract test were
+the alternative: they catch the same drift, later, and only for the fields a
+test names.
+
+Routes, with the spec that built each. "Planned" is a route this document
+describes and no spec has built yet.
+
+| Pattern                                                    | Answers                                             | Spec    |
+| ---------------------------------------------------------- | --------------------------------------------------- | ------- |
+| `GET /{$}`                                                 | the shell, drawing the queue                        | planned |
+| `GET /reviews/{review}`                                    | the shell, drawing the current round                | planned |
+| `GET /reviews/{review}/rounds/{round}`                     | the shell, drawing that round                       | planned |
+| `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | planned |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | planned |
+| `GET /projects/{project}`                                  | the shell, drawing the project view                 | planned |
+| `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | planned |
+| `GET /api/...`, each page path above                       | that page's view, as JSON                           | planned |
+| `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | planned |
+| `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |
+| `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | planned |
+| `DELETE /api/reviews/{review}/comments/{comment}`          | drop one before the verdict                         | planned |
+| `POST /api/reviews/{review}/decision`                      | the verdict, releasing the round                    | planned |
+| `GET /reviews/{review}/raw/{round}/{path...}`              | a file's bytes as of a round, 0 the base            | 010     |
+| `GET /events`                                              | the live stream, and therefore the connection       | 008     |
+| `GET /manifest.webmanifest`                                | what makes the page installable                     | 009     |
+| `GET /sw.js`                                               | the service worker, scoped to the surface           | 009     |
+| `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009     |
+| `GET /static/app.js`                                       | the app, bundled once from the binary               | 008     |
+| `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006     |
+| `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015     |
+| `POST /subscriptions`                                      | a device's push subscription                        | 009     |
+| `POST /taps`                                               | a beacon from a notification tap, logged            | 026     |
+| `GET /healthz`                                             | liveness, after touching the database               | 006     |
+
+The routes that answered htmx with fragments go: the composer, a comment's card
+and its edit form. The app draws those from data it already holds.
+`/static/htmx.js` goes with htmx, and `/static/shell.css` joins the bundled
+stylesheet, since there is no tearout page left for it to stay out of.
 
 `GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
 every path, and would answer `/agent/daemon` on the surface's listener.
@@ -684,80 +717,110 @@ less than not having to remember what the letter meant.
 holding the store and the blob store, and each declares the narrow interface it
 needs rather than depending on a package-wide one.
 
+**Screens move one at a time.** Until the last one moves, the server answers a
+moved screen's address with the shell and every other address with its template,
+and a link from one kind to the other is a full page load. The order is in
+[specs/TODO.md](../specs/TODO.md). Rebuilding every screen on one branch was
+rejected: it is one review too large to read on a phone, and nothing ships until
+all of it does.
+
 ## The client code
 
-**TypeScript, compiled by esbuild linked into the binary.** The sources are
-embedded with `//go:embed` and transformed, the first time a page asks for the
-script, into a bundle held in memory. No Node at build time, no Node at run
-time, no committed bundle to drift from its source, and `go install` produces
-something that works.
+**React, React Router and TanStack Query, in TypeScript.** The router owns the
+address and the screen it draws. The query cache holds every view the app has
+fetched, keyed by its API path, and is the only place server data lives in the
+app. The app's sources are in `web/src/`.
 
-With htmx taking the interactions, what is left to write is small: registering
-the service worker, asking for notification permission, subscribing to push and
-sending the subscription, plus the worker itself. Roughly a hundred lines.
+These are the libraries the other installed apps on this machine are built on,
+so how they behave on this phone is already known. Smaller choices, such as
+Preact or a cache written here, would save some kilobytes on a tailnet where a
+few kilobytes cost nothing measurable, and would give up that record.
 
-**TypeScript is here for correctness, not for size.** The binary is installed
-once on one machine, so esbuild's ten megabytes cost nothing worth counting.
-What the types buy is real. A service worker's global scope is not a window, its
-events are easy to mishandle, and a push handler that forgets `waitUntil` fails
-by dropping notifications rather than by throwing. Strict settings catch the
-class of mistake whose only symptom is a notification that never arrived.
+**The binary bundles the app with esbuild, linked into Go, from embedded
+sources.** The app's sources and the packages it imports are embedded with
+`//go:embed`, and a resolve plugin points every bare import, such as `react`, at
+the committed copy of that package under `web/vendor/`. The bundle is built the
+first time a page asks for it and held in memory. Measured 2026-10-29: React
+19.1.1 bundled this way from an embedded copy, and the bundle rendered its
+component. No Node at build time and no committed bundle, so `go install`
+produces something that works.
 
-The same argument covers the connection layer below, which is the other place a
-mistake is silent.
+**Vite is for development only.** Its dev server reloads a component as it is
+saved, proxies `/api` and `/events` to a running daemon, and is what Storybook
+builds on. The binary never runs Vite's output. The cost is two bundlers: a
+fault only esbuild's bundle has would not show in development. The browser tests
+under `internal/server` run against the bundle the binary serves, so that is the
+bundle the gate checks.
 
-htmx itself is vendored and served as a file. It is not bundled, because it is
-already a script and passing it through a bundler achieves nothing.
+**`web/vendor/` holds the production files of each pinned package**, copied from
+`node_modules` by `make vendor` after `npm ci`. It is committed because the
+binary embeds it, and `make check` fails when it does not match the lockfile.
+Two alternatives were rejected. Committing the built bundle would put minified
+output into every branch's diff, which is read on a phone. Requiring Node for
+`go build` would break `go install`.
 
-The costs are real and worth naming. esbuild's Go package adds roughly ten
-megabytes to the binary. It strips types rather than checking them, so
-**`tsc --noEmit` is a gate rather than a build step**, and Node is a development
-dependency for checking and formatting only. `isolatedModules` is mandatory,
-because esbuild transforms one file at a time and cannot see across them.
-
-Strict is not the default. `strict: true` plus `noUncheckedIndexedAccess`,
+**TypeScript at its strictest.** `strict: true` plus `noUncheckedIndexedAccess`,
 `exactOptionalPropertyTypes`, `noImplicitOverride`,
-`noFallthroughCasesInSwitch`, `noUnusedLocals`, `noUnusedParameters`,
-`verbatimModuleSyntax`. Oxlint with type-aware rules, oxfmt for formatting, one
-job each.
+`noPropertyAccessFromIndexSignature`, `noFallthroughCasesInSwitch`,
+`noImplicitReturns`, `noUnusedLocals`, `noUnusedParameters`,
+`allowUnreachableCode: false`, `allowUnusedLabels: false`,
+`verbatimModuleSyntax` and `isolatedModules`. Each flag turns a mistake that
+would only show as a screen drawing the wrong thing, such as an index read past
+the end of a list or an optional field set to `undefined`, into a build failure.
+`isolatedModules` is mandatory anyway, because esbuild transforms one file at a
+time. No `any`, explicit or implied, which oxlint enforces with its type-aware
+and React hooks rules. esbuild and Vite both strip types without checking them,
+so **`tsc --noEmit` is a gate rather than a build step**, and oxfmt formats.
 
-### htmx for the interactions
+**Plain CSS, one stylesheet per component.** A component imports its own
+stylesheet, and both bundlers join them into `app.css`. The class names, the
+tokens and the reading-desk design in today's `app.css` carry over as they are,
+because they were judged on the phone and chosen against an alternative in 013.
+Tailwind was considered and rejected. It would rewrite approved styling into
+utility classes and put every screen back in front of the phone for no visible
+change. The class checks in [conventions.md](conventions.md) also read plain
+CSS, and would have to be rebuilt for utilities.
 
-Every interaction on this surface is the same shape: something is tapped, the
-server does it, and a piece of the page is replaced by what the server now says.
-Selecting a line asks for a composer anchored to it. Adding a comment returns
-the comment list and the tally. A verdict sends the page to the queue. That is
-what htmx does, and doing it by hand means fetch calls, response parsing and DOM
-replacement written once per interaction.
+**The tearouts are Storybook stories of these components.** Every state a screen
+has is a story on fixture data, and the fixtures are views the Go server
+produced from `tool/seed`, so a story shows what the API really sends. How they
+are judged on the phone is in [docs/design/README.md](design/README.md).
+Storybook, and the Node it needs, are development dependencies only.
 
-The alternative is client-side state, which means the tally, the comment list
-and the selection exist twice, in the templates and in TypeScript, and can
-disagree. On a tailnet the round trip is a few milliseconds, so there is nothing
-to buy by guessing at the answer locally.
+### Client state
 
-What htmx costs: a vendored dependency, 52 KB as sent, 16 KB gzipped, and
-handlers that answer with a fragment as well as a page. Template blocks cover
-the second, since the fragment is the block the full page already renders.
+**The server is the truth, and the cache is a copy the server corrects.** The
+htmx design rejected client state because the tally, the comment list and the
+selection would exist twice and could disagree. Here they still exist twice, and
+three rules keep the copy correct.
 
-**This is the decision offline was blocking.** With comments stored on the
-device and drained later, the offline write path had no server to ask, so one
-action needed two implementations and the hand-written one carried the data
-nobody may lose. With a live connection assumed, that objection is gone.
+- **The stream says when to refetch.** Each stamp from `/events` names the view
+  it covers, where today one stamp covers a whole page, and the app invalidates
+  the views it names. A change no screen shows refetches nothing.
+- **A write updates the cache from the server's answer**, never from a guess. A
+  verdict shows as decided only once the server has said so. A comment shows as
+  sending until its answer arrives, and as unsent with its text and a retry if
+  the answer is a failure, as product.md requires.
+- **What only this device knows stays on this device.** Drafts, the reader's
+  place and folded cards stay in `localStorage`, as they are today.
 
-`<details>` still handles folding with no JavaScript, and the compare control,
-the marked-and-plain switch and the page-and-source switch stay plain links to
-different URLs. Past ten files or 300 lines, a card arrives open with an empty
-body, and the page asks for each body once its card is open and within a screen
-of view in the page's scroller. A change of forty files sends only the bodies a
-reader scrolls to. Until its body comes, a card holds a skeleton as tall as the
-body will be, from the hunk and line counts the server sends and row heights the
-page measures once on the device, so a body arriving above a jump from the list
-of files moves nothing. A document or a rendered file sends no counts, so the
-page also scrolls by the growth of any card above the one at the top of the
-screen, as Chromium's scroll anchoring would and Safari has none to do. The
-script that watches for cards nearing view is a dozen lines, because htmx's own
-`intersect` trigger has no margin and cannot skip a folded card under
-`allowEval: false`.
+**The iOS behaviors already measured on the phone move with the app**, each
+re-checked there when it moves: the keyboard fault in `viewport.ts`, the
+deferred card bodies with their skeleton heights and Safari's missing scroll
+anchoring, the reader's place, the composer's line selection, drafts and the
+blink. Each was settled on a real phone, and a component that only looks the
+same can reintroduce a fault the original fixed.
+
+**A long review is drawn in pieces.** Past ten files or 300 lines a card arrives
+open with an empty body, and the app asks for each body once its card is open
+and within a screen of view. Until it comes, the card holds a skeleton as tall
+as the body will be, from the hunk and line counts the view sends and row
+heights measured once on the device, so a body arriving above the reader moves
+nothing. A file that moved more than 500 lines holds its body behind a line
+naming its size and a Load control, since a lock file loaded by accident is a
+long scroll past it. Whether React draws an 11,700-line review smoothly on the
+phone this way, or needs rows drawn only near view, is assumed and not measured.
+The first review-page spec measures it.
 
 ## Notification
 
@@ -782,20 +845,39 @@ The surface assumes one, for the reason in [product.md](product.md): the agent
 is running now, on a machine the phone can reach, and the review is a
 conversation with it.
 
-**There is no cache and no offline store, except for the fonts.** A round's
-content is immutable and could be cached forever, and caching it would buy a
-faster second open in exchange for a second copy that can be stale after a
-daemon restart. Nothing else here is large enough to make that trade worth
-making. The fonts are: 215 KB that would otherwise travel with every page. They
-are served with a strong ETag and `Cache-Control: no-cache`, so the browser
-keeps a copy and asks each time, and the answer is a 304 until the binary's
-fonts change. Asking costs a request per font on each load, which on the tailnet
-is assumed cheap and not measured.
+**The service worker caches the app's shell.** The shell is the page every
+address answers, the bundle, the stylesheet and the fonts, all keyed by the
+build that served them, so the installed app opens without waiting on the daemon
+for any of it. Data is never cached. A round's content is immutable and could
+be, but a second copy can outlive a daemon restart, and on a tailnet the round
+trip it would save is a few milliseconds.
 
-**The service worker exists for push and nothing else.** iOS delivers web push
-only to an installed page with a registered worker, so one is required whether
-or not it caches. It handles `push` by showing the notification and
-`notificationclick` by opening the review's URL. It intercepts no fetches.
+An earlier version of this section cached nothing but the fonts, which were
+served with an ETag and asked for on every load. That was right for pages the
+server rendered, where the HTML had to come from the daemon anyway. With a shell
+that is the same for every address, the launch is the one fetch worth saving.
+
+**A new build takes effect on the next launch.** The worker installs it when it
+appears and the open app keeps running the build it started with. The one case
+that cannot wait is a shell older than the daemon's API, which can break a
+screen. Every API answer carries the daemon's build, and when it differs from
+the shell's, the app shows a notice offering to reload. A reload prompt on every
+new build was rejected: nearly every build changes nothing a running screen
+depends on, and a prompt shown for those teaches the reader to dismiss it.
+
+**The service worker also exists for push.** iOS delivers web push only to an
+installed page with a registered worker, so one would be required even with
+nothing to cache. It handles `push` by showing the notification and
+`notificationclick` by opening the review's URL.
+
+**A tap moves the open app rather than reloading it.** A window already on the
+review is focused. Otherwise the worker posts the review's address to the window
+it finds, and the app's router moves to it with no page load. Only with no
+window to post to does the worker open one, which loads the shell. `navigate` on
+the window, which the worker used while the server rendered pages, reloads the
+whole app. It also failed to open the named review twice during 020, and 026
+could not reproduce why, so a path that does not depend on it is the fix this
+design offers for that fault.
 
 **The worker reports each tap to the daemon.** A tap on a phone shows nothing of
 which of `openReview`'s branches ran, and the worker has no console to read. So
@@ -827,12 +909,12 @@ requirement in [product.md](product.md). These are the mechanisms.
 
 **A Server-Sent Events stream is the connection, and its state is the answer.**
 The surface opens `GET /events` and holds it. The stream sends a stamp of what
-its page shows, recomputed after every change in the store and sent only when it
-moved, and a page whose stamp moved reloads once nothing on it is unsaved. So
-the queue and an open review follow what agents do, and a reader's own comment
-reloads nothing. A page that saved its place and its drafts comes back where it
-was. The stream's `readyState` is then not an inference about the connection. It
-is the connection.
+each view it covers, recomputed after every change in the store and sent only
+when it moved, and the app refetches the views whose stamps moved. So the queue
+and an open review follow what agents do, in place, and a reader's own comment
+refetches nothing, since the answer to the write already updated the cache. The
+stream's `readyState` is then not an inference about the connection. It is the
+connection.
 
 `EventSource` reconnects on its own with backoff, and the daemon sends a comment
 line as a keepalive, so an idle stream is distinguishable from a dead one.
@@ -843,11 +925,10 @@ It is worth reading for one thing: a `false` is a fast and reliable negative
 that can show the notice before the stream has finished failing. A `true` means
 nothing.
 
-**Every htmx request that fails says so, on the control that failed.** htmx
-fires `htmx:sendError` when the request reached nothing, `htmx:responseError`
-for an unexpected status, and `htmx:timeout` for a slow one. One handler for all
-three writes the reason beside the element that triggered it. With none of that,
-the swap simply never happens, which looks exactly like a tap that missed.
+**Every write that fails says so, on the control that failed.** A write that
+reached nothing, answered with an unexpected status, or took too long, is marked
+on the control that sent it, with the reason. With none of that, nothing on
+screen changes, which looks exactly like a tap that missed.
 
 **While the stream is down, the verdicts are marked unavailable and say why.**
 That is a stronger claim than reporting failures afterward, and it earns it:
@@ -863,8 +944,8 @@ loss and disappears on recovery.
 
 One case is left over: a write that races a disconnect, where the controls were
 live and the stream dropped between the tap and the request. That is what the
-per-request handler is for, and it is why both mechanisms exist rather than
-either alone.
+per-write failure is for, and it is why both mechanisms exist rather than either
+alone.
 
 ## Checks
 
@@ -874,10 +955,14 @@ closes.
 - `gofmt`, `go vet`, `staticcheck` on the Go.
 - `oxfmt --check` on every committed markdown, CSS and JSON file, at 80 columns.
   HTML is excluded, for the reason in docs/conventions.md.
-- `tsc --noEmit` and `oxlint --type-aware` on the TypeScript, once there is any.
+- `tsc --noEmit` and `oxlint --type-aware` on the TypeScript.
+- Vitest over the components, including each story's interaction test and its
+  accessibility audit, run in a real browser through Storybook's Vitest add-on.
+- `web/vendor/` against the lockfile, and the generated API types against the Go
+  structs. Either one stale fails.
 - `go test ./...`, which includes `internal/convention`, covering the Go
-  conventions, the prose rules over every committed markdown file, and the
-  tearout markup and stylesheets under `docs/design/`.
+  conventions, the prose rules over every committed markdown file, the
+  stylesheets, and the browser tests against the bundle the binary serves.
 
 **Make every new gate fail on purpose once before trusting a pass from it.**
 
@@ -895,9 +980,20 @@ closes.
 | `github.com/yuin/goldmark`              | markdown with GFM's tables and task lists, which specs are written in |
 | `golang.org/x/net/html` (test)          | tokenizing the tearouts, and parsing rendered pages                   |
 | `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires         |
-| `htmx.org` (vendored)                   | the interactions, as server-rendered fragments                        |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |
+
+The app's packages, vendored under `web/vendor/` and bundled into the binary:
+
+| Package                 | Why                                                          |
+| ----------------------- | ------------------------------------------------------------ |
+| `react`, `react-dom`    | the components                                               |
+| `react-router`          | the address and the screen it draws, with no page load       |
+| `@tanstack/react-query` | the cache of server views, refetched when the stream says so |
+
+Development only, never reaching the binary: Vite for the dev server, Storybook
+for the tearouts, Vitest and Testing Library for the component tests, a
+generator for the API types, TypeScript, oxlint and oxfmt.
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.
@@ -910,5 +1006,10 @@ Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
   a second tsnet hostname.
 - **The exact CLI surface.** `eyeball doc` is the contract and it is written
   with the CLI, not ahead of it.
+- **The generator for the API types.** It reads Go structs and writes
+  TypeScript, and the first API spec picks one and tests it on the view models.
+- **Whether a long review needs rows drawn only near view**, which the deferred
+  card bodies may make unnecessary. Measured on the phone by the first review
+  page spec, not before.
 - **Pruning.** How long a decided review is kept, and whether its blobs go with
   it, is an open question in [product.md](product.md).

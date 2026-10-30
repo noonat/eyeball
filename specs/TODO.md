@@ -14,9 +14,26 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
+The surface moves from htmx to React, one screen at a time, as
+[architecture.md](../docs/architecture.md) describes under The surface and The
+client code. Each item is a spec.
+
+- [ ] design: the foundations. The Vite, Storybook, vendoring and esbuild build,
+      the strict settings, the shell and router, the service worker's shell
+      cache and its tap handling, and the foundation components as stories,
+      approved on the phone against `foundations.html`.
+- [ ] product: the JSON API with generated types, and the queue as the first
+      screen in React, end to end.
+- [ ] product: the project view, the tree and the file pages in React.
+- [ ] product: the review page in React: cards, composer, decision bar and
+      deferred bodies, measuring a long review on the phone.
+- [ ] tooling: removing htmx, the templates and any static tearouts left, and
+      moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
-      [026](026-tap-opens-the-review.md), blocked until the owner sees the fault
-      again and the beacons in `eyeball.log` show which branch ran.
+      [026](026-tap-opens-the-review.md) is blocked until the fault is seen
+      again. The foundations' tap handling posts the address to the open app
+      instead of navigating it, which may remove the fault, and the beacons stay
+      to show which branch ran if it recurs.
 
 ## Unscheduled
 
@@ -108,10 +125,6 @@ requirement in either document that none of them names is a gap in this list.
       dereferences nil in v1.102.3. Whether `Close` is safe after a late one,
       where it would close again what `Start`'s cleanup closed, is not checked,
       and it would not reach an engine whose backend was never built.
-- [ ] tooling: content-hashed addresses under `/static/` with a long cache
-      lifetime. Every surface response is `no-store`, so htmx's 52 KB and the
-      bundle are fetched on every page load. Assumed small on a tailnet, not
-      measured. It changes how 006 serves `app.css` and `shell.css` too.
 - [ ] tooling: HTTP/2 on the tailnet listener. tsnet's `ListenTLS` offers no
       `NextProtos`, so the phone speaks HTTP/1.1 and each open tab's live stream
       holds one of the browser's few connections to the host. Advertising `h2`
