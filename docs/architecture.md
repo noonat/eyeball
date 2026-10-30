@@ -72,6 +72,7 @@ tool/vendor/          copies the files the app's bundle reads from web/node_modu
 web/src/              the app: routes, components and their stylesheets, the API client, the stream
 web/vendor/           htmx, as released
 web/deps/            node_modules/: the files of each pinned package the app's bundle reads
+web/ts/               framework-free behaviors the templates and the app share
 web/                  the manifest, the icons, the service worker
 ```
 
@@ -672,10 +673,25 @@ characters.
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
 `make check` regenerates it and fails on any difference, so a renamed field
-breaks the build rather than a screen. Which generator is not decided, and is
-listed under "Not decided here". Hand-written types with a contract test were
-the alternative: they catch the same drift, later, and only for the fields a
-test names.
+breaks the build rather than a screen. Hand-written types with a contract test
+were the alternative: they catch the same drift, later, and only for the fields
+a test names.
+
+**The generator is written here, with the standard library.** It reads the API
+package with `go/types` and the standard library's source importer. A reflection
+walk over the response structs also worked, measured 2026-10-29: about 80 lines,
+and the types it wrote passed every strict flag under "The client code".
+Reflection cannot see constants, so it was passed over. `go/types` can, which
+lets a named string type with constants become a union of its values. That
+reading of constants is assumed to work and has not been probed. An external
+generator was not an option, since `go run ...@latest` is refused in this
+environment and the project takes the standard library first.
+
+Go sends a nil slice or map as `null`, so the generator types each one `| null`,
+and a use such as `q.waiting.length` then fails to compile with "possibly
+'null'", measured 2026-10-29. A Go kind with no exact TypeScript form is an
+error and never a guess: interfaces, integers that can pass 2^53, and maps
+without string keys.
 
 Routes, with the spec that built each. "Planned" is a route this document
 describes and no spec has built yet.
@@ -701,6 +717,7 @@ describes and no spec has built yet.
 | `GET /sw.js`                                               | the service worker, scoped to the surface           | 009     |
 | `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009     |
 | `GET /static/app.js`                                       | the app, bundled once from the binary               | 008     |
+| `GET /static/react.js`                                     | the React app, while screens are mixed              | planned |
 | `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006     |
 | `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015     |
 | `POST /subscriptions`                                      | a device's push subscription                        | 009     |
@@ -735,6 +752,15 @@ and a link from one kind to the other is a full page load. The order is in
 [specs/TODO.md](../specs/TODO.md). Rebuilding every screen on one branch was
 rejected: it is one review too large to read on a phone, and nothing ships until
 all of it does.
+
+**While screens are mixed, two bundles have two addresses.** The templates keep
+`/static/app.js`, and the React app is served at `/static/react.js`. The cleanup
+that removes the last template makes the React bundle `/static/app.js`. The
+shell links `/static/app.css` and `/static/shell.css`, the files the templates
+link, since `app.css` stays one file through the mixed period and the React
+bundle imports no stylesheet. A row that leads to a template page is a plain
+anchor, so tapping it is a full page load. React Router intercepts only its own
+`Link`.
 
 ## The client code
 
@@ -859,12 +885,21 @@ three rules keep the copy correct.
 - **What only this device knows stays on this device.** Drafts, the reader's
   place and folded cards stay in `localStorage`, as they are today.
 
-**The iOS behaviors already measured on the phone move with the app**, each
-re-checked there when it moves: the keyboard fault in `viewport.ts`, the
-deferred card bodies with their skeleton heights and Safari's missing scroll
-anchoring, the reader's place, the composer's line selection, drafts and the
-blink. Each was settled on a real phone, and a component that only looks the
-same can reintroduce a fault the original fixed.
+**Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
+loopback token, worker registration, push setup, the verdict's blink mark, the
+build check and the keyboard fix in `viewport.ts` are framework-free modules,
+and several were settled on a real phone. Where a module mixes its logic with
+template DOM, as push setup does with its page's buttons, the logic is a
+function both callers use and the template keeps its wiring. The binary embeds
+and stages `web/ts` beside `web/src`, so the app imports them. Rewriting them in
+React was rejected: two copies would have to agree on storage keys, such as the
+blink mark and the token, and nothing would check that they do.
+
+**The iOS behaviors tied to a screen move with that screen**, each re-checked on
+the phone when it moves: the deferred card bodies with their skeleton heights
+and Safari's missing scroll anchoring, the reader's place, the composer's line
+selection and drafts. Each was settled on a real phone, and a component that
+only looks the same can reintroduce a fault the original fixed.
 
 **A long review is drawn in pieces.** Past ten files or 300 lines a card arrives
 open with an empty body, and the app asks for each body once its card is open
@@ -1049,8 +1084,8 @@ binary:
 | `@tanstack/react-query` | the cache of server views, refetched when the stream says so |
 
 Development only, never reaching the binary: Vite for the dev server, Storybook
-for the tearouts, Vitest and Testing Library for the component tests, a
-generator for the API types, TypeScript, oxlint and oxfmt.
+for the tearouts, Vitest and Testing Library for the component tests,
+TypeScript, oxlint and oxfmt.
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.
@@ -1063,8 +1098,6 @@ Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
   a second tsnet hostname.
 - **The exact CLI surface.** `eyeball doc` is the contract and it is written
   with the CLI, not ahead of it.
-- **The generator for the API types.** It reads Go structs and writes
-  TypeScript, and the first API spec picks one and tests it on the view models.
 - **Whether a long review needs rows drawn only near view**, which the deferred
   card bodies may make unnecessary. Measured on the phone by the first review
   page spec, not before.

@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -80,11 +80,11 @@ iteration and the browser tests below fail with the old route restored.
 
 ## Iteration 1: The documents
 
-- [ ] architecture.md names the generator: the standard library over the API
+- [x] architecture.md names the generator: the standard library over the API
       package, nil slices and maps as `| null`, a kind it cannot map an error.
-- [ ] architecture.md says the React bundle is at `/static/react.js` during the
+- [x] architecture.md says the React bundle is at `/static/react.js` during the
       mixed period, and that shared behaviors stay in `web/ts` and are called.
-- [ ] specs/TODO.md moves the shell cache and tap handling into an item of their
+- [x] specs/TODO.md moves the shell cache and tap handling into an item of their
       own after this one, with the worker spec's notes below.
 
 The worker spec's notes, for that item: the cache's version has to follow the
@@ -97,6 +97,12 @@ answer took and whether the fallback ran; `focus()` stays after an answer, since
 a page cannot bring itself forward. Measured 2026-10-29 in headless Chromium: a
 page answered on a `MessageChannel` in under a millisecond, and a page with no
 listener gave nothing until the worker's one-second timeout.
+
+> **Completed** 2026-10-30 08:24 UTC
+>
+> - `make check` — 15.5s
+> - `go test -race ./...` — 5.4s
+> - `go test -count=1 -tags browser ./internal/server` — 48.2s
 
 ## Iteration 2: The API
 
