@@ -179,8 +179,16 @@ Where the build departed from the plan, as it was built:
       string literal is defined by no stylesheet, proved by a planted one.
 - [x] `go run ./tool/tearout` builds Storybook and serves it over the tailnet
       with `Cache-Control: no-store`, beside the static sheets it serves now.
-- [ ] The owner judges the sheet on the phone against `foundations.html`, and
+- [x] The owner judges the sheet on the phone against `foundations.html`, and
       every change asked for is made before the ack.
+
+> **Completed** 2026-10-30 05:35 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 14.5s
+> - `go test -race ./...` — 4.2s
+> - `go test -count=1 -tags browser ./internal/server` — 48.4s
+
 
 ## Iteration 3: The Go bundle
 
