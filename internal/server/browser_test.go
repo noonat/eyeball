@@ -196,6 +196,22 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
+	// Every document records what its eye says, and how shut the lid is when it
+	// says it, as the label changes. The queue's eye is read at the moments it
+	// changes, which a read after the page loads would miss.
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": `(() => {
+		window.__eye = [];
+		const note = () => {
+			const eye = document.querySelector(".topbar .eye");
+			if (eye === null) return;
+			const label = eye.getAttribute("aria-label");
+			if (window.__eye.at(-1)?.label === label) return;
+			window.__eye.push({ label, lid: new DOMMatrix(getComputedStyle(eye).transform).d });
+		};
+		new MutationObserver(note).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-label"] });
+	})()`})
+	labels := `JSON.stringify(window.__eye.map((e) => e.label))`
 	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
 	// drawn is true once the app has drawn the queue from its view.
 	drawn := `!!document.querySelector(".scroll .page .section")`
@@ -219,6 +235,11 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	decide(first, "approve")
 	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
 	g.Expect(b.eval(g, `document.querySelectorAll("script[src='/static/react.js']").length`)).To(BeEquivalentTo(1), "the queue is the React app, which is the only page that draws the eye from its view")
+	// The eye is drawn with the count from before the verdict, and changes to the
+	// new one while the lid is shut.
+	b.waitFor(g, `window.__eye.length === 2`)
+	g.Expect(b.eval(g, labels)).To(Equal(`["4 waiting","3 waiting"]`))
+	g.Expect(b.eval(g, `window.__eye[1].lid < 0.5`)).To(BeTrue(), "the count changed with the lid open")
 	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("3 waiting"))
 	g.Expect(b.eval(g, section(first))).To(Equal("Settled"))
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
@@ -273,6 +294,10 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	decide(third, "approve")
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("none"))
+	// There is no lid to change the count behind, so the queue shows the new
+	// count from its first paint and never the old one.
+	time.Sleep(700 * time.Millisecond)
+	g.Expect(b.eval(g, labels)).To(Equal(`["1 waiting"]`))
 }
 
 // A large review's cards all open with empty bodies, and each asks for its

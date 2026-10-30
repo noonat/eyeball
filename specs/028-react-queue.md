@@ -141,6 +141,20 @@ Where the work went differently from the paragraphs above.
   `shell.css`, as the template pages do.
 - The queue's template tests were rewritten over `GET /api/`, since the page
   they parsed is gone. The shell has a test of its own.
+- The owner asked on the phone, on 2026-10-30, for the eye to show the count
+  from before a verdict and change to the new count while the lid is shut. The
+  design and the template page had it show the new count throughout, so this is
+  a change to the design and not a regression. The mark a verdict leaves now
+  holds the review's id and the count the review page's eye showed, as
+  `id:count`. The queue draws that count on its first paint when the eye blinks,
+  and swaps to the view's count a fixed time after the blink's `animationstart`,
+  which is the middle of the closed part of the keyframes (`lidShutAfter` in
+  `blink.ts`). The animation's own start times the swap because the blink starts
+  when the browser gets to it, which a delay from the first paint would miss on
+  a slow device. The end of the animation, and a timer of 1.5 seconds, show the
+  new count if the start never comes. Under reduced motion there is no
+  animation, so the new count shows at once. A mark with no count blinks with
+  the new count.
 
 ## Iteration 1: The documents
 

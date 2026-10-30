@@ -12,6 +12,13 @@ interface QueueProps {
   readonly setup?: Setup | undefined;
   /** Blinks the eye once, as the queue does after a verdict. */
   readonly blink?: boolean | undefined;
+  /**
+   * What the eye shows when it is not the view's own count: the count from
+   * before a verdict, until the lid is shut.
+   */
+  readonly eyeWaiting?: number | undefined;
+  readonly onBlinkStart?: (() => void) | undefined;
+  readonly onBlinkEnd?: (() => void) | undefined;
   /** The stream has been down long enough to say so. */
   readonly offline?: boolean | undefined;
   /** The daemon runs a newer build than the one that served this page. */
@@ -30,6 +37,9 @@ export function Queue({
   queue,
   setup = "ready",
   blink,
+  eyeWaiting,
+  onBlinkStart,
+  onBlinkEnd,
   offline,
   updateReady,
   onRetry,
@@ -42,7 +52,12 @@ export function Queue({
   return (
     <>
       <div className="head">
-        <TopBar waiting={queue.waiting_count} blink={blink} />
+        <TopBar
+          waiting={eyeWaiting ?? queue.waiting_count}
+          blink={blink}
+          onBlinkStart={onBlinkStart}
+          onBlinkEnd={onBlinkEnd}
+        />
         <Banners
           offline={offline}
           updateReady={updateReady}

@@ -7,10 +7,20 @@ interface EyeProps {
   readonly large?: boolean;
   /** Plays the blink that confirms a verdict, once, as the eye mounts. */
   readonly blink?: boolean | undefined;
+  /** The blink's animation began, after its delay. */
+  readonly onBlinkStart?: (() => void) | undefined;
+  /** The blink's animation ended. */
+  readonly onBlinkEnd?: (() => void) | undefined;
 }
 
 /** The top bar's eye: open with the waiting count as its iris, or shut. */
-export function Eye({ waiting, large, blink }: EyeProps) {
+export function Eye({
+  waiting,
+  large,
+  blink,
+  onBlinkStart,
+  onBlinkEnd,
+}: EyeProps) {
   const shut = waiting === 0;
   if (large) {
     return (
@@ -21,6 +31,8 @@ export function Eye({ waiting, large, blink }: EyeProps) {
     return (
       <span
         className={cx("eye shut", blink && "blink")}
+        onAnimationStart={onBlinkStart}
+        onAnimationEnd={onBlinkEnd}
         role="img"
         aria-label="Nothing waiting"
       />
@@ -29,6 +41,8 @@ export function Eye({ waiting, large, blink }: EyeProps) {
   return (
     <span
       className={cx("eye", blink && "blink")}
+      onAnimationStart={onBlinkStart}
+      onAnimationEnd={onBlinkEnd}
       role="img"
       aria-label={`${waiting} waiting`}
     >

@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { blinks, takeBlinkMark } from "../../ts/blink";
+import { useEffect, useRef, useState } from "react";
+import {
+  blinkGiveUp,
+  blinks,
+  lidShutAfter,
+  reducedMotion,
+  takeBlinkMark,
+} from "../../ts/blink";
 import { trackHead } from "../../ts/head";
 import { setBadge } from "../../ts/push";
 import { fetchQueue, queueKey } from "../api/queue";
@@ -41,8 +47,44 @@ export function QueueRoute() {
   const push = usePush();
   // The mark is read once, on the load the verdict returned to, and the eye
   // blinks for the first view that has the row.
-  const [marked] = useState(takeBlinkMark);
-  const blink = data !== undefined && blinkFor(marked, data);
+  const [mark] = useState(takeBlinkMark);
+  const blink = data !== undefined && blinkFor(mark?.review ?? null, data);
+  // The eye draws the count from before the verdict and changes to the view's
+  // while the lid is shut. With no motion there is no lid, so the new count is
+  // shown at once.
+  const [still] = useState(reducedMotion);
+  const old = blink && !still ? (mark?.count ?? null) : null;
+  const [shut, setShut] = useState(false);
+  const closing = useRef<number | undefined>(undefined);
+
+  // The animation drives the change: the lid is shut lidShutAfter after the
+  // blink starts, and the end of the blink is the backstop. A fixed delay from
+  // the first paint would land at the wrong moment on a slow device, since the
+  // blink starts when the browser gets to it. The timer below is for a browser
+  // whose animation never starts, and shows the new count late rather than
+  // never.
+  const startBlink = (): void => {
+    window.clearTimeout(closing.current);
+    closing.current = window.setTimeout(() => {
+      setShut(true);
+    }, lidShutAfter);
+  };
+  const endBlink = (): void => {
+    window.clearTimeout(closing.current);
+    setShut(true);
+  };
+  useEffect(() => {
+    if (old === null) {
+      return undefined;
+    }
+    const giveUp = window.setTimeout(() => {
+      setShut(true);
+    }, blinkGiveUp);
+    return () => {
+      window.clearTimeout(giveUp);
+      window.clearTimeout(closing.current);
+    };
+  }, [old]);
 
   useEffect(() => {
     if (data !== undefined) {
@@ -76,6 +118,9 @@ export function QueueRoute() {
         queue={data}
         setup={push.setup}
         blink={blink}
+        eyeWaiting={old !== null && !shut ? old : undefined}
+        onBlinkStart={startBlink}
+        onBlinkEnd={endBlink}
         offline={connection.offline}
         updateReady={connection.updateReady}
         onRetry={connection.retry}

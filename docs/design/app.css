@@ -591,9 +591,13 @@
   background-color: var(--ink-faint);
 }
 
-/* A verdict blinks the eye once, on the queue it returns to, which already
- * shows the new count. The client adds .blink. The blink is the only
- * motion on the surface, and under reduced motion there is none. */
+/* A verdict blinks the eye once, on the queue it returns to. The queue draws
+ * the eye with the count from before the verdict, and the client changes it to
+ * the new count while the lid is shut, from 45% to 60% of the animation. The
+ * client adds .blink, and times the change from the animation's own start
+ * (web/ts/blink.ts, lidShutAfter), so a change to these keyframes moves that
+ * number too. The blink is the only motion on the surface. Under reduced motion
+ * there is none, and the queue shows the new count at once. */
 @keyframes eye-blink {
   0%,
   100% {

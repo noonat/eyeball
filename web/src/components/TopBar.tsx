@@ -14,10 +14,19 @@ interface TopBarProps {
   readonly title?: string;
   /** Blinks the eye once, as a screen does after a verdict. */
   readonly blink?: boolean | undefined;
+  readonly onBlinkStart?: (() => void) | undefined;
+  readonly onBlinkEnd?: (() => void) | undefined;
 }
 
 /** The bar every screen starts with: the wordmark or a way back, and the eye. */
-export function TopBar({ waiting, back, title, blink }: TopBarProps) {
+export function TopBar({
+  waiting,
+  back,
+  title,
+  blink,
+  onBlinkStart,
+  onBlinkEnd,
+}: TopBarProps) {
   return (
     <div className="topbar">
       {back === undefined ? (
@@ -31,7 +40,12 @@ export function TopBar({ waiting, back, title, blink }: TopBarProps) {
           <h1>{title}</h1>
         </>
       )}
-      <Eye waiting={waiting} blink={blink} />
+      <Eye
+        waiting={waiting}
+        blink={blink}
+        onBlinkStart={onBlinkStart}
+        onBlinkEnd={onBlinkEnd}
+      />
     </div>
   );
 }
