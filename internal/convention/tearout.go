@@ -46,6 +46,10 @@ type Tearout struct {
 	AppCSS string
 	// Templates are the surface's templates, in name order.
 	Templates []TearoutPage
+	// Components are the React sources under web/src, in name order.
+	Components []TearoutPage
+	// SrcCSS is every stylesheet under web/src joined, with comments removed.
+	SrcCSS string
 }
 
 // templateDir is where the surface's templates live, relative to the root.
@@ -67,6 +71,7 @@ type TearoutCheck struct {
 // TearoutChecks is every rule this package enforces over the tearouts, sorted
 // by name.
 var TearoutChecks = []TearoutCheck{
+	{Name: "component-classes", Run: componentClasses},
 	{Name: "css-declarations", Run: cssDeclarations},
 	{Name: "icons-listed", Run: iconsListed},
 	{Name: "tearout-agents", Run: tearoutAgents},
@@ -88,6 +93,10 @@ func LoadTearout() (Tearout, error) {
 		return out, err
 	}
 	out.Templates, err = readPages(filepath.Join(root, templateDir), templateDir)
+	if err != nil {
+		return out, err
+	}
+	out.Components, out.SrcCSS, err = readComponents(filepath.Join(root, componentDir), componentDir)
 	return out, err
 }
 
@@ -155,6 +164,11 @@ func ReadTearout(dir string, label string) (Tearout, error) {
 		return out, err
 	}
 	out.Templates = templates
+	// A fixture keeps its components in a directory of that name.
+	out.Components, out.SrcCSS, err = readComponents(filepath.Join(dir, "components"), filepath.ToSlash(filepath.Join(label, "components")))
+	if err != nil {
+		return out, err
+	}
 	body, err := os.ReadFile(filepath.Join(dir, "icons.txt"))
 	if err != nil {
 		return out, nil

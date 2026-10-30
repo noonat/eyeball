@@ -450,6 +450,13 @@ Every rule here is **enforced by `internal/convention`**, which reads
 `make check`. Each describes a fault a browser renders as something plausible,
 which is why none of them can be left to a reading.
 
+- `component-classes`: a class a component names in a `className` attribute or a
+  `cx` call is defined by `app.css`, and a story's by any stylesheet in
+  `docs/design/` or `web/src/`. A name built with `${...}` is not read, so the
+  tones of a pill and the icon names `Icon` builds as `i-${name}` are not
+  checked. Today every `IconName` has an `.i-*` rule, checked by hand. Without
+  the rule a mistyped class renders its text unstyled, which looks like a layout
+  bug.
 - `css-declarations`: `app.css` keeps the declarations that have no fallback, so
   a generator deleting more than its own block fails the build rather than the
   page. It reads `app.css` alone, since a stylesheet trying out a direction
@@ -481,8 +488,15 @@ strip.
 
 ## TypeScript
 
-Arrives with the surface. The rules are settled and the toolchain beyond oxfmt
-is not installed until there is something to check.
+The rules are enforced over `web/src` by `make lint`, and over the stories by
+`make stories`. The tools are pinned once, in `web/package.json`, and run from
+the `web/node_modules` that `make tools` installs.
+
+`tsconfig.app.json` checks the components with `skipLibCheck: false`, so a type
+a package ships is checked as well. `tsconfig.stories.json` checks the stories
+and Storybook's configuration with `skipLibCheck: true`: Storybook's own
+declarations fail under `exactOptionalPropertyTypes`, and Vitest's need Node's
+types, so checking them would measure Storybook and not this code.
 
 **`strict: true` and more.** `noUncheckedIndexedAccess`,
 `exactOptionalPropertyTypes`, `noImplicitOverride`,

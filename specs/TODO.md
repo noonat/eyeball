@@ -18,12 +18,14 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] design: the foundations. The Vite, Storybook, vendoring and esbuild build,
-      the strict settings, the shell and router, the service worker's shell
-      cache and its tap handling, and the foundation components as stories,
-      approved on the phone against `foundations.html`.
 - [ ] product: the JSON API with generated types, and the queue as the first
-      screen in React, end to end.
+      screen in React, end to end. It also builds the shell, the router, the
+      service worker's shell cache and the tap handling, which need a screen to
+      be judged on the phone. Two problems of the mixed period appear with the
+      first React screen. The worker must not answer a template page's
+      navigation with the shell. A tap posted to a template window reaches
+      nothing, so the tap needs an answer from the app within a short timeout
+      and `navigate` as the fallback, with the beacons logging which path ran.
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
@@ -31,7 +33,7 @@ client code. Each item is a spec.
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
       [026](026-tap-opens-the-review.md) is blocked until the fault is seen
-      again. The foundations' tap handling posts the address to the open app
+      again. The queue spec's tap handling posts the address to the open app
       instead of navigating it, which may remove the fault, and the beacons stay
       to show which branch ran if it recurs.
 

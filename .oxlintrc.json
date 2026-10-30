@@ -1,8 +1,16 @@
 {
-  "categories": { "correctness": "error", "suspicious": "error" },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
   "rules": {
     "typescript/no-floating-promises": "error",
-    "typescript/no-misused-promises": "error"
+    "typescript/no-misused-promises": "error",
+    "typescript/no-explicit-any": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/react-in-jsx-scope": "off"
   },
-  "ignorePatterns": ["web/vendor/**"]
+  "ignorePatterns": ["web/vendor/**", "web/deps/**"],
+  "plugins": ["oxc", "typescript", "unicorn", "react"]
 }

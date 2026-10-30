@@ -145,6 +145,37 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
+// The React app the binary bundles from its embedded packages runs in a page
+// and draws a foundation component, with its stylesheet applied. The test page
+// serves the bundle and the stylesheet as eyeball.App returns them.
+func TestServer_Surface_browserApp(t *testing.T) {
+	g := NewWithT(t)
+	app, err := eyeball.App()
+	g.Expect(err).NotTo(HaveOccurred())
+	mux := http.NewServeMux()
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/app.css"><div id="root"></div><script src="/app.js"></script>`)
+	})
+	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript")
+		w.Write(app.Script)
+	})
+	mux.HandleFunc("/app.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		w.Write(app.Stylesheet)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `!!document.querySelector("#root .empty .headline")`)
+	g.Expect(b.eval(g, `document.querySelector("#root .empty .headline").textContent`)).To(Equal("Nothing waiting"))
+
+	// The stylesheet is the surface's: the empty state centers its headline.
+	g.Expect(b.eval(g, `getComputedStyle(document.querySelector("#root .empty")).display`)).To(Equal("flex"))
+}
+
 // A verdict returns to the queue, and the eye blinks there once, whichever
 // verdict it was. A failed verdict leaves no mark, a mark left by a request
 // whose answer never arrived does not blink, and under reduced motion the eye

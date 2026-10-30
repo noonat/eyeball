@@ -49,3 +49,17 @@ var Htmx []byte
 //
 //go:embed web/static/icons
 var Icons embed.FS
+
+// Sources is web/src, the React app's TypeScript and the stylesheets it
+// imports, which App bundles.
+//
+//go:embed web/src
+var Sources embed.FS
+
+// Deps is web/deps/node_modules: the files of each pinned package the app's
+// bundle reads, which tool/vendor copies out of web/node_modules. It is not
+// under web/vendor, because Go's module zip drops files more than one level
+// below a vendor directory and a go install would then find nothing to embed.
+//
+//go:embed all:web/deps/node_modules
+var Deps embed.FS
