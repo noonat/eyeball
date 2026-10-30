@@ -43,9 +43,10 @@ that gets skipped, so nothing on the phone needs it.
 one section per primitive, with the explanation that goes with it, and every
 state of the primitive together in one panel, light beside dark. A primitive is
 judged beside its other states and its reasons, and alone in a phone frame it is
-a small mark on a large empty screen. Under each pair a small link per state
-opens that state at full screen, so the phone still needs no typed address. The
-phone frame is for a whole screen, where the frame is the thing being judged.
+a small mark on a large empty screen. Above each panel a Full screen button
+opens everything in that panel, in that panel's theme, as a page of its own, so
+the phone still needs no typed address. The phone frame is for a whole screen,
+where the frame is the thing being judged.
 
 `python3 -m http.server` is the wrong tool, and so is Storybook's dev server
 reached across the tailnet. iOS Safari shows a stale copy of a page that sends

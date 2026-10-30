@@ -160,37 +160,6 @@ body {
   font-size: 0.88em;
 }
 
-/* Every state in a panel, each one a link to its own story at full screen. */
-.states {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.states li {
-  display: flex;
-  gap: 1px;
-  overflow: hidden;
-  border-radius: 6px;
-  background: rgb(255 255 255 / 14%);
-  font-size: 12px;
-}
-
-.states .nm {
-  padding: 6px 8px;
-  color: #fff;
-}
-
-.states a {
-  padding: 6px 8px;
-  border-left: 1px solid rgb(255 255 255 / 20%);
-  color: #fff;
-  text-decoration: none;
-}
-
 .note-list {
   display: flex;
   flex-direction: column;

@@ -140,10 +140,13 @@ Where the build departed from the plan, as it was built:
   (e.g. show all the eye states in a single frame)." The fault was the spec's. A
   phone frame suits a whole screen, not a primitive. The sheet is now a specimen
   page in `foundations.html`'s order, with that page's copy, one light and dark
-  panel pair per primitive holding all its states, and a small full-screen link
-  per state beneath. `Palette: Dark` only repeated `Palette: Tokens` there,
-  since the sheet stamps each panel's theme itself. It is kept as the test of a
-  story's own theme parameter and left off the sheet.
+  panel pair per primitive holding all its states, and a Full screen button
+  above each panel that opens the whole panel in its theme. The owner asked for
+  that button over the per-state links the page first had beneath each pair,
+  since a tap should show the whole category and not one state of it. The
+  per-state stories remain as the tests. `Palette: Dark` only repeated
+  `Palette: Tokens` there, since the sheet stamps each panel's theme itself. It
+  is kept as the test of a story's own theme parameter and left off the sheet.
 - `make stories` also builds Storybook. The sheet once drew the production
   build's extra `__namedExportsOrder` export as a story and failed only there.
   The build does not render the sheet, and Vitest runs stories in dev mode,

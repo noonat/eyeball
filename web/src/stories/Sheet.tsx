@@ -149,66 +149,76 @@ function runs(states: readonly Entry[]): Entry[][] {
   return out;
 }
 
+interface RunsProps {
+  readonly states: readonly Entry[];
+}
+
+/** A panel's states, as the static sheet's markup lays them out. */
+export function Runs({ states }: RunsProps) {
+  return (
+    <>
+      {runs(states).map((run) =>
+        run[0]?.frame === "screen" ? (
+          run.map((entry) => (
+            <div className="entry" key={entry.id}>
+              {entry.view}
+            </div>
+          ))
+        ) : (
+          <div className="page" key={run.map((entry) => entry.id).join()}>
+            {run.map((entry) => (
+              <div className="entry" key={entry.id}>
+                {entry.view}
+              </div>
+            ))}
+          </div>
+        ),
+      )}
+    </>
+  );
+}
+
+/** The states a section's panels hold, in order. */
+export function statesOf(section: Section, all: readonly Entry[]): Entry[] {
+  const byId = new Map(all.map((entry) => [entry.id, entry]));
+  return section.panels.flatMap((panel) =>
+    panel.states.flatMap((id) => byId.get(id) ?? []),
+  );
+}
+
+/** The export name of the story that shows one section alone. */
+export function specimenName(sectionId: string): string {
+  return sectionId.slice(0, 1).toUpperCase() + sectionId.slice(1);
+}
+
+/** Where the full-screen stories of the sections live. */
+export const specimenTitle = "Foundations/Specimens";
+
 interface SpecimenProps {
+  readonly section: Section;
   readonly states: readonly Entry[];
   readonly theme: Theme;
 }
 
-function Specimen({ states, theme }: SpecimenProps) {
+function Specimen({ section, states, theme }: SpecimenProps) {
+  const id = toId(specimenTitle, storyNameFromExport(specimenName(section.id)));
   return (
     <figure className="frame">
-      <figcaption>{theme}</figcaption>
+      <figcaption>
+        {theme}
+        <a
+          href={storyHref(id, theme)}
+          aria-label={`${section.title}, ${theme}, full screen`}
+        >
+          Full screen
+        </a>
+      </figcaption>
       <div className="slab" data-theme={theme}>
         <div className="app">
-          {runs(states).map((run) =>
-            run[0]?.frame === "screen" ? (
-              run.map((entry) => (
-                <div className="entry" key={entry.id}>
-                  {entry.view}
-                </div>
-              ))
-            ) : (
-              <div className="page" key={run.map((entry) => entry.id).join()}>
-                {run.map((entry) => (
-                  <div className="entry" key={entry.id}>
-                    {entry.view}
-                  </div>
-                ))}
-              </div>
-            ),
-          )}
+          <Runs states={states} />
         </div>
       </div>
     </figure>
-  );
-}
-
-interface StateLinksProps {
-  readonly states: readonly Entry[];
-}
-
-/** A small link per state, so no address ever has to be typed on a phone. */
-function StateLinks({ states }: StateLinksProps) {
-  return (
-    <ul className="states" aria-label="States at full screen">
-      {states.map((entry) => (
-        <li key={entry.id}>
-          <span className="nm">{entry.name}</span>
-          <a
-            href={storyHref(entry.id, "light")}
-            aria-label={`${entry.name}, light, full screen`}
-          >
-            light
-          </a>
-          <a
-            href={storyHref(entry.id, "dark")}
-            aria-label={`${entry.name}, dark, full screen`}
-          >
-            dark
-          </a>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -253,8 +263,8 @@ export function Sheet({ entries: all, sections }: SheetProps) {
         <p>
           The shell, the type scale, the palette, and every primitive whose
           props are local. Both themes side by side, every state of a primitive
-          together. Under each pair, a link per state opens that state alone at
-          full screen.
+          together. Each panel's Full screen button opens that panel alone, in
+          its theme.
         </p>
         {sections.map((section, index) => (
           <div key={section.id}>
@@ -267,12 +277,9 @@ export function Sheet({ entries: all, sections }: SheetProps) {
               {section.panels.map((panel) => {
                 const states = panel.states.flatMap((id) => byId.get(id) ?? []);
                 return (
-                  <div key={panel.states.join()}>
-                    <div className="pair">
-                      <Specimen states={states} theme="light" />
-                      <Specimen states={states} theme="dark" />
-                    </div>
-                    <StateLinks states={states} />
+                  <div className="pair" key={panel.states.join()}>
+                    <Specimen section={section} states={states} theme="light" />
+                    <Specimen section={section} states={states} theme="dark" />
                   </div>
                 );
               })}

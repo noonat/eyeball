@@ -1,15 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
-import { Sheet, entries, missing, storyHref, unplaced } from "./Sheet";
+import { all } from "./catalog";
 import { sections } from "./sections";
-
-// Every story the components declare, so a new state joins the sheet without
-// anyone remembering to list it.
-const modules = import.meta.glob<Record<string, unknown>>(
-  ["./*.stories.tsx", "!./Sheet.stories.tsx", "../components/*.stories.tsx"],
-  { eager: true },
-);
-const all = entries(modules);
+import {
+  Sheet,
+  entries,
+  missing,
+  specimenName,
+  specimenTitle,
+  storyHref,
+  unplaced,
+} from "./Sheet";
+import * as specimens from "./Specimens.stories";
+import { storyNameFromExport, toId } from "storybook/internal/csf";
 
 const meta = {
   title: "Foundations/Sheet",
@@ -29,13 +32,23 @@ export const States: Story = {
     await expect(missing(all, sections)).toEqual([]);
     await expect(unplaced(all, sections)).toEqual([]);
 
-    // A link per state and theme.
+    // A Full screen button per section and theme, each opening a story that
+    // exists: a section whose story is missing fails here, not on the phone.
     const links = canvas.getAllByRole("link", { name: /full screen$/ });
-    const shown = all.filter((entry) => entry.onSheet);
-    await expect(links).toHaveLength(shown.length * 2);
-    await expect(links[0]?.getAttribute("href")).toBe(
-      storyHref("foundations-palette--tokens", "light"),
-    );
+    await expect(links).toHaveLength(sections.length * 2);
+    // Storybook's indexer needs a literal title, so the two are checked here.
+    await expect(specimens.default.title).toBe(specimenTitle);
+    for (const section of sections) {
+      const name = specimenName(section.id);
+      await expect(Object.keys(specimens)).toContain(name);
+      const id = toId(specimenTitle, storyNameFromExport(name));
+      for (const theme of ["light", "dark"] as const) {
+        const link = canvas.getByRole("link", {
+          name: `${section.title}, ${theme}, full screen`,
+        });
+        await expect(link.getAttribute("href")).toBe(storyHref(id, theme));
+      }
+    }
 
     // Each panel stamps its own theme, whatever the page around it is.
     for (const theme of ["light", "dark"]) {
