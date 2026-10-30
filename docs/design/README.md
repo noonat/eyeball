@@ -1,17 +1,28 @@
 # Design tearouts
 
-A **tearout** is a single screen torn out for inspection: real markup and real
-styling, no backend, fixture content, showing that screen together with every
-state that matters. Look-and-feel is settled here, in cheap static pages, rather
-than discovered halfway through building the real thing.
+A **tearout** is a single screen torn out for inspection: the screen's real
+components on fixture data, with every state that matters as a story in
+Storybook. Look-and-feel is settled there, before any plumbing.
 
 **Design comes first.** Any work with a user-visible surface opens with a
 tearout, before any plumbing. This is an ordering, not a preference: find a
 design worth building, then build it. A change to a surface that already exists
-starts by changing the tearout it was approved against.
+starts by changing the stories it was approved against.
 
-Open any file straight from the filesystem. Shared stylesheets, fixture content,
-no network, no build step, and no JavaScript. Nothing here talks to a server.
+**The tearout is the component that ships.** The first tearouts were static HTML
+and CSS, and the templates were seeded from their markup. Nothing kept the two
+in step afterward, and [specs/TODO.md](../../specs/TODO.md) holds five places
+where an approved frame and the shipped screen disagree, and six states the
+shipped screen draws that no frame does. A story renders the component itself,
+so there is no second copy to drift. What this gives up is a page that opens
+from the filesystem with no build step and no JavaScript. Storybook needs Node
+and a build, both development only.
+
+**Fixtures are views the server produced.** `tool/seed` writes a populated state
+directory, and the fixtures are the JSON the API returns for it, so a story
+shows the shapes and lengths the real surface gets. A fixture written by hand
+for a story is a guess at the API, and the API's types already say what it
+sends.
 
 ## Judge it on the phone
 
@@ -19,20 +30,23 @@ eyeball is read on a phone in whatever minutes are available, so a desktop
 browser at 390 pixels is not where this gets judged.
 
 ```sh
-go run ./tool/tearout               # prints the tailnet URLs to open
+go run ./tool/tearout               # builds Storybook and prints the tailnet URLs to open
 ```
 
-`python3 -m http.server` is the wrong tool. It sends only `Last-Modified`, and
-iOS Safari will show a stale copy of a tearout that was just edited, which reads
-as "the change did not work" rather than as a cache. `tool/tearout` sends
-`Cache-Control: no-store` and binds the tailnet address, so the page opens on a
-phone that is not on this LAN.
+**Each screen has a sheet story**: its states in 390 by 800 frames, a real
+iPhone viewport rather than a shrunken preview, each light frame beside its dark
+one. Every frame links to the state's own story at full screen. Storybook's own
+interface is cramped on a phone, and typing a story's address there is the step
+that gets skipped, so nothing on the phone needs it.
 
-Frames on the sheet are 390 by 800, a real iPhone viewport rather than a
-shrunken preview, so proportion can be judged at true scale without expanding.
-**Expand** exists for the wide layout, which cannot be shown beside a second
-copy of itself. It is CSS only, using `:target`, so the no-JavaScript property
-holds and the back button closes it.
+`python3 -m http.server` is the wrong tool, and so is Storybook's dev server
+reached across the tailnet. iOS Safari shows a stale copy of a page that sends
+only `Last-Modified`, which reads as "the change did not work" rather than as a
+cache. `tool/tearout` sends `Cache-Control: no-store` and binds the tailnet
+address, so the page opens on a phone that is not on this LAN.
+
+**The wide layout gets its own story**, since it cannot be shown beside a second
+copy of itself. Open it before calling a tearout done.
 
 ## The tearouts
 
@@ -44,8 +58,10 @@ holds and the back button closes it.
 | [`widening.html`](./widening.html)       | Three steps out from a hunk: the whole file with the change still marked, a document's own page whole and marked, any file in the project at that round, the tree, a file too big to render, a page in its sandboxed frame, a changed image before over after, a file that changed mode, and new and deleted images, SVG, video, audio and a PDF                                                                                                                                                                                                                                                                                                                        |
 | [`project.html`](./project.html)         | One project: its open reviews over its live working copy, a main checkout beside a worktree, a clean tree, and a directory git cannot see                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
-That is the whole surface the product document describes. A new screen gets a
-tearout before it gets code.
+These are the static sheets every screen was approved against. They are the
+reference while the surface moves to React. A screen's sheet is deleted once its
+stories are approved against it on the phone, and the stories are the tearout
+from then on. A new screen gets stories before it gets code.
 
 ## The visual direction
 
@@ -67,15 +83,14 @@ holds every sheet as it was judged, under spec 013's commits.
 
 ## How to work on these
 
-- **Two shared stylesheets, linked by every tearout.** `app.css` is the visual
-  language and is the file the real surface will ship. `tearout.css` is chrome
-  for these pages only: the specimen panels, the phone frames, the light and
-  dark pairing, expand-to-full-size. A tearout's own `<style>` block holds
-  nothing, and a page-local style is a sign the vocabulary belongs in `app.css`.
+- **The components' stylesheets are the only styling a story uses.** Each
+  component imports its own, and the tokens and the reading-desk language are
+  shared by all of them, as `app.css` is today. The sheet's frames and labels
+  are chrome with a stylesheet of their own, which nothing in a component may
+  use. A style written for one story is a style the real surface does not have.
 
-  `app.css` names its fonts by paths relative to itself, so `fonts/` beside it
-  serves both these sheets and the surface, which serves the same files at
-  `/static/fonts/`. Each family's license sits beside its files.
+  The fonts live beside the stylesheets and are served at `/static/fonts/`. Each
+  family's license sits beside its files.
 
 - **Both themes, side by side.** Tokens are defined on `[data-theme="light"]`
   and `[data-theme="dark"]`, so a tearout stamps the attribute on each frame and
@@ -217,14 +232,20 @@ holds every sheet as it was judged, under spec 013's commits.
 make check
 ```
 
-`internal/convention` reads this directory and holds it to the rules under
-Tearouts in [docs/conventions.md](../conventions.md).
+`internal/convention` reads the remaining static sheets and holds them to the
+rules under Tearouts in [docs/conventions.md](../conventions.md). Each story
+runs as a test in a real browser, through Storybook's Vitest add-on: its
+interaction test, if it has one, and an accessibility audit. The checks the
+static sheets have, such as a class no stylesheet defines or an icon with no
+glyph, move to the rendered stories as the sheets go.
 
 Everything else here is judged rather than asserted. There is no test that says
 a screen looks right.
 
-**The scaffolding is all Go now.** The checker is `internal/convention`, run by
-`make check`; the generator is `tool/icons`; the server is `tool/tearout`.
+**The scaffolding is Go, except Storybook itself.** The checker is
+`internal/convention`, run by `make check`. The generator is `tool/icons`. The
+server is `tool/tearout`, which builds Storybook with Node and serves the
+result.
 
 The split is the same one that decides where anything goes: a check that must
 pass before work closes is a test, and a generator or a server that runs when a
@@ -232,9 +253,9 @@ person decides to run it is a tool.
 
 ## Approval
 
-A tearout is approved by a person looking at it on a phone. That approval is
-what lets implementation start, and the implementation is compared back against
-the tearout rather than against a description of it.
+A tearout is approved by a person looking at its stories on a phone. That
+approval is what lets the plumbing start, and the screen is compared back
+against the approved stories rather than against a description of them.
 
 When the design itself changes, the tearout changes with it. A reference that
 cannot render the thing it certifies has stopped being one.
