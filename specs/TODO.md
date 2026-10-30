@@ -15,7 +15,8 @@ everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
 - [ ] tooling: a tapped notification opens the review it names. Spec
-      [026](026-tap-opens-the-review.md).
+      [026](026-tap-opens-the-review.md), blocked until the owner sees the fault
+      again and the beacons in `eyeball.log` show which branch ran.
 
 ## Unscheduled
 

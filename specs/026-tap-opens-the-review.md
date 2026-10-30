@@ -1,5 +1,5 @@
 ---
-status: active
+status: blocked
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -7,6 +7,16 @@ required_commands:
 ---
 
 # 026 A tap opens the review it names
+
+**Blocked, 2026-10-29, until the fault is seen again.** The beacon from
+Iteration 1 is merged, and six taps on the phone could not reproduce the fault
+(Iteration 2, "Results"). There is no cause to fix, so Iterations 3 and 4 wait.
+The owner reports the next tap that opens the wrong review, and the beacons it
+left in `eyeball.log` say which branch of `openReview` ran. Iteration 2 then
+closes on those beacons, its terminal todo with one run instead of two, and the
+fix is written from them. The owner chose this over keeping the branch open
+until the fault recurred, which would have held an approval that any other merge
+cancels.
 
 A notification tapped over Notes brought the installed app forward on the review
 already open, twice, with no page load. Tapped over the terminal app, the page
@@ -100,12 +110,59 @@ sent from the phone is read in `eyeball.log`, since a beacon that never arrives
 looks the same as a worker that never ran. Each result is written below as it
 arrives.
 
-- [ ] Two taps over Notes with its keyboard up, each recording the beacons and
+- [x] Two taps over Notes with its keyboard up, each recording the beacons and
       which review the screen showed after the tap.
 - [ ] Two taps over the terminal app, recorded the same way.
-- [ ] One tap with eyeball itself in front on a different review, as a control.
-- [ ] The branch each run took and why, written here, with the cause named or
+- [x] One tap with eyeball itself in front on a different review, as a control.
+- [x] The branch each run took and why, written here, with the cause named or
       the runs that left it open.
+
+### Results
+
+The daemon ran `4dc4d87`, and the worker's stamp matched the served one,
+`d6704ce669e6`, in every run below.
+
+Opening the app from the queue after the deploy sent no beacon, as expected with
+no tap.
+
+Control, eyeball in front on review 166, tap on 167's notification: one window,
+on 166, visible, focused and controlled. `navigate` resolved to `/reviews/167`
+in 121 ms and the screen showed 167.
+
+Run 1, eyeball left on 167, Notes in front with its keyboard up for under a
+minute, tap on 169's notification: one window, on 167, controlled, and reported
+visible and focused although Notes was in front. `navigate` resolved to
+`/reviews/169` in 90 ms and the screen showed 169. The fault did not reproduce.
+
+Run 2, the same with three minutes in Notes before the tap on 170's
+notification: the same one controlled window, on 169. `navigate` resolved to
+`/reviews/170` in 103 ms and the screen showed 170. The fault did not reproduce.
+Every review open so far had one file of two lines, where the failed taps in 020
+had a real branch review open. The next runs use long reviews, at the owner's
+suggestion.
+
+Run 3, eyeball in front on 171, 14 files and 11,713 lines, scrolled partway
+down, tap on 172's notification, 26 files and 4,141 lines: one controlled
+window, on 171. `navigate` resolved to `/reviews/172` in 259 ms and the screen
+showed 172.
+
+Run 4, Notes in front with its keyboard up for about two and a half minutes, tap
+on 173's notification, the same 14 files as 171: one controlled window, reported
+on `/reviews/171` though the owner had last been on 172. `navigate` resolved to
+`/reviews/173` in 507 ms and the screen showed 173. The fault did not reproduce.
+The window was on 171 because the owner had decided 172, which returns to the
+queue, and opened 171 from there. So the window's url was right.
+
+Run 5, the terminal app in front with its keyboard up for a few minutes, tap on
+174's notification, 10,042 lines: one controlled window, on 173. `navigate`
+resolved to `/reviews/174` in 549 ms and the screen showed 174. The fault did
+not reproduce.
+
+Over six taps, every one found one window this worker controls, and `navigate`
+reached the named review. No run left a window uncontrolled or found none, so
+neither suspect above has been seen. The longest time away was about three
+minutes, and the worker had been installed minutes before the first run. The
+failed taps in 020 came after hours of real use with a worker days old.
 
 ## Iteration 3: The fix
 
