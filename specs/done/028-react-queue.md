@@ -12,9 +12,9 @@ The queue becomes the first screen the React app draws, end to end: a JSON view
 of it from the server with TypeScript types generated from Go, fixtures from the
 same view, the queue's components as Storybook stories judged on the phone, and
 the shell and router that serve it at `/`. The design is in
-[docs/architecture.md](../docs/architecture.md) under The surface and The client
-code. The screen is the one approved in `docs/design/queue.html`, so the tearout
-reproduces it from components rather than redesigning it.
+[docs/architecture.md](../../docs/architecture.md) under The surface and The
+client code. The screen is the one approved in `docs/design/queue.html`, so the
+tearout reproduces it from components rather than redesigning it.
 
 **The shell cache and the tap handling move to the next spec** (the service
 worker's shell, 029). This reverses the order in specs/TODO.md. With no cache,

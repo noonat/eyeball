@@ -18,10 +18,6 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the JSON API with generated types, and the queue as the first
-      screen in React, end to end, spec [028](028-react-queue.md). It also
-      builds the shell and the router, which need a screen to be judged on the
-      phone.
 - [ ] product: the service worker's shell cache and the tap handling, after the
       queue. With no cache the daemon answers every navigation, so the worker
       cannot hand a template page the shell, and a tap on the React window gets
