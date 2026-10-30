@@ -661,6 +661,7 @@ Routes, with the spec that builds each:
 | `GET /static/icons/{name}`                             | the installed page's icons, from the binary         | 009  |
 | `GET /static/app.js`                                   | the TypeScript, bundled once from the binary        | 008  |
 | `POST /subscriptions`                                  | a device's push subscription                        | 009  |
+| `POST /taps`                                           | a beacon from a notification tap, logged            | 026  |
 | `GET /static/app.css`                                  | the stylesheet, from the binary                     | 006  |
 | `GET /static/shell.css`                                | the page around the app, from the binary            | 006  |
 | `GET /static/fonts/{path...}`                          | a font app.css names, from the binary, with an ETag | 015  |
@@ -795,6 +796,24 @@ is assumed cheap and not measured.
 only to an installed page with a registered worker, so one is required whether
 or not it caches. It handles `push` by showing the notification and
 `notificationclick` by opening the review's URL. It intercepts no fetches.
+
+**The worker reports each tap to the daemon.** A tap on a phone shows nothing of
+which of `openReview`'s branches ran, and the worker has no console to read. So
+`openReview` posts a beacon to `POST /taps` when it starts and around each step,
+and the daemon writes each body as one info line in `eyeball.log`, beside the
+stamp of the `sw.js` it serves. The first beacon lists the windows the worker
+can see, with and without `includeUncontrolled`. Later ones name each step and
+what it resolved to or how it failed. Every beacon carries the worker's own
+build stamp, a hash of its script that the Go build sets, so a phone running an
+older worker shows as two stamps that differ.
+
+The beacons stay once the fault they were added for is fixed. They cost one
+route and a few log lines per tap, and they answer the next question about a tap
+without a new instrument. A readout on the page was rejected, since the page
+that would show it is the one a failed tap does not replace or replaces too
+early. The route is on the tailnet listener, which needs no token. A worker
+cannot read the token from page storage, so on the loopback listener every
+beacon is refused with 403 and dropped, and the tap goes on regardless.
 
 **A failed write keeps its text on screen**, marked as not saved, with a retry.
 The server is what makes a comment durable, and until it answers, the surface

@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -28,19 +28,19 @@ it fixes anything, as the dev-workflow rule on two failed fixes asks.
 One path is known to exist. `matchAll` passes `includeUncontrolled: true`, so
 the first window can be one this worker does not control. Measured in headless
 Chromium 2026-10-29: `navigate` on such a window rejects with "TypeError: This
-service worker is not the client's active service worker.", and `postMessage`
-to the same window arrives. Whether an eyeball window is ever uncontrolled on
-iOS is not known. The worker claims every window when it activates.
+service worker is not the client's active service worker.", and `postMessage` to
+the same window arrives. Whether an eyeball window is ever uncontrolled on iOS
+is not known. The worker claims every window when it activates.
 
 **The worker reports each tap to the daemon.** A beacon is a `POST` from the
 worker to a new surface route that writes one line to `eyeball.log`. Every
 request passes Go's cross-origin check, which a same-origin worker fetch
 satisfies, and the tailnet listener needs no token. The alternative, a readout
-on the page as 020 used, was rejected because the page that would show it is
-the one the tap fails to replace or replaces too early. The beacon stays after
-the fix. It costs one route and a few log lines per tap, and it answers the
-next question about a tap without a new instrument. Removing it before merge
-was rejected, since it saves one route and leaves the next fault with nothing to
+on the page as 020 used, was rejected because the page that would show it is the
+one the tap fails to replace or replaces too early. The beacon stays after the
+fix. It costs one route and a few log lines per tap, and it answers the next
+question about a tap without a new instrument. Removing it before merge was
+rejected, since it saves one route and leaves the next fault with nothing to
 read. architecture.md says the worker handles push and taps, and it gains one
 sentence naming the beacon.
 
@@ -56,30 +56,36 @@ phone check in the last iteration is the test that matters.
 - The keyboard fault 020 left open. It is a separate mechanism inside iOS.
 - Showing that the page is refreshing when the app comes forward, which is its
   own TODO item.
-- Which review a tap opens when the named review has been decided. It opens
-  that review, as today.
+- Which review a tap opens when the named review has been decided. It opens that
+  review, as today.
 - Rotating `eyeball.log`, already in specs/TODO.md. The beacon adds to it.
 
 ## Iteration 1: The beacon
 
-- [ ] A surface route, `POST /taps`, writes the JSON body it receives as one
+- [x] A surface route, `POST /taps`, writes the JSON body it receives as one
       `eyeball.log` line at info level and answers 204. A body over 8 KB or not
       JSON is refused with 400 and not logged.
-- [ ] A Go test fails when the route logs nothing, logs a body it should
-      refuse, or answers anything but 204 to a good body.
-- [ ] `openReview` sends a beacon when it starts and after each step, each
+- [x] A Go test fails when the route logs nothing, logs a body it should refuse,
+      or answers anything but 204 to a good body.
+- [x] `openReview` sends a beacon when it starts and after each step, each
       inside `event.waitUntil`, so one step that never settles leaves the
       earlier beacons logged. A failed beacon never stops the tap.
-- [ ] The first beacon holds the notification's url and every window from two
+- [x] The first beacon holds the notification's url and every window from two
       `matchAll` calls, with and without `includeUncontrolled`, each with its
       url, `visibilityState` and `focused`.
-- [ ] Later beacons name the branch taken and what `focus`, `navigate` and
+- [x] Later beacons name the branch taken and what `focus`, `navigate` and
       `openWindow` resolved to: a url, `null`, or the error's name and message.
-- [ ] Every beacon carries a stamp of the worker's build, and the daemon logs
+- [x] Every beacon carries a stamp of the worker's build, and the daemon logs
       beside it the stamp of the `sw.js` it serves now, so a stale worker shows
       as two stamps that differ.
-- [ ] architecture.md, where it describes the service worker, names the beacon
+- [x] architecture.md, where it describes the service worker, names the beacon
       and why it stays.
+
+> **Completed** 2026-10-30 00:46 UTC
+>
+> - `make check` — 6.2s
+> - `go test -race ./...` — 3.8s
+> - `go test -count=1 -tags browser ./internal/server` — 49.0s
 
 ## Iteration 2: Taps on the phone
 
