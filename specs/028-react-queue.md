@@ -78,6 +78,23 @@ iteration and the browser tests below fail with the old route restored.
 - Ages that count up on screen. `render.Age` stays server-side, so an age is as
   old as the last refetch, as it is today.
 
+## Departures
+
+Where the work went differently from the paragraphs above.
+
+- The views live in a new package, `internal/view`, where the spec says "the API
+  package". `internal/api` is the agent API's `--json` contract, and the manual
+  lists every field of it, so surface views there would mix two contracts.
+- A review's id is an int64 sent with json's `,string` option and typed
+  `string`, so it never passes through a double. Round and the waiting count are
+  int32. A nil section is sent as `null` and typed `Row[] | null`.
+- The design frame's "Not requested yet" working row cannot be seeded. A row is
+  Working only once a round has an answer, so no store state draws it.
+- The view's waiting rows come out longest wait first, as the store orders them.
+  The template queue page draws the same order today. The frames in
+  `docs/design/queue.html` draw newest first. Iteration 3 has to settle which
+  order the component uses, and specs/TODO.md already lists the question.
+
 ## Iteration 1: The documents
 
 - [x] architecture.md names the generator: the standard library over the API
@@ -106,19 +123,25 @@ listener gave nothing until the worker's one-second timeout.
 
 ## Iteration 2: The API
 
-- [ ] `tool/apitypes` writes `web/src/api/types.ts` from the API package with
+- [x] `tool/apitypes` writes `web/src/api/types.ts` from the API package with
       `go/types`, and `make check` fails when the committed file differs.
-- [ ] The generator fails on a kind it cannot map, proved by a planted interface
+- [x] The generator fails on a kind it cannot map, proved by a planted interface
       field and a planted `map[int]string`.
-- [ ] A named string type with constants becomes a union of its values, proved
+- [x] A named string type with constants becomes a union of its values, proved
       by a planted constant that changes the union.
-- [ ] `GET /api/{$}` answers the queue's view as JSON: its three sections, the
+- [x] `GET /api/{$}` answers the queue's view as JSON: its three sections, the
       waiting count, and a stamp computed from the same rows.
-- [ ] A Go test fails when the view's stamp and `queueStamp` differ for the same
+- [x] A Go test fails when the view's stamp and `queueStamp` differ for the same
       store state, and when a section is sent as something other than its rows.
-- [ ] `tool/fixtures` writes the view for seeded states (populated, nothing
+- [x] `tool/fixtures` writes the view for seeded states (populated, nothing
       waiting, the awkward week) with a fixed clock and fixed ids, into
       `web/src/fixtures/`, and `make check` fails when they differ.
+
+> **Completed** 2026-10-30 08:34 UTC
+>
+> - `make check` — 14.8s
+> - `go test -race ./...` — 45.6s
+> - `go test -count=1 -tags browser ./internal/server` — 49.0s
 
 ## Iteration 3: The tearout
 

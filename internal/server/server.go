@@ -207,6 +207,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "GET /api/{$}",
+		handle:  (*Server).handleQueueView,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /reviews/{review}",
 		handle:  (*Server).handleReviewPage,
 	},

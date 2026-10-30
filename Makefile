@@ -83,11 +83,19 @@ vendor: ## Copy the files the app's bundle reads into web/deps/node_modules
 vendor-check: ## Fail when web/deps/node_modules differs from a fresh vendor step
 	@echo "==> vendor"; $(NODE_MODULES_CHECK); go run ./tool/vendor --check
 
+api: ## Write web/src/api/types.ts and web/src/fixtures from internal/view
+	go run ./tool/apitypes && go run ./tool/fixtures
+
+# The generated types and the fixtures are views of the Go structs and the
+# server, so a change to either has to be committed with the files it moves.
+api-check: ## Fail when the generated types or the fixtures differ from a fresh run
+	@echo "==> api"; go run ./tool/apitypes --check && go run ./tool/fixtures --check
+
 fmt: ## Auto-fix what lint checks
 	@echo "==> gofmt -w"; gofmt -w $(GOFILES)
 	@echo "==> oxfmt --write"; $(NODE_MODULES_CHECK); $(OXFMT) --write $(FMTFILES)
 
-check: build lint stories vendor-check test ## Build, lint and test: the gate every iteration closes on
+check: build lint stories vendor-check api-check test ## Build, lint and test: the gate every iteration closes on
 	@echo "==> check passed"
 
-.PHONY: help tools build test lint stories vendor vendor-check fmt check
+.PHONY: help tools build test lint stories vendor vendor-check api api-check fmt check

@@ -1,0 +1,94 @@
+{
+  "waiting": [
+    {
+      "id": "3",
+      "project": "field-notes",
+      "agent": "spec/018-tag-import",
+      "title": "Spec 018: bulk import for the tag index",
+      "age": "3h",
+      "round": 3,
+      "files": "2 files",
+      "added": "58",
+      "removed": "11",
+      "gist": "The importer now refuses a file with duplicate tags instead of merging them."
+    },
+    {
+      "id": "2",
+      "project": "harbor",
+      "agent": "feat/upload-retry",
+      "title": "Upload worker and its retry ladder",
+      "age": "1h",
+      "round": 1,
+      "files": "6 files",
+      "added": "341",
+      "removed": "52",
+      "gist": "The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s."
+    },
+    {
+      "id": "1",
+      "project": "eyeball",
+      "agent": "spec/012-surface",
+      "title": "Product doc, second pass",
+      "age": "12m",
+      "round": 2,
+      "files": "1 file",
+      "added": "214",
+      "removed": "38",
+      "gist": "Both comments from round 1 are done. The widening section now names the control instead of describing the behavior, and the base-is-empty case moved out of Open questions into A round is frozen."
+    }
+  ],
+  "working": [
+    {
+      "id": "4",
+      "project": "eyeball",
+      "agent": "spec/014-queue",
+      "title": "Queue screen markup",
+      "age": "4m",
+      "round": 2,
+      "files": "2 files",
+      "added": "90",
+      "removed": "14",
+      "gist": "Markup for the queue."
+    },
+    {
+      "id": "5",
+      "project": "harbor",
+      "agent": "fix/outbox-drain",
+      "title": "Offline outbox drainer",
+      "age": "26m",
+      "round": 1,
+      "files": "1 file",
+      "added": "31",
+      "removed": "0",
+      "gist": "Drains what queued while offline."
+    }
+  ],
+  "settled": [
+    {
+      "id": "6",
+      "project": "harbor",
+      "agent": "fix/outbox-drain",
+      "title": "Delta sync watermark",
+      "age": "2h",
+      "round": 2,
+      "files": "1 file",
+      "added": "12",
+      "removed": "3",
+      "gist": "The watermark never moves backward."
+    },
+    {
+      "id": "7",
+      "project": "eyeball",
+      "agent": "spec/012-surface",
+      "title": "Voice, both kinds",
+      "age": "Yesterday",
+      "round": 1,
+      "files": "1 file",
+      "added": "40",
+      "removed": "0",
+      "gist": "The prose voice and the conversational one, written down."
+    }
+  ],
+  "waiting_count": 3,
+  "stamp": "dee125bf7fcdcd62"
+}

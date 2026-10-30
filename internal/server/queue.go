@@ -7,6 +7,7 @@ import (
 
 	"github.com/noonat/eyeball/internal/render"
 	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/view"
 )
 
 // settledShown is how many approved reviews the queue keeps. The tail exists
@@ -22,28 +23,37 @@ type queuePage struct {
 	Stamp string
 }
 
-// queueRow is one review as a queue row shows it.
-type queueRow struct {
-	// ID is the review's id, which its link is built from.
-	ID int64
-	// Project and Agent say where the review came from. Project is empty on
-	// the project's own page, and the row leaves it out.
-	Project, Agent string
-	// Title is what the row is called.
-	Title string
-	// Age is how long the row has been in its section: since the round was
-	// asked for while it waits, and since the verdict once there is one.
-	Age string
-	// Round is the latest round's number.
-	Round int
-	// Files is the count of files that moved, written out, and Added and
-	// Removed the lines each way. A waiting row is the only one that prints
-	// them.
-	Files, Added, Removed string
-	// Gist is the first paragraph of the latest round's note, which a waiting
-	// row quotes under its title. It is split as the review page splits the
-	// letter, so a note reads the same in both places.
-	Gist string
+// queueRow is one review as a queue row shows it. The template and the JSON
+// view share the type, so a row cannot read differently in the two.
+type queueRow = view.Row
+
+// queueView is the queue as the JSON view holds it, with a stamp computed from
+// the rows it carries. The caller reads the queue once, so the stamp and the
+// sections cannot come from two moments.
+func (s *Server) queueView(q store.Queue) view.Queue {
+	now := s.now()
+	out := view.Queue{WaitingCount: int32(len(q.Waiting)), Stamp: queueStampOf(q)}
+	for _, row := range q.Waiting {
+		out.Waiting = append(out.Waiting, s.queueRow(row, render.Age(now, row.RequestedAt)))
+	}
+	for _, row := range q.Working {
+		out.Working = append(out.Working, s.queueRow(row, render.Age(now, row.DecidedAt)))
+	}
+	for _, row := range q.Settled {
+		out.Settled = append(out.Settled, s.queueRow(row, render.Age(now, row.DecidedAt)))
+	}
+	return out
+}
+
+// handleQueueView answers GET /api/, the queue as JSON.
+func (s *Server) handleQueueView(w http.ResponseWriter, r *http.Request) error {
+	q, err := s.db.s.Queue(r.Context(), settledShown)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, s.queueView(q))
+	return nil
 }
 
 // handleQueue answers GET /, the page the surface opens on.
@@ -54,9 +64,7 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) error {
 	}
 	now := s.now()
 	body := queuePage{}
-	if body.Stamp, err = s.queueStamp(r.Context()); err != nil {
-		return err
-	}
+	body.Stamp = queueStampOf(q)
 	for _, row := range q.Waiting {
 		body.Waiting = append(body.Waiting, s.queueRow(row, render.Age(now, row.RequestedAt)))
 	}
@@ -81,7 +89,7 @@ func (s *Server) queueRow(row store.ReviewRow, age string) queueRow {
 		Agent:   row.Agent,
 		Title:   row.Title,
 		Age:     age,
-		Round:   row.Round,
+		Round:   int32(row.Round),
 		Files:   count(row.Files, "file", "files"),
 		Added:   thousands(row.Added),
 		Removed: thousands(row.Removed),

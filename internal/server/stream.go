@@ -152,6 +152,12 @@ func (s *Server) queueStamp(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return queueStampOf(q), nil
+}
+
+// queueStampOf is the stamp of rows already read, so the JSON view can stamp
+// the rows it sends instead of reading the queue a second time.
+func queueStampOf(q store.Queue) string {
 	h := sha256.New()
 	groups := [][]store.ReviewRow{q.Waiting, q.Working, q.Settled}
 	for _, group := range groups {
@@ -160,5 +166,5 @@ func (s *Server) queueStamp(ctx context.Context) (string, error) {
 			_, _ = fmt.Fprintf(h, "|%d:%s:%d:%s", row.ReviewID, row.State, row.Round, row.Verdict)
 		}
 	}
-	return hex.EncodeToString(h.Sum(nil)[:8]), nil
+	return hex.EncodeToString(h.Sum(nil)[:8])
 }

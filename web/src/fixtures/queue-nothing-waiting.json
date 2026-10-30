@@ -1,0 +1,57 @@
+{
+  "waiting": null,
+  "working": [
+    {
+      "id": "1",
+      "project": "eyeball",
+      "agent": "spec/014-queue",
+      "title": "Queue screen markup",
+      "age": "4m",
+      "round": 2,
+      "files": "2 files",
+      "added": "90",
+      "removed": "14",
+      "gist": "Markup for the queue."
+    },
+    {
+      "id": "2",
+      "project": "harbor",
+      "agent": "fix/outbox-drain",
+      "title": "Offline outbox drainer",
+      "age": "26m",
+      "round": 1,
+      "files": "1 file",
+      "added": "31",
+      "removed": "0",
+      "gist": "Drains what queued while offline."
+    }
+  ],
+  "settled": [
+    {
+      "id": "3",
+      "project": "harbor",
+      "agent": "fix/outbox-drain",
+      "title": "Delta sync watermark",
+      "age": "2h",
+      "round": 2,
+      "files": "1 file",
+      "added": "12",
+      "removed": "3",
+      "gist": "The watermark never moves backward."
+    },
+    {
+      "id": "4",
+      "project": "eyeball",
+      "agent": "spec/012-surface",
+      "title": "Voice, both kinds",
+      "age": "Yesterday",
+      "round": 1,
+      "files": "1 file",
+      "added": "40",
+      "removed": "0",
+      "gist": "The prose voice and the conversational one, written down."
+    }
+  ],
+  "waiting_count": 0,
+  "stamp": "e8ffdc4dba81e358"
+}

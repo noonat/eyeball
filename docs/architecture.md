@@ -64,7 +64,10 @@ internal/render/      a diff as rows, syntax highlighting, ages, and markdown
 internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
+internal/view/        the surface API's JSON views, which web/src/api/types.ts is generated from
+tool/apitypes/        writes web/src/api/types.ts from internal/view, and fails when the committed file differs
 tool/appicon/         renders the installed page's icons, committed under web/static/icons
+tool/fixtures/        writes the views of seeded states into web/src/fixtures, and fails when they differ
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
@@ -677,21 +680,24 @@ breaks the build rather than a screen. Hand-written types with a contract test
 were the alternative: they catch the same drift, later, and only for the fields
 a test names.
 
-**The generator is written here, with the standard library.** It reads the API
-package with `go/types` and the standard library's source importer. A reflection
-walk over the response structs also worked, measured 2026-10-29: about 80 lines,
-and the types it wrote passed every strict flag under "The client code".
-Reflection cannot see constants, so it was passed over. `go/types` can, which
-lets a named string type with constants become a union of its values. That
-reading of constants is assumed to work and has not been probed. An external
-generator was not an option, since `go run ...@latest` is refused in this
-environment and the project takes the standard library first.
+**The generator is written here, with the standard library.** It reads
+`internal/view`, the package of the API's views, with `go/types` and the
+standard library's source importer. A reflection walk over the response structs
+also worked, measured 2026-10-29: about 80 lines, and the types it wrote passed
+every strict flag under "The client code". Reflection cannot see constants, so
+it was passed over. `go/types` can, which lets a named string type with
+constants become a union of its values, which a test shows by planting a
+constant that changes the union. An external generator was not an option, since
+`go run ...@latest` is refused in this environment and the project takes the
+standard library first.
 
 Go sends a nil slice or map as `null`, so the generator types each one `| null`,
 and a use such as `q.waiting.length` then fails to compile with "possibly
 'null'", measured 2026-10-29. A Go kind with no exact TypeScript form is an
 error and never a guess: interfaces, integers that can pass 2^53, and maps
-without string keys.
+without string keys. The 2^53 limit is met two ways. A review's id is an int64,
+so the view sends it as a string through json's `,string` option and the type is
+`string`. A round number and a count are int32, which a number holds exactly.
 
 Routes, with the spec that built each. "Planned" is a route this document
 describes and no spec has built yet.
@@ -705,7 +711,8 @@ describes and no spec has built yet.
 | `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | planned |
 | `GET /projects/{project}`                                  | the shell, drawing the project view                 | planned |
 | `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | planned |
-| `GET /api/...`, each page path above                       | that page's view, as JSON                           | planned |
+| `GET /api/{$}`                                             | the queue's view, as JSON, with a stamp of its rows | 028     |
+| `GET /api/...`, each other page path above                 | that page's view, as JSON                           | planned |
 | `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | planned |
 | `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |
 | `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | planned |

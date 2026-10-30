@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -44,6 +46,84 @@ func Test_tilde(t *testing.T) {
 	g.Expect(s.tilde("/home/ab/src")).To(Equal("/home/ab/src"), "a sibling of home is not under it")
 	g.Expect(s.tilde("/srv/x")).To(Equal("/srv/x"))
 	g.Expect((&Server{}).tilde("/home/a/x")).To(Equal("/home/a/x"))
+}
+
+// A queue with nothing in it sends null sections, as the generated types say.
+func TestServer_queueViewEmpty(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	body := serveSurface(q.s.Surface(), http.MethodGet, "/api/").Body.String()
+	g.Expect(body).To(ContainSubstring(`"waiting": null`))
+	g.Expect(body).To(ContainSubstring(`"waiting_count": 0`))
+}
+
+// An id is sent as a string, since the generator types it as one.
+func TestServer_queueViewSendsIDsAsStrings(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	q.open(g, t, q.project(g, t, "/home/a/src/eyeball", "eyeball"), "a", "first", "a")
+	body := serveSurface(q.s.Surface(), http.MethodGet, "/api/").Body.String()
+	g.Expect(body).To(ContainSubstring(`"id": "1"`))
+}
+
+// A section holds the rows the store put there, in the store's order, and the
+// eye's count is the waiting section's length. A section filled from the wrong
+// rows would show a review under the wrong heading.
+func TestServer_queueViewSendsTheStoresRows(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	settled := q.open(g, t, project, "s", "settled", "s")
+	q.advance(time.Hour)
+	q.decide(g, t, settled, store.VerdictApprove)
+	working := q.open(g, t, project, "w", "working", "w")
+	q.advance(time.Hour)
+	q.decide(g, t, working, store.VerdictChanges)
+	q.open(g, t, project, "a", "waiting a", "a")
+	q.advance(time.Minute)
+	q.open(g, t, project, "b", "waiting b", "b")
+
+	want, err := q.store.Queue(t.Context(), settledShown)
+	g.Expect(err).NotTo(HaveOccurred())
+	got := getQueueView(g, q)
+	g.Expect(viewIDs(got.Waiting)).To(Equal(reviewIDs(want.Waiting)))
+	g.Expect(viewIDs(got.Working)).To(Equal(reviewIDs(want.Working)))
+	g.Expect(viewIDs(got.Settled)).To(Equal(reviewIDs(want.Settled)))
+	g.Expect(got.Waiting).To(HaveLen(2))
+	g.Expect(got.Working).To(HaveLen(1))
+	g.Expect(got.Settled).To(HaveLen(1))
+	g.Expect(got.WaitingCount).To(Equal(int32(2)))
+	g.Expect(got.Waiting[0].Title).To(Equal("waiting a"))
+	g.Expect(got.Waiting[0].Age).To(Equal("1m"))
+	g.Expect(got.Waiting[0].Project).To(Equal("eyeball"))
+}
+
+// The view's stamp is what the stream sends for the same rows, through every
+// change of state. The app refetches when the two stamps differ, so a stamp that
+// disagreed with the stream's would refetch forever or never.
+func TestServer_queueViewStampMatchesTheStream(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	stamps := map[string]bool{}
+	check := func() {
+		g.THelper()
+		got := getQueueView(g, q)
+		want, err := q.s.queueStamp(t.Context())
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(got.Stamp).To(Equal(want))
+		g.Expect(stamps).NotTo(HaveKey(got.Stamp), "each state has a stamp of its own")
+		stamps[got.Stamp] = true
+	}
+	check()
+	first := q.open(g, t, project, "a", "first", "a")
+	check()
+	q.advance(time.Minute)
+	q.decide(g, t, first, store.VerdictChanges)
+	check()
+	q.advance(time.Minute)
+	q.decide(g, t, q.open(g, t, project, "b", "second", "b"), store.VerdictApprove)
+	check()
 }
 
 func TestServer_Surface_emptyQueue(t *testing.T) {
@@ -388,4 +468,33 @@ func text(n *html.Node) string {
 	}
 	walk(n)
 	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// getQueueView reads the queue's JSON the way the app does.
+func getQueueView(g *WithT, q *queueFixture) view.Queue {
+	g.THelper()
+	res := serveSurface(q.s.Surface(), http.MethodGet, "/api/")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(Equal("application/json"))
+	var got view.Queue
+	g.Expect(json.Unmarshal(res.Body.Bytes(), &got)).To(Succeed())
+	return got
+}
+
+// viewIDs is the review ids of a section, in order.
+func viewIDs(rows []view.Row) []int64 {
+	var out []int64
+	for _, r := range rows {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// reviewIDs is the review ids of store rows, in order.
+func reviewIDs(rows []store.ReviewRow) []int64 {
+	var out []int64
+	for _, r := range rows {
+		out = append(out, r.ReviewID)
+	}
+	return out
 }
