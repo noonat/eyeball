@@ -54,6 +54,12 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] tooling: a flaky browser test. `TestServer_Surface_browserJump`
+      (`internal/server/browser_test.go`) failed once under `-tags browser` on
+      2026-10-30, at "the target moved as bodies loaded around it", with the
+      target 3482px from the head where the limit is 4. It passed on a re-run
+      with no code change. The cause is not found. A read that raced the click's
+      scroll, or the bodies loading, is a guess.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active
@@ -171,9 +177,6 @@ client code. Each item is a spec.
       queue's list of projects did this until 022 removed it.
 - [ ] design: a mark on the last line of a file with no final newline. The row
       model carries the flag, and no tearout or class in `app.css` draws it.
-- [ ] design: the queue's Waiting order. 003 lists the longest wait first,
-      because that is what holds an agent up, and both queue tearout frames list
-      the newest first. The code follows 003 until the owner chooses.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.

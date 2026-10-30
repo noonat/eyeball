@@ -108,6 +108,17 @@ Where the work went differently from the paragraphs above.
 - The client-only states (after a verdict, not installed, notifications not
   allowed and a lapsed subscription) are compared with nothing beyond the text
   the template and the frames give them.
+- The sheet's stylesheet had a rule for its own headings, `.sheet-body h2`, that
+  also matched the queue's section headings inside the phone frames. The frames
+  showed about 56px above Working and Settled and a 19px heading, where the real
+  screen draws 20px. The owner asked for the gap to be halved, and the cause was
+  that rule. It is removed, and `.sheet-body h1` is now `.sheet-body > h1`,
+  since the top bar's heading matched it too. The sheet's own story now fails
+  when a heading in a frame computes a different margin, size or letter spacing
+  than in a screen with no sheet around it.
+- The owner's approval of the sheet settled two open questions. Waiting rows are
+  longest wait first, the order the store and the template page use, and the
+  "Not requested yet" row stays out. The question in specs/TODO.md is removed.
 
 ## Iteration 1: The documents
 
@@ -173,8 +184,15 @@ required_acks:
 - [x] A screen sheet lays those states out in 390 by 800 frames, light beside
       dark, each with a full-screen button, plus the wide layout as its own
       story.
-- [ ] The owner judges the sheet on the phone against queue.html, and every
+- [x] The owner judges the sheet on the phone against queue.html, and every
       change asked for is made before the ack.
+
+> **Completed** 2026-10-30 13:22 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 16.8s
+> - `go test -race ./...` — 5.3s
+> - `go test -count=1 -tags browser ./internal/server` — 47.5s
 
 ## Iteration 4: The shell
 

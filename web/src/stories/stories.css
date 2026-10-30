@@ -35,7 +35,7 @@ body {
   margin: 0 auto;
 }
 
-.sheet-body h1 {
+.sheet-body > h1 {
   margin: 0 0 6px;
   font-size: 27px;
   letter-spacing: -0.02em;
@@ -46,12 +46,6 @@ body {
   max-width: 70ch;
   color: #ece8e2;
   font-size: 14px;
-}
-
-.sheet-body h2 {
-  margin: 36px 0 10px;
-  font-size: 19px;
-  letter-spacing: -0.01em;
 }
 
 .pair {
