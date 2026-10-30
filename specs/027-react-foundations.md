@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -87,18 +87,24 @@ iteration and every check this spec adds is proved by a planted violation.
 
 ## Iteration 1: The documents
 
-- [ ] architecture.md says the binary writes the embedded vendor tree to a
+- [x] architecture.md says the binary writes the embedded vendor tree to a
       temporary directory once and bundles with esbuild's resolver over it.
-- [ ] architecture.md says the vendor set is what esbuild's metafile lists, and
+- [x] architecture.md says the vendor set is what esbuild's metafile lists, and
       that the check re-runs the vendor step and compares, since a lockfile
       check misses an import that needs a new file.
-- [ ] architecture.md replaces the React 19.1.1 measurement with this spec's,
+- [x] architecture.md replaces the React 19.1.1 measurement with this spec's,
       and names Storybook 10.
-- [ ] architecture.md says `app.css` stays one file until the last template
+- [x] architecture.md says `app.css` stays one file until the last template
       goes.
-- [ ] specs/TODO.md moves the shell, router, shell cache and tap handling from
+- [x] specs/TODO.md moves the shell, router, shell cache and tap handling from
       the foundations item to the queue item, naming the two mixed-period
       problems.
+
+> **Completed** 2026-10-30 04:20 UTC
+>
+> - `make check` — 6.2s
+> - `go test -race ./...` — 49.8s
+> - `go test -count=1 -tags browser ./internal/server` — 49.8s
 
 ## Iteration 2: The tearout
 

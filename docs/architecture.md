@@ -68,7 +68,7 @@ tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
 web/src/              the app: routes, components and their stylesheets, the API client, the stream
-web/vendor/           the production files of each pinned package the app imports
+web/vendor/           htmx, and node_modules/: the files of each pinned package the app's bundle reads
 web/                  the manifest, the icons, the service worker
 ```
 
@@ -78,8 +78,8 @@ exists, and `internal/convention` fails when the two disagree.
 
 `go install` has to produce a working binary. Nothing in the build may require
 Node, a bundler on the path, or a committed build artifact. The packages under
-`web/vendor/` are committed sources the build reads, not its output. That
-constraint decides more of this document than any other.
+`web/vendor/node_modules/` are committed sources the build reads, not its
+output. That constraint decides more of this document than any other.
 
 ## The daemon's lifetime
 
@@ -738,23 +738,52 @@ few kilobytes cost nothing measurable, and would give up that record.
 
 **The binary bundles the app with esbuild, linked into Go, from embedded
 sources.** The app's sources and the packages it imports are embedded with
-`//go:embed`, and a resolve plugin points every bare import, such as `react`, at
-the committed copy of that package under `web/vendor/`. The bundle is built the
-first time a page asks for it and held in memory. Measured 2026-10-29: React
-19.1.1 bundled this way from an embedded copy, and the bundle rendered its
-component. No Node at build time and no committed bundle, so `go install`
-produces something that works.
+`//go:embed`. The first time a page asks for the bundle, the binary writes the
+embedded vendor tree, `web/vendor/node_modules/`, to a temporary directory once
+per process and bundles the app with esbuild's own resolver over it. The result
+is held in memory. No Node at build time and no committed bundle, so
+`go install` produces something that works.
+
+The packages have to resolve through their `package.json` `exports` maps, which
+esbuild's resolver reads and a hand-written plugin would have to copy. A resolve
+plugin that pointed every bare import at a vendored directory was rejected for
+that reason. The cost of the replacement is a write of about 1.4 MB to a
+temporary directory the first time a page asks for the bundle.
+
+Measured 2026-10-29, in scratch projects: React 19.3.1, React Router 7.18.5 and
+TanStack Query 5.105.0 bundled by esbuild 0.28.2 through its Go API. Copying
+only the 68 files esbuild's metafile lists, plus each package's `package.json`,
+into a fresh directory and bundling from there gave a bundle identical byte for
+byte to the one built from `node_modules`: 353 KB minified, 111 KB gzipped, from
+1.4 MB of vendored files out of 21 MB installed. React Router's `exports` reach
+only its `dist/development` build, since the production one is not exported, so
+that is the build the app bundles.
 
 **Vite is for development only.** Its dev server reloads a component as it is
 saved, proxies `/api` and `/events` to a running daemon, and is what Storybook
-builds on. The binary never runs Vite's output. The cost is two bundlers: a
-fault only esbuild's bundle has would not show in development. The browser tests
-under `internal/server` run against the bundle the binary serves, so that is the
+10 builds on. Measured 2026-10-29: Storybook 10.6.5 with Vite 8.3.5 built a
+story, and its full-screen address, `iframe.html?id=<story>&viewMode=story`,
+rendered the component alone in headless Chromium. Its Vitest add-on 10.6.5 with
+Vitest 4.1.12 ran two stories as tests there, through Playwright's
+`executablePath`, and a planted failing story failed. Vite has to pre-bundle
+React (`optimizeDeps.include`), or the add-on's setup file fails to import it.
+The binary never runs Vite's output. The cost is two bundlers: a fault only
+esbuild's bundle has would not show in development. The browser tests under
+`internal/server` run against the bundle the binary serves, so that is the
 bundle the gate checks.
 
-**`web/vendor/` holds the production files of each pinned package**, copied from
-`node_modules` by `make vendor` after `npm ci`. It is committed because the
-binary embeds it, and `make check` fails when it does not match the lockfile.
+**`web/vendor/node_modules/` holds only the files the app's bundle reads**,
+beside `web/vendor/`'s htmx. `make vendor` bundles the app from
+`web/node_modules` after `npm ci`, and copies each file esbuild's metafile
+lists, plus each package's `package.json`, into it. It is committed because the
+binary embeds it.
+
+The set follows the app's imports, so it changes when an import does: a new
+import of a package already vendored can need a file that is not there yet. A
+check against the lockfile misses that, because the lockfile has not changed.
+`make check` instead re-runs the vendor step into a temporary directory and
+fails when the result differs from the committed tree.
+
 Two alternatives were rejected. Committing the built bundle would put minified
 output into every branch's diff, which is read on a phone. Requiring Node for
 `go build` would break `go install`.
@@ -771,9 +800,16 @@ the end of a list or an optional field set to `undefined`, into a build failure.
 time. No `any`, explicit or implied, which oxlint enforces with its type-aware
 and React hooks rules. esbuild and Vite both strip types without checking them,
 so **`tsc --noEmit` is a gate rather than a build step**, and oxfmt formats.
+Measured 2026-10-29: TypeScript 7.0.2 with every flag above and
+`skipLibCheck: false` passed over a file using React, React Router, TanStack
+Query and React DOM, and failed on a planted `exactOptionalPropertyTypes`
+violation.
 
-**Plain CSS, one stylesheet per component.** A component imports its own
-stylesheet, and both bundlers join them into `app.css`. The class names, the
+**Plain CSS, one stylesheet per component, in the end.** A component imports its
+own stylesheet, and both bundlers join them into `app.css`. Until the last
+template goes, `app.css` stays one file that the templates and the components
+both use, so the two cannot drift while both exist. It splits into one
+stylesheet per component when the templates are gone. The class names, the
 tokens and the reading-desk design in today's `app.css` carry over as they are,
 because they were judged on the phone and chosen against an alternative in 013.
 Tailwind was considered and rejected. It would rewrite approved styling into
@@ -958,8 +994,8 @@ closes.
 - `tsc --noEmit` and `oxlint --type-aware` on the TypeScript.
 - Vitest over the components, including each story's interaction test and its
   accessibility audit, run in a real browser through Storybook's Vitest add-on.
-- `web/vendor/` against the lockfile, and the generated API types against the Go
-  structs. Either one stale fails.
+- `web/vendor/node_modules/` against a fresh run of the vendor step, and the
+  generated API types against the Go structs. Either one stale fails.
 - `go test ./...`, which includes `internal/convention`, covering the Go
   conventions, the prose rules over every committed markdown file, the
   stylesheets, and the browser tests against the bundle the binary serves.
@@ -983,7 +1019,8 @@ closes.
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |
 
-The app's packages, vendored under `web/vendor/` and bundled into the binary:
+The app's packages, vendored under `web/vendor/node_modules/` and bundled into
+the binary:
 
 | Package                 | Why                                                          |
 | ----------------------- | ------------------------------------------------------------ |
