@@ -92,21 +92,138 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* A device, not a preview: 390px of real width and a real scroll. */
-.phone {
-  position: relative;
+/* A specimen that is not a whole screen takes the theme and the app font
+ * without pretending to be a device. */
+.slab {
   flex: none;
   width: 390px;
-  height: 800px;
   overflow: hidden;
-  border: 1px solid rgb(0 0 0 / 45%);
-  border-radius: 22px;
-  box-shadow: 0 14px 40px rgb(0 0 0 / 35%);
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 12px;
 }
 
-.phone > .app {
-  height: 100%;
-  overflow-y: auto;
+.slab > .app {
+  height: auto;
+}
+
+/* A state's wrapper takes no box of its own, so what a story returns lays out
+ * in the column as the static sheet's markup does. */
+.entry {
+  display: contents;
+}
+
+.slab .page {
+  padding-bottom: var(--pad);
+}
+
+.spec {
+  margin: 0 0 40px;
+  scroll-margin-top: 16px;
+}
+
+.spec > h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
+.spec > h2 .tag {
+  padding: 0 7px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 16%);
+  color: #fff;
+  font:
+    700 10px/1.9 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spec > p {
+  margin: 0 0 14px;
+  max-width: 76ch;
+  color: #ece8e2;
+  font-size: 13.5px;
+}
+
+.spec code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 25%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+}
+
+/* Every state in a panel, each one a link to its own story at full screen. */
+.states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.states li {
+  display: flex;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 14%);
+  font-size: 12px;
+}
+
+.states .nm {
+  padding: 6px 8px;
+  color: #fff;
+}
+
+.states a {
+  padding: 6px 8px;
+  border-left: 1px solid rgb(255 255 255 / 20%);
+  color: #fff;
+  text-decoration: none;
+}
+
+.note-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-width: 80ch;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-list li {
+  position: relative;
+  padding-left: 16px;
+  color: #ece8e2;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.note-list li::before {
+  content: "\2192";
+  position: absolute;
+  left: 0;
+  color: #cfc9c0;
+}
+
+.note-list li b {
+  color: #fff;
+}
+
+.rule {
+  margin: 36px 0 28px;
+  border: 0;
+  border-top: 1px solid rgb(255 255 255 / 15%);
 }
 
 /* ------------------------------------------------------------ specimens */

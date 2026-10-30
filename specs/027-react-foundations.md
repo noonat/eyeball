@@ -131,6 +131,19 @@ Where the build departed from the plan, as it was built:
   live beside the sheet in `web/src/stories/`, not in `web/src/components/`.
   They are not surface components, and `component-classes` holds components to
   `app.css` alone.
+- The sheet was first built as one 390 by 800 phone frame per state, light
+  beside dark, each linked to its full-screen story, as the todo above says. The
+  owner turned it down on the phone: "I don't see any difference between the
+  Palette: Dark and Palette: Tokens sections. This page looks weird. We lost all
+  the copy you had before and it has huge phone sized frames with a single tiny
+  component in it. It seems like many of them could be combined in some form
+  (e.g. show all the eye states in a single frame)." The fault was the spec's. A
+  phone frame suits a whole screen, not a primitive. The sheet is now a specimen
+  page in `foundations.html`'s order, with that page's copy, one light and dark
+  panel pair per primitive holding all its states, and a small full-screen link
+  per state beneath. `Palette: Dark` only repeated `Palette: Tokens` there,
+  since the sheet stamps each panel's theme itself. It is kept as the test of a
+  story's own theme parameter and left off the sheet.
 - `make stories` also builds Storybook. The sheet once drew the production
   build's extra `__namedExportsOrder` export as a story and failed only there.
   The build does not render the sheet, and Vitest runs stories in dev mode,

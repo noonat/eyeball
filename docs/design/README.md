@@ -39,6 +39,14 @@ one. Every frame links to the state's own story at full screen. Storybook's own
 interface is cramped on a phone, and typing a story's address there is the step
 that gets skipped, so nothing on the phone needs it.
 
+**The foundations sheet is a specimen page, like `foundations.html`.** It has
+one section per primitive, with the explanation that goes with it, and every
+state of the primitive together in one panel, light beside dark. A primitive is
+judged beside its other states and its reasons, and alone in a phone frame it is
+a small mark on a large empty screen. Under each pair a small link per state
+opens that state at full screen, so the phone still needs no typed address. The
+phone frame is for a whole screen, where the frame is the thing being judged.
+
 `python3 -m http.server` is the wrong tool, and so is Storybook's dev server
 reached across the tailnet. iOS Safari shows a stale copy of a page that sends
 only `Last-Modified`, which reads as "the change did not work" rather than as a
