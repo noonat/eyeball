@@ -12,10 +12,21 @@ interface TopBarProps {
   /** A screen below the queue names its title and the way back. */
   readonly back?: Back;
   readonly title?: string;
+  /** Blinks the eye once, as a screen does after a verdict. */
+  readonly blink?: boolean | undefined;
+  readonly onBlinkStart?: (() => void) | undefined;
+  readonly onBlinkEnd?: (() => void) | undefined;
 }
 
 /** The bar every screen starts with: the wordmark or a way back, and the eye. */
-export function TopBar({ waiting, back, title }: TopBarProps) {
+export function TopBar({
+  waiting,
+  back,
+  title,
+  blink,
+  onBlinkStart,
+  onBlinkEnd,
+}: TopBarProps) {
   return (
     <div className="topbar">
       {back === undefined ? (
@@ -29,7 +40,12 @@ export function TopBar({ waiting, back, title }: TopBarProps) {
           <h1>{title}</h1>
         </>
       )}
-      <Eye waiting={waiting} />
+      <Eye
+        waiting={waiting}
+        blink={blink}
+        onBlinkStart={onBlinkStart}
+        onBlinkEnd={onBlinkEnd}
+      />
     </div>
   );
 }

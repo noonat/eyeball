@@ -78,6 +78,7 @@ func Test_embedsReachModuleZip(t *testing.T) {
 	paths = append(paths, "web/vendor/htmx.min.js", "docs/design/app.css", "web/static/shell.css")
 	g.Expect(paths).To(ContainElement(ContainSubstring("node_modules/react/")))
 	g.Expect(paths).To(ContainElement(HavePrefix("web/src/")))
+	g.Expect(paths).To(ContainElement(HavePrefix("web/ts/")), "the app stages the shared scripts, so the binary has to hold them")
 
 	disk := fstest.MapFS{}
 	repo := repoFS(g)

@@ -203,7 +203,12 @@ var routes = []route{
 	{
 		side:    sideSurface,
 		pattern: "GET /{$}",
-		handle:  (*Server).handleQueue,
+		handle:  (*Server).handleApp,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/{$}",
+		handle:  (*Server).handleQueueView,
 	},
 	{
 		side:    sideSurface,
@@ -334,6 +339,11 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /static/app.js",
 		handle:  (*Server).handleScript,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /static/react.js",
+		handle:  (*Server).handleReact,
 	},
 }
 

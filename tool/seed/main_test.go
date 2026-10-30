@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/server"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -25,7 +27,7 @@ func Test_linksResolve(t *testing.T) {
 	s := seeded(g, t)
 	srv := server.New(server.Config{Store: s.store, Blobs: s.blobs, Now: func() time.Time { return s.now }})
 	c := &crawler{surface: srv.Surface(), mux: srv.SurfaceHandler()}
-	c.crawl(g, "/")
+	c.crawl(g, c.queueLinks(g)...)
 
 	// Every seeded review, each earlier round, and every project was reached
 	// from the queue, so the crawl rendered every page the seed made.
@@ -44,10 +46,10 @@ func Test_linksResolve(t *testing.T) {
 		}
 	}
 
-	// The queue prints a different page with nothing waiting, so it is crawled
+	// The queue lists different rows with nothing waiting, so it is crawled
 	// again in that state.
 	g.Expect(s.answerAll()).To(Succeed())
-	c.crawl(g, "/")
+	c.crawl(g, c.queueLinks(g)...)
 	g.Expect(c.problems).To(BeEmpty())
 
 	// Each kind of link the checks exist for was on some page, so a seed
@@ -187,17 +189,20 @@ type crawler struct {
 // crawl renders the page at address and checks every link on it, following
 // each one to a page not yet rendered. Each call starts afresh, since the
 // store may have changed what every page says.
-func (c *crawler) crawl(g *WithT, address string) {
+func (c *crawler) crawl(g *WithT, addresses ...string) {
 	g.THelper()
 	if c.absolute == nil {
 		c.absolute, c.patterns = map[string]int{}, map[string]int{}
 	}
-	c.seen = map[string]struct{}{address: {}}
+	c.seen = map[string]struct{}{}
 	c.answers = map[string]*httptest.ResponseRecorder{}
-	g.Expect(c.get(address).Code).To(Equal(http.StatusOK), address)
-	// Every page after the first is crawled because a link to it passed
+	for _, address := range addresses {
+		c.seen[address] = struct{}{}
+		g.Expect(c.get(address).Code).To(Equal(http.StatusOK), address)
+	}
+	// Every page after the first ones is crawled because a link to it passed
 	// check, which is where its status is held.
-	queue := []string{address}
+	queue := append([]string(nil), addresses...)
 	for len(queue) > 0 {
 		at := queue[0]
 		queue = queue[1:]
@@ -218,6 +223,25 @@ func (c *crawler) crawl(g *WithT, address string) {
 			}
 		}
 	}
+}
+
+// queueLinks is the address of the queue and of each review it lists. The
+// queue is the React app, so its page holds no link to follow, and the rows
+// come from the view it draws.
+func (c *crawler) queueLinks(g *WithT) []string {
+	g.THelper()
+	var q view.Queue
+	rec := httptest.NewRecorder()
+	c.surface.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/", nil))
+	g.Expect(json.Unmarshal(rec.Body.Bytes(), &q)).To(Succeed())
+	out := []string{"/"}
+	sections := [][]view.Row{q.Waiting, q.Working, q.Settled}
+	for _, section := range sections {
+		for _, row := range section {
+			out = append(out, fmt.Sprintf("/reviews/%d", row.ID))
+		}
+	}
+	return out
 }
 
 // check holds one link to the rules, recording what it breaks, and returns

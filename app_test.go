@@ -23,11 +23,12 @@ func TestApp(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.Script).NotTo(BeEmpty())
 	g.Expect(string(out.Script)).NotTo(ContainSubstring("process.env"), "the production define was not applied")
-	g.Expect(string(out.Stylesheet)).To(ContainSubstring(".app"))
 
-	// A font url is left as the stylesheet wrote it, since the surface serves
-	// the fonts beside the stylesheet and they are not files in the bundle.
-	g.Expect(string(out.Stylesheet)).To(ContainSubstring("fonts/literata/latin-wght-normal.woff2"))
+	// The shared scripts are staged beside the sources, so the app's calls into
+	// them are bundled and not left to resolve at run time.
+	g.Expect(string(out.Script)).To(ContainSubstring("eyeball:blink"))
+	g.Expect(string(out.Script)).To(ContainSubstring("prefers-color-scheme"))
+	g.Expect(string(out.Script)).To(ContainSubstring("eyeball-build"))
 }
 
 func TestBuildApp_missingPackage(t *testing.T) {

@@ -1,16 +1,31 @@
 import { createRoot } from "react-dom/client";
-import "../../docs/design/app.css";
-import { EmptyState } from "./components/EmptyState";
+import { followTheme } from "../ts/theme";
+import { takeToken } from "../ts/token";
+import { refreshOnTap } from "../ts/update";
+import { registerWorker } from "../ts/worker";
+import { restoreViewport } from "../ts/viewport";
+import { App } from "./App";
 
-// The queue spec gives this entry the router. Until then it draws one
-// foundation component, so the bundle has something to prove it can render.
-const root = document.getElementById("root");
-if (root !== null) {
-  createRoot(root).render(
-    <div className="app">
-      <div className="page">
-        <EmptyState />
-      </div>
-    </div>,
-  );
+// The bundle is loaded without defer so the theme is set before the first
+// paint, as the template pages' bundle does. The token is taken at once too,
+// so the fragment leaves the address bar before the router reads it.
+followTheme();
+takeToken();
+
+function mount(): void {
+  const root = document.getElementById("root");
+  if (root === null) {
+    return;
+  }
+  registerWorker();
+  refreshOnTap();
+  restoreViewport();
+  createRoot(root).render(<App />);
+}
+
+// The script runs in the head, before the root element is parsed.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", mount);
+} else {
+  mount();
 }

@@ -40,6 +40,10 @@ const storybookPath = "/storybook/"
 // the Storybook it is served under.
 const sheetStory = "iframe.html?id=foundations-sheet--states&viewMode=story"
 
+// queueSheetStory is the full-screen address of the queue's sheet, relative to
+// the Storybook it is served under.
+const queueSheetStory = "iframe.html?id=queue-sheet--states&viewMode=story"
+
 // defaultPort is the port served when the command line names none.
 const defaultPort = 8110
 
@@ -92,6 +96,7 @@ func run(args []string) error {
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	fmt.Printf("http://%s%s%s\n", addr, storybookPath, sheetStory)
+	fmt.Printf("http://%s%s%s\n", addr, storybookPath, queueSheetStory)
 	for _, page := range pages {
 		fmt.Printf("http://%s/%s\n", addr, filepath.Base(page))
 	}

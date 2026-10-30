@@ -18,14 +18,29 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the JSON API with generated types, and the queue as the first
-      screen in React, end to end. It also builds the shell, the router, the
-      service worker's shell cache and the tap handling, which need a screen to
-      be judged on the phone. Two problems of the mixed period appear with the
-      first React screen. The worker must not answer a template page's
-      navigation with the shell. A tap posted to a template window reaches
-      nothing, so the tap needs an answer from the app within a short timeout
-      and `navigate` as the fallback, with the beacons logging which path ran.
+- [ ] product: the service worker's shell cache and the tap handling, after the
+      queue. With no cache the daemon answers every navigation, so the worker
+      cannot hand a template page the shell, and a tap on the React window gets
+      `navigate`, which reloads the app. The cache brings two problems of the
+      mixed period. The worker must not answer a template page's navigation with
+      the shell. A tap posted to a template window reaches nothing, so the tap
+      needs an answer from the app within a short timeout and `navigate` as the
+      fallback, with the beacons logging how long the answer took and whether
+      the fallback ran. The cache also has a failure only the installed app can
+      show, a shell older than the daemon, which needs its own phone check. The
+      cache's version has to follow the app bundle, since the worker's stamp
+      hashes only the worker and an app-only change leaves `sw.js` unchanged.
+      Whether Cache Storage keeps a response sent with `no-store` is not probed.
+      The answering listener goes in the template bundle too, so `navigate` runs
+      only for a page that does not answer. The one-second wait for an answer is
+      a guess. `focus()` stays after an answer, since a page cannot bring itself
+      forward. Measured 2026-10-29 in headless Chromium: a page answered on a
+      `MessageChannel` in under a millisecond, and a page with no listener gave
+      nothing until the worker's one-second timeout. A relaunch of the installed
+      app with the daemon down shows a black screen today, measured on the phone
+      on 2026-10-30 with the React queue's build. Master is expected to behave
+      the same, since the worker intercepts no fetches. The shell cache is what
+      fixes it.
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
@@ -33,12 +48,23 @@ client code. Each item is a spec.
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
       [026](026-tap-opens-the-review.md) is blocked until the fault is seen
-      again. The queue spec's tap handling posts the address to the open app
+      again. The tap handling item above posts the address to the open app
       instead of navigating it, which may remove the fault, and the beacons stay
       to show which branch ran if it recurs.
 
 ## Unscheduled
 
+- [ ] tooling: a flaky browser test. `TestServer_Surface_browserJump`
+      (`internal/server/browser_test.go`) fails at "the target moved as bodies
+      loaded around it", with the target 3482px from the head where the limit
+      is 4. Measured on 2026-10-30: on the 028 branch it failed about 2 times in
+      6 browser-suite runs, and on master's tree, a `git archive` of master in a
+      scratch directory, `go test -count=20 -tags browser ./internal/server`
+      with `-run` set to `TestServer_Surface_browserJump$` failed 2 of 20. Every
+      failure was at exactly 3482px, so the fault predates the branch. The cause
+      is not found. An identical offset each time is a guess that points at a
+      scroll that did not happen, or at a layout that comes out the same way
+      every time it fails, more than at a timing race.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active
@@ -156,9 +182,6 @@ client code. Each item is a spec.
       queue's list of projects did this until 022 removed it.
 - [ ] design: a mark on the last line of a file with no final newline. The row
       model carries the flag, and no tearout or class in `app.css` draws it.
-- [ ] design: the queue's Waiting order. 003 lists the longest wait first,
-      because that is what holds an agent up, and both queue tearout frames list
-      the newest first. The code follows 003 until the owner chooses.
 - [ ] design: a hunk header naming the function it is in, as the review tearout
       shows. `diff.Hunk` carries no section heading, and finding one means a
       rule per language or git's own funcname patterns.

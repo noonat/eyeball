@@ -1,20 +1,16 @@
-// followBuild shows the update banner when the stream reports a build other
-// than the one that served this page, and reloads on Refresh. It takes the
-// stream's EventSource, since the build arrives on it.
-export function followBuild(source: EventSource): void {
-  const mine =
+// pageBuild is the build that served this page, from the head every page and the
+// React shell write.
+export function pageBuild(): string {
+  return (
     document.querySelector<HTMLMetaElement>("meta[name='eyeball-build']")
-      ?.content ?? "";
-  source.addEventListener("build", (event) => {
-    const holder = document.getElementById("update");
-    if (
-      holder &&
-      event instanceof MessageEvent &&
-      typeof event.data === "string"
-    ) {
-      holder.hidden = mine === "" || event.data === mine;
-    }
-  });
+      ?.content ?? ""
+  );
+}
+
+// newerBuild says whether the daemon runs a build other than this page's. A
+// page with no build of its own offers nothing, since it cannot tell.
+export function newerBuild(mine: string, newest: string): boolean {
+  return mine !== "" && newest !== "" && newest !== mine;
 }
 
 // refreshOnTap reloads the page from the banner's Refresh. Drafts are kept

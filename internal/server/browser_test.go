@@ -145,35 +145,24 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
-// The React app the binary bundles from its embedded packages runs in a page
-// and draws a foundation component, with its stylesheet applied. The test page
-// serves the bundle and the stylesheet as eyeball.App returns them.
+// The queue is the React app, served by the surface at the queue's address: a
+// shell that loads the bundle and the stylesheets the template pages load, and
+// an app that draws the queue from /api/ with the stylesheet applied.
 func TestServer_Surface_browserApp(t *testing.T) {
 	g := NewWithT(t)
-	app, err := eyeball.App()
-	g.Expect(err).NotTo(HaveOccurred())
-	mux := http.NewServeMux()
-	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/app.css"><div id="root"></div><script src="/app.js"></script>`)
-	})
-	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/javascript")
-		w.Write(app.Script)
-	})
-	mux.HandleFunc("/app.css", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/css")
-		w.Write(app.Stylesheet)
-	})
-	srv := httptest.NewServer(mux)
+	f := newFixture(g, t)
+	srv := httptest.NewServer(f.s.Surface())
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/")
 	b.waitFor(g, `!!document.querySelector("#root .empty .headline")`)
 	g.Expect(b.eval(g, `document.querySelector("#root .empty .headline").textContent`)).To(Equal("Nothing waiting"))
+	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("Nothing waiting"))
 
 	// The stylesheet is the surface's: the empty state centers its headline.
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector("#root .empty")).display`)).To(Equal("flex"))
+	// The page took its theme from the device before the app drew.
+	g.Expect(b.eval(g, `document.documentElement.dataset.theme`)).To(Equal("light"))
 }
 
 // A verdict returns to the queue, and the eye blinks there once, whichever
@@ -207,7 +196,25 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
+	// Every document records what its eye says, and how shut the lid is when it
+	// says it, as the label changes. The queue's eye is read at the moments it
+	// changes, which a read after the page loads would miss.
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": `(() => {
+		window.__eye = [];
+		const note = () => {
+			const eye = document.querySelector(".topbar .eye");
+			if (eye === null) return;
+			const label = eye.getAttribute("aria-label");
+			if (window.__eye.at(-1)?.label === label) return;
+			window.__eye.push({ label, lid: new DOMMatrix(getComputedStyle(eye).transform).d });
+		};
+		new MutationObserver(note).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-label"] });
+	})()`})
+	labels := `JSON.stringify(window.__eye.map((e) => e.label))`
 	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
+	// drawn is true once the app has drawn the queue from its view.
+	drawn := `!!document.querySelector(".scroll .page .section")`
 	// decide sends a verdict from a review's page and waits for the queue.
 	decide := func(id int64, verdict string) {
 		b.navigate(g, srv.URL+"/reviews/"+itoa(id))
@@ -217,6 +224,7 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 		b.eval(g, `window.__before = true`)
 		b.eval(g, `document.querySelector("#bar button[value=`+verdict+`]").click()`)
 		b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+		b.waitFor(g, drawn)
 	}
 	section := func(id int64) string {
 		return `document.querySelector("a.row[href='/reviews/` + itoa(id) + `']").closest(".section").querySelector("h2").firstChild.textContent.trim()`
@@ -226,6 +234,12 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	// and the eye blinks once.
 	decide(first, "approve")
 	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
+	g.Expect(b.eval(g, `document.querySelectorAll("script[src='/static/react.js']").length`)).To(BeEquivalentTo(1), "the queue is the React app, which is the only page that draws the eye from its view")
+	// The eye is drawn with the count from before the verdict, and changes to the
+	// new one while the lid is shut.
+	b.waitFor(g, `window.__eye.length === 2`)
+	g.Expect(b.eval(g, labels)).To(Equal(`["4 waiting","3 waiting"]`))
+	g.Expect(b.eval(g, `window.__eye[1].lid < 0.5`)).To(BeTrue(), "the count changed with the lid open")
 	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("3 waiting"))
 	g.Expect(b.eval(g, section(first))).To(Equal("Settled"))
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
@@ -234,6 +248,7 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 
 	// The queue loaded again does not blink.
 	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, drawn)
 	g.Expect(b.eval(g, blinking)).To(BeFalse())
 
 	// Request changes returns to the queue too, with the review in Working.
@@ -260,6 +275,7 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	// not blink.
 	b.eval(g, `sessionStorage.setItem("eyeball:blink", "`+itoa(third)+`")`)
 	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, drawn)
 	g.Expect(b.eval(g, section(third))).To(Equal("Waiting on you"))
 	g.Expect(b.eval(g, blinking)).To(BeFalse())
 	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
@@ -267,6 +283,7 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	// A mark naming a review with no row on the queue does not blink either.
 	b.eval(g, `sessionStorage.setItem("eyeball:blink", "999999")`)
 	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, drawn)
 	g.Expect(b.eval(g, blinking)).To(BeFalse())
 	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 
@@ -277,6 +294,10 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	decide(third, "approve")
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("none"))
+	// There is no lid to change the count behind, so the queue shows the new
+	// count from its first paint and never the old one.
+	time.Sleep(700 * time.Millisecond)
+	g.Expect(b.eval(g, labels)).To(Equal(`["1 waiting"]`))
 }
 
 // A large review's cards all open with empty bodies, and each asks for its
@@ -590,13 +611,13 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	// The steps show until the device subscribes. Chromium offers push in a
 	// tab, so the install step reads done.
 	b.navigate(g, srv.URL+"/#token="+browserToken)
-	b.waitFor(g, `document.getElementById("firstrun").hidden === false`)
-	g.Expect(b.eval(g, `document.getElementById("install-done").hidden`)).To(BeFalse())
+	b.waitFor(g, `!!document.querySelector(".steps")`)
+	g.Expect(b.eval(g, `document.querySelector(".steps .step.done .what").textContent`)).To(Equal("Installed to the home screen"))
 	// The prompt is the browser's, so the permission is granted through the
 	// protocol before the tap, and requestPermission answers granted.
 	b.call(g, "Browser.grantPermissions", map[string]any{"permissions": []string{"notifications"}, "origin": srv.URL})
-	b.eval(g, `document.getElementById("allow").click()`)
-	b.waitFor(g, `document.getElementById("firstrun").hidden === true`)
+	b.eval(g, `[...document.querySelectorAll(".steps button")].find((b) => b.textContent === "Allow").click()`)
+	b.waitFor(g, `!document.querySelector(".steps")`)
 	subs, err := f.store.ActiveSubscriptions(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(subs).To(HaveLen(1))
@@ -611,9 +632,10 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	// and Re-subscribe makes a new one.
 	g.Expect(f.store.MarkLapsed(t.Context(), svc.url+"/device/1")).To(Succeed())
 	b.navigate(g, srv.URL+"/")
-	b.waitFor(g, `document.getElementById("lapsed").hidden === false`)
-	b.eval(g, `document.getElementById("resubscribe").click()`)
-	b.waitFor(g, `document.getElementById("lapsed").hidden === true`)
+	b.waitFor(g, `!!document.querySelector(".notice.warn a[role=button]")`)
+	g.Expect(b.eval(g, `document.querySelector(".notice.warn strong").textContent`)).To(Equal("Notifications stopped arriving."))
+	b.eval(g, `document.querySelector(".notice.warn a[role=button]").click()`)
+	b.waitFor(g, `!document.querySelector(".notice")`)
 	subs, err = f.store.ActiveSubscriptions(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(subs).To(HaveLen(1))
@@ -899,6 +921,40 @@ func TestServer_Surface_browserPreviewStylesheet(t *testing.T) {
 	b.eval(g, `addEventListener("message", (e) => { window.__got = e.data; })`)
 	b.waitFor(g, `typeof window.__got === "string"`)
 	g.Expect(b.eval(g, `window.__got`)).To(Equal("rgb(1, 2, 3)"))
+}
+
+// A review an agent opens while the queue is on screen appears in it with no
+// reload: the stream's stamp differs from the view's, the app refetches, and
+// a value set on the window is still there afterward.
+func TestServer_Surface_browserQueueArrives(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "b.txt", "b\n")
+	me := api.Caller{Dir: repo}
+	f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"})
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `document.querySelectorAll("a.row.waiting").length === 1`)
+	// The stream is open, which is when the first stamp has been heard.
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `window.__loads = performance.getEntriesByType("navigation").length`)
+
+	second := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"b.txt"}, Note: "second"}).Review.ID
+	b.waitFor(g, `document.querySelectorAll("a.row.waiting").length === 2`)
+	g.Expect(b.eval(g, `!!document.querySelector("a.row[href='/reviews/`+itoa(second)+`']")`)).To(BeTrue())
+	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("2 waiting"))
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded")
+	g.Expect(b.eval(g, `performance.getEntriesByType("navigation").length`)).To(Equal(b.eval(g, `window.__loads`)))
+
+	// A verdict given elsewhere moves the row out of Waiting in place too.
+	f.decide(g, t, second, store.VerdictApprove, "")
+	b.waitFor(g, `document.querySelectorAll("a.row.waiting").length === 1`)
+	g.Expect(b.eval(g, `document.querySelector("a.row[href='/reviews/`+itoa(second)+`']").closest(".section").querySelector("h2").firstChild.textContent.trim()`)).To(Equal("Settled"))
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded")
 }
 
 // A change request with nothing in it is refused on the bar, which leaves the
@@ -1353,6 +1409,8 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	hs := serve(ln)
 	b := openBrowser(g, t)
 	b.navigate(g, "http://"+addr+"/")
+	b.waitFor(g, `!!document.getElementById("update")`)
+	g.Expect(b.eval(g, `!!document.querySelector("script[src='/static/react.js']")`)).To(BeTrue(), "the queue is the React app, whose notices the template pages' do not stand in for")
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the running build")
 
 	// A daemon restarted on a newer build: the stream reconnects and hears it.
@@ -1367,6 +1425,7 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	b.eval(g, `window.__before = true`)
 	b.eval(g, `document.querySelector("#update .refresh").click()`)
 	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	b.waitFor(g, `!!document.getElementById("update")`)
 	g.Expect(b.eval(g, `document.querySelector("meta[name='eyeball-build']").content`)).To(Equal("newer"))
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue())
 }

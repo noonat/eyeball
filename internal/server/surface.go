@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/noonat/eyeball"
 )
 
@@ -229,6 +231,40 @@ func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = w.Write(buf.Bytes())
+}
+
+// handleApp answers GET /{$}: the head every page writes, the React bundle
+// and the element it draws into. The app fetches the queue's view from /api/
+// and opens its own stream, so the shell holds nothing that changes with the
+// store. A stamp printed here would be a second read of the queue beside the
+// view's own, which is the gap the view's stamp closes.
+func (s *Server) handleApp(w http.ResponseWriter, _ *http.Request) error {
+	data := page{Title: "Queue", VAPID: s.vapidPublic(), Build: s.daemon.Build}
+	// A clone, since executing a template escapes its tree in place and the
+	// shared one is read by every request.
+	t, err := s.pages.Clone()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "shell", data); err != nil {
+		return errors.WithStack(err)
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(buf.Bytes())
+	return nil
+}
+
+// handleReact serves the React app's bundle, which loads beside the template
+// pages' bundle until the last screen moves.
+func (s *Server) handleReact(w http.ResponseWriter, _ *http.Request) error {
+	app, err := eyeball.App()
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	_, _ = w.Write(app.Script)
+	return nil
 }
 
 // handleHealthz answers once the store does.

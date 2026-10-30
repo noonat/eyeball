@@ -64,7 +64,10 @@ internal/render/      a diff as rows, syntax highlighting, ages, and markdown
 internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
+internal/view/        the surface API's JSON views, which web/src/api/types.ts is generated from
+tool/apitypes/        writes web/src/api/types.ts from internal/view, and fails when the committed file differs
 tool/appicon/         renders the installed page's icons, committed under web/static/icons
+tool/fixtures/        writes the views and the template markup of seeded states into web/src/fixtures, and fails when they differ
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
@@ -72,6 +75,7 @@ tool/vendor/          copies the files the app's bundle reads from web/node_modu
 web/src/              the app: routes, components and their stylesheets, the API client, the stream
 web/vendor/           htmx, as released
 web/deps/            node_modules/: the files of each pinned package the app's bundle reads
+web/ts/               framework-free behaviors the templates and the app share
 web/                  the manifest, the icons, the service worker
 ```
 
@@ -663,6 +667,13 @@ document.
 address. Links, bookmarks and a notification's deep link keep the addresses they
 have now, and a page loaded cold lands on the right screen.
 
+**The shell holds nothing the store changes.** It is the head every page writes,
+the bundle and a root element. It prints no stamp: a stamp printed with the page
+would be a second read of the store beside the view's, so a change between the
+two would be missed. The app fetches the view, takes the stamp the view carries,
+opens the live stream itself, and refetches when the stream's stamp differs from
+the view's.
+
 **The API path is the page path under `/api`.** `GET /api/reviews/42` is the
 view the page at `/reviews/42` draws. One rule instead of a second address
 scheme means a page and its data cannot drift apart in name, and a person
@@ -672,24 +683,43 @@ characters.
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
 `make check` regenerates it and fails on any difference, so a renamed field
-breaks the build rather than a screen. Which generator is not decided, and is
-listed under "Not decided here". Hand-written types with a contract test were
-the alternative: they catch the same drift, later, and only for the fields a
-test names.
+breaks the build rather than a screen. Hand-written types with a contract test
+were the alternative: they catch the same drift, later, and only for the fields
+a test names.
+
+**The generator is written here, with the standard library.** It reads
+`internal/view`, the package of the API's views, with `go/types` and the
+standard library's source importer. A reflection walk over the response structs
+also worked, measured 2026-10-29: about 80 lines, and the types it wrote passed
+every strict flag under "The client code". Reflection cannot see constants, so
+it was passed over. `go/types` can, which lets a named string type with
+constants become a union of its values, which a test shows by planting a
+constant that changes the union. An external generator was not an option, since
+`go run ...@latest` is refused in this environment and the project takes the
+standard library first.
+
+Go sends a nil slice or map as `null`, so the generator types each one `| null`,
+and a use such as `q.waiting.length` then fails to compile with "possibly
+'null'", measured 2026-10-29. A Go kind with no exact TypeScript form is an
+error and never a guess: interfaces, integers that can pass 2^53, and maps
+without string keys. The 2^53 limit is met two ways. A review's id is an int64,
+so the view sends it as a string through json's `,string` option and the type is
+`string`. A round number and a count are int32, which a number holds exactly.
 
 Routes, with the spec that built each. "Planned" is a route this document
 describes and no spec has built yet.
 
 | Pattern                                                    | Answers                                             | Spec    |
 | ---------------------------------------------------------- | --------------------------------------------------- | ------- |
-| `GET /{$}`                                                 | the shell, drawing the queue                        | planned |
+| `GET /{$}`                                                 | the shell, drawing the queue                        | 028     |
 | `GET /reviews/{review}`                                    | the shell, drawing the current round                | planned |
 | `GET /reviews/{review}/rounds/{round}`                     | the shell, drawing that round                       | planned |
 | `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | planned |
 | `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | planned |
 | `GET /projects/{project}`                                  | the shell, drawing the project view                 | planned |
 | `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | planned |
-| `GET /api/...`, each page path above                       | that page's view, as JSON                           | planned |
+| `GET /api/{$}`                                             | the queue's view, as JSON, with a stamp of its rows | 028     |
+| `GET /api/...`, each other page path above                 | that page's view, as JSON                           | planned |
 | `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | planned |
 | `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |
 | `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | planned |
@@ -701,6 +731,7 @@ describes and no spec has built yet.
 | `GET /sw.js`                                               | the service worker, scoped to the surface           | 009     |
 | `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009     |
 | `GET /static/app.js`                                       | the app, bundled once from the binary               | 008     |
+| `GET /static/react.js`                                     | the React app, while screens are mixed              | 028     |
 | `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006     |
 | `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015     |
 | `POST /subscriptions`                                      | a device's push subscription                        | 009     |
@@ -736,6 +767,15 @@ and a link from one kind to the other is a full page load. The order is in
 rejected: it is one review too large to read on a phone, and nothing ships until
 all of it does.
 
+**While screens are mixed, two bundles have two addresses.** The templates keep
+`/static/app.js`, and the React app is served at `/static/react.js`. The cleanup
+that removes the last template makes the React bundle `/static/app.js`. The
+shell links `/static/app.css` and `/static/shell.css`, the files the templates
+link, since `app.css` stays one file through the mixed period and the React
+bundle imports no stylesheet. A row that leads to a template page is a plain
+anchor, so tapping it is a full page load. React Router intercepts only its own
+`Link`.
+
 ## The client code
 
 **React, React Router and TanStack Query, in TypeScript.** The router owns the
@@ -764,10 +804,12 @@ The packages have to resolve through their `package.json` `exports` maps, which
 esbuild's resolver reads and a hand-written plugin would have to copy. A resolve
 plugin that pointed every bare import at a vendored directory was rejected for
 that reason. The cost of the replacement is a write to a temporary directory the
-first time a page asks for the bundle. Measured today, with React alone, that is
-about 0.8 MB: 670 KB of vendored packages in 13 files, 50 KB of the app's
-sources and 67 KB of `app.css`. It grows toward the 1.4 MB measured below once
-the router and the query library are imported.
+first time a page asks for the bundle. Measured 2026-10-30 with the router and
+the query library imported, that is about 1.6 MB: 1.4 MB of vendored packages in
+68 files, 110 KB of the app's sources and fixtures, and 76 KB of the scripts it
+shares with the template pages. The bundle it builds is 313,446 bytes minified
+and 98,259 gzipped at level 9, which agrees with the 313 KB and 98 KB first
+written.
 
 Measured 2026-10-29, in scratch projects: React 19.3.1, React Router 7.18.5 and
 TanStack Query 5.105.0 bundled by esbuild 0.28.2 through its Go API. Copying
@@ -859,12 +901,21 @@ three rules keep the copy correct.
 - **What only this device knows stays on this device.** Drafts, the reader's
   place and folded cards stay in `localStorage`, as they are today.
 
-**The iOS behaviors already measured on the phone move with the app**, each
-re-checked there when it moves: the keyboard fault in `viewport.ts`, the
-deferred card bodies with their skeleton heights and Safari's missing scroll
-anchoring, the reader's place, the composer's line selection, drafts and the
-blink. Each was settled on a real phone, and a component that only looks the
-same can reintroduce a fault the original fixed.
+**Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
+loopback token, worker registration, push setup, the verdict's blink mark, the
+build check and the keyboard fix in `viewport.ts` are framework-free modules,
+and several were settled on a real phone. Where a module mixes its logic with
+template DOM, as push setup does with its page's buttons, the logic is a
+function both callers use and the template keeps its wiring. The binary embeds
+and stages `web/ts` beside `web/src`, so the app imports them. Rewriting them in
+React was rejected: two copies would have to agree on storage keys, such as the
+blink mark and the token, and nothing would check that they do.
+
+**The iOS behaviors tied to a screen move with that screen**, each re-checked on
+the phone when it moves: the deferred card bodies with their skeleton heights
+and Safari's missing scroll anchoring, the reader's place, the composer's line
+selection and drafts. Each was settled on a real phone, and a component that
+only looks the same can reintroduce a fault the original fixed.
 
 **A long review is drawn in pieces.** Past ten files or 300 lines a card arrives
 open with an empty body, and the app asks for each body once its card is open
@@ -915,10 +966,11 @@ that is the same for every address, the launch is the one fetch worth saving.
 **A new build takes effect on the next launch.** The worker installs it when it
 appears and the open app keeps running the build it started with. The one case
 that cannot wait is a shell older than the daemon's API, which can break a
-screen. Every API answer carries the daemon's build, and when it differs from
-the shell's, the app shows a notice offering to reload. A reload prompt on every
-new build was rejected: nearly every build changes nothing a running screen
-depends on, and a prompt shown for those teaches the reader to dismiss it.
+screen. The live stream sends the daemon's build each time it connects, and when
+it differs from the build that served the page, the app shows a notice offering
+to reload. A reload prompt on every new build was rejected: nearly every build
+changes nothing a running screen depends on, and a prompt shown for those
+teaches the reader to dismiss it.
 
 **The service worker also exists for push.** iOS delivers web push only to an
 installed page with a registered worker, so one would be required even with
@@ -1049,8 +1101,8 @@ binary:
 | `@tanstack/react-query` | the cache of server views, refetched when the stream says so |
 
 Development only, never reaching the binary: Vite for the dev server, Storybook
-for the tearouts, Vitest and Testing Library for the component tests, a
-generator for the API types, TypeScript, oxlint and oxfmt.
+for the tearouts, Vitest and Testing Library for the component tests,
+TypeScript, oxlint and oxfmt.
 
 Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
 `database/sql` over an ORM, `encoding/json` over anything.
@@ -1063,8 +1115,6 @@ Stdlib first everywhere else. `net/http` and `http.ServeMux` over a router,
   a second tsnet hostname.
 - **The exact CLI surface.** `eyeball doc` is the contract and it is written
   with the CLI, not ahead of it.
-- **The generator for the API types.** It reads Go structs and writes
-  TypeScript, and the first API spec picks one and tests it on the view models.
 - **Whether a long review needs rows drawn only near view**, which the deferred
   card bodies may make unnecessary. Measured on the phone by the first review
   page spec, not before.

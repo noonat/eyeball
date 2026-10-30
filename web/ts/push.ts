@@ -1,23 +1,10 @@
 import { tokenHeaders } from "./token";
 
-// followPush runs the queue's first-run steps and keeps this device's push
-// subscription current. A device posts its subscription on every load, which
-// is how it learns the server marked it lapsed, since no push reaches a dead
-// subscription to say so.
-export function followPush(): void {
-  const firstRun = document.getElementById("firstrun");
-  if (firstRun === null) {
-    return;
-  }
-  setBadge(document.querySelectorAll(".row.waiting").length);
-  document.getElementById("allow")?.addEventListener("click", () => {
-    void allow();
-  });
-  document.getElementById("resubscribe")?.addEventListener("click", () => {
-    void resubscribe();
-  });
-  void refresh();
-}
+// What a device's push state comes to, which the queue's first-run steps and
+// its lapsed notice are drawn from. A device posts its subscription on every
+// load, which is how it learns the server marked it lapsed, since no push
+// reaches a dead subscription to say so.
+export type PushState = "active" | "lapsed" | "steps";
 
 // pushable says whether this browser can subscribe here. iOS Safari offers
 // push only to an installed page, and every other browser offers it in a tab,
@@ -34,33 +21,38 @@ function standalone(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches;
 }
 
-async function refresh(): Promise<void> {
+// pushState keeps this device's subscription current and says what it comes
+// to: the steps until both are done, the lapsed warning for a dead
+// subscription, or active.
+export async function pushState(): Promise<PushState> {
   if (pushable() && Notification.permission === "granted") {
     const reg = await navigator.serviceWorker.ready;
     const sub =
       (await reg.pushManager.getSubscription()) ?? (await subscribe(reg));
-    show(sub === null ? "steps" : await post(sub));
-    return;
+    return sub === null ? "steps" : await post(sub);
   }
-  show("steps");
+  return "steps";
 }
 
-async function allow(): Promise<void> {
+// allowPush asks for permission and then subscribes. It is null where the
+// browser cannot subscribe, or the reader said no.
+export async function allowPush(): Promise<PushState | null> {
   if (!pushable()) {
-    return;
+    return null;
   }
   // iOS asks for permission only from a tap, so this runs in the click.
   if ((await Notification.requestPermission()) !== "granted") {
-    return;
+    return null;
   }
-  await refresh();
+  return pushState();
 }
 
-async function resubscribe(): Promise<void> {
+// resubscribePush replaces a dead subscription with a new one.
+export async function resubscribePush(): Promise<PushState> {
   const reg = await navigator.serviceWorker.ready;
   await (await reg.pushManager.getSubscription())?.unsubscribe();
   const sub = await subscribe(reg);
-  show(sub === null ? "steps" : await post(sub));
+  return sub === null ? "steps" : await post(sub);
 }
 
 async function subscribe(
@@ -83,9 +75,7 @@ async function subscribe(
 }
 
 // post sends a subscription and returns what the server says of it.
-async function post(
-  sub: PushSubscription,
-): Promise<"active" | "lapsed" | "steps"> {
+async function post(sub: PushSubscription): Promise<PushState> {
   try {
     const res = await fetch("/subscriptions", {
       method: "POST",
@@ -107,34 +97,14 @@ async function post(
   }
 }
 
-// show puts up what applies: the steps until both are done, the lapsed
-// warning for a dead subscription, or nothing.
-function show(state: "active" | "lapsed" | "steps"): void {
-  const firstRun = document.getElementById("firstrun");
-  const lapsed = document.getElementById("lapsed");
-  const installed = standalone() || pushable();
-  const done = document.getElementById("install-done");
-  const todo = document.getElementById("install-todo");
-  const why = document.getElementById("allow-why");
-  if (firstRun) {
-    firstRun.hidden = state !== "steps";
-  }
-  if (lapsed) {
-    lapsed.hidden = state !== "lapsed";
-  }
-  if (done) {
-    done.hidden = !installed;
-  }
-  if (todo) {
-    todo.hidden = installed;
-  }
-  if (why && !installed) {
-    why.textContent = "Available once the page is opened from the home screen.";
-  }
+// installed says whether the install step is done: the page runs from the home
+// screen, or the browser offers push in a tab and needs no install.
+export function installed(): boolean {
+  return standalone() || pushable();
 }
 
 // setBadge counts what waits on the installed icon, where there is a badge.
-function setBadge(n: number): void {
+export function setBadge(n: number): void {
   const nav: object = navigator;
   if ("setAppBadge" in nav && typeof nav.setAppBadge === "function") {
     void Promise.resolve(Reflect.apply(nav.setAppBadge, nav, [n])).catch(

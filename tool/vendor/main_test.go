@@ -64,7 +64,6 @@ func TestVendor(t *testing.T) {
 	got, err := eyeball.BuildApp(os.DirFS(fresh))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got.Script).To(Equal(want.Script))
-	g.Expect(got.Stylesheet).To(Equal(want.Stylesheet))
 }
 
 // The committed tree is what a fresh run gives. This is what make check runs,

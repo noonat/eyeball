@@ -18,6 +18,7 @@
     "allowUnusedLabels": false,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "skipLibCheck": false,
     "noEmit": true
   },

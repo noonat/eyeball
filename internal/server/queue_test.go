@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -46,135 +48,42 @@ func Test_tilde(t *testing.T) {
 	g.Expect((&Server{}).tilde("/home/a/x")).To(Equal("/home/a/x"))
 }
 
-func TestServer_Surface_emptyQueue(t *testing.T) {
+// A queue with nothing in it sends null sections, as the generated types say.
+func TestServer_queueViewEmpty(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	body := serveSurface(q.s.Surface(), http.MethodGet, "/api/").Body.String()
+	g.Expect(body).To(ContainSubstring(`"waiting": null`))
+	g.Expect(body).To(ContainSubstring(`"waiting_count": 0`))
+}
+
+// With nothing waiting the queue still lists what an agent holds. The view
+// sends no project list, since the project view is reached from a review's
+// header.
+func TestServer_queueViewHoldsWorkingWithNothingWaiting(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)
 	eyeball := q.project(g, t, "/home/a/src/eyeball", "eyeball")
 	// field-notes has no review, so only a list of projects would name it.
 	q.project(g, t, "/srv/field-notes", "field-notes")
 	harbor := q.project(g, t, "/home/a/src/harbor", "harbor")
-	working := q.open(g, t, eyeball, "one", "first", "a")
-	q.decide(g, t, working, store.VerdictChanges)
+	q.decide(g, t, q.open(g, t, eyeball, "one", "first", "a"), store.VerdictChanges)
 	q.open(g, t, eyeball, "two", "second", "b")
 	q.decide(g, t, 2, store.VerdictChanges)
 	q.open(g, t, harbor, "three", "third", "c")
 	q.decide(g, t, 3, store.VerdictChanges)
 	q.advance(5 * time.Minute)
 
-	res := serveSurface(q.s.Surface(), http.MethodGet, "/")
-	g.Expect(res.Code).To(Equal(http.StatusOK))
-	doc := parse(g, res.Body.String())
-
-	g.Expect(barText(doc)).To(Equal("eyeball"))
-	shut := find(doc, "eye")
-	g.Expect(attr(shut, "class")).To(Equal("eye shut"), "nothing waits, so the eye is shut")
-	g.Expect(attr(shut, "aria-label")).To(Equal("Nothing waiting"))
-	g.Expect(find(find(doc, "empty"), "eye")).NotTo(BeNil(), "the empty queue's large shut eye")
-	empty := find(doc, "empty")
-	g.Expect(empty).NotTo(BeNil())
-	g.Expect(text(empty)).To(Equal("Nothing waiting"), "the empty state is the heading alone")
-
-	var headings []string
-	for _, h := range findAll(doc, func(n *html.Node) bool { return n.Data == "h2" }) {
-		headings = append(headings, text(h))
-	}
-	// Working still follows the empty state when it has rows.
-	g.Expect(headings).To(Equal([]string{"Working 3"}))
-
-	// The project view is reached from a review's header, so the queue links
-	// to none, whatever projects the store holds.
-	links := findAll(doc, func(n *html.Node) bool { return strings.HasPrefix(attr(n, "href"), "/projects/") })
-	g.Expect(links).To(BeEmpty())
+	got := getQueueView(g, q)
+	g.Expect(got.Waiting).To(BeNil())
+	g.Expect(got.WaitingCount).To(BeZero())
+	g.Expect(got.Working).To(HaveLen(3))
+	g.Expect(got.Settled).To(BeNil())
 }
 
-func TestServer_Surface_queue(t *testing.T) {
-	g := NewWithT(t)
-	q := newQueueFixture(g, t)
-	eyeball := q.project(g, t, "/home/a/src/eyeball", "eyeball")
-	harbor := q.project(g, t, "/home/a/src/harbor", "harbor")
-
-	// Settled first, so it is the oldest: approved two hours ago.
-	settled := q.open(g, t, harbor, "agent-s", "Delta sync watermark", "s")
-	q.advance(time.Hour)
-	q.decide(g, t, settled, store.VerdictApprove)
-	q.advance(time.Hour)
-	// Working: changes requested 30 minutes ago, on a round asked for an hour
-	// before that.
-	working := q.open(g, t, eyeball, "spec/014-queue", "Queue screen markup", "w")
-	q.advance(30 * time.Minute)
-	q.decide(g, t, working, store.VerdictChanges)
-	q.advance(18 * time.Minute)
-	// Waiting: asked for 12 minutes ago.
-	q.open(g, t, eyeball, "spec/012-surface", "Product doc, second pass", "a")
-	q.advance(12 * time.Minute)
-
-	res := serveSurface(q.s.Surface(), http.MethodGet, "/")
-	g.Expect(res.Code).To(Equal(http.StatusOK))
-	doc := parse(g, res.Body.String())
-
-	g.Expect(barText(doc)).To(Equal("eyeball"))
-	open := find(doc, "eye")
-	g.Expect(attr(open, "class")).To(Equal("eye"))
-	g.Expect(attr(open, "aria-label")).To(Equal("1 waiting"))
-	g.Expect(text(find(open, "iris"))).To(Equal("1"))
-	var headings []string
-	for _, h := range findAll(doc, func(n *html.Node) bool { return n.Data == "h2" }) {
-		headings = append(headings, text(h))
-	}
-	g.Expect(headings).To(Equal([]string{"Waiting on you 1", "Working 1", "Settled 1"}))
-
-	rows := findAll(doc, hasClass("row"))
-	g.Expect(rows).To(HaveLen(3))
-	type shape struct {
-		Class, Href, Project, Agent, Age, Title, Gist, Meta string
-	}
-	var got []shape
-	for _, r := range rows {
-		got = append(got, shape{
-			Class:   attr(r, "class"),
-			Href:    attr(r, "href"),
-			Project: text(find(r, "project")),
-			Agent:   text(find(r, "agent")),
-			Age:     text(find(r, "age")),
-			Title:   text(find(r, "title")),
-			Gist:    text(find(r, "gist")),
-			Meta:    text(find(r, "meta")),
-		})
-	}
-	g.Expect(got).To(Equal([]shape{
-		{
-			Class:   "row waiting",
-			Href:    "/reviews/3",
-			Project: "eyeball",
-			Agent:   "spec/012-surface",
-			Age:     "12m",
-			Title:   "Product doc, second pass",
-			Gist:    "look",
-			Meta:    "Round 11 file+1 −0",
-		},
-		{
-			Class:   "row working",
-			Href:    "/reviews/2",
-			Project: "eyeball",
-			Agent:   "spec/014-queue",
-			Age:     "30m",
-			Title:   "Queue screen markup",
-			Meta:    "Changes requested, round 1",
-		},
-		{
-			Class:   "row approved",
-			Href:    "/reviews/1",
-			Project: "harbor",
-			Agent:   "agent-s",
-			Age:     "2h",
-			Title:   "Delta sync watermark",
-			Meta:    "ApprovedRound 1",
-		},
-	}))
-	g.Expect(find(doc, "empty")).To(BeNil(), "something is waiting, so the queue is not empty")
-}
-
-func TestServer_Surface_queueKeepsFiveSettled(t *testing.T) {
+// The tail of Settled is for finding a recent verdict, not a history, so it
+// holds the newest five.
+func TestServer_queueViewKeepsFiveSettled(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)
 	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
@@ -183,29 +92,173 @@ func TestServer_Surface_queueKeepsFiveSettled(t *testing.T) {
 		q.advance(time.Minute)
 		q.decide(g, t, id, store.VerdictApprove)
 	}
-
-	res := serveSurface(q.s.Surface(), http.MethodGet, "/")
-	doc := parse(g, res.Body.String())
-	rows := findAll(doc, hasClass("approved"))
 	var titles []string
-	for _, r := range rows {
-		if attr(r, "class") == "row approved" {
-			titles = append(titles, text(find(r, "title")))
-		}
+	for _, row := range getQueueView(g, q).Settled {
+		titles = append(titles, row.Title)
 	}
-	// The newest five, newest first. The tail is for finding a recent
-	// verdict, not a history.
 	g.Expect(titles).To(Equal([]string{"approved 5", "approved 4", "approved 3", "approved 2", "approved 1"}))
 }
 
-func TestServer_Surface_queueWritesLargeCountsWithSeparators(t *testing.T) {
+// A row says where it came from, what it is called, how long it has been in its
+// section, and what its latest round moved, each as the page prints it.
+func TestServer_queueViewReadsEachRow(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	eyeball := q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	harbor := q.project(g, t, "/home/a/src/harbor", "harbor")
+	// Settled first, so it is the oldest: approved two hours ago.
+	settled := q.open(g, t, harbor, "agent-s", "Delta sync watermark", "s")
+	q.advance(time.Hour)
+	q.decide(g, t, settled, store.VerdictApprove)
+	q.advance(time.Hour)
+	// Working: changes requested 30 minutes ago.
+	working := q.open(g, t, eyeball, "spec/014-queue", "Queue screen markup", "w")
+	q.advance(30 * time.Minute)
+	q.decide(g, t, working, store.VerdictChanges)
+	q.advance(18 * time.Minute)
+	// Waiting: asked for 12 minutes ago.
+	q.open(g, t, eyeball, "spec/012-surface", "Product doc, second pass", "a")
+	q.advance(12 * time.Minute)
+
+	got := getQueueView(g, q)
+	g.Expect(got.Waiting).To(Equal([]view.Row{{
+		ID:      3,
+		Project: "eyeball",
+		Agent:   "spec/012-surface",
+		Title:   "Product doc, second pass",
+		Age:     "12m",
+		Round:   1,
+		Files:   "1 file",
+		Added:   "1",
+		Removed: "0",
+		Gist:    "look",
+	}}))
+	g.Expect(got.Working).To(HaveLen(1))
+	g.Expect(got.Working[0]).To(HaveField("Age", "30m"))
+	g.Expect(got.Working[0]).To(HaveField("Title", "Queue screen markup"))
+	g.Expect(got.Settled).To(HaveLen(1))
+	g.Expect(got.Settled[0]).To(HaveField("Age", "2h"))
+	g.Expect(got.Settled[0]).To(HaveField("Project", "harbor"))
+}
+
+// An id is sent as a string, since the generator types it as one.
+func TestServer_queueViewSendsIDsAsStrings(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	q.open(g, t, q.project(g, t, "/home/a/src/eyeball", "eyeball"), "a", "first", "a")
+	body := serveSurface(q.s.Surface(), http.MethodGet, "/api/").Body.String()
+	g.Expect(body).To(ContainSubstring(`"id": "1"`))
+}
+
+// A section holds the rows the store put there, in the store's order, and the
+// eye's count is the waiting section's length. A section filled from the wrong
+// rows would show a review under the wrong heading.
+func TestServer_queueViewSendsTheStoresRows(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	settled := q.open(g, t, project, "s", "settled", "s")
+	q.advance(time.Hour)
+	q.decide(g, t, settled, store.VerdictApprove)
+	working := q.open(g, t, project, "w", "working", "w")
+	q.advance(time.Hour)
+	q.decide(g, t, working, store.VerdictChanges)
+	q.open(g, t, project, "a", "waiting a", "a")
+	q.advance(time.Minute)
+	q.open(g, t, project, "b", "waiting b", "b")
+
+	want, err := q.store.Queue(t.Context(), settledShown)
+	g.Expect(err).NotTo(HaveOccurred())
+	got := getQueueView(g, q)
+	g.Expect(viewIDs(got.Waiting)).To(Equal(reviewIDs(want.Waiting)))
+	g.Expect(viewIDs(got.Working)).To(Equal(reviewIDs(want.Working)))
+	g.Expect(viewIDs(got.Settled)).To(Equal(reviewIDs(want.Settled)))
+	g.Expect(got.Waiting).To(HaveLen(2))
+	g.Expect(got.Working).To(HaveLen(1))
+	g.Expect(got.Settled).To(HaveLen(1))
+	g.Expect(got.WaitingCount).To(Equal(int32(2)))
+	g.Expect(got.Waiting[0].Title).To(Equal("waiting a"))
+	g.Expect(got.Waiting[0].Age).To(Equal("1m"))
+	g.Expect(got.Waiting[0].Project).To(Equal("eyeball"))
+}
+
+// The view's stamp is what the stream sends for the same rows, through every
+// change of state. The app refetches when the two stamps differ, so a stamp that
+// disagreed with the stream's would refetch forever or never.
+func TestServer_queueViewStampMatchesTheStream(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
+	stamps := map[string]bool{}
+	check := func() {
+		g.THelper()
+		got := getQueueView(g, q)
+		want, err := q.s.queueStamp(t.Context())
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(got.Stamp).To(Equal(want))
+		g.Expect(stamps).NotTo(HaveKey(got.Stamp), "each state has a stamp of its own")
+		stamps[got.Stamp] = true
+	}
+	check()
+	first := q.open(g, t, project, "a", "first", "a")
+	check()
+	q.advance(time.Minute)
+	q.decide(g, t, first, store.VerdictChanges)
+	check()
+	q.advance(time.Minute)
+	q.decide(g, t, q.open(g, t, project, "b", "second", "b"), store.VerdictApprove)
+	check()
+}
+
+// A count past a thousand is written with a separator.
+func TestServer_queueViewWritesLargeCountsWithSeparators(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)
 	project := q.project(g, t, "/home/a/src/eyeball", "eyeball")
 	q.openSized(g, t, project, "agent", "big", "a", 1284, 903)
+	row := getQueueView(g, q).Waiting[0]
+	g.Expect(row.Added).To(Equal("1,284"))
+	g.Expect(row.Removed).To(Equal("903"))
+}
 
-	doc := parse(g, serveSurface(q.s.Surface(), http.MethodGet, "/").Body.String())
-	g.Expect(text(find(find(doc, "row"), "counts"))).To(Equal("+1,284 \u2212903"))
+// The shell holds what every load needs and nothing the store changes: the
+// head the template pages write, the React bundle and an element to draw into.
+func TestServer_Surface_appShell(t *testing.T) {
+	g := NewWithT(t)
+	q := newQueueFixture(g, t)
+	q.open(g, t, q.project(g, t, "/home/a/src/eyeball", "eyeball"), "a", "first", "a")
+	q.s.daemon.Build = "the-build"
+	res := serveSurface(q.s.Surface(), http.MethodGet, "/")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(Equal("text/html; charset=utf-8"))
+	doc := parse(g, res.Body.String())
+
+	metas := map[string]string{}
+	for _, m := range findAll(doc, func(n *html.Node) bool { return n.Type == html.ElementNode && n.Data == "meta" }) {
+		metas[attr(m, "name")] = attr(m, "content")
+	}
+	g.Expect(metas).To(HaveKeyWithValue("eyeball-build", "the-build"))
+	g.Expect(metas).To(HaveKey("theme-color"))
+	g.Expect(metas).NotTo(HaveKey("htmx-config"))
+
+	var hrefs, srcs []string
+	for _, n := range findAll(doc, func(n *html.Node) bool { return n.Type == html.ElementNode && (n.Data == "link" || n.Data == "script") }) {
+		if n.Data == "link" {
+			hrefs = append(hrefs, attr(n, "rel")+" "+attr(n, "href"))
+		} else {
+			srcs = append(srcs, attr(n, "src"))
+		}
+	}
+	g.Expect(hrefs).To(ContainElements("stylesheet /static/app.css", "stylesheet /static/shell.css", "manifest /manifest.webmanifest"))
+	g.Expect(srcs).To(Equal([]string{"/static/react.js"}))
+	g.Expect(findAll(doc, func(n *html.Node) bool { return attr(n, "id") == "root" })).To(HaveLen(1))
+	g.Expect(res.Body.String()).NotTo(ContainSubstring("data-stamp"), "the app takes its stamp from the view")
+	g.Expect(res.Body.String()).NotTo(ContainSubstring(`class="row`), "the shell draws no rows")
+
+	js := serveSurface(q.s.Surface(), http.MethodGet, "/static/react.js")
+	g.Expect(js.Code).To(Equal(http.StatusOK))
+	g.Expect(js.Header().Get("Content-Type")).To(Equal("text/javascript; charset=utf-8"))
+	g.Expect(js.Body.Len()).To(BeNumerically(">", 100000))
 }
 
 // queueFixture is a surface over a store whose clock the test moves.
@@ -388,4 +441,33 @@ func text(n *html.Node) string {
 	}
 	walk(n)
 	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// getQueueView reads the queue's JSON the way the app does.
+func getQueueView(g *WithT, q *queueFixture) view.Queue {
+	g.THelper()
+	res := serveSurface(q.s.Surface(), http.MethodGet, "/api/")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	g.Expect(res.Header().Get("Content-Type")).To(Equal("application/json"))
+	var got view.Queue
+	g.Expect(json.Unmarshal(res.Body.Bytes(), &got)).To(Succeed())
+	return got
+}
+
+// viewIDs is the review ids of a section, in order.
+func viewIDs(rows []view.Row) []int64 {
+	var out []int64
+	for _, r := range rows {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// reviewIDs is the review ids of store rows, in order.
+func reviewIDs(rows []store.ReviewRow) []int64 {
+	var out []int64
+	for _, r := range rows {
+		out = append(out, r.ReviewID)
+	}
+	return out
 }
