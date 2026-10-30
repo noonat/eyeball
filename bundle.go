@@ -1,8 +1,11 @@
 package eyeball
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io/fs"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,6 +21,7 @@ var (
 	workerOnce sync.Once
 	worker     []byte
 	workerErr  error
+	stamp      string
 )
 
 // Bundle is web/ts compiled into one script, built the first time it is asked
@@ -31,15 +35,60 @@ func Bundle() ([]byte, error) {
 // Worker is web/ts/sw.ts, the service worker, compiled the same way. It is a
 // separate script because a worker's scope is not a page's.
 func Worker() ([]byte, error) {
-	workerOnce.Do(func() { worker, workerErr = build("web/ts/sw.ts") })
+	workerOnce.Do(func() { worker, stamp, workerErr = buildWorker() })
 	return worker, workerErr
+}
+
+// WorkerStamp names the build of the script Worker returns: a hash of the
+// script built with a placeholder in the stamp's place. The worker carries the
+// same string and sends it with each tap beacon, so a log line that holds two
+// different stamps shows a worker older than the daemon's sw.js.
+func WorkerStamp() (string, error) {
+	_, err := Worker()
+	return stamp, err
+}
+
+// stampPlaceholder stands in for the stamp during the build that is hashed. The
+// stamp cannot be a hash of a script that holds it, so it is a hash of that
+// script before it holds it.
+const stampPlaceholder = "unstamped"
+
+// buildWorker builds sw.ts twice. The first pass has the placeholder and is
+// hashed. The second has the hash, and is what the daemon serves. The hash
+// covers every file sw.ts imports, since esbuild bundles them into the first
+// pass.
+func buildWorker() ([]byte, string, error) {
+	return stamped(func(stamp string) ([]byte, error) {
+		return buildWith("web/ts/sw.ts", stamp)
+	})
+}
+
+// builder builds the worker with the given string as its stamp.
+type builder func(stamp string) ([]byte, error)
+
+// stamped runs the two passes of buildWorker over any builder.
+func stamped(run builder) ([]byte, string, error) {
+	draft, err := run(stampPlaceholder)
+	if err != nil {
+		return nil, "", err
+	}
+	sum := sha256.Sum256(draft)
+	id := hex.EncodeToString(sum[:])[:12]
+	out, err := run(id)
+	return out, id, err
 }
 
 // build runs esbuild over the embedded sources. A warning fails the build as an
 // error does, so a source esbuild only half understands is caught by the test
 // rather than shipped.
 func build(entry string) ([]byte, error) {
+	return buildWith(entry, stampPlaceholder)
+}
+
+// buildWith is build with the worker's stamp defined as the given string.
+func buildWith(entry, workerStamp string) ([]byte, error) {
 	res := api.Build(api.BuildOptions{
+		Define:      map[string]string{"workerBuild": strconv.Quote(workerStamp)},
 		EntryPoints: []string{entry},
 		Bundle:      true,
 		Write:       false,

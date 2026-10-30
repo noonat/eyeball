@@ -307,6 +307,11 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "POST /taps",
+		handle:  (*Server).handleTap,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /manifest.webmanifest",
 		handle:  (*Server).handleManifest,
 	},
