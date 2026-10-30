@@ -1,5 +1,8 @@
 // Command fixtures writes the queue's JSON view for seeded states into
-// web/src/fixtures, so a story draws what the API really sends.
+// web/src/fixtures, so a story draws what the API really sends. Beside each view
+// it writes the markup the template queue page renders for the same state, which
+// the component's story compares itself with, so the two cannot draw the same
+// screen differently without a test saying so.
 //
 // Each state is built in a store of its own through the server's own handler,
 // on a fixed clock, so a review's id and a row's age are the same on every run.
@@ -83,28 +86,29 @@ func run(args []string) error {
 func Generate(ctx context.Context) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	for _, st := range states {
-		body, err := render(ctx, st)
+		body, page, err := render(ctx, st)
 		if err != nil {
 			return nil, errors.Wrapf(err, "state %s", st.file)
 		}
-		out[st.file] = body
+		out[st.file+".json"] = body
+		out[st.file+".html"] = page
 	}
 	return out, nil
 }
 
-// render builds one state in a temporary store and reads the queue back
-// through GET /api/.
-func render(ctx context.Context, st state) ([]byte, error) {
+// render builds one state in a temporary store and reads the queue back through
+// GET /api/ and through the template page at GET /.
+func render(ctx context.Context, st state) ([]byte, []byte, error) {
 	dir, err := os.MkdirTemp("", "fixtures-")
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, nil, errors.WithStack(err)
 	}
 	defer os.RemoveAll(dir)
 	at := now
 	clock := func() time.Time { return at }
 	db, err := store.OpenWithClock(ctx, filepath.Join(dir, "eyeball.db"), clock)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = db.Close() }()
 
@@ -114,17 +118,17 @@ func render(ctx context.Context, st state) ([]byte, error) {
 		if !ok {
 			root := filepath.Join(dir, "src", rv.project)
 			if err := os.MkdirAll(root, 0o700); err != nil {
-				return nil, errors.WithStack(err)
+				return nil, nil, errors.WithStack(err)
 			}
 			p, err := db.EnsureProject(ctx, root, rv.project)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			id = p.ID
 			projects[rv.project] = id
 		}
 		if err := write(ctx, db, &at, id, i, rv); err != nil {
-			return nil, errors.Wrapf(err, "review %q", rv.title)
+			return nil, nil, errors.Wrapf(err, "review %q", rv.title)
 		}
 	}
 	at = now
@@ -133,9 +137,20 @@ func render(ctx context.Context, st state) ([]byte, error) {
 	rec := httptest.NewRecorder()
 	srv.Surface().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/", nil))
 	if rec.Code != http.StatusOK {
-		return nil, errors.Newf("GET /api/ answered %d", rec.Code)
+		return nil, nil, errors.Newf("GET /api/ answered %d", rec.Code)
 	}
-	return rec.Body.Bytes(), nil
+	view := rec.Body.Bytes()
+
+	page := httptest.NewRecorder()
+	srv.Surface().ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
+	if page.Code != http.StatusOK {
+		return nil, nil, errors.Newf("GET / answered %d", page.Code)
+	}
+	fragment, err := queueMarkup(page.Body.Bytes())
+	if err != nil {
+		return nil, nil, err
+	}
+	return view, fragment, nil
 }
 
 // write opens one review and answers every round it has had. The clock is

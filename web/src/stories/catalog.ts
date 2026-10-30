@@ -8,6 +8,8 @@ const modules = import.meta.glob<Record<string, unknown>>(
     "./*.stories.tsx",
     "!./Sheet.stories.tsx",
     "!./Specimens.stories.tsx",
+    "!./Queue.stories.tsx",
+    "!./QueueSheet.stories.tsx",
     "../components/*.stories.tsx",
   ],
   { eager: true },

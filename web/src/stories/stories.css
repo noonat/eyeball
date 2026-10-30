@@ -92,6 +92,30 @@ body {
   letter-spacing: 0.04em;
 }
 
+/* A device, not a preview: 390px of real width and a real scroll. */
+.phone {
+  flex: none;
+  position: relative;
+  width: 390px;
+  height: 800px;
+  overflow: hidden;
+  border: 1px solid rgb(0 0 0 / 45%);
+  border-radius: 22px;
+  box-shadow: 0 14px 40px rgb(0 0 0 / 35%);
+}
+
+.phone > .app {
+  height: 100%;
+}
+
+.wide-link {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  text-decoration: none;
+}
+
 /* A specimen that is not a whole screen takes the theme and the app font
  * without pretending to be a device. */
 .slab {

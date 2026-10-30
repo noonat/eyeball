@@ -6,8 +6,7 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 )
 
-// state is one queue the app can be drawn in, and the file its view is
-// written to.
+// state is one queue the app can be drawn in, and the name its files share.
 type state struct {
 	file    string
 	reviews []review
@@ -29,9 +28,9 @@ type review struct {
 // approved. A working row's "Not requested yet" frame has no state here: a row
 // is Working only once a round has an answer.
 var states = []state{
-	{file: "queue-populated.json", reviews: populated},
-	{file: "queue-nothing-waiting.json", reviews: nothingWaiting},
-	{file: "queue-awkward.json", reviews: awkward},
+	{file: "queue-populated", reviews: populated},
+	{file: "queue-nothing-waiting", reviews: nothingWaiting},
+	{file: "queue-awkward", reviews: awkward},
 }
 
 var settledReviews = []review{

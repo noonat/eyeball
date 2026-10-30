@@ -67,7 +67,7 @@ internal/tailnet/     the tsnet node behind an interface, and the goroutine owni
 internal/view/        the surface API's JSON views, which web/src/api/types.ts is generated from
 tool/apitypes/        writes web/src/api/types.ts from internal/view, and fails when the committed file differs
 tool/appicon/         renders the installed page's icons, committed under web/static/icons
-tool/fixtures/        writes the views of seeded states into web/src/fixtures, and fails when they differ
+tool/fixtures/        writes the views and the template markup of seeded states into web/src/fixtures, and fails when they differ
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
@@ -1076,7 +1076,7 @@ closes.
 | `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                    |
 | `github.com/yuin/goldmark`              | markdown with GFM's tables and task lists, which specs are written in |
 | `golang.org/x/mod` (test)               | the module zip's rules, to check an embedded file reaches go install  |
-| `golang.org/x/net/html` (test)          | tokenizing the tearouts, and parsing rendered pages                   |
+| `golang.org/x/net/html` (test, tool)    | tokenizing the tearouts, parsing rendered pages, trimming the queue   |
 | `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires         |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |

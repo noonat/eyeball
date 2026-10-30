@@ -1,12 +1,16 @@
+import { cx } from "./cx";
+
 interface EyeProps {
   /** How many reviews wait. Zero shuts the eye. */
   readonly waiting: number;
   /** The empty state's size. It is decoration, so it has no label. */
   readonly large?: boolean;
+  /** Plays the blink that confirms a verdict, once, as the eye mounts. */
+  readonly blink?: boolean | undefined;
 }
 
 /** The top bar's eye: open with the waiting count as its iris, or shut. */
-export function Eye({ waiting, large }: EyeProps) {
+export function Eye({ waiting, large, blink }: EyeProps) {
   const shut = waiting === 0;
   if (large) {
     return (
@@ -15,11 +19,19 @@ export function Eye({ waiting, large }: EyeProps) {
   }
   if (shut) {
     return (
-      <span className="eye shut" role="img" aria-label="Nothing waiting" />
+      <span
+        className={cx("eye shut", blink && "blink")}
+        role="img"
+        aria-label="Nothing waiting"
+      />
     );
   }
   return (
-    <span className="eye" role="img" aria-label={`${waiting} waiting`}>
+    <span
+      className={cx("eye", blink && "blink")}
+      role="img"
+      aria-label={`${waiting} waiting`}
+    >
       <span className="iris">{waiting}</span>
     </span>
   );

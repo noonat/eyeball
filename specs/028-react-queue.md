@@ -94,6 +94,20 @@ Where the work went differently from the paragraphs above.
   The template queue page draws the same order today. The frames in
   `docs/design/queue.html` draw newest first. Iteration 3 has to settle which
   order the component uses, and specs/TODO.md already lists the question.
+- Iteration 3's first item says the components' markup equals queue.html's.
+  `docs/design/queue.html` is the design frame, which draws newest first and
+  includes the "Not requested yet" row, so equality with it was never possible.
+  The components are compared with the template queue page's render for each
+  seeded state. `tool/fixtures` writes that render as
+  `web/src/fixtures/queue-*.html`, and each data story compares its own markup
+  with it.
+- That comparison leaves out `#firstrun` and `#lapsed`, since `QueueSetup` takes
+  those states as a prop. It also leaves out `data-stream` and `data-stamp` on
+  the page's column. The stream script reads both, so iteration 4's shell has to
+  carry them.
+- The client-only states (after a verdict, not installed, notifications not
+  allowed and a lapsed subscription) are compared with nothing beyond the text
+  the template and the frames give them.
 
 ## Iteration 1: The documents
 
@@ -150,13 +164,13 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] The queue's row, section and screen are components in
+- [x] The queue's row, section and screen are components in
       `web/src/components/` whose markup equals queue.html's for each state.
-- [ ] Stories cover each state queue.html draws: populated, after a verdict,
+- [x] Stories cover each state queue.html draws: populated, after a verdict,
       nothing waiting, not installed, notifications not allowed, a lapsed
       subscription and the awkward week. Data states come from the fixtures, and
       client-only states from props.
-- [ ] A screen sheet lays those states out in 390 by 800 frames, light beside
+- [x] A screen sheet lays those states out in 390 by 800 frames, light beside
       dark, each with a full-screen button, plus the wide layout as its own
       story.
 - [ ] The owner judges the sheet on the phone against queue.html, and every
