@@ -11,15 +11,23 @@ GOFILES = $(shell git ls-files --cached --others --exclude-standard '*.go' \
 # whose files must stay byte for byte the release they name. See
 # docs/conventions.md.
 FMTFILES = $(shell git ls-files --cached --others --exclude-standard \
-	'*.md' '*.css' '*.json' '*.ts' | grep -v '^web/vendor/')
+	'*.md' '*.css' '*.json' '*.ts' '*.tsx' | grep -v '^web/vendor/' \
+	| grep -v '^web/package-lock.json$$')
 
-# A pinned version on npm never changes, so npx is told not to ask the registry
-# about one it already has. Without that, each call waited about 70s with no
-# network before running.
-NPX = npm_config_prefer_offline=true npx --yes
-OXFMT = $(NPX) oxfmt@0.65.0
-TSC = $(NPX) -p typescript@7.0.2 tsc
-OXLINT = $(NPX) -p oxlint@1.87.0 -p oxlint-tsgolint@7.0.2003 oxlint
+# The JavaScript tools are pinned once, in web/package.json and its lockfile,
+# and run from the node_modules `npm ci` installs there. Nothing is fetched at
+# lint time, so a lint run needs no network.
+WEB = web
+BIN = $(WEB)/node_modules/.bin
+OXFMT = $(BIN)/oxfmt
+TSC = $(BIN)/tsc
+# oxlint looks for tsgolint beside the directory it runs from, which is the
+# repository root here and not web/.
+OXLINT = OXLINT_TSGOLINT_PATH=$(CURDIR)/$(BIN)/tsgolint $(BIN)/oxlint
+
+# Fails with the fix when the tools are not installed, rather than with the
+# shell's "not found".
+NODE_MODULES_CHECK = test -x $(BIN)/tsc || { echo "web/node_modules is missing. Run: make tools"; exit 1; }
 
 help: ## Show this help
 	@printf "Usage: make <target>\n\nTargets:\n"
@@ -29,6 +37,7 @@ help: ## Show this help
 
 tools: ## Install the pinned tool dependencies
 	go install tool
+	cd $(WEB) && npm ci --ignore-scripts --no-audit --no-fund
 
 build: ## Build every package
 	go build ./...
@@ -44,22 +53,33 @@ lint: ## Lint everything; fails on any drift, fixes nothing
 	  out="$$(gofmt -l $$files)"; \
 	  if [ -n "$$out" ]; then echo "gofmt needs a rewrite:"; echo "$$out"; exit 1; fi
 	@echo "==> oxfmt"; \
-	  command -v npx >/dev/null || { echo "npx not found. oxfmt needs node"; exit 1; }; \
+	  command -v node >/dev/null || { echo "node not found. oxfmt needs node"; exit 1; }; \
+	  $(NODE_MODULES_CHECK); \
 	  files="$(FMTFILES)"; \
 	  if [ -z "$$files" ]; then echo "no formattable files found"; exit 1; fi; \
 	  $(OXFMT) --check $$files
-	@echo "==> tsc"; $(TSC) -p web/tsconfig.json && $(TSC) -p web/tsconfig.sw.json
+	@echo "==> tsc"; $(NODE_MODULES_CHECK); \
+	  $(TSC) -p web/tsconfig.json && $(TSC) -p web/tsconfig.sw.json && $(TSC) -p web/tsconfig.app.json && $(TSC) -p web/tsconfig.stories.json
 	@echo "==> oxlint"; \
 	  $(OXLINT) --type-aware --tsconfig web/tsconfig.json --deny-warnings --ignore-pattern sw.ts web/ts && \
-	  $(OXLINT) --type-aware --tsconfig web/tsconfig.sw.json --deny-warnings web/ts/sw.ts
+	  $(OXLINT) --type-aware --tsconfig web/tsconfig.sw.json --deny-warnings web/ts/sw.ts && \
+	  $(OXLINT) --type-aware --tsconfig web/tsconfig.stories.json --deny-warnings web/src web/.storybook web/vite.config.ts web/vitest.config.ts
 	@echo "==> go vet"; go vet ./...
 	@echo "==> staticcheck"; go tool staticcheck ./...
 
+# Both halves matter. The tests run each story in dev mode, and only the build
+# shows a fault of the production bundle: it adds an export to every story
+# module that the sheet once drew as a story.
+stories: ## Run every story as a test in headless Chromium, then build Storybook
+	@echo "==> stories"; $(NODE_MODULES_CHECK); \
+	  test -x "$${EYEBALL_CHROMIUM:-/usr/bin/chromium}" || { echo "Chromium not found. Set EYEBALL_CHROMIUM to its path"; exit 1; }; \
+	  cd $(WEB) && npm run --silent test-stories && npm run --silent build-storybook >/dev/null
+
 fmt: ## Auto-fix what lint checks
 	@echo "==> gofmt -w"; gofmt -w $(GOFILES)
-	@echo "==> oxfmt --write"; $(OXFMT) --write $(FMTFILES)
+	@echo "==> oxfmt --write"; $(NODE_MODULES_CHECK); $(OXFMT) --write $(FMTFILES)
 
-check: build lint test ## Build, lint and test: the gate every iteration closes on
+check: build lint stories test ## Build, lint and test: the gate every iteration closes on
 	@echo "==> check passed"
 
-.PHONY: help tools build test lint fmt check
+.PHONY: help tools build test lint stories fmt check

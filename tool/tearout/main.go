@@ -1,5 +1,6 @@
-// Command tearout serves the design tearouts on the tailnet, so they open on a
-// real phone rather than in a desktop browser narrowed to 390 pixels.
+// Command tearout builds Storybook and serves it on the tailnet beside the
+// static design sheets, so they open on a real phone rather than in a desktop
+// browser narrowed to 390 pixels.
 //
 // Cache-Control: no-store is the reason this exists rather than any static file
 // server. A server that sends only Last-Modified leaves iOS Safari showing a
@@ -25,6 +26,19 @@ import (
 
 // designDir holds the tearouts, relative to the repository root.
 const designDir = "docs/design"
+
+// webDir holds the Node project, relative to the repository root.
+const webDir = "web"
+
+// storybookOutput is where `npm run build-storybook` writes, under webDir.
+const storybookOutput = "storybook-static"
+
+// storybookPath is where the built Storybook is served.
+const storybookPath = "/storybook/"
+
+// sheetStory is the full-screen address of the foundations sheet, relative to
+// the Storybook it is served under.
+const sheetStory = "iframe.html?id=foundations-sheet--states&viewMode=story"
 
 // defaultPort is the port served when the command line names none.
 const defaultPort = 8110
@@ -67,23 +81,49 @@ func run(args []string) error {
 	}
 	sort.Strings(pages)
 
+	built, err := buildStorybook(root)
+	if err != nil {
+		return err
+	}
+
 	host := tailnetAddr()
 	if host == "" {
 		host = allInterfaces
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	fmt.Printf("http://%s%s%s\n", addr, storybookPath, sheetStory)
 	for _, page := range pages {
 		fmt.Printf("http://%s/%s\n", addr, filepath.Base(page))
 	}
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.Dir(dir)))
+	mux.Handle(storybookPath, http.StripPrefix(storybookPath, http.FileServer(http.Dir(built))))
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           noStore(http.FileServer(http.Dir(dir))),
+		Handler:           noStore(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	if err := server.ListenAndServe(); err != nil {
 		return errors.Wrapf(err, "serve %s", addr)
 	}
 	return nil
+}
+
+// buildStorybook builds Storybook and returns the directory it wrote. It is
+// built on every start, since a served copy that predates the last edit to a
+// component would show a state nobody can find in the source.
+func buildStorybook(root string) (string, error) {
+	web := filepath.Join(root, webDir)
+	if _, err := os.Stat(filepath.Join(web, "node_modules")); err != nil {
+		return "", errors.New("web/node_modules is missing. Run: make tools")
+	}
+	build := exec.Command("npm", "run", "--silent", "build-storybook")
+	build.Dir = web
+	build.Stderr = os.Stderr
+	if err := build.Run(); err != nil {
+		return "", errors.Wrap(err, "build storybook")
+	}
+	return filepath.Join(web, storybookOutput), nil
 }
 
 // noStore wraps a handler so no response is ever cached.

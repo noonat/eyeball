@@ -113,31 +113,55 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] `web/package.json` and its lockfile pin React, its types, Vite, Storybook,
+Where the build departed from the plan, as it was built:
+
+- `skipLibCheck: false` holds for `web/tsconfig.app.json`, which checks the
+  components. Storybook's own declarations fail under it
+  (`exactOptionalPropertyTypes`, and Vitest's need Node's types), so the stories
+  and Storybook's configuration are checked by `web/tsconfig.stories.json` with
+  `skipLibCheck: true`.
+- `@types/node` is pinned too, for that second configuration and the Vite and
+  Vitest config files.
+- The Vitest add-on applies Storybook's preview annotations itself, so no setup
+  file is kept.
+- `oxlint` and `oxlint-tsgolint` are the Makefile's earlier versions, moved into
+  the lockfile. oxlint runs from the repository root, so the Makefile points
+  `OXLINT_TSGOLINT_PATH` at the installed `tsgolint`.
+- Specimen components for the palette, the type scale and the icon inventory
+  live beside the sheet in `web/src/stories/`, not in `web/src/components/`.
+  They are not surface components, and `component-classes` holds components to
+  `app.css` alone.
+- `make stories` also builds Storybook. The sheet once drew the production
+  build's extra `__namedExportsOrder` export as a story and failed only there.
+  The build does not render the sheet, and Vitest runs stories in dev mode,
+  where the export does not exist. The guard is the sheet story's `play`, which
+  calls `entries()` on a fabricated module carrying that export.
+
+- [x] `web/package.json` and its lockfile pin React, its types, Vite, Storybook,
       its Vitest and accessibility add-ons, Vitest, Playwright, TypeScript,
       oxlint and oxfmt. React Router and TanStack Query are pinned by the queue
       spec, which first imports them. `make tools` runs `npm ci` there.
-- [ ] `web/node_modules/` and Storybook's build output are ignored by git, and
+- [x] `web/node_modules/` and Storybook's build output are ignored by git, and
       oxfmt formats `.tsx` files as it does `.ts`.
-- [ ] `web/tsconfig.app.json` checks `web/src` with every flag in
+- [x] `web/tsconfig.app.json` checks `web/src` with every flag in
       architecture.md, `jsx: react-jsx` and `skipLibCheck: false`, and
       `make lint` runs it.
-- [ ] `make lint` runs oxlint over `web/src` with its React and React hooks
+- [x] `make lint` runs oxlint over `web/src` with its React and React hooks
       rules and no explicit `any`, and fails on a planted violation of each.
-- [ ] Storybook's preview loads `docs/design/app.css` and its fonts, and a
+- [x] Storybook's preview loads `docs/design/app.css` and its fonts, and a
       toolbar control or story parameter stamps `data-theme` light or dark.
-- [ ] Each foundation component named above is a component in
+- [x] Each foundation component named above is a component in
       `web/src/components/` with a story for every state `foundations.html`
       draws of it.
-- [ ] A sheet story lays every foundation state out in 390 by 800 frames, each
+- [x] A sheet story lays every foundation state out in 390 by 800 frames, each
       light frame beside its dark one, every frame a link to its state's
       full-screen story.
-- [ ] `make check` runs every story as a test in headless Chromium, with its
+- [x] `make check` runs every story as a test in headless Chromium, with its
       interaction test where it has one and the accessibility audit, and fails
       on a planted failing story.
-- [ ] A check in `internal/convention` fails when a class a component names in a
+- [x] A check in `internal/convention` fails when a class a component names in a
       string literal is defined by no stylesheet, proved by a planted one.
-- [ ] `go run ./tool/tearout` builds Storybook and serves it over the tailnet
+- [x] `go run ./tool/tearout` builds Storybook and serves it over the tailnet
       with `Cache-Control: no-store`, beside the static sheets it serves now.
 - [ ] The owner judges the sheet on the phone against `foundations.html`, and
       every change asked for is made before the ack.
