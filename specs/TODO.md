@@ -19,13 +19,14 @@ The surface moves from htmx to React, one screen at a time, as
 client code. Each item is a spec.
 
 - [ ] product: the JSON API with generated types, and the queue as the first
-      screen in React, end to end. It also builds the shell, the router, the
-      service worker's shell cache and the tap handling, which need a screen to
-      be judged on the phone. Two problems of the mixed period appear with the
-      first React screen. The worker must not answer a template page's
-      navigation with the shell. A tap posted to a template window reaches
-      nothing, so the tap needs an answer from the app within a short timeout
-      and `navigate` as the fallback, with the beacons logging which path ran.
+      screen in React, end to end, spec [028](028-react-queue.md). It also
+      builds the shell, the router, the service worker's shell cache and the tap
+      handling, which need a screen to be judged on the phone. Two problems of
+      the mixed period appear with the first React screen. The worker must not
+      answer a template page's navigation with the shell. A tap posted to a
+      template window reaches nothing, so the tap needs an answer from the app
+      within a short timeout and `navigate` as the fallback, with the beacons
+      logging which path ran.
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
