@@ -7,11 +7,11 @@ export PATH := $(shell go env GOPATH)/bin:$(PATH)
 GOFILES = $(shell git ls-files --cached --others --exclude-standard '*.go' \
 	| grep -v '/testdata/')
 
-# The same, for what oxfmt formats. HTML is excluded, and so is web/vendor/,
-# whose files must stay byte for byte the release they name. See
+# The same, for what oxfmt formats. HTML is excluded, and so are web/vendor/ and
+# web/deps/, whose files must stay byte for byte the release they name. See
 # docs/conventions.md.
 FMTFILES = $(shell git ls-files --cached --others --exclude-standard \
-	'*.md' '*.css' '*.json' '*.ts' '*.tsx' | grep -v '^web/vendor/' \
+	'*.md' '*.css' '*.json' '*.ts' '*.tsx' | grep -v -e '^web/vendor/' -e '^web/deps/' \
 	| grep -v '^web/package-lock.json$$')
 
 # The JavaScript tools are pinned once, in web/package.json and its lockfile,
@@ -75,11 +75,19 @@ stories: ## Run every story as a test in headless Chromium, then build Storybook
 	  test -x "$${EYEBALL_CHROMIUM:-/usr/bin/chromium}" || { echo "Chromium not found. Set EYEBALL_CHROMIUM to its path"; exit 1; }; \
 	  cd $(WEB) && npm run --silent test-stories && npm run --silent build-storybook >/dev/null
 
+vendor: ## Copy the files the app's bundle reads into web/deps/node_modules
+	@$(NODE_MODULES_CHECK); go run ./tool/vendor
+
+# The set follows the app's imports, so a lockfile check would miss an import
+# that needs a file that is not vendored yet. This re-runs the step instead.
+vendor-check: ## Fail when web/deps/node_modules differs from a fresh vendor step
+	@echo "==> vendor"; $(NODE_MODULES_CHECK); go run ./tool/vendor --check
+
 fmt: ## Auto-fix what lint checks
 	@echo "==> gofmt -w"; gofmt -w $(GOFILES)
 	@echo "==> oxfmt --write"; $(NODE_MODULES_CHECK); $(OXFMT) --write $(FMTFILES)
 
-check: build lint stories test ## Build, lint and test: the gate every iteration closes on
+check: build lint stories vendor-check test ## Build, lint and test: the gate every iteration closes on
 	@echo "==> check passed"
 
-.PHONY: help tools build test lint stories fmt check
+.PHONY: help tools build test lint stories vendor vendor-check fmt check

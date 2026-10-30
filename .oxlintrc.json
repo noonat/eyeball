@@ -11,6 +11,6 @@
     "react/exhaustive-deps": "error",
     "react/react-in-jsx-scope": "off"
   },
-  "ignorePatterns": ["web/vendor/**"],
+  "ignorePatterns": ["web/vendor/**", "web/deps/**"],
   "plugins": ["oxc", "typescript", "unicorn", "react"]
 }

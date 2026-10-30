@@ -49,8 +49,9 @@ their fonts, the icon masks, the SQL migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: the app's sources, web/vendor, the stylesheets and fonts
+assets.go             the files the binary embeds: the app's sources, web/vendor, web/deps, the stylesheets and fonts
 internal/api/         the agent API's wire types, shared by the server and the CLI
+internal/appbuild/    esbuild's options for the app's bundle, shared by the vendor step and the binary
 internal/blob/        content-addressed store for captured file content
 internal/capture/     git shell-out, base resolution, what a round holds
 internal/cli/         subcommands, flags, --json, the coaching lines
@@ -67,8 +68,10 @@ tool/appicon/         renders the installed page's icons, committed under web/st
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
+tool/vendor/          copies the files the app's bundle reads from web/node_modules into web/deps
 web/src/              the app: routes, components and their stylesheets, the API client, the stream
-web/vendor/           htmx, and node_modules/: the files of each pinned package the app's bundle reads
+web/vendor/           htmx, as released
+web/deps/            node_modules/: the files of each pinned package the app's bundle reads
 web/                  the manifest, the icons, the service worker
 ```
 
@@ -78,8 +81,17 @@ exists, and `internal/convention` fails when the two disagree.
 
 `go install` has to produce a working binary. Nothing in the build may require
 Node, a bundler on the path, or a committed build artifact. The packages under
-`web/vendor/node_modules/` are committed sources the build reads, not its
-output. That constraint decides more of this document than any other.
+`web/deps/node_modules/` are committed sources the build reads, not its output.
+That constraint decides more of this document than any other.
+
+**Nothing the binary embeds may sit below a directory named `vendor`.** Go's
+module zip, which is what `go install pkg@version` downloads, drops every file
+that is more than one level below a `vendor/` directory, since it takes them for
+vendored Go packages. A path such as `web/vendor/node_modules/react/index.js` is
+missing from that zip, and the `//go:embed` that names it then matches nothing
+and fails the build. A file directly in `vendor/` survives, which is why htmx
+can stay in `web/vendor/`. A test builds the module zip the way the Go command
+does and fails when an embedded file is not in it.
 
 ## The daemon's lifetime
 
@@ -739,16 +751,23 @@ few kilobytes cost nothing measurable, and would give up that record.
 **The binary bundles the app with esbuild, linked into Go, from embedded
 sources.** The app's sources and the packages it imports are embedded with
 `//go:embed`. The first time a page asks for the bundle, the binary writes the
-embedded vendor tree, `web/vendor/node_modules/`, to a temporary directory once
+embedded vendor tree, `web/deps/node_modules/`, to a temporary directory once
 per process and bundles the app with esbuild's own resolver over it. The result
-is held in memory. No Node at build time and no committed bundle, so
-`go install` produces something that works.
+is held in memory. The directory also holds the app's sources, the stylesheet
+and a `web/package.json` that says only `"type": "module"`. esbuild wraps each
+CommonJS package differently when it reads the importer as an ES module, so
+without that file the bundle differs from the one built from `web/node_modules`,
+and the two have to match byte for byte. No Node at build time and no committed
+bundle, so `go install` produces something that works.
 
 The packages have to resolve through their `package.json` `exports` maps, which
 esbuild's resolver reads and a hand-written plugin would have to copy. A resolve
 plugin that pointed every bare import at a vendored directory was rejected for
-that reason. The cost of the replacement is a write of about 1.4 MB to a
-temporary directory the first time a page asks for the bundle.
+that reason. The cost of the replacement is a write to a temporary directory the
+first time a page asks for the bundle. Measured today, with React alone, that is
+about 0.8 MB: 670 KB of vendored packages in 13 files, 50 KB of the app's
+sources and 67 KB of `app.css`. It grows toward the 1.4 MB measured below once
+the router and the query library are imported.
 
 Measured 2026-10-29, in scratch projects: React 19.3.1, React Router 7.18.5 and
 TanStack Query 5.105.0 bundled by esbuild 0.28.2 through its Go API. Copying
@@ -772,11 +791,11 @@ esbuild's bundle has would not show in development. The browser tests under
 `internal/server` run against the bundle the binary serves, so that is the
 bundle the gate checks.
 
-**`web/vendor/node_modules/` holds only the files the app's bundle reads**,
-beside `web/vendor/`'s htmx. `make vendor` bundles the app from
-`web/node_modules` after `npm ci`, and copies each file esbuild's metafile
-lists, plus each package's `package.json`, into it. It is committed because the
-binary embeds it.
+**`web/deps/node_modules/` holds only the files the app's bundle reads.** It is
+not under `web/vendor/`, where htmx is, for the reason in "The binary".
+`make vendor` bundles the app from `web/node_modules` after `npm ci`, and copies
+each file esbuild's metafile lists, plus each package's `package.json`, into it.
+It is committed because the binary embeds it.
 
 The set follows the app's imports, so it changes when an import does: a new
 import of a package already vendored can need a file that is not there yet. A
@@ -994,7 +1013,7 @@ closes.
 - `tsc --noEmit` and `oxlint --type-aware` on the TypeScript.
 - Vitest over the components, including each story's interaction test and its
   accessibility audit, run in a real browser through Storybook's Vitest add-on.
-- `web/vendor/node_modules/` against a fresh run of the vendor step, and the
+- `web/deps/node_modules/` against a fresh run of the vendor step, and the
   generated API types against the Go structs. Either one stale fails.
 - `go test ./...`, which includes `internal/convention`, covering the Go
   conventions, the prose rules over every committed markdown file, the
@@ -1014,13 +1033,14 @@ closes.
 | `github.com/SherClockHolmes/webpush-go` | push payload encryption                                               |
 | `github.com/urfave/cli/v3`              | flags in any position, confined to the CLI package                    |
 | `github.com/yuin/goldmark`              | markdown with GFM's tables and task lists, which specs are written in |
+| `golang.org/x/mod` (test)               | the module zip's rules, to check an embedded file reaches go install  |
 | `golang.org/x/net/html` (test)          | tokenizing the tearouts, and parsing rendered pages                   |
 | `golang.org/x/term`                     | whether stdin is a terminal, which the tailnet login requires         |
 | `modernc.org/sqlite`                    | pure Go SQLite, so the binary stays static                            |
 | `tailscale.com/tsnet`                   | the tailnet node is the process, and it brings the certificate        |
 
-The app's packages, vendored under `web/vendor/node_modules/` and bundled into
-the binary:
+The app's packages, vendored under `web/deps/node_modules/` and bundled into the
+binary:
 
 | Package                 | Why                                                          |
 | ----------------------- | ------------------------------------------------------------ |

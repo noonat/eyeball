@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -131,6 +131,21 @@ Where the build departed from the plan, as it was built:
   live beside the sheet in `web/src/stories/`, not in `web/src/components/`.
   They are not surface components, and `component-classes` holds components to
   `app.css` alone.
+- The spec put the vendored packages in `web/vendor/node_modules/`. That premise
+  was wrong: Go's module zip drops every file more than one level below a
+  `vendor/` directory, so `go install pkg@version` would lack them and the embed
+  would match nothing. They are in `web/deps/node_modules/`, and htmx stays in
+  `web/vendor/`, where a file directly under `vendor/` survives.
+- The bundle options live in `internal/appbuild`, which `tool/vendor` and
+  `eyeball.App()` both call, so the two builds cannot differ in an option. Two
+  things the probe did not need were needed here. The staged tree carries a
+  `web/package.json` of `{"type":"module"}`, because esbuild wraps each CommonJS
+  import as `__toESM(x, 1)` when the importer's package says module and as
+  `__toESM(x)` when no package does, and the bundles differed by that flag until
+  it was added. `External` names `fonts/*` as well as `/static/fonts/*`, since
+  `app.css` writes its font urls relative to itself.
+- `buildWith` in `bundle.go` still requires one output, as it builds the older
+  `web/ts` bundle. `App()` does not go through it.
 - The sheet was first built as one 390 by 800 phone frame per state, light
   beside dark, each linked to its full-screen story, as the todo above says. The
   owner turned it down on the phone: "I don't see any difference between the
@@ -189,24 +204,33 @@ Where the build departed from the plan, as it was built:
 > - `go test -race ./...` — 4.2s
 > - `go test -count=1 -tags browser ./internal/server` — 48.4s
 
-
 ## Iteration 3: The Go bundle
 
-- [ ] `tool/vendor` bundles `web/src/main.tsx` from `web/node_modules`, and
+- [x] `tool/vendor` bundles `web/src/main.tsx` from `web/node_modules`, and
       copies each file the metafile lists and each package's `package.json` to
-      `web/vendor/node_modules/`. `make vendor` runs it.
-- [ ] `make check` re-runs the vendor step into a temporary directory and fails
-      when it differs from `web/vendor/node_modules/`, proved by deleting one
+      `web/deps/node_modules/`. `make vendor` runs it.
+- [x] `make check` re-runs the vendor step into a temporary directory and fails
+      when it differs from `web/deps/node_modules/`, proved by deleting one
       vendored file and by adding an import that needs a new one.
-- [ ] `web/src/main.tsx` renders a foundation component into the page, as the
+- [x] `web/src/main.tsx` renders a foundation component into the page, as the
       entry the vendor step and the bundle start from until the queue spec gives
       it the router.
-- [ ] `eyeball.App()` writes the embedded vendor tree to a temporary directory
+- [x] `eyeball.App()` writes the embedded vendor tree to a temporary directory
       once per process and bundles `web/src/main.tsx` from it into a script and
       a stylesheet, with `/static/fonts/` left external.
-- [ ] A browser test loads the bundle `eyeball.App()` returns into a test page
+- [x] A test builds the module zip as the Go command does, with
+      `golang.org/x/mod/zip`, and fails when an embedded file of the app's
+      sources or `web/deps` is missing from it, proved by pointing it at a path
+      under a `vendor/` directory.
+- [x] A browser test loads the bundle `eyeball.App()` returns into a test page
       and finds a foundation component rendered by it, and fails with the
       vendored React removed.
-- [ ] architecture.md's binary layout and `assets.go` list `web/src` and
-      `web/vendor/node_modules`, and a binary built with `web/node_modules`
-      moved away bundles the app, since that is the build `go install` makes.
+- [x] architecture.md's binary layout and `assets.go` list `web/src` and
+      `web/deps/node_modules`, and a binary built with `web/node_modules` moved
+      away bundles the app, since that is the build `go install` makes.
+
+> **Completed** 2026-10-30 05:45 UTC
+>
+> - `make check` — 28.4s
+> - `go test -race ./...` — 46.2s
+> - `go test -count=1 -tags browser ./internal/server` — 48.8s
