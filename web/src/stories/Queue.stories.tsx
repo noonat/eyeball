@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect } from "storybook/test";
 import type { Queue as QueueView } from "../api/types";
 import { Queue } from "../components/Queue";
+import { QueueLoading } from "../components/QueueLoading";
 import { awkward, nothingWaiting, populated } from "../fixtures";
 import awkwardHtml from "../fixtures/queue-awkward.html?raw";
 import nothingWaitingHtml from "../fixtures/queue-nothing-waiting.html?raw";
@@ -79,6 +80,21 @@ export const Lapsed: Story = {
 export const AwkwardWeek: Story = {
   args: { queue: awkward },
   play: sameAsApproved(awkwardHtml),
+};
+
+/** The moment before the first view arrives: the bar holds the wordmark only. */
+export const Loading: Story = {
+  args: { queue: populated },
+  render: () => <QueueLoading />,
+};
+
+/**
+ * A launch with the daemon down, which the worker's cached shell opens: the
+ * same bar, with the offline notice and nothing to list.
+ */
+export const LoadingOffline: Story = {
+  args: { queue: populated },
+  render: () => <QueueLoading offline />,
 };
 
 /**

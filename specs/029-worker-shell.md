@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -88,9 +88,9 @@ required_acks:
 The owner chose on 2026-10-30 to see this state before the worker is built. It
 existed before only as a flash before the first view arrived.
 
-- [ ] The queue's state before its first view is a component of its own, which
+- [x] The queue's state before its first view is a component of its own, which
       `QueueRoute` draws and a story can.
-- [ ] The queue sheet shows it twice, light and dark: with the offline notice,
+- [x] The queue sheet shows it twice, light and dark: with the offline notice,
       as a launch with the daemon down draws it, and without, as the moment
       before the view arrives.
 - [ ] The owner approves the sheet on the phone.
