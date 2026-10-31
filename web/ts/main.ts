@@ -17,6 +17,7 @@ import { registerWorker } from "./worker";
 import { restoreViewport } from "./viewport";
 import { catchFailedSaves } from "./unsent";
 import { followTheme } from "./theme";
+import { answerTaps, load } from "./tap";
 import { sendToken, takeToken } from "./token";
 
 // The bundle is loaded without defer so the theme is set before the first
@@ -37,6 +38,7 @@ catchFailedSaves();
 // in the head before the body is parsed.
 document.addEventListener("DOMContentLoaded", () => {
   registerWorker();
+  answerTaps(load);
   trackHead();
   refreshOnTap();
   followStream();

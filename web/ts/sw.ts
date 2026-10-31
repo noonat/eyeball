@@ -38,6 +38,9 @@ const buildHeader = "Eyeball-Build";
 // back at once and only a machine that cannot be reached at all waits it out.
 const shellWait = 1000;
 
+// How long a window has to answer the address a tap posts to it.
+const answerWait = 1000;
+
 const cacheName = `shell-${shellBuild}`;
 
 // What the daemon sends with each request.
@@ -210,9 +213,13 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 // openReview lands a tap on the round. A window already there is focused.
-// An installed app on iOS has one window, and openWindow only brings it
-// forward without loading the address, so an open window is navigated to the
-// round instead; with the app open on the queue, a tap left it there.
+// Otherwise the first window is asked to move itself: the address is posted to
+// it with a port, and an answer within a second means the page is loading the
+// review, so the window is only focused. Both bundles answer, the React app by
+// moving its router where it can. A window that does not answer, such as a page
+// older than the worker, is navigated to the round, and if that fails or there
+// is no window, one is opened. An installed app on iOS has one window, and
+// openWindow only brings it forward without loading the address.
 //
 // Each step reports to the daemon, which logs it. A tap on a phone shows
 // nothing of which branch ran, and the report is how the next fault in one is
@@ -240,6 +247,14 @@ async function openReview(event: ExtendableEvent, url: string): Promise<void> {
   }
   const open = windows[0];
   if (open) {
+    report({ step: "post" });
+    const asked = Date.now();
+    const answered = await askToMove(open, url);
+    report({ step: "answer", answered, ms: Date.now() - asked });
+    if (answered) {
+      await traced(report, "focusAfterAnswer", () => open.focus());
+      return;
+    }
     const moved = await traced(report, "navigate", () =>
       open.navigate(url),
     ).catch(() => null);
@@ -249,6 +264,34 @@ async function openReview(event: ExtendableEvent, url: string): Promise<void> {
     }
   }
   await traced(report, "openWindow", () => self.clients.openWindow(url));
+}
+
+// askToMove posts the address to a window with a port and resolves true when
+// the window answers on it, false after answerWait or when the post fails. The
+// wait is a guess: a page answered in under a millisecond in headless Chromium
+// on 2026-10-29, and a page with no listener gave nothing at all.
+function askToMove(w: WindowClient, url: string): Promise<boolean> {
+  const { port1, port2 } = new MessageChannel();
+  return new Promise<boolean>((resolve) => {
+    const timer = self.setTimeout(() => {
+      resolve(false);
+    }, answerWait);
+    port1.addEventListener("message", () => {
+      self.clearTimeout(timer);
+      resolve(true);
+    });
+    // A port listened to with addEventListener stays closed to messages until
+    // it is started.
+    port1.start();
+    try {
+      w.postMessage({ url }, [port2]);
+    } catch {
+      self.clearTimeout(timer);
+      resolve(false);
+    }
+  }).finally(() => {
+    port1.close();
+  });
 }
 
 // What a beacon says of one window.

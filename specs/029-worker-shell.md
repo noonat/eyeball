@@ -148,17 +148,23 @@ notification names a review. So in this spec the React window answers each tap
 by setting `location`, which is a full load, and the router's branch is first
 used by the spec that moves the review screen.
 
-- [ ] Both bundles answer the worker's message on its port. The React app moves
+- [x] Both bundles answer the worker's message on its port. The React app moves
       its router to an address it draws and sets `location` for any other. A
       template page sets `location`.
-- [ ] `openReview` posts the address to the window it finds, waits up to one
+- [x] `openReview` posts the address to the window it finds, waits up to one
       second, and calls `focus()` on an answer. With no answer it calls
       `navigate`, then `openWindow`, as today.
-- [ ] The beacons log how long the answer took and whether `navigate` ran.
-- [ ] Browser test: the React window on the queue answers a tap naming a review,
+- [x] The beacons log how long the answer took and whether `navigate` ran.
+- [x] Browser test: the React window on the queue answers a tap naming a review,
       loads that review itself, and `navigate` does not run. It fails with the
       old `openReview` restored, which calls `navigate`.
-- [ ] Browser test: a window with no listener gets `navigate` after the wait.
+- [x] Browser test: a window with no listener gets `navigate` after the wait.
+
+> **Completed** 2026-10-31 02:09 UTC
+>
+> - `make check` — 31.2s
+> - `go test -race ./...` — 53.1s
+> - `go test -count=1 -tags browser ./internal/server` — 67.0s
 
 ## Iteration 4: On the phone
 

@@ -1201,8 +1201,8 @@ func TestServer_Surface_browserStream(t *testing.T) {
 
 // loadWorkerInPage runs the real worker script in the page's own scope, with
 // a fake of the clients the tap sees: one window the worker does not control,
-// whose navigate is refused as Chromium refuses it, and which openWindow
-// returns. A page's window takes the notificationclick a test dispatches, since
+// whose navigate is refused as Chromium refuses it, which keeps what is posted
+// to it without answering, and which openWindow returns. A page's window takes the notificationclick a test dispatches, since
 // DevTools cannot tap a notification. window.tap(url) dispatches one and waits
 // for every promise handed to waitUntil, as the worker's lifetime does, and
 // rejects with the first failure once all have settled.
@@ -1215,8 +1215,10 @@ func (b *browser) loadWorkerInPage(g *WithT) {
 			focused: true,
 			navigate: () => Promise.reject(new TypeError("This service worker is not the client's active service worker.")),
 			focus: () => Promise.resolve(w),
+			postMessage: (message) => { window.posted.push(message); },
 		};
 		window.fake = w;
+		window.posted = [];
 		window.opened = [];
 		window.clients = {
 			matchAll: (o) => Promise.resolve(o && o.includeUncontrolled ? [w] : []),
@@ -1318,12 +1320,14 @@ func TestServer_Surface_browserTapBeacons(t *testing.T) {
 		for _, one := range beacons {
 			g.Expect(one["build"]).To(Equal(stamp), "the worker's stamp is the one served")
 		}
-		g.Expect(steps(beacons)).To(Equal([]string{"start", "navigate call", "navigate failed", "openWindow call", "openWindow done"}))
+		g.Expect(steps(beacons)).To(Equal([]string{"start", "post", "answer", "navigate call", "navigate failed", "openWindow call", "openWindow done"}))
 		g.Expect(beacons[0]["url"]).To(Equal("/reviews/9"))
 		g.Expect(beacons[0]["windows"]).To(Equal([]any{window}))
 		g.Expect(beacons[0]["controlled"]).To(Equal([]any{}))
-		g.Expect(beacons[2]["error"]).To(Equal(refused))
-		g.Expect(beacons[4]["result"]).To(Equal(srv.URL + "/"))
+		g.Expect(beacons[2]["answered"]).To(BeFalse())
+		g.Expect(beacons[2]["ms"]).To(BeNumerically(">=", 900), "the wait is a second")
+		g.Expect(beacons[4]["error"]).To(Equal(refused))
+		g.Expect(beacons[6]["result"]).To(Equal(srv.URL + "/"))
 		g.Expect(out.String()).To(ContainSubstring("served=" + stamp))
 	})
 
@@ -1343,6 +1347,8 @@ func TestServer_Surface_browserTapBeacons(t *testing.T) {
 		g.Expect(settled).To(Equal("settled"))
 		g.Expect(steps(beacons)).To(Equal([]string{
 			"start",
+			"post",
+			"answer",
 			"navigate call",
 			"navigate done",
 			"focusAfterNavigate call",
@@ -1355,8 +1361,8 @@ func TestServer_Surface_browserTapBeacons(t *testing.T) {
 		b.eval(g, `window.fake.navigate = () => Promise.resolve(null)`)
 		settled, beacons := tap(g, "/reviews/11")
 		g.Expect(settled).To(Equal("settled"))
-		g.Expect(steps(beacons)).To(Equal([]string{"start", "navigate call", "navigate done", "openWindow call", "openWindow done"}))
-		g.Expect(beacons[2]).To(HaveKeyWithValue("result", BeNil()))
+		g.Expect(steps(beacons)).To(Equal([]string{"start", "post", "answer", "navigate call", "navigate done", "openWindow call", "openWindow done"}))
+		g.Expect(beacons[4]).To(HaveKeyWithValue("result", BeNil()))
 	})
 
 	t.Run("an openWindow that fails", func(t *testing.T) {
@@ -1364,8 +1370,20 @@ func TestServer_Surface_browserTapBeacons(t *testing.T) {
 		b.eval(g, `window.clients.openWindow = () => Promise.reject(new Error("no window"))`)
 		settled, beacons := tap(g, "/reviews/12")
 		g.Expect(settled).To(Equal("Error: no window"), "the tap fails as it would without the beacons")
-		g.Expect(steps(beacons)).To(Equal([]string{"start", "navigate call", "navigate done", "openWindow call", "openWindow failed"}))
-		g.Expect(beacons[4]["error"]).To(Equal(map[string]any{"name": "Error", "message": "no window"}))
+		g.Expect(steps(beacons)).To(Equal([]string{"start", "post", "answer", "navigate call", "navigate done", "openWindow call", "openWindow failed"}))
+		g.Expect(beacons[6]["error"]).To(Equal(map[string]any{"name": "Error", "message": "no window"}))
+	})
+
+	t.Run("a window that answers", func(t *testing.T) {
+		g := NewWithT(t)
+		b.eval(g, `window.fake.postMessage = (m, ports) => { window.posted.push(m); ports[0].postMessage("moving"); }`)
+		b.eval(g, `window.clients.openWindow = (u) => { window.opened.push(u); return Promise.resolve(window.fake); }; window.posted = []`)
+		settled, beacons := tap(g, "/reviews/13")
+		g.Expect(settled).To(Equal("settled"))
+		g.Expect(b.eval(g, `window.posted`)).To(Equal([]any{map[string]any{"url": "/reviews/13"}}))
+		g.Expect(steps(beacons)).To(Equal([]string{"start", "post", "answer", "focusAfterAnswer call", "focusAfterAnswer done"}))
+		g.Expect(beacons[2]["answered"]).To(BeTrue())
+		g.Expect(beacons[2]["ms"]).To(BeNumerically("<", 900))
 	})
 }
 
@@ -1391,6 +1409,56 @@ func TestServer_Surface_browserTapBeaconsLost(t *testing.T) {
 	b.eval(g, `window.fetch = () => Promise.reject(new TypeError("Failed to fetch"))`)
 	g.Expect(b.eval(g, `window.tap("/reviews/10")`)).To(BeTrue())
 	g.Expect(b.eval(g, `window.opened`)).To(Equal([]any{"/reviews/9", "/reviews/10"}))
+}
+
+// A tap while the React app is open on the queue is answered by the page, which
+// loads the review itself, so the worker never calls navigate. The fake window
+// hands the worker's message to the page's own listener, and the beacons show
+// which branch ran.
+func TestServer_Surface_browserTapMovesApp(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	out := f.logInto()
+	id := actingReview(g, t, f)
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `!!document.querySelector("#root .scroll")`)
+	b.loadWorkerInPage(g)
+	b.eval(g, `window.fake.postMessage = (message, ports) => navigator.serviceWorker.dispatchEvent(new MessageEvent("message", { data: message, ports }))`)
+
+	// The page leaves while the tap is still settling, so the call is not
+	// awaited.
+	b.eval(g, `(() => { window.tap("/reviews/`+itoa(id)+`"); return true; })()`)
+	b.waitFor(g, `location.pathname === "/reviews/`+itoa(id)+`" && !!document.querySelector("#bar")`)
+	g.Eventually(func() string { return out.String() }, 5*time.Second, 50*time.Millisecond).Should(ContainSubstring(`step\":\"post`))
+	g.Expect(out.String()).NotTo(ContainSubstring("navigate"), "the worker navigated a window that answered")
+}
+
+// A window with no listener is given the address and gets navigate once the
+// second is up.
+func TestServer_Surface_browserTapNoListener(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	out := f.logInto()
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/")
+	b.loadWorkerInPage(g)
+	b.eval(g, `window.navigations = []; window.fake.navigate = (u) => { window.navigations.push(u); return Promise.resolve(window.fake); }`)
+
+	g.Expect(b.eval(g, `window.tap("/reviews/9")`)).To(BeTrue())
+	g.Expect(b.eval(g, `window.posted`)).To(Equal([]any{map[string]any{"url": "/reviews/9"}}))
+	g.Expect(b.eval(g, `window.navigations`)).To(Equal([]any{"/reviews/9"}))
+	var named []string
+	for _, one := range beaconsIn(g, out.String()) {
+		step, _ := one["step"].(string)
+		phase, _ := one["phase"].(string)
+		named = append(named, strings.TrimSpace(step+" "+phase))
+	}
+	g.Expect(named).To(Equal([]string{"start", "post", "answer", "navigate call", "navigate done", "focusAfterNavigate call", "focusAfterNavigate done"}))
 }
 
 // A page served by an older build says so once the stream hears a newer one,
