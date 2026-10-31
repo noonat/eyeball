@@ -249,8 +249,8 @@ func TestServer_Surface_appShell(t *testing.T) {
 			srcs = append(srcs, attr(n, "src"))
 		}
 	}
-	g.Expect(hrefs).To(ContainElements("stylesheet /static/app.css", "stylesheet /static/shell.css", "manifest /manifest.webmanifest"))
-	g.Expect(srcs).To(Equal([]string{"/static/react.js"}))
+	g.Expect(hrefs).To(ContainElements("stylesheet /static/app.css?b="+q.s.buildToken(), "stylesheet /static/shell.css?b="+q.s.buildToken(), "manifest /manifest.webmanifest"))
+	g.Expect(srcs).To(Equal([]string{"/static/react.js?b=" + q.s.buildToken()}))
 	g.Expect(findAll(doc, func(n *html.Node) bool { return attr(n, "id") == "root" })).To(HaveLen(1))
 	g.Expect(res.Body.String()).NotTo(ContainSubstring("data-stamp"), "the app takes its stamp from the view")
 	g.Expect(res.Body.String()).NotTo(ContainSubstring(`class="row`), "the shell draws no rows")

@@ -104,36 +104,42 @@ existed before only as a flash before the first view arrived.
 
 ## Iteration 2: The shell cache
 
-- [ ] The head writes the build's token into the address of each script and
+- [x] The head writes the build's token into the address of each script and
       stylesheet it links, for the shell and the template pages, and the daemon
       ignores it.
-- [ ] `sw.js` is served with the daemon's build and the list of the shell's
+- [x] `sw.js` is served with the daemon's build and the list of the shell's
       files written in: `/`, the bundle, both stylesheets, every font, the icons
       and the manifest. The worker's stamp still hashes its code alone.
-- [ ] A Go test fails when an address the shell's head links, or a `url()` in
+- [x] A Go test fails when an address the shell's head links, or a `url()` in
       `app.css`, is missing from the list written into `sw.js`.
-- [ ] A surface request whose `Eyeball-Build` header names another build's token
+- [x] A surface request whose `Eyeball-Build` header names another build's token
       is answered 409, on both listeners. A Go test fails when that request is
       answered 200.
-- [ ] The install fetches each file with that header into a cache named by the
+- [x] The install fetches each file with that header into a cache named by the
       build's token. Activation deletes every other build's cache.
-- [ ] A navigation to `/` goes to the daemon and falls back to the cache on a
+- [x] A navigation to `/` goes to the daemon and falls back to the cache on a
       failure or after one second. A shell file is answered from any cache
       holding its exact address. The worker answers nothing else.
-- [ ] Browser test: with the daemon stopped, a reload of `/` draws the state
+- [x] Browser test: with the daemon stopped, a reload of `/` draws the state
       from Iteration 1 with the offline notice. It fails with the fetch handler
       removed.
-- [ ] Browser test: the daemon started again, that page draws the queue with no
+- [x] Browser test: the daemon started again, that page draws the queue with no
       reload. The stream's stamp on reconnect differs from the empty one the
       page holds, which refetches the view.
-- [ ] Browser test: a template page's address gets the template, not the shell,
+- [x] Browser test: a template page's address gets the template, not the shell,
       with the worker in control.
-- [ ] Browser test: a daemon restarted on the same address with another build
+- [x] Browser test: a daemon restarted on the same address with another build
       serves its build on the next reload, with no second reload. It fails with
       the shell answered from the cache first.
-- [ ] Browser test: an install whose fetch is answered 409 leaves the old worker
+- [x] Browser test: an install whose fetch is answered 409 leaves the old worker
       in control and no cache for the new build.
-- [ ] The comment atop `web/ts/sw.ts` says what the worker answers.
+- [x] The comment atop `web/ts/sw.ts` says what the worker answers.
+
+> **Completed** 2026-10-31 01:57 UTC
+>
+> - `make check` — 14.0s
+> - `go test -race ./...` — 45.9s
+> - `go test -count=1 -tags browser ./internal/server` — 61.8s
 
 ## Iteration 3: The tap
 

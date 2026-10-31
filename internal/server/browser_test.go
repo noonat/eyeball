@@ -234,7 +234,7 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	// and the eye blinks once.
 	decide(first, "approve")
 	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
-	g.Expect(b.eval(g, `document.querySelectorAll("script[src='/static/react.js']").length`)).To(BeEquivalentTo(1), "the queue is the React app, which is the only page that draws the eye from its view")
+	g.Expect(b.eval(g, `document.querySelectorAll("script[src^='/static/react.js']").length`)).To(BeEquivalentTo(1), "the queue is the React app, which is the only page that draws the eye from its view")
 	// The eye is drawn with the count from before the verdict, and changes to the
 	// new one while the lid is shut.
 	b.waitFor(g, `window.__eye.length === 2`)
@@ -1410,7 +1410,7 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	b := openBrowser(g, t)
 	b.navigate(g, "http://"+addr+"/")
 	b.waitFor(g, `!!document.getElementById("update")`)
-	g.Expect(b.eval(g, `!!document.querySelector("script[src='/static/react.js']")`)).To(BeTrue(), "the queue is the React app, whose notices the template pages' do not stand in for")
+	g.Expect(b.eval(g, `!!document.querySelector("script[src^='/static/react.js']")`)).To(BeTrue(), "the queue is the React app, whose notices the template pages' do not stand in for")
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the running build")
 
 	// A daemon restarted on a newer build: the stream reconnects and hears it.

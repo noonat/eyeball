@@ -89,6 +89,9 @@ func (s *Server) surfaceMux() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		setSurfaceHeaders(h)
+		if s.refuseOtherBuild(w, r) {
+			return
+		}
 		if _, pattern := mux.Handler(r); pattern != "" {
 			mux.ServeHTTP(w, r)
 			return
@@ -147,6 +150,9 @@ type page struct {
 	// Build is the daemon's build, which the stream compares with the build
 	// running when it connects, so a page served by an older daemon says so.
 	Build string
+	// Token is the build's short hash, which the head writes into the address
+	// of each script and stylesheet it links.
+	Token string
 }
 
 // eye is the top bar's count of reviews waiting on the reviewer. Zero shuts it.
@@ -199,6 +205,7 @@ func (s *Server) errorPage(w http.ResponseWriter, status int) {
 func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
 	data.VAPID = s.vapidPublic()
 	data.Build = s.daemon.Build
+	data.Token = s.buildToken()
 	if data.Eye == nil {
 		// renderPage has no request of its own, and the count is a read of
 		// the local store, so it gets a context of its own with a bound.
@@ -239,7 +246,7 @@ func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data
 // store. A stamp printed here would be a second read of the queue beside the
 // view's own, which is the gap the view's stamp closes.
 func (s *Server) handleApp(w http.ResponseWriter, _ *http.Request) error {
-	data := page{Title: "Queue", VAPID: s.vapidPublic(), Build: s.daemon.Build}
+	data := page{Title: "Queue", VAPID: s.vapidPublic(), Build: s.daemon.Build, Token: s.buildToken()}
 	// A clone, since executing a template escapes its tree in place and the
 	// shared one is read by every request.
 	t, err := s.pages.Clone()
@@ -319,18 +326,6 @@ func setSurfaceHeaders(h http.Header) {
 	// page's origin, the tailnet's machine name, under its default policy. One
 	// header covers every link on every page.
 	h.Set("Referrer-Policy", "no-referrer")
-}
-
-// handleWorker serves the service worker at the root, so its scope is the
-// whole surface.
-func (s *Server) handleWorker(w http.ResponseWriter, _ *http.Request) error {
-	js, err := eyeball.Worker()
-	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	_, _ = w.Write(js)
-	return nil
 }
 
 // handleIcon serves one of the installed page's icons.

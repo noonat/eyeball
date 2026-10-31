@@ -1,6 +1,16 @@
-// The service worker exists for push and nothing else, as architecture.md
-// says. iOS delivers web push only to an installed page with a registered
-// worker. It intercepts no fetches.
+// The service worker keeps the app's shell for when the daemon cannot answer.
+// It answers two kinds of request and nothing else:
+//
+//   - a navigation to /, from the daemon first, and from the cache when the
+//     daemon refuses the connection or has not answered within a second;
+//   - a file in the shell's list, from whichever cache holds its exact address.
+//
+// The live stream, the API, every write, the beacons and every template page go
+// to the daemon untouched, so a template page with the daemon down fails as it
+// did before the worker kept anything.
+//
+// The worker also exists for push, because iOS delivers web push only to an
+// installed page with a registered worker.
 
 // The file is a module, through the export below, so this declaration
 // narrows the worker's global self to the service worker's scope rather than
@@ -11,6 +21,24 @@ declare const self: ServiceWorkerGlobalScope;
 // the hash of the sw.js it serves beside each beacon's, so a phone still
 // running an older worker shows as two hashes that differ.
 declare const workerBuild: string;
+
+// The token of the daemon's build and the files to keep for it, written ahead
+// of this script by the daemon as it serves it. They are not part of the
+// stamp above, which hashes this code alone. web/ts and the Go side agree on
+// the header's name and on the files' addresses.
+declare const shellBuild: string;
+declare const shellFiles: readonly string[];
+
+// The header that names the build a fill request is for. The daemon answers
+// 409 when it is another build, which fails the install.
+const buildHeader = "Eyeball-Build";
+
+// How long the daemon has to answer a navigation before the cache does. A
+// guess: a refused connection fails in milliseconds, so a stopped daemon falls
+// back at once and only a machine that cannot be reached at all waits it out.
+const shellWait = 1000;
+
+const cacheName = `shell-${shellBuild}`;
 
 // What the daemon sends with each request.
 export interface Payload {
@@ -56,14 +84,101 @@ async function setBadge(n: number): Promise<void> {
   }
 }
 
+// fillCache fetches each shell file from the daemon into this build's cache. A
+// file that fails, including a 409 for another build, fails the install, so the
+// worker already in control stays. The half-filled cache is deleted, since a
+// cache named for this build would otherwise read as complete.
+async function fillCache(): Promise<void> {
+  const cache = await caches.open(cacheName);
+  try {
+    await Promise.all(
+      shellFiles.map(async (file) => {
+        const res = await fetch(file, {
+          headers: { [buildHeader]: shellBuild },
+          cache: "reload",
+        });
+        if (!res.ok) {
+          throw new Error(`${file} answered ${res.status}`);
+        }
+        await cache.put(file, res);
+      }),
+    );
+  } catch (e) {
+    await caches.delete(cacheName);
+    throw e;
+  }
+}
+
 // A new version replaces the old at once rather than waiting for every
 // window to close, which an installed app's window rarely does, and takes
-// control of the windows already open, so a tap can load a round in them.
-self.addEventListener("install", () => {
-  void self.skipWaiting();
+// control of the windows already open, so a tap can load a round in them. It
+// does so only once its cache is full.
+self.addEventListener("install", (event) => {
+  event.waitUntil(fillCache().then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((name) => name !== cacheName)
+            .map((name) => caches.delete(name)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
+});
+
+// shellPage answers a navigation to /: the daemon's page when it answers in
+// time, otherwise the cached one. With nothing cached it goes on waiting for
+// the daemon, which is what a browser with no worker does.
+async function shellPage(request: Request): Promise<Response> {
+  const network = fetch(request);
+  const late = new Promise<null>((resolve) => {
+    self.setTimeout(() => {
+      resolve(null);
+    }, shellWait);
+  });
+  try {
+    const res = await Promise.race([network, late]);
+    if (res !== null) {
+      return res;
+    }
+  } catch {
+    // The daemon refused the connection. The cache answers.
+  }
+  const own = await caches.open(cacheName);
+  return (await own.match("/")) ?? network;
+}
+
+// A file of the shell is answered from whichever cache holds its exact
+// address, so a page draws the files of the build its HTML named, whichever
+// worker is in control. An address no cache holds goes to the daemon.
+async function shellFile(request: Request): Promise<Response> {
+  return (await caches.match(request)) ?? fetch(request);
+}
+
+const shellSet = new Set(shellFiles.filter((file) => file !== "/"));
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin) {
+    return;
+  }
+  if (
+    request.mode === "navigate" &&
+    url.pathname === "/" &&
+    url.search === ""
+  ) {
+    event.respondWith(shellPage(request));
+    return;
+  }
+  if (shellSet.has(url.pathname + url.search)) {
+    event.respondWith(shellFile(request));
+  }
 });
 
 self.addEventListener("push", (event) => {
