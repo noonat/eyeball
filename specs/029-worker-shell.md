@@ -93,7 +93,14 @@ existed before only as a flash before the first view arrived.
 - [x] The queue sheet shows it twice, light and dark: with the offline notice,
       as a launch with the daemon down draws it, and without, as the moment
       before the view arrives.
-- [ ] The owner approves the sheet on the phone.
+- [x] The owner approves the sheet on the phone.
+
+> **Completed** 2026-10-31 01:48 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 14.5s
+> - `go test -race ./...` — 45.5s
+> - `go test -count=1 -tags browser ./internal/server` — 50.1s
 
 ## Iteration 2: The shell cache
 
