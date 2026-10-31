@@ -18,29 +18,8 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the service worker's shell cache and the tap handling, after the
-      queue. With no cache the daemon answers every navigation, so the worker
-      cannot hand a template page the shell, and a tap on the React window gets
-      `navigate`, which reloads the app. The cache brings two problems of the
-      mixed period. The worker must not answer a template page's navigation with
-      the shell. A tap posted to a template window reaches nothing, so the tap
-      needs an answer from the app within a short timeout and `navigate` as the
-      fallback, with the beacons logging how long the answer took and whether
-      the fallback ran. The cache also has a failure only the installed app can
-      show, a shell older than the daemon, which needs its own phone check. The
-      cache's version has to follow the app bundle, since the worker's stamp
-      hashes only the worker and an app-only change leaves `sw.js` unchanged.
-      Whether Cache Storage keeps a response sent with `no-store` is not probed.
-      The answering listener goes in the template bundle too, so `navigate` runs
-      only for a page that does not answer. The one-second wait for an answer is
-      a guess. `focus()` stays after an answer, since a page cannot bring itself
-      forward. Measured 2026-10-29 in headless Chromium: a page answered on a
-      `MessageChannel` in under a millisecond, and a page with no listener gave
-      nothing until the worker's one-second timeout. A relaunch of the installed
-      app with the daemon down shows a black screen today, measured on the phone
-      on 2026-10-30 with the React queue's build. Master is expected to behave
-      the same, since the worker intercepts no fetches. The shell cache is what
-      fixes it.
+- [ ] product: the service worker keeps the shell and a tap moves the open app,
+      spec [029](029-worker-shell.md).
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
