@@ -22,11 +22,7 @@ const states: readonly ScreenState[] = [
   { id: "queue-screen--not-allowed", caption: "notifications not allowed" },
   { id: "queue-screen--lapsed", caption: "a lapsed subscription" },
   { id: "queue-screen--awkward-week", caption: "the awkward week" },
-  { id: "queue-screen--loading", caption: "before the first view" },
-  {
-    id: "queue-screen--loading-offline",
-    caption: "before the first view, daemon down",
-  },
+  { id: "queue-screen--loading", caption: "connecting, before the first view" },
 ];
 
 const wide: ScreenState = { id: "queue-screen--wide", caption: "wide layout" };

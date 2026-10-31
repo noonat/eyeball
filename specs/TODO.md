@@ -33,6 +33,12 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] product: a stream that never connects shows no offline notice. The notice
+      waits for the stream's `error` event, and a phone's connection to a daemon
+      whose tailnet node is offline gets no error: the packets are dropped, and
+      a request from the desktop had no answer after 30 s on 2026-10-30. A
+      stream that was open and is cut does error, so the notice shows there. One
+      fix counts a stream that has not opened within the notice's delay as down.
 - [ ] tooling: a flaky browser test. `TestServer_Surface_browserJump`
       (`internal/server/browser_test.go`) fails at "the target moved as bodies
       loaded around it", with the target 3482px from the head where the limit

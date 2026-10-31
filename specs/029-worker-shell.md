@@ -166,7 +166,51 @@ used by the spec that moves the review screen.
 > - `go test -race ./...` — 53.1s
 > - `go test -count=1 -tags browser ./internal/server` — 67.0s
 
-## Iteration 4: On the phone
+## Iteration 4: The connecting state
+
+```punchcard
+required_acks:
+  - connecting-approved
+```
+
+Added on 2026-10-30, during the phone check below. With the daemon stopped, the
+relaunched app drew the state from Iteration 1 with no offline notice, and the
+owner asked for a different state before the first view: the standard
+background, a large eye in the middle of the screen that blinks after a random
+delay of one to five seconds, each time, and the words "Eyeball is connecting…"
+in small type below it. On the sheet the owner then asked for the app's own eye,
+with its lashes when shut and a 0 as its pupil, a blink that moves as the bar's
+does, and a shut eye held for a random time. The hold's range, 0.2 to 1 s, is a
+guess.
+
+The notices leave this state. The phone cannot tell a daemon that is down from
+one that is slow, since a tailnet node that is offline drops packets and nothing
+refuses the connection, and "connecting" is true of both. The first view
+replaces this state, and any notice due then draws with the queue. A stream that
+never connects showing no notice anywhere is recorded in specs/TODO.md.
+
+- [x] `QueueLoading` draws the large eye centered on the background, with the
+      words below it, and no bar or notices.
+- [x] The eye blinks after a random delay of one to five seconds, drawn afresh
+      for each blink, and does not blink when the reader asks for reduced
+      motion.
+- [x] Each blink holds the shut eye for a random time from 0.2 to 1 s, drawn
+      afresh for each blink.
+- [x] The browser test from Iteration 2 that reloads `/` with the daemon stopped
+      expects the connecting state, and still fails with the fetch handler
+      removed.
+- [x] The queue's stories and the queue sheet show the state light and dark, and
+      the offline variant is gone.
+- [x] The owner approves the sheet on the phone.
+
+> **Completed** 2026-10-31 06:40 UTC
+>
+> - acks: connecting-approved
+> - `make check` — 14.3s
+> - `go test -race ./...` — 45.6s
+> - `go test -count=1 -tags browser ./internal/server` — 64.4s
+
+## Iteration 5: On the phone
 
 ```punchcard
 required_acks:
@@ -176,8 +220,18 @@ required_acks:
 Worked by the orchestrator, with the daemon running this branch's build. Each
 result is written here as it arrives.
 
-- [ ] With the daemon stopped, the installed app relaunched draws the approved
-      offline state, and the queue once the daemon is back.
+**Daemon stopped, app relaunched, 2026-10-30.** The cached shell drew the
+queue's state before its first view, with no offline notice. The notice waits
+for the stream's `error` event, and none came. With the daemon's tailnet node
+offline, a request to its address from the desktop had no answer after 30 s: the
+packets are dropped, and nothing refuses the connection. The refused connection
+in 4 ms in the probes was on a local address. The shell drew anyway because the
+worker answers a navigation from the cache after one second. With the daemon
+started again and the app left open, the queue drew on its own. The owner then
+asked for the state in Iteration 4.
+
+- [ ] With the daemon stopped, the installed app relaunched draws the connecting
+      state from Iteration 4, and the queue once the daemon is back.
 - [ ] A daemon rebuilt while the app was closed: the next launch opens the new
       build with no update notice.
 - [ ] A page open across a rebuild shows the update notice, and one Refresh

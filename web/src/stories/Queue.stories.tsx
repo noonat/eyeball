@@ -82,19 +82,14 @@ export const AwkwardWeek: Story = {
   play: sameAsApproved(awkwardHtml),
 };
 
-/** The moment before the first view arrives: the bar holds the wordmark only. */
+/**
+ * The moment before the first view arrives, which a launch with the daemon down
+ * stays in: a large eye that blinks after one to five seconds, each time, and
+ * the words below it.
+ */
 export const Loading: Story = {
   args: { queue: populated },
   render: () => <QueueLoading />,
-};
-
-/**
- * A launch with the daemon down, which the worker's cached shell opens: the
- * same bar, with the offline notice and nothing to list.
- */
-export const LoadingOffline: Story = {
-  args: { queue: populated },
-  render: () => <QueueLoading offline />,
 };
 
 /**

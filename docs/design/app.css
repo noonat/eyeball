@@ -591,6 +591,123 @@
   background-color: var(--ink-faint);
 }
 
+/* The connecting state's eye: the bar's, at 144px wide, with a 0 as its pupil.
+ * The iris keeps the bar's ratio of 19px to 44px, and its digit the bar's of
+ * 11.5px to 19px. The mask scales the outline's stroke with the eye, as the app
+ * icon's does.
+ *
+ * Its blink moves as eye-blink does, in two animations with the hold between
+ * them left to the client, which draws its length for each blink. Closing is
+ * the first 45% of eye-blink's 420ms, 189ms, and opening is its last 40%,
+ * 168ms, with the same curve and the same squash to 0.08. The keyframes are its
+ * own, since web/ts/blink.ts times a count change against the verdict's.
+ *
+ * The fades are this eye's own, since eye-blink has none. The shut eye with its
+ * lashes is a layer of its own, ::after, drawn at full size and never scaled.
+ * In the last 22% of the closing, 42ms, the open outline and the iris fade out
+ * as the shut eye fades in. In the first 25% of the opening, also 42ms, they
+ * fade in as it fades out. No mask is swapped partway through an animation. The
+ * outline and the iris are animated themselves rather than their container,
+ * which would scale the shut eye too. */
+.eye.splash {
+  width: 144px;
+  height: 90px;
+}
+
+.eye.splash .iris {
+  width: 62px;
+  height: 62px;
+  font-size: 37.5px;
+  line-height: 62px;
+}
+
+.eye.splash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--ink);
+  -webkit-mask: var(--eye-shut) center / contain no-repeat;
+  mask: var(--eye-shut) center / contain no-repeat;
+  opacity: 0;
+}
+
+@keyframes splash-close {
+  0% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  77.8% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.08);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-close-shut {
+  0%,
+  77.8% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes splash-open {
+  0% {
+    transform: scaleY(0.08);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes splash-open-shut {
+  0% {
+    opacity: 1;
+  }
+  25%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.eye.splash.closing::before,
+.eye.splash.closing .iris {
+  animation: splash-close 189ms ease-in-out 1 both;
+}
+
+.eye.splash.closing::after {
+  animation: splash-close-shut 189ms ease-in-out 1 both;
+}
+
+/* Held shut: the end of closing, drawn without an animation. */
+.eye.splash.closed::before,
+.eye.splash.closed .iris {
+  transform: scaleY(0.08);
+  opacity: 0;
+}
+
+.eye.splash.closed::after {
+  opacity: 1;
+}
+
+.eye.splash.opening::before,
+.eye.splash.opening .iris {
+  animation: splash-open 168ms ease-in-out 1 both;
+}
+
+.eye.splash.opening::after {
+  animation: splash-open-shut 168ms ease-in-out 1 both;
+}
+
 /* A verdict blinks the eye once, on the queue it returns to. The queue draws
  * the eye with the count from before the verdict, and the client changes it to
  * the new count while the lid is shut, from 45% to 60% of the animation. The
@@ -614,9 +731,34 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .eye.blink {
+  .eye.blink,
+  .eye.splash.closing::before,
+  .eye.splash.closing::after,
+  .eye.splash.closing .iris,
+  .eye.splash.opening::before,
+  .eye.splash.opening::after,
+  .eye.splash.opening .iris {
     animation: none;
   }
+}
+
+/* The queue before its first view: the page's background, a large eye that
+ * blinks now and then, and one line in small type. It has no bar and no
+ * notices. */
+.connecting {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: var(--pad);
+  color: var(--ink-dim);
+  font-size: var(--t-sm);
+}
+
+.connecting p {
+  margin: 0;
 }
 
 /* ----------------------------------------------------------- queue rows */

@@ -29,9 +29,8 @@ function blinkFor(marked: string | null, queue: QueueView): boolean {
 }
 
 /**
- * Keeps the sticky head's height on the root element. It is keyed by what the
- * route draws, so it measures the head that is on screen after the first view
- * replaces the one before it.
+ * Keeps the sticky head's height on the root element. It is drawn with the
+ * first view, since the state before it has no head to measure.
  */
 function HeadTracker() {
   useEffect(() => {
@@ -93,16 +92,7 @@ export function QueueRoute() {
   }, [data]);
 
   if (data === undefined) {
-    return (
-      <>
-        <QueueLoading
-          offline={connection.offline}
-          updateReady={connection.updateReady}
-          onRetry={connection.retry}
-        />
-        <HeadTracker key="loading" />
-      </>
-    );
+    return <QueueLoading />;
   }
   return (
     <>
@@ -119,7 +109,7 @@ export function QueueRoute() {
         onAllow={push.allow}
         onResubscribe={push.resubscribe}
       />
-      <HeadTracker key="loaded" />
+      <HeadTracker />
     </>
   );
 }
