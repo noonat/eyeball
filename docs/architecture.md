@@ -641,8 +641,8 @@ compares, highlights, renders markdown and marks changed words, exactly as it
 does for the templates today. What changes is what it sends: JSON views of the
 same models, which the app draws and keeps in a cache. Moving between screens
 then loads no page, a change reported by the live stream updates the screen in
-place, and the installed app opens from a cached shell without asking the daemon
-for HTML.
+place, and the installed app opens from a cached shell when the daemon cannot
+answer.
 
 The alternative, server-rendered `html/template` with htmx, is what the surface
 was built on first. Every review, round and file was a page load, every change
@@ -951,26 +951,59 @@ The surface assumes one, for the reason in [product.md](product.md): the agent
 is running now, on a machine the phone can reach, and the review is a
 conversation with it.
 
-**The service worker caches the app's shell.** The shell is the page every
-address answers, the bundle, the stylesheet and the fonts, all keyed by the
-build that served them, so the installed app opens without waiting on the daemon
-for any of it. Data is never cached. A round's content is immutable and could
-be, but a second copy can outlive a daemon restart, and on a tailnet the round
-trip it would save is a few milliseconds.
+**The service worker keeps the app's shell for when the daemon cannot answer.**
+The shell is the page every address answers, the bundle, the stylesheets, the
+fonts and the icons, kept in a cache named by the build that served them. Data
+is never cached. A round's content is immutable and could be, but a second copy
+can outlive a daemon restart, and on a tailnet the round trip it would save is a
+few milliseconds.
 
-An earlier version of this section cached nothing but the fonts, which were
-served with an ETag and asked for on every load. That was right for pages the
-server rendered, where the HTML had to come from the daemon anyway. With a shell
-that is the same for every address, the launch is the one fetch worth saving.
+**A launch asks the daemon for the shell first.** The worker answers a
+navigation to a shell address from the network, and from its cache only when the
+daemon refuses the connection or has not answered within a second. The second is
+a guess. A refused connection failed in 4 ms in Chromium on 2026-10-30, so a
+stopped daemon falls back at once, and only a machine that cannot be reached at
+all waits out the timeout. Serving the shell from the cache first was rejected.
+The daemon's build changes with every binary, so the first launch after each
+rebuild would run the old shell against the new daemon and show the update
+notice, which is the prompt on every build rejected below. Asking first costs
+one round trip for a small page on each launch, and the view the screen draws
+waits on the daemon anyway.
 
-**A new build takes effect on the next launch.** The worker installs it when it
-appears and the open app keeps running the build it started with. The one case
-that cannot wait is a shell older than the daemon's API, which can break a
-screen. The live stream sends the daemon's build each time it connects, and when
-it differs from the build that served the page, the app shows a notice offering
-to reload. A reload prompt on every new build was rejected: nearly every build
-changes nothing a running screen depends on, and a prompt shown for those
-teaches the reader to dismiss it.
+**The shell's files are addressed by build.** The head writes a short hash of
+the build into the address of each script and stylesheet it links, and the
+worker answers each one from whichever cache holds that exact address. So a page
+draws one build's files, whichever build its HTML came from. Without it, a shell
+fetched from a new daemon would draw with the old cache's bundle until the new
+worker took over. A probe on 2026-10-30 with one address per file drew mixed
+pages: a reload timed to land as a new worker installed drew the old HTML with
+the new script and stylesheet in 5 of 27 trials in Chromium and 4 of 37 in
+WebKitGTK. The daemon ignores the build in an address and serves what it has.
+
+**Every build changes the worker, and a worker caches only its own build.** The
+daemon writes its build and the list of the shell's files into `sw.js` as it
+serves it, so a new binary is a new worker to the browser, which installs it on
+its next update check. The install fetches each file with a header naming the
+worker's build, and the daemon answers 409 when the header names another. A
+failed fetch fails the install, and the worker already in control stays.
+Measured on 2026-10-30 in Chromium and WebKitGTK with the check missing: a
+daemon restarted between the fetch of `sw.js` and the fill of the cache left the
+cache named for the old build holding the new build's files.
+`Cache-Control: no-store`, which every surface response carries, does not keep
+Cache Storage from holding a response, measured the same day in both. When the
+new worker activates it deletes every other build's cache.
+
+The worker answers nothing else. The live stream, the API, every write and every
+template page go to the daemon untouched, so a template page with the daemon
+down fails as it does today.
+
+**A page open across a rebuild offers to reload.** The live stream sends the
+daemon's build each time it connects, and when it differs from the build that
+served the page, the app shows a notice offering to reload. A reload fetches the
+shell from the daemon like any launch, so one Refresh reaches the new build. A
+reload prompt on every new build was rejected: nearly every build changes
+nothing a running screen depends on, and a prompt shown for those teaches the
+reader to dismiss it.
 
 **The service worker also exists for push.** iOS delivers web push only to an
 installed page with a registered worker, so one would be required even with
@@ -979,12 +1012,16 @@ nothing to cache. It handles `push` by showing the notification and
 
 **A tap moves the open app rather than reloading it.** A window already on the
 review is focused. Otherwise the worker posts the review's address to the window
-it finds, and the app's router moves to it with no page load. Only with no
-window to post to does the worker open one, which loads the shell. `navigate` on
-the window, which the worker used while the server rendered pages, reloads the
-whole app. It also failed to open the named review twice during 020, and 026
-could not reproduce why, so a path that does not depend on it is the fix this
-design offers for that fault.
+it finds and waits a second for an answer. The app's router moves to an address
+it draws with no page load, and a page sets `location` for one it does not, so
+both bundles answer. A window that does not answer gets `navigate`, and the
+beacons log how long the answer took and whether `navigate` ran. The second is a
+guess: in headless Chromium on 2026-10-29 a page answered in under a
+millisecond. Only with no window to post to does the worker open one, which
+loads the shell. `navigate` on the window, which the worker used while the
+server rendered pages, reloads the whole app. It also failed to open the named
+review twice during 020, and 026 could not reproduce why, so a path that does
+not depend on it is the fix this design offers for that fault.
 
 **The worker reports each tap to the daemon.** A tap on a phone shows nothing of
 which of `openReview`'s branches ran, and the worker has no console to read. So
