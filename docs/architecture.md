@@ -714,6 +714,46 @@ the too-large line, then rows of code. A row of code is a list of tokens, each
 with its role and whether its word changed, so the review page can draw its
 hunks from the same type.
 
+**A review's round is one view, and each card's body can be fetched on its
+own.** `GET /api/reviews/42` and `GET /api/reviews/42/rounds/2` answer the
+round: the brief, the verdict, the comparison control, the earlier rounds, the
+comments that belong to no card, what the reader can do, and one card per file
+with its counts and whether its body is held. A card's body is the rows of code
+with the comment threads under their lines, a document's passages, a rendering,
+or the line saying why there is none. Up to the sending thresholds under "A long
+review is drawn in pieces" the round's view holds every body. Past them each
+body is `null`, and the card asks `GET /api/reviews/42/rounds/2/cards/{path}`
+for it. One function builds a body from one file and its comments, and both
+routes call it, so a body fetched later is the body the round would have sent.
+The template route for a body builds the whole round and keeps one card, which
+compares every file in the round to answer for one. Both routes take
+`?against=base`, as the page does.
+
+**A document arrives as a list of passages.** In the template page a document
+card is one piece of HTML, and the threads under its passages are written into
+it through render's `After` hook. In the app a thread is a component, with a
+composer, an edit form and a delete button, so it cannot live inside HTML that
+is inserted as it is. render instead returns the document as a list. Each entry
+is one passage, with its HTML, its line range and whether it changed, or a fold
+holding a run of passages. The view sends each passage's HTML as `DocumentHTML`
+with its comments beside it, and the app draws a thread as the passage's
+sibling. Whether a run folds still depends on which passages have a comment, so
+render is given the commented ranges in place of `After`. The file page sends
+the same list with no comments, so one component draws a document wherever it
+appears. Rejected: keeping threads in the HTML and mounting components into it
+with portals. The components would sit inside markup React does not own, and a
+refetch that replaced the HTML would remove them.
+
+**The surface compresses what it sends.** A JSON view and the bundle are sent
+gzipped when the request accepts it. A code row's tokens are objects that repeat
+their key names, and a review's view is mostly tokens. Measured 2026-11-01 on
+11,846 rows of this repository's Go source in 26 cards, in the code row's shape
+without its header and final-newline fields: 4.8 MB as JSON, and 258 KB gzipped
+at level 6, the level the daemon uses. The daemon compressed nothing before
+this, and sent the 383 KB bundle as it is. A terser encoding, such as a token as
+an array, was rejected, since gzip removes the same repetition and the generated
+types stay readable.
+
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
 `make check` regenerates it and fails on any difference, so a renamed field
@@ -833,8 +873,13 @@ app. The app's sources are in `web/src/`.
 
 These are the libraries the other installed apps on this machine are built on,
 so how they behave on this phone is already known. Smaller choices, such as
-Preact or a cache written here, would save some kilobytes on a tailnet where a
-few kilobytes cost nothing measurable, and would give up that record.
+Preact or a cache written here, would save some tens of kilobytes of bundle, and
+would give up that record. This paragraph said a few kilobytes cost nothing
+measurable on a tailnet, which holds for a bundle and was wrong for a review's
+data. Measured 2026-11-01 on the owner's phone, which reached the probe's host
+through a Tailscale relay rather than directly: 4.8 MB of rows took 3.5 s to 10
+s to load uncompressed, and 0.8 s gzipped. The phone's path to the daemon's own
+node was not measured. Compression under "The surface" answers that.
 
 **The binary bundles the app with esbuild, linked into Go, from embedded
 sources.** The app's sources and the packages it imports are embedded with
@@ -937,14 +982,22 @@ Storybook, and the Node it needs, are development dependencies only.
 **The server is the truth, and the cache is a copy the server corrects.** The
 htmx design rejected client state because the tally, the comment list and the
 selection would exist twice and could disagree. Here they still exist twice, and
-three rules keep the copy correct.
+four rules keep the copy correct.
 
 - **The stream says when to refetch.** Each stamp from `/events` names the view
   it covers, where today one stamp covers a whole page, and the app invalidates
   the views it names. A change no screen shows refetches nothing. Until a view
   has a stamp, it is refetched when its screen opens and when the app comes back
   to the foreground, which TanStack Query does by default. The project view, the
-  tree and the file pages have none yet.
+  tree and the file pages have none yet. The review page's views carry the stamp
+  `/events?review=N` sends, which covers the review's state, each round's
+  verdict and the agent's replies, and a change refetches the round and the card
+  bodies on screen. It leaves comments out, as it does for the template page,
+  since the reader's own comments reach the cache from the server's answers.
+- **A refetch never takes typed text away.** A composer is keyed by where it
+  opened, a line, a passage, a file or the review, so a refetch that redraws its
+  card keeps it mounted with its text. A browser test types into a composer,
+  moves the stamp, and reads the text back.
 - **A write updates the cache from the server's answer**, never from a guess. A
   verdict shows as decided only once the server has said so. A comment shows as
   sending until its answer arrives, and as unsent with its text and a retry if
@@ -988,9 +1041,28 @@ as the body will be, from the hunk and line counts the view sends and row
 heights measured once on the device, so a body arriving above the reader moves
 nothing. A file that moved more than 500 lines holds its body behind a line
 naming its size and a Load control, since a lock file loaded by accident is a
-long scroll past it. Whether React draws an 11,700-line review smoothly on the
-phone this way, or needs rows drawn only near view, is assumed and not measured.
-The first review-page spec measures it.
+long scroll past it.
+
+Rows are drawn per body, not only near view. Measured 2026-11-01 with a probe
+page, not the real one: React and this stylesheet drew 26 cards of this
+repository's Go source, 11,846 rows, under the surface's policy, on the owner's
+iPhone in Safari. With every body mounted at once, the first draw took 1.5 s.
+With each body mounted as its card came within a screen, and the 12 cards over
+500 lines held behind Load as the real page holds them, the first draw took 76
+ms. The slowest body, 495 rows, took React 17 ms to mount, inside one frame. A
+fling still had 10 frames over 50 ms in 340, the worst 63 ms, and a run with the
+data uncompressed had 3 in 269. Neither fling looked wrong on the phone: no
+stutter, and no skeleton left where code should be. Frames that slow with mounts
+that cheap point at the browser's layout and paint of new rows, or at how Safari
+times frames while it scrolls, rather than at React, so drawing only the rows
+near view is not expected to remove them, and they did not show. That cause is
+an inference, not a measurement. Drawing rows only near view was rejected for
+its cost: row heights would have to be known before rows are drawn, and the
+reader's place and a line's anchor would point at rows that may not exist.
+React's `style` prop set the skeleton heights with no violation of the policy,
+whose `default-src 'self'` refuses a style attribute, because React writes a
+style through the CSSOM rather than as an attribute. The next review-page spec
+measures the real page.
 
 ## Notification
 
