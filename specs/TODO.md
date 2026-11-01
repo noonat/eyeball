@@ -31,6 +31,11 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] design: a table in a rendered document is one passage, so any change in it
+      marks the whole table as changed, as a list did before each of its items
+      became a passage of its own. A row as a passage would follow the lists,
+      and has the same question of where a row's comments go. The owner's note
+      on 2026-10-31.
 - [ ] product: the worker answers a moved screen's navigation with the shell
       when the daemon cannot answer. It answers `/` only, so a reload of the
       project view or a file page with the daemon down fails as a template page

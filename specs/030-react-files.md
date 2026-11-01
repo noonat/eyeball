@@ -59,6 +59,8 @@ routes, and the trusted field and the one component that inserts it.
 End-of-branch review pass: declined, because the review agent reads each
 iteration and the browser tests below fail with the template routes restored.
 
+The owner approved the spec on 2026-10-31 without the spec review pass.
+
 ## Out of scope
 
 - The review page, its composer and its deferred bodies, in the next item of
