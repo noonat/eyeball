@@ -26,10 +26,9 @@ client code. Each item is a spec.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
-      [026](026-tap-opens-the-review.md) is blocked until the fault is seen
-      again. The tap handling item above posts the address to the open app
-      instead of navigating it, which may remove the fault, and the beacons stay
-      to show which branch ran if it recurs.
+      [026](026-tap-opens-the-review.md) is blocked. The fault was seen again on
+      2026-10-31 with no beacon at all, so its next step is a beacon sent first
+      thing in the click handler.
 
 ## Unscheduled
 

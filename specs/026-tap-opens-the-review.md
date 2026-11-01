@@ -18,6 +18,15 @@ fix is written from them. The owner chose this over keeping the branch open
 until the fault recurred, which would have held an approval that any other merge
 cancels.
 
+**Seen again on 2026-10-31, and still blocked.** Three taps over Notes, during
+the phone check of spec 029, left no beacon at all ("Seen during 029" under
+Iteration 2). The `start` beacon was never reached, and every branch of
+`openReview` comes after it, so neither suspect below explains them. The next
+step is a beacon sent first thing in the click handler, before any wait, which
+tells a click that never reached the worker from a `matchAll` that never
+settled. The owner chose on 2026-10-31 to record this here and leave the beacon
+for when this spec is taken up.
+
 A notification tapped over Notes brought the installed app forward on the review
 already open, twice, with no page load. Tapped over the terminal app, the page
 loaded fresh by navigation, and later in the same day a tap from the terminal
@@ -163,6 +172,35 @@ reached the named review. No run left a window uncontrolled or found none, so
 neither suspect above has been seen. The longest time away was about three
 minutes, and the worker had been installed minutes before the first run. The
 failed taps in 020 came after hours of real use with a worker days old.
+
+### Seen during 029
+
+The daemon ran spec 029's branch, whose worker posts the address to the open
+window and waits up to a second for an answer before it calls `navigate`. The
+beacons are the same, with two more steps, `post` and `answer`.
+
+Three taps, on 2026-10-31 at 01:28, 01:31 and 11:34, with the app in the
+background on the queue and Notes in front, brought the app forward on the
+queue. The owner read the first two notifications, and each named its review, so
+the push reached the worker. No beacon reached the daemon. A temporary log of
+every request on the surface, there for the third tap, showed the page coming
+forward and nothing else: two fetches of the queue's view, `/api/`, and a new
+stream, with no `POST /taps` and no navigation.
+
+The first beacon, `start`, is sent after the two `matchAll` calls and before any
+branch. So either the click never reached the worker, or a `matchAll` call did
+not settle. Every tap logged before these reached `start`.
+
+Four taps later that day, over Notes and over the terminal app, with the app
+closed, in the background on a review, and in the background on the queue,
+opened the named review with every beacon logged. Nothing known differs between
+the failed taps and these except the worker's age. The third failed tap came
+about six minutes after the request log showed a new worker fill its cache. The
+first two came within about five minutes of a daemon restart onto a new build,
+and a refresh onto it, which should install a new worker. The four that worked
+came six to seven hours after the 11:28 install. Three taps against four is a
+pattern to test, not a cause, and Iteration 2's taps worked with a worker
+installed minutes before.
 
 ## Iteration 3: The fix
 
