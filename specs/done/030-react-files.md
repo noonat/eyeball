@@ -10,7 +10,7 @@ required_commands:
 
 The project view, a review's tree and every file page become screens the React
 app draws, from JSON views the server builds. The design is in
-[docs/architecture.md](../docs/architecture.md) under The surface, The client
+[docs/architecture.md](../../docs/architecture.md) under The surface, The client
 code and Client state, which this spec's first commit extends. The screens are
 the ones approved in `docs/design/project.html` and `docs/design/widening.html`,
 so the tearout reproduces them from components rather than redesigning them. The
