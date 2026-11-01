@@ -30,11 +30,12 @@ var worlds = map[string]func(ctx context.Context) (*world, error){
 	"week":                weekWorld,
 	"worktrees":           func(ctx context.Context) (*world, error) { return worktreeWorld(ctx, false) },
 	"worktrees-committed": func(ctx context.Context) (*world, error) { return worktreeWorld(ctx, true) },
+	"review":              reviewWorld,
 }
 
 // worldOrder is the order the worlds are built in, so a run is the same every
 // time.
-var worldOrder = []string{"week", "worktrees", "worktrees-committed"}
+var worldOrder = []string{"week", "worktrees", "worktrees-committed", "review"}
 
 // The frames of docs/design/project.html and docs/design/widening.html that a
 // working store can draw, each by the state it shows.

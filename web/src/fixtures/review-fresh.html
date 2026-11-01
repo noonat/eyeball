@@ -1,0 +1,46 @@
+<div class="topbar"><a class="back" href="/"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>A new plan</h1><span class="eye" role="img" aria-label="8 waiting"><span class="iris">8</span></span></div>
+<div class="scroll"><div class="page" data-stream="/events?review=10" data-stamp="5029c18f76364cb6" data-place="10:1:" data-review="10" data-round="1" data-acting="open">
+<div class="note letter">
+<p>The plan, as a document.</p>
+<span class="sig"><span class="agent">spec/013-plan</span></span>
+</div>
+<div class="brief">
+<div class="where"><span class="pill waiting">Waiting 25m</span><span class="pill plain">Round 1</span><span class="who"><a class="bit" href="/projects/2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/013-plan</span></span></span></div>
+<h2 class="title">A new plan</h2>
+</div>
+<form class="composer" hx-post="/reviews/10/comments" hx-target="#comments-review" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1"/>
+<input type="hidden" name="level" value="review"/>
+<input type="hidden" name="submission" value=""/>
+<div class="anchor">This review</div>
+<textarea class="field" name="body" aria-label="Comment" placeholder="Comment on the whole review…"></textarea>
+<div class="foot">
+<span class="hint">Saved as you type</span>
+<span class="acts"><button type="submit" class="btn small accent">Add</button></span>
+</div>
+</form>
+<div id="comments-review">
+</div>
+<template id="unsent-card"><div class="comment unsent"><div class="anchor"><span class="where"></span></div><p></p><div class="acts"><a data-retry="" role="button" tabindex="0"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a data-discard="" role="button" tabindex="0"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div></div></template>
+<div class="toolbar">
+<span class="counts"><b class="files">1 file, new</b></span>
+<a class="btn small" href="/reviews/10/files/docs/plan.md?view=source">Raw diff</a>
+</div>
+<div class="prose" data-path="docs/plan.md"><div class="blk" data-lines="1-1"><h1>The plan</h1></div>
+<div class="blk" data-lines="3-3"><p>The first round has an empty base, so nothing is marked.</p></div>
+<div class="blk" data-lines="5-5"><h2>Steps</h2></div>
+<div class="blk" data-lines="7-7"><p>Write it. Read it. Ship it.</p></div>
+</div>
+<div class="tree">
+<a class="treerow" href="/reviews/10/files/"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+</div><form class="decide" id="bar" hx-post="/reviews/10/decision" hx-target="this" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1"/>
+<div id="unsent" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong><span id="unsent-count">1 comment</span> did not save.</strong> Retry it, or delete it, before deciding.</span></div></div>
+<div id="unsaved" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
+<div class="tally" id="tally"><span>No comments yet</span></div>
+<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…"></textarea>
+<div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
+<div id="whynot" hidden=""><span class="why-not">You can’t submit a review while offline.</span></div>
+</form>
+</div>

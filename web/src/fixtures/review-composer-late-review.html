@@ -1,0 +1,11 @@
+<form class="composer" hx-post="/reviews/3/comments" hx-target="#comments-review" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1">
+<input type="hidden" name="level" value="review">
+<input type="hidden" name="submission" value="">
+<div class="anchor">This review</div>
+<textarea class="field" name="body" aria-label="Comment" placeholder="Comment on the whole review…"></textarea>
+<div class="foot">
+<span class="hint">Sends immediately</span>
+<span class="acts"><button type="submit" class="btn small accent">Send</button></span>
+</div>
+</form>

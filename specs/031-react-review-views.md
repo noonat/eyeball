@@ -66,6 +66,8 @@ the markup comparison checks the components against the template. End-of-branch
 review pass: declined, because the review agent reads each iteration, and the
 template page, which nothing here removes, keeps its tests.
 
+The owner approved the spec on 2026-11-01, with both review passes declined.
+
 ## Out of scope
 
 - The route switch, the writes, the deferred bodies as the app fetches them, the

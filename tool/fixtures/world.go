@@ -9,9 +9,11 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,6 +103,22 @@ func (w *world) get(address string) ([]byte, error) {
 		return nil, errors.Newf("GET %s answered %d", address, rec.Code)
 	}
 	return rec.Body.Bytes(), nil
+}
+
+// send makes a request of the surface and returns whatever it answered, since a
+// refusal is a state the fixtures keep.
+func (w *world) send(method, address string, form url.Values) (int, http.Header, []byte, error) {
+	var body io.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	}
+	req := httptest.NewRequest(method, address, body)
+	if form != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	rec := httptest.NewRecorder()
+	w.srv.Surface().ServeHTTP(rec, req)
+	return rec.Code, rec.Header(), rec.Body.Bytes(), nil
 }
 
 // repo makes a git repository with files committed as its base.
