@@ -61,6 +61,14 @@ control, and judged in the last iteration with the rest. A tearout iteration
 first was rejected, since the frame and the stylesheet already decide how it
 looks.
 
+**The route switches behind a server option until every test is ported.** Every
+iteration is gated on the browser tests, and about 25 of them read the template
+page by its markup. Switching the route in one iteration would fail the ones a
+later iteration ports. A server option answers the review routes with the shell,
+the tests ported in Iterations 3 to 5 set it, and Iteration 5 makes it the
+default and removes it. Porting every review browser test in one iteration was
+rejected as one review too large to read.
+
 **The stamp still leaves comments out.** 031 left the question here.
 architecture.md answers it under "The stream says when to refetch": the reader's
 own comments reach the cache from the server's answers, so a stamp counting them
@@ -75,11 +83,16 @@ template's storage shapes and the app's reader, the router's scroll and the
 screen's, the cards route's one-file comparison and the round's, and the blink
 mark across a router move instead of a page load. End-of-branch review pass:
 requested, because Iteration 2 rewrites about 235 markup reads in the Go tests
-and Iteration 5 removes what they read, and a check lost between the two fails
+and Iteration 6 removes what they read, and a check lost between the two fails
 nothing, where the review agent reads one iteration at a time.
 
 The owner approved the spec on 2026-11-01, and after Iteration 1 had started
-agreed to both review passes, the spec's to be run against this draft.
+agreed to both review passes, the spec's to be run against this draft. The spec
+pass found 16 problems, among them an Iteration 3 that could not close, a jump
+from the list of files that lands at the queue's old scroll after a router move,
+and template behaviors no iteration ported. Iterations 2 to 7 are its fixes,
+made before Iteration 2 started. Its findings on Iteration 1's code are todos in
+Iteration 3, where the app first uses those routes.
 
 ## Out of scope
 
@@ -163,52 +176,106 @@ Where the work went differently from the paragraphs above.
 ## Iteration 2: The Go tests over the views
 
 - [ ] Every Go test that reads the review page's markup reads the round's view,
-      the cards route or a JSON write instead, and no Go test outside
-      `tool/fixtures` parses the template page.
+      the cards route or a JSON write instead, among them the stamp test in
+      `stream_test.go`, the eye and htmx configuration tests in
+      `surface_test.go` and the brief's project link in `project_test.go`.
+- [ ] The htmx configuration test reads the error page, the one template page
+      left after the review's.
+- [ ] No Go test outside `tool/fixtures` parses the template review page.
 - [ ] A fact an old test checked that only markup holds is listed in this spec's
       Departures with the story that now checks it.
 - [ ] Five facts the old tests checked, chosen across the rewritten files, are
       broken in the view builder one at a time, and each fails a rewritten test.
 
-## Iteration 3: The screen
+## Iteration 3: The screen and its comments
 
-- [ ] `/reviews/{review}` and `/reviews/{review}/rounds/{round}` answer the
-      shell, and the app draws the review from its view, with the view's title.
+- [ ] A server option answers `/reviews/{review}` and
+      `/reviews/{review}/rounds/{round}` with the shell, and the app draws the
+      review from its view, with the view's title. The browser tests ported here
+      and in the next two iterations set it, and the rest still read the
+      template until Iteration 5 makes it the default.
+- [ ] The review's patterns are in the app's routes, so a link to a review from
+      another screen moves the router, and the link test's last block says so.
 - [ ] The toolbar's comparison links and the back link are router links.
+- [ ] The view's comment and bar addresses name the `/api` routes, and a write
+      sends the loopback token, whose refusal answers a write under `/api` with
+      `Refusal`.
+- [ ] A tap opens the composer on a row, a removed row, a passage, a file's
+      image or its line saying why there is no body, as the template's script
+      does, with the selection drawn and the composer scrolled into view.
+- [ ] A composer moved to another anchor keeps its typed text, as the template's
+      does, and the comment in `composer.ts` that says otherwise is corrected.
+- [ ] A composer's level chips switch what it sends, and a test sends a line, a
+      passage and a removed row switched to file and to review through the JSON
+      route and finds each stored.
+- [ ] `tool/fixtures` writes a removed row's composer under `?against=base`, and
+      the composer test takes each anchor from the scene that wrote the fixture.
 - [ ] A comment is added, edited, deleted and retried through the JSON routes,
-      shown as sending and then as stored, and the tally follows each answer.
+      shown as sending and then as stored, and the tally follows each answer. A
+      retry sends the first try's submission key, and an edit or delete of a
+      comment already gone answers 404 with `Refusal` where it answers 500 now.
 - [ ] A failed request draws the failed line beside its control in the composer,
-      the edit form, a comment's actions and the bar, each with a story.
-- [ ] A verdict sets the blink mark, moves the router to the queue once stored,
-      and draws the refused bar on 422. A browser test fails with the mark
-      removed.
-- [ ] Drafts are saved as typed and restored on reload, and a Vitest test
-      restores a draft in the template page's shape.
-- [ ] The screen follows `/events?review=N`, refetches the round and the bodies
-      on screen when its stamp moves, and keeps a composer's typed text.
-- [ ] The browser tests for these behaviors run against the app's screen, and
-      each fails with the route answering the template.
+      the edit form and a comment's actions, each with a story.
+- [ ] Drafts are saved as typed through `web/ts/storage.ts` and restored on
+      reload, and none is kept on a decided round. A draft inside a folded run
+      of passages opens the fold.
+- [ ] A Vitest test stores a draft with all five of the template page's parts
+      through `remember` and finds each restored, and the unsent card's retry
+      reusing its stored key.
+- [ ] The app prunes expired stored entries, as the template bundle does.
+- [ ] The browser tests for comments, passages, folds, rendered cards, a decided
+      round's tap, a failed save and a draft surviving a reload run against the
+      app's screen, and each fails with the option off.
 
-## Iteration 4: The long review
+## Iteration 4: The verdict and the stream
+
+- [ ] The bar holds the verdict back while text is unsaved, a comment is unsent
+      or the device is offline, as the template's guard does.
+- [ ] A verdict sets the blink mark through functions `blink.ts` exports, clears
+      it if the verdict fails, and moves the router to the queue once stored.
+- [ ] A change request with no comments draws the refused bar, and a failed
+      verdict draws the failed line in the bar with its note kept, with a story.
+- [ ] The screen follows `/events?review=N` and refetches the round and the
+      bodies on screen when its stamp moves, once nothing typed is unsaved, as
+      the template's reload waits.
+- [ ] The browser tests for the verdict, the blink, the refused change request,
+      the stream and a failed verdict run against the app's screen, and each
+      fails with the option off. The blink test reaches the review from the
+      queue by a router move.
+
+## Iteration 5: The long review
 
 - [ ] A deferred card asks for its body once it is open and within a screen of
       view, and a folded card once it is unfolded.
+- [ ] A body or a held card's Load that fails draws the failed line with a
+      retry, each with a story.
 - [ ] A skeleton's heights are measured once on the device, as `measureRows`
       measures them.
 - [ ] The card at the top of the screen stays put when a card above it changes
-      height, with Chromium's scroll anchoring off.
-- [ ] The reader's place and folds are restored after the router's scroll and as
-      bodies arrive, until the first tap, scroll or key, and a Vitest test
-      restores a place in the template page's shape.
-- [ ] A link to a comment scrolls to it once it is drawn, below its card's stuck
-      header.
-- [ ] The browser tests for bodies, held cards, the jump, the comment jump and
-      the reader's place run against the app's screen, and each fails with the
-      route answering the template.
+      height, with Chromium's scroll anchoring off, and a card folded from its
+      stuck header puts its header back at the top.
+- [ ] The reader's place is read when the screen mounts and saved as it scrolls,
+      folds and unmounts, and a scroll before the saved place is applied writes
+      nothing over it.
+- [ ] The place and folds are applied after the router's scroll and again as
+      bodies arrive, until a pointer down, click, wheel, touch move or key, or 3
+      s, as the template's are, and a Vitest test restores a place in the
+      template page's shape.
+- [ ] A draft anchored in a deferred card waits for its body, as the template's
+      does.
+- [ ] The list of files and a link to a comment move to their target once it is
+      drawn, below its card's stuck header, after the review was reached by a
+      router move from a scrolled queue.
+- [ ] The browser tests for bodies, held cards, the jump, the comment jump, the
+      sticky header and the reader's place run against the app's screen, each
+      fails with the option off, and the jump test reaches the review from a
+      scrolled queue.
 - [ ] The jump test is run 20 times, and its entry in specs/TODO.md records the
       result.
+- [ ] The review routes answer the shell with no option, and the option is
+      removed.
 
-## Iteration 5: The templates go
+## Iteration 6: The templates go
 
 - [ ] `review.html`, `acting.html` and the parts of `file.html` only they use,
       the form and fragment routes, the template cards route and the review
@@ -216,12 +283,12 @@ Where the work went differently from the paragraphs above.
 - [ ] The `web/ts` modules only the review template loaded are removed, and the
       template bundle still builds for the error page.
 - [ ] Browser tests that used the review page as their example of a template
-      page use the error page instead, and a link to the review from the app's
-      screens moves the router.
+      page use the error page instead, and the preview sandbox test posts to the
+      `/api` verdict route.
 - [ ] The template markup files are committed as they last came out, with a
       comment saying so, as 030 did.
 
-## Iteration 6: On the phone
+## Iteration 7: On the phone
 
 ```punchcard
 required_acks:

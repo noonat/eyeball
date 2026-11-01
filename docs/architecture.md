@@ -1056,9 +1056,10 @@ four rules keep the copy correct.
   load.
 - **What only this device knows stays on this device.** Drafts, the reader's
   place and folded cards stay in `localStorage`, as they are today. The app
-  reads them under the keys and in the shapes the template page saved,
-  `drafts:R:N` and `place:R:N:against`, so text typed on the template page
-  before the switch is there after it.
+  reads them through `web/ts/storage.ts`, which prefixes each key and wraps each
+  value with the time it was saved, under the keys and in the shapes the
+  template page saved, `drafts:R:N` and `place:R:N:against`, so text typed on
+  the template page before the switch is there after it.
 
 **Each screen holds its own stream**, for the build and connection notices and
 for the stamps it follows. The queue opens `/events?queue=1`, and a screen with
@@ -1082,9 +1083,15 @@ after the move, so the screen sets the reader's saved place in an effect that
 runs after the router's, and again as each body arrives until the reader's first
 tap, scroll or key, as the template page does. A link to a comment is the same
 case: at the move the comment is not drawn, so the router scrolls to the top,
-and the screen scrolls to the comment once it is. A card's fold is the screen's
-state, seeded from the saved place, since a card drawn with a constant `open`
-opens again whenever a refetch mounts it anew.
+and the screen scrolls to the comment once it is. A link to a card or a comment
+on the same screen is a router link too, never a plain `#` anchor. A plain one
+pushes a history entry with no state, which the router files under the key
+`default`, the key of the first page the app loaded, and its scroll then
+restores that page's place. Measured 2026-11-01 with React Router 7.18.5 in
+headless Chromium: after a router move from a list scrolled to 1500 px, a plain
+anchor left the page at 1500 px, and a router link reached its target. A card's
+fold is the screen's state, seeded from the saved place, since a card drawn with
+a constant `open` opens again whenever a refetch mounts it anew.
 
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
