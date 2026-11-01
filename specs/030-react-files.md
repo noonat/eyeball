@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -250,11 +250,32 @@ required_acks:
 Worked by the orchestrator, with the daemon running this branch's build. Each
 result is written here as it arrives.
 
-- [ ] The project view, a tree and file pages of each kind match the approved
+- [x] The project view, a tree and file pages of each kind match the approved
       sheet.
-- [ ] Moving from the project view to a file and back, and through the tree,
+- [x] Moving from the project view to a file and back, and through the tree,
       loads no page and returns to the place in the list.
-- [ ] A review's "All files" opens the tree, and a link from these screens to
+- [x] A review's "All files" opens the tree, and a link from these screens to
       the review page loads it.
-- [ ] A worktree's live file opens by `?copy=`, and a change on disk shows when
+- [x] A worktree's live file opens by `?copy=`, and a change on disk shows when
       the app comes back to the foreground.
+
+Results, from the owner's phone on 2026-11-01, against the build of 0d5a318. A
+scratch review held every kind of file: code, Markdown documents, an HTML page,
+PNGs, an SVG, a PDF, a WAV and an MP4, copied from the fixtures' raw files. It
+was withdrawn after the check.
+
+- Every kind matched the approved sheet, the PDF included, which headless
+  Chromium could not show. The HTML page opens as source, and Page draws it in
+  its frame.
+- Through the tree and back, no page loaded and the scroll came back.
+- The tree's back link loaded the review page, which is still a template.
+- A scratch file in the working copy opened from the project view by `?copy=`. A
+  line was added on disk while it was open, and it showed when the app came back
+  from another app.
+
+> **Completed** 2026-11-01 15:06 UTC
+>
+> - acks: phone-checked
+> - `make check` — 32.1s
+> - `go test -race ./...` — 44.5s
+> - `go test -count=1 -tags browser ./internal/server` — 70.4s
