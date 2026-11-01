@@ -761,6 +761,27 @@ uses. The daemon compressed nothing before this, and sent the 383 KB bundle as
 it is. A terser encoding, such as a token as an array, was rejected, since gzip
 removes the same repetition and the generated types stay readable.
 
+**A write sends JSON and is answered with what it changed.** The write routes
+under `/api` take a JSON body whose type is in `internal/view`, so the generator
+writes the request's type as it writes a view's, and a field renamed in Go fails
+the app's build. A comment names its round, its level, its path, its lines or
+the old line of a removed row, the comparison, its text and a submission key.
+The server still reads the quote from the round's frozen content, never from the
+request, and stores a comment on a round that is decided, withdrawn or followed
+by another as late, as the template route does. An added or edited comment is
+answered with the stored comment as the view sends it and the review's count of
+comments, and the app puts the comment at its anchor in the cached round or card
+body. A delete is answered with the count. A verdict names its round, the
+verdict and its note, and is answered with no body once it is stored. A request
+the server refuses, such as an empty comment or a verdict on a round no longer
+open, is answered 4xx with `Refusal`, one sentence, which the app shows beside
+the control while the text stays where it was typed. A change request with no
+comments is answered 422, which the bar draws as its refused state. No answer,
+or a 5xx, leaves a comment unsent with a retry that sends the same submission
+key, so a first try that reached the store and lost its answer is stored once.
+Form bodies, which the template routes take, were rejected: the app would build
+a form from typed data, and nothing generated would check it.
+
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
 `make check` regenerates it and fails on any difference, so a renamed field
@@ -825,7 +846,9 @@ describes and no spec has built yet.
 | `GET /healthz`                                             | liveness, after touching the database               | 006     |
 
 The routes that answered htmx with fragments go: the composer, a comment's card
-and its edit form. The app draws those from data it already holds.
+and its edit form. The app draws those from data it already holds. So do the
+template page's own writes, which take a form and answer a fragment, and the
+template route for a card's body, since the app writes and reads under `/api`.
 `/static/htmx.js` goes with htmx, and `/static/shell.css` joins the bundled
 stylesheet, since there is no tearout page left for it to stay out of.
 
@@ -1009,9 +1032,15 @@ four rules keep the copy correct.
 - **A write updates the cache from the server's answer**, never from a guess. A
   verdict shows as decided only once the server has said so. A comment shows as
   sending until its answer arrives, and as unsent with its text and a retry if
-  the answer is a failure, as product.md requires.
+  the answer is a failure, as product.md requires. A verdict sets the blink mark
+  when it is sent and clears it if it fails. Once it is stored the router moves
+  to the queue, which reads the mark when it mounts, as it does after a page
+  load.
 - **What only this device knows stays on this device.** Drafts, the reader's
-  place and folded cards stay in `localStorage`, as they are today.
+  place and folded cards stay in `localStorage`, as they are today. The app
+  reads them under the keys and in the shapes the template page saved,
+  `drafts:R:N` and `place:R:N:against`, so text typed on the template page
+  before the switch is there after it.
 
 **Each screen holds its own stream**, for the build and connection notices and
 for the stamps it follows. The queue opens `/events?queue=1`, and a screen with
@@ -1026,6 +1055,19 @@ with React Router's `ScrollRestoration`, which does. Measured 2026-10-31 in
 headless Chromium with React Router 7.18.5 and a cached view: a list scrolled to
 4000 px, a row opened, and back returned to 4000 px. iOS is not measured.
 
+**The review screen sets its own scroll, after the router's.**
+`ScrollRestoration` scrolls in a layout effect at the root on every move: to the
+saved position on back and forward, to the element the hash names if it exists
+yet, and otherwise to the top. That is read from React Router 7.18.5's
+`useScrollRestoration`, not measured. A review's view and its bodies arrive
+after the move, so the screen sets the reader's saved place in an effect that
+runs after the router's, and again as each body arrives until the reader's first
+tap, scroll or key, as the template page does. A link to a comment is the same
+case: at the move the comment is not drawn, so the router scrolls to the top,
+and the screen scrolls to the comment once it is. A card's fold is the screen's
+state, seeded from the saved place, since a card drawn with a constant `open`
+opens again whenever a refetch mounts it anew.
+
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
 build check and the keyboard fix in `viewport.ts` are framework-free modules,
@@ -1034,7 +1076,12 @@ template DOM, as push setup does with its page's buttons, the logic is a
 function both callers use and the template keeps its wiring. The binary embeds
 and stages `web/ts` beside `web/src`, so the app imports them. Rewriting them in
 React was rejected: two copies would have to agree on storage keys, such as the
-blink mark and the token, and nothing would check that they do.
+blink mark and the token, and nothing would check that they do. The review
+page's own modules are the exception, since each is wired to the template's
+markup and htmx's events: the composer, the drafts, the unsent cards, the
+deferred bodies and the reader's place. The app takes their logic into the
+review screen, and they go with the review template, so no two copies are left
+to agree.
 
 **The iOS behaviors tied to a screen move with that screen**, each re-checked on
 the phone when it moves: the deferred card bodies with their skeleton heights
@@ -1050,6 +1097,13 @@ heights measured once on the device, so a body arriving above the reader moves
 nothing. A file that moved more than 500 lines holds its body behind a line
 naming its size and a Load control, since a lock file loaded by accident is a
 long scroll past it.
+
+A skeleton is only as tall as a guess, and a document's, six lines whatever its
+length, is a poor one. Safari has no scroll anchoring, so a body taller than its
+skeleton arriving above the reader would push what they were reading down. The
+screen keeps the card at the top of the screen where it was whenever a card
+above it changes height, as the template page's `holdPlace` does, and turns
+Chromium's own anchoring off so a browser test runs the path Safari runs.
 
 Rows are drawn per body, not only near view. Measured 2026-11-01 with a probe
 page, not the real one: React and this stylesheet drew 26 cards of this
