@@ -76,18 +76,6 @@ type notice struct {
 	Heading, Text string
 }
 
-// handleFilePage answers GET /reviews/{review}/files/{path...}: a path at the
-// review's latest round.
-func (s *Server) handleFilePage(w http.ResponseWriter, r *http.Request) error {
-	return s.servePage(w, r, s.fileAnswer)
-}
-
-// handleRoundFilePage answers GET /reviews/{review}/rounds/{round}/files/
-// {path...}: a path at any round. The latest round answers here as well.
-func (s *Server) handleRoundFilePage(w http.ResponseWriter, r *http.Request) error {
-	return s.servePage(w, r, s.fileAnswer)
-}
-
 // fileAnswer is what a review's file address answers, with the round in the
 // path or the review's latest.
 func (s *Server) fileAnswer(r *http.Request) (pageAnswer, error) {
@@ -698,12 +686,6 @@ func unmeasurable(st capture.State) string {
 		return "The project's repository is gone, so the change cannot be measured."
 	}
 	return "The commit this review started from is gone, so the change cannot be measured."
-}
-
-// notFoundPage writes the 404 page, with a banner where one says why.
-func (s *Server) notFoundPage(w http.ResponseWriter, n *notice) {
-	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address.", Notice: n}}
-	s.renderPage(w, http.StatusNotFound, "error", p)
 }
 
 // roundHref is a round's page: the review's own address for its latest round,

@@ -2,10 +2,10 @@
 // web/src/fixtures, so a story draws what the API really sends.
 //
 // A queue state is built in a store of its own. The project view, the tree and
-// the file pages are read from a few worlds of real repositories, and each also
-// gets the markup the template page renders for the same address, which the
-// component's story compares itself with. The queue's markup files are frozen
-// and are not written here.
+// the file pages are read from a few worlds of real repositories, and the files
+// their views point at are read through the raw route. The markup files beside
+// the views, which a story compares its component with, are frozen from the
+// template pages that drew them and are not written here.
 //
 // Every state is built through the server's own handlers, on a fixed clock, so
 // a review's id and a row's age are the same on every run.
@@ -176,13 +176,6 @@ func readScenes(ctx context.Context, key string, out map[string][]byte) error {
 		address := sc.address(w.ids)
 		view, err := w.get("/api" + address)
 		if err != nil {
-			return errors.Wrapf(err, "scene %s", sc.file)
-		}
-		page, err := w.get(address)
-		if err != nil {
-			return errors.Wrapf(err, "scene %s", sc.file)
-		}
-		if out[sc.file+".html"], err = pageMarkup(page); err != nil {
 			return errors.Wrapf(err, "scene %s", sc.file)
 		}
 		out[sc.file+".json"] = view

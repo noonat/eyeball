@@ -1,4 +1,5 @@
 import type { Project, WorkingCopy } from "../api/types";
+import { AppLink } from "./AppLink";
 import { Counts } from "./Counts";
 import { cx } from "./cx";
 import { EmptyBox } from "./EmptyBox";
@@ -131,7 +132,7 @@ function CopyRows({ copy }: { readonly copy: WorkingCopy }) {
       {copy.capped === null ? null : <ViewNotice notice={copy.capped} />}
       <div className="tree">
         {rows.map((row) => (
-          <a
+          <AppLink
             className={cx("treerow", !row.claimed && "inscope")}
             href={row.href}
             key={row.href}
@@ -143,7 +144,7 @@ function CopyRows({ copy }: { readonly copy: WorkingCopy }) {
             ) : (
               <Counts added={row.added} removed={row.removed} />
             )}
-          </a>
+          </AppLink>
         ))}
       </div>
     </>

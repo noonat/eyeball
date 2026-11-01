@@ -318,9 +318,7 @@ func TestServer_Surface_projectOpenReviews(t *testing.T) {
 	// verdict first, as the queue orders each. A working row's age runs from
 	// its verdict. The project is left out of each row, since the page is the
 	// project, and an approved review is not open.
-	res := serveSurface(q.s.Surface(), http.MethodGet, projectHref(harbor))
-	g.Expect(res.Code).To(Equal(http.StatusOK))
-	doc := parse(g, res.Body.String())
+	doc := viewDocument(g, q.s.Surface(), projectHref(harbor), http.StatusOK)
 	g.Expect(headings(doc)[0]).To(Equal("Open reviews 4"))
 	type shape struct {
 		Class, Href, Agent, Age, Title, Meta string

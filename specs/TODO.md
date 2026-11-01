@@ -31,6 +31,12 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] tests: rewrite the Go tests that read the project, tree and file screens
+      through `internal/viewdoc` as assertions over the views' fields, then
+      delete the package. They were left reading the old class names because
+      about 140 assertions across file_test.go, tree_test.go, project_test.go
+      and the seed's link crawl would all change at once, and a rewrite that
+      large risks losing a check without a failure to show it.
 - [ ] design: a table in a rendered document is one passage, so any change in it
       marks the whole table as changed, as a list did before each of its items
       became a passage of its own. A row as a passage would follow the lists,

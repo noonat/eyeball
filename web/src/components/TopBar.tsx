@@ -1,3 +1,4 @@
+import { AppLink } from "./AppLink";
 import { Eye } from "./Eye";
 import { Icon } from "./Icon";
 
@@ -36,10 +37,10 @@ export function TopBar({
         <span className="wordmark">eyeball</span>
       ) : (
         <>
-          <a className="back" href={back.href}>
+          <AppLink className="back" href={back.href}>
             <Icon name="chevron-left" />
             {back.label}
-          </a>
+          </AppLink>
           <h1>{title}</h1>
         </>
       )}

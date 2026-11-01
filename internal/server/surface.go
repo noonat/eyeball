@@ -250,13 +250,19 @@ func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data
 	_, _ = w.Write(buf.Bytes())
 }
 
-// handleApp answers GET /{$}: the head every page writes, the React bundle
-// and the element it draws into. The app fetches the queue's view from /api/
-// and opens its own stream, so the shell holds nothing that changes with the
-// store. A stamp printed here would be a second read of the queue beside the
-// view's own, which is the gap the view's stamp closes.
-func (s *Server) handleApp(w http.ResponseWriter, _ *http.Request) error {
-	data := page{Title: "Queue", VAPID: s.vapidPublic(), Build: s.daemon.Build, Token: s.buildToken()}
+// handleApp answers every address the React app draws with the shell: the head
+// every page writes, the React bundle and the element it draws into. The app
+// fetches the address's view from /api and opens its own stream, so the shell
+// holds nothing that changes with the store. A stamp printed here would be a
+// second read of the store beside the view's own, which is the gap the view's
+// stamp closes. The shell cannot say whether an address exists, so a missing
+// one is the app's 404 screen, from the view's 404.
+func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) error {
+	title := "Eyeball"
+	if r.URL.Path == "/" {
+		title = "Queue"
+	}
+	data := page{Title: title, VAPID: s.vapidPublic(), Build: s.daemon.Build, Token: s.buildToken()}
 	// A clone, since executing a template escapes its tree in place and the
 	// shared one is read by every request.
 	t, err := s.pages.Clone()

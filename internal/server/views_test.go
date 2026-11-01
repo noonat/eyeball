@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -190,6 +191,57 @@ func readSources(g *WithT, dir string) map[string]string {
 	return out
 }
 
+// appPatterns reads the patterns the app draws from the client function's
+// file, as net/http writes them: a parameter is {name}, and a trailing splat
+// is {path...}.
+func appPatterns(g *WithT, source string) []string {
+	g.THelper()
+	list := regexp.MustCompile(`(?s)drawnPatterns = \[(.*?)\] as const`).FindStringSubmatch(source)
+	g.Expect(list).NotTo(BeNil(), "the drawnPatterns list is not where the test reads it")
+	var out []string
+	for _, m := range regexp.MustCompile(`"([^"]+)"`).FindAllStringSubmatch(list[1], -1) {
+		pattern := m[1]
+		if pattern == "/" {
+			out = append(out, "/{$}")
+			continue
+		}
+		pattern = regexp.MustCompile(`:(\w+)`).ReplaceAllString(pattern, "{$1}")
+		if rest, ok := strings.CutSuffix(pattern, "/*"); ok {
+			pattern = rest + "/{path...}"
+		}
+		out = append(out, pattern)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// shellPatterns is the path of every route the daemon answers with the shell.
+func shellPatterns() []string {
+	var out []string
+	for _, rt := range routes {
+		if rt.shell {
+			_, path, _ := strings.Cut(rt.pattern, " ")
+			out = append(out, path)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func Test_appPatternsReadsTheClientList(t *testing.T) {
+	g := NewWithT(t)
+	source := `export const drawnPatterns = [
+  "/",
+  "/a/:one/b/*",
+  "/c/:one/d/:two/e/*",
+] as const;`
+	g.Expect(appPatterns(g, source)).To(Equal([]string{
+		"/a/{one}/b/{path...}",
+		"/c/{one}/d/{two}/e/{path...}",
+		"/{$}",
+	}))
+}
+
 func Test_codeRowsCarryChanges(t *testing.T) {
 	g := NewWithT(t)
 	before := []byte("keep\nthe old line\nlast")
@@ -354,6 +406,32 @@ func Test_pageRoutesHaveViews(t *testing.T) {
 	}))
 }
 
+func Test_shellRoutesAnswerTheShell(t *testing.T) {
+	g := NewWithT(t)
+	f := newViewFixture(g, t)
+	fill := strings.NewReplacer("{review}", itoa(f.review), "{project}", itoa(f.project), "{round}", "1", "{path...}", "a.txt", "{$}", "")
+	var asked int
+	for _, rt := range routes {
+		if rt.side != sideSurface || !rt.shell {
+			continue
+		}
+		_, path, _ := strings.Cut(rt.pattern, " ")
+		res := serveSurface(f.s.Surface(), http.MethodGet, fill.Replace(path))
+		g.Expect(res.Code).To(Equal(http.StatusOK), path)
+		g.Expect(res.Body.String()).To(ContainSubstring(`<div id="root"></div>`), path)
+		g.Expect(res.Body.String()).To(ContainSubstring("/static/react.js"), path)
+		asked++
+	}
+	g.Expect(asked).To(Equal(5))
+}
+
+func Test_shellRoutesAreTheAppsRoutes(t *testing.T) {
+	g := NewWithT(t)
+	source, err := os.ReadFile("../../web/src/app/routes.ts")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(shellPatterns()).To(Equal(appPatterns(g, string(source))))
+}
+
 func Test_trustedConversionsFindsEveryWay(t *testing.T) {
 	const stub = "package view\n\ntype DocumentHTML string\n\ntype File struct{ Document DocumentHTML }\n"
 	const head = "package server\n\nimport v \"github.com/noonat/eyeball/internal/view\"\n\n"
@@ -464,10 +542,6 @@ func TestServer_Surface_filesViewKind(t *testing.T) {
 			g.Expect(got.File).NotTo(BeNil())
 			g.Expect(got.Tree).To(BeNil())
 		}
-		// The top bar is the page's own, read from its markup.
-		doc := f.page(g, address, http.StatusOK)
-		g.Expect(got.Back).To(Equal(attr(find(doc, "back"), "href")))
-		g.Expect(got.BackLabel + got.Title).To(Equal(barText(doc)))
 		g.Expect(got.WaitingCount).To(PointTo(Equal(int32(2))))
 	}
 	for name, address := range trees {
@@ -486,9 +560,9 @@ func TestServer_Surface_projectView(t *testing.T) {
 	g.Expect(res.Code).To(Equal(http.StatusOK), res.Body.String())
 	var got view.Project
 	g.Expect(json.Unmarshal(res.Body.Bytes(), &got)).To(Succeed())
-	doc := f.page(g, address, http.StatusOK)
-	g.Expect(got.Back).To(Equal(attr(find(doc, "back"), "href")))
-	g.Expect(got.BackLabel + got.Title).To(Equal(barText(doc)))
+	g.Expect(got.Back).To(Equal("/"))
+	g.Expect(got.BackLabel).To(Equal("Queue"))
+	g.Expect(got.Title).To(Equal("harbor"))
 	g.Expect(got.WaitingCount).To(PointTo(Equal(int32(2))))
 	g.Expect(got.Name).To(Equal("harbor"))
 	g.Expect(got.Open).To(Equal(int32(1)))
@@ -529,9 +603,12 @@ func TestServer_Surface_viewsAnswer404(t *testing.T) {
 	}
 	check := func(t *testing.T, address string, status int) {
 		g := NewWithT(t)
+		// The shell cannot tell whether an address exists, so the page answers
+		// it either way and the view's status decides what the app draws.
 		page := serveSurface(f.s.Surface(), http.MethodGet, address)
 		api := serveSurface(f.s.Surface(), http.MethodGet, "/api"+address)
-		g.Expect(page.Code).To(Equal(status), "the page")
+		g.Expect(page.Code).To(Equal(http.StatusOK), "the page")
+		g.Expect(page.Body.String()).To(ContainSubstring(`<div id="root"></div>`))
 		g.Expect(api.Code).To(Equal(status), "the view: %s", api.Body.String())
 		g.Expect(api.Header().Get("Content-Type")).To(Equal("application/json"))
 		if status == http.StatusNotFound {
@@ -566,10 +643,6 @@ func TestServer_Surface_viewsRefusedBanner(t *testing.T) {
 	g.Expect(got.Notice.Warn).To(BeTrue())
 	g.Expect(got.Notice.Heading).To(Equal("Only what this round captured can be shown."))
 	g.Expect(got.Notice.Text).To(ContainSubstring("no longer exists"))
-
-	// The page carries the same banner.
-	doc := f.page(g, address, http.StatusNotFound)
-	g.Expect(text(find(doc, "notice"))).To(ContainSubstring(got.Notice.Heading))
 }
 
 func TestServer_Surface_viewsWithNoCount(t *testing.T) {
@@ -597,9 +670,6 @@ func TestServer_Surface_viewsWithNoCount(t *testing.T) {
 		var body map[string]any
 		g.Expect(json.Unmarshal(res.Body.Bytes(), &body)).To(Succeed())
 		g.Expect(body).To(HaveKeyWithValue("waiting_count", BeNil()))
-		// The page draws no eye for the same count.
-		doc := f.page(g, address, status)
-		g.Expect(findAll(doc, hasClass("eye"))).To(BeEmpty())
 	}
 	for name, address := range found {
 		t.Run(name, func(t *testing.T) { check(t, address, http.StatusOK) })

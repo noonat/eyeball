@@ -144,6 +144,33 @@ Where the work went differently from the paragraphs above.
   draws, the tree, code and documents, and media. `ScreenSheet` leaves the wide
   layout out where a screen has none.
 
+- The Go tests for these pages read each screen through `internal/viewdoc`,
+  which draws the view as the template pages drew it, class names and all. The
+  pages are React components now and the server sends no markup, so a test about
+  a screen's content had nothing to parse. About 140 assertions across
+  file_test.go, tree_test.go, project_test.go and the seed's link crawl read the
+  screens by `.crumb`, `.treerow` and the like, and rewriting each over the
+  view's fields was rejected as the larger risk. The package draws from the
+  view's fields alone, so a view that lacks what a test reads fails it. Nothing
+  in the daemon imports it, and it is in the layout list for that reason.
+- A missing address answers the shell with 200, and the app draws the 404 from
+  the view's. The template pages answered 404 themselves. The shell cannot tell
+  whether a review or a path exists without reading the store, which is what its
+  design leaves to the view.
+- The browser test for scroll restoration also asserts
+  `history.scrollRestoration` is `manual`. Measured 2026-11-01 in headless
+  Chromium: with ScrollRestoration removed, back still returned to the scroll,
+  because the tree draws at once from the cache and the browser restores a
+  same-document move itself. iOS does not, so the scroll alone could not fail
+  without the component. The assertion on `manual` does, and the scroll check
+  stays for the behavior.
+- The segment of `TestServer_Surface_browserStream` that said a file page has no
+  stamp is removed, since it passed on any page. `browserFilePageOffline` is now
+  the file page's stream test.
+- `Link` is given `discover="none"`. The default marks each link
+  `data-discover="true"`, which the markup comparison with the template pages
+  rejects, and a data router has no routes to discover.
+
 ## Iteration 1: The API
 
 - [x] `internal/view` holds the project view, the tree and file view with its
@@ -190,22 +217,28 @@ required_acks:
 
 ## Iteration 3: The shell
 
-- [ ] Each page route in scope answers the shell, and the app draws its screen
+- [x] Each page route in scope answers the shell, and the app draws its screen
       from the view, with the view's title.
-- [ ] The app moves to a data router, and one client function says which
+- [x] The app moves to a data router, and one client function says which
       addresses it draws. The link component and the tap listener both call it.
-- [ ] A link to a screen the app draws moves the router, and any other link is a
+- [x] A link to a screen the app draws moves the router, and any other link is a
       full load. A browser test fails with every link a plain anchor.
-- [ ] `react/no-danger` is on, with an exception for the one component.
-- [ ] Each screen opens its own stream for the build and connection notices, and
+- [x] `react/no-danger` is on, with an exception for the one component.
+- [x] Each screen opens its own stream for the build and connection notices, and
       a browser test shows the offline notice on a file page.
-- [ ] Back from a file returns to the scroll the tree or the project view had,
+- [x] Back from a file returns to the scroll the tree or the project view had,
       and a browser test fails without `ScrollRestoration`.
-- [ ] Browser tests for these pages run against the React screens, and each
+- [x] Browser tests for these pages run against the React screens, and each
       fails with its route answering the template.
-- [ ] The templates, the handlers' template paths and the queue's row partials,
+- [x] The templates, the handlers' template paths and the queue's row partials,
       which only the project page used, are removed, and the template markup
       files are committed as they last came out.
+
+> **Completed** 2026-11-01 13:54 UTC
+>
+> - `make check` — 31.8s
+> - `go test -race ./...` — 50.0s
+> - `go test -count=1 -tags browser ./internal/server` — 74.4s
 
 ## Iteration 4: On the phone
 

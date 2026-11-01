@@ -32,31 +32,6 @@ func notFound(n *notice) pageAnswer {
 // answerer builds the answer for a request.
 type answerer func(r *http.Request) (pageAnswer, error)
 
-// servePage answers a page route with its template.
-func (s *Server) servePage(w http.ResponseWriter, r *http.Request, answer answerer) error {
-	ans, err := answer(r)
-	if err != nil {
-		return err
-	}
-	if ans.missing {
-		s.notFoundPage(w, ans.notice)
-		return nil
-	}
-	var name string
-	switch ans.page.Body.(type) {
-	case projectPage:
-		name = "projectpage"
-	case treePage:
-		name = "treepage"
-	case filePage:
-		name = "filepage"
-	default:
-		return errors.Newf("no template for page body %T", ans.page.Body)
-	}
-	s.renderPage(w, http.StatusOK, name, ans.page)
-	return nil
-}
-
 // serveView answers a page route's view under /api with JSON.
 //
 // The waiting count is read here, once, as renderPage reads it for the eye. A

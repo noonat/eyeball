@@ -9,7 +9,8 @@ interface DocumentBodyProps {
  * A markdown file as a document. This is the one component that inserts markup
  * as it is. The server made the HTML with goldmark, raw HTML off, and marked
  * the words that changed, so it is trusted only for that. Nothing else in the
- * app may set markup. A lint rule that enforces it comes with the shell.
+ * app may set markup: `react/no-danger` is on, and .oxlintrc.json turns it off
+ * for this file alone.
  */
 export function DocumentBody({ html }: DocumentBodyProps) {
   return <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />;

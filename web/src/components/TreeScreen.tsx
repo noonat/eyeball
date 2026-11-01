@@ -1,4 +1,5 @@
 import type { Tree } from "../api/types";
+import { AppLink } from "./AppLink";
 import { Counts } from "./Counts";
 import { Crumb } from "./Crumb";
 import { cx } from "./cx";
@@ -33,7 +34,7 @@ export function TreeScreen({ tree, ...bar }: TreeScreenProps) {
       {rows.length > 0 ? (
         <div className="tree">
           {rows.map((row) => (
-            <a
+            <AppLink
               className={cx(
                 "treerow",
                 row.indent && "indent",
@@ -55,7 +56,7 @@ export function TreeScreen({ tree, ...bar }: TreeScreenProps) {
                   <Counts added={row.added} removed={row.removed} />
                 </>
               )}
-            </a>
+            </AppLink>
           ))}
         </div>
       ) : (

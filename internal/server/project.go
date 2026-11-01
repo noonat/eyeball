@@ -94,13 +94,8 @@ type openReview struct {
 	copyID int64
 }
 
-// handleProjectPage answers GET /projects/{project}: the project's open
-// reviews, then each working copy on disk as it is now.
-func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error {
-	return s.servePage(w, r, s.projectAnswer)
-}
-
-// projectAnswer is what a project's address answers.
+// projectAnswer is what a project's address answers: its open reviews, then
+// each working copy on disk as it is now.
 func (s *Server) projectAnswer(r *http.Request) (pageAnswer, error) {
 	project, ok, err := s.projectFromPath(r)
 	if err != nil || !ok {
@@ -317,17 +312,12 @@ func unlisted(st capture.State, listErr error, root string) ([]notice, *emptyBox
 	return []notice{{Warn: true, Heading: "Live browsing is unavailable.", Text: reason}}, &emptyBox{Headline: cannot, Text: "Nothing on disk is read for this project. Reviews still work, and the files their rounds captured still open."}
 }
 
-// handleProjectFilePage answers GET /projects/{project}/files/{path...}: one
-// file the working copy lists, live, against HEAD.
+// projectFileAnswer is what a working copy's file address answers: one file the
+// working copy lists, live, against HEAD.
 //
 // Only a listed path answers, including one past the rows' cap, so the route
 // never becomes a reader of any file under the root. An unchanged file has
 // nothing this view adds anyway.
-func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) error {
-	return s.servePage(w, r, s.projectFileAnswer)
-}
-
-// projectFileAnswer is what a working copy's file address answers.
 func (s *Server) projectFileAnswer(r *http.Request) (pageAnswer, error) {
 	project, ok, err := s.projectFromPath(r)
 	if err != nil || !ok {

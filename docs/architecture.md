@@ -65,9 +65,10 @@ internal/server/      HTTP: routes, handlers, middleware
 internal/store/       SQLite: reviews, rounds, comments, decisions
 internal/tailnet/     the tsnet node behind an interface, and the goroutine owning it
 internal/view/        the surface API's JSON views, which web/src/api/types.ts is generated from
+internal/viewdoc/     draws a view as the template pages drew it, for tests that read a screen's content. They prove what the views carry, and the stories compared with the frozen .html files prove what the app draws
 tool/apitypes/        writes web/src/api/types.ts from internal/view, and fails when the committed file differs
 tool/appicon/         renders the installed page's icons, committed under web/static/icons
-tool/fixtures/        writes the views and the template markup of seeded states into web/src/fixtures, and fails when they differ
+tool/fixtures/        writes the views of seeded states, and the files they point at, into web/src/fixtures, and fails when they differ
 tool/icons/           regenerates the icon mask table in app.css
 tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
@@ -690,15 +691,19 @@ scheme means a page and its data cannot drift apart in name, and a person
 debugging can fetch the view of the page in front of them by adding four
 characters.
 
-**A view answers 404 where its page does, with a body.** An address with nothing
-at it answers its page with the 404 page, and its view with `NotFound`: the
-waiting count and, where a live read was refused, the banner saying why. The
-page and the view are built by one function that returns either the page's data
-or the missing answer, so the two cannot disagree about whether an address
-exists. The waiting count is read for a view as `renderPage` reads it for the
-eye, by one helper, with a bound and the error logged. A count that cannot be
-read is `null` in the view, and the page draws no eye, since a zero would say
-nothing waits.
+**A missing address answers the shell, and the view answers 404 with a body.**
+The shell cannot tell whether a review or a path exists without reading the
+store, and reading the store is the view's job, so every address in the app's
+list gets the shell. The app fetches the view, and a view for an address with
+nothing at it answers 404 with `NotFound`: the waiting count and, where a live
+read was refused, the banner saying why. The app draws the 404 screen from that
+body. The cost is that a bookmark to a missing address gets a 200, and the 404
+shows only once the view has loaded. Nothing relied on the page's 404: the CLI
+reads a 404 only from API routes, as "the daemon predates the route", and the
+service worker has no 404 branch. The waiting count is read for a view as
+`renderPage` reads it for the eye, by one helper, with a bound and the error
+logged. A count that cannot be read is `null` in the view, and the screen draws
+no eye, since a zero would say nothing waits.
 
 **A review's file address answers a tree or a file, and the view says which.**
 The route draws a tree for a directory or an empty path. A view has a `kind`,

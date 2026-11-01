@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,7 +25,6 @@ func TestGenerate_committedFilesAreCurrent(t *testing.T) {
 	}
 	for _, sc := range scenes {
 		g.Expect(files).To(HaveKey(sc.file + ".json"))
-		g.Expect(files).To(HaveKey(sc.file + ".html"))
 	}
 	g.Expect(files).To(HaveKey("scenes.ts"))
 	for name, body := range files {
@@ -201,7 +201,10 @@ func TestGenerate_viewsRepeatTheTemplatesTopBar(t *testing.T) {
 			g := NewWithT(t)
 			var got bar
 			g.Expect(json.Unmarshal(files[sc.file+".json"], &got)).To(Succeed())
-			root, err := html.Parse(bytes.NewReader(files[sc.file+".html"]))
+			// The markup is the template page's, frozen when the template went.
+			frozen, err := os.ReadFile(filepath.Join("../..", outDir, sc.file+".html"))
+			g.Expect(err).NotTo(HaveOccurred())
+			root, err := html.Parse(bytes.NewReader(frozen))
 			g.Expect(err).NotTo(HaveOccurred())
 			var want bar
 			var eye string
@@ -268,4 +271,14 @@ func text(n *html.Node) string {
 		b.WriteString(text(c))
 	}
 	return b.String()
+}
+
+// hasClass says whether an element carries a class.
+func hasClass(n *html.Node, class string) bool {
+	for _, a := range n.Attr {
+		if a.Key == "class" && slices.Contains(strings.Fields(a.Val), class) {
+			return true
+		}
+	}
+	return false
 }

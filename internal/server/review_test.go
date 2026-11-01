@@ -375,8 +375,8 @@ func TestServer_Surface_reviewDocumentLinks(t *testing.T) {
 		if !strings.HasPrefix(href, "/") {
 			continue
 		}
-		res := serveSurface(f.s.Surface(), http.MethodGet, href)
-		doc := parse(g, res.Body.String())
+		res := serveSurface(f.s.Surface(), http.MethodGet, "/api"+href)
+		doc := viewDocument(g, f.s.Surface(), href, res.Code)
 		followed[text(a)] = strconv.Itoa(res.Code) + " " + text(find(doc, "crumb"))
 	}
 	g.Expect(followed).To(Equal(map[string]string{
@@ -1044,9 +1044,14 @@ func earlierRows(doc *html.Node) []*html.Node {
 	return findAll(sec, hasClass("treerow"))
 }
 
-// page fetches a surface page and parses it, failing on any other status.
+// page fetches a surface page and parses it, failing on any other status. The
+// project, tree and file pages are React screens, so they are read through
+// their views.
 func (f *fixture) page(g *WithT, path string, status int) *html.Node {
 	g.THelper()
+	if scopedPage(path) {
+		return f.viewPage(g, path, status)
+	}
 	res := serveSurface(f.s.Surface(), http.MethodGet, path)
 	g.Expect(res.Code).To(Equal(status), res.Body.String())
 	return parse(g, res.Body.String())

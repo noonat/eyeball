@@ -1,4 +1,5 @@
 import type { Rendering, Side } from "../api/types";
+import { AppLink } from "./AppLink";
 import { cx } from "./cx";
 import { Icon } from "./Icon";
 
@@ -25,9 +26,9 @@ export function RenderedFile({ rendered }: RenderedFileProps) {
             <span className="hint">{facts.hint}</span>
           )}
           {facts.load === "" ? null : (
-            <a className="load" href={facts.load}>
+            <AppLink className="load" href={facts.load}>
               Load anyway
-            </a>
+            </AppLink>
           )}
         </div>
       </div>

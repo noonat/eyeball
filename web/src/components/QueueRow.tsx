@@ -1,4 +1,5 @@
 import type { Row } from "../api/types";
+import { AppLink } from "./AppLink";
 import { Icon } from "./Icon";
 import { Pill } from "./Pill";
 
@@ -13,9 +14,9 @@ interface QueueRowProps {
 /** One review in the queue. The whole row is one link to the review. */
 export function QueueRow({ row, kind }: QueueRowProps) {
   return (
-    // A review is still a template page, so a plain anchor makes the full page
-    // load that needs. The router intercepts only its own Link.
-    <a className={`row ${kind}`} href={`/reviews/${row.id}`}>
+    // A review is still a template page, so AppLink draws a plain anchor, which
+    // makes the full page load that needs.
+    <AppLink className={`row ${kind}`} href={`/reviews/${row.id}`}>
       <span className="where">
         {row.project === "" ? null : (
           <span className="bit">
@@ -38,7 +39,7 @@ export function QueueRow({ row, kind }: QueueRowProps) {
       <span className="meta">
         <Meta row={row} kind={kind} />
       </span>
-    </a>
+    </AppLink>
   );
 }
 

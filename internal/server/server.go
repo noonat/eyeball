@@ -140,6 +140,10 @@ type route struct {
 	side    side
 	pattern string
 	handle  func(s *Server, w http.ResponseWriter, r *http.Request) error
+	// shell says the route answers the shell, so the React app draws the
+	// address. A test holds these to the addresses the app's client function
+	// says it draws.
+	shell bool
 }
 
 // routes is every route the daemon serves, declared once.
@@ -209,6 +213,7 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /{$}",
 		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
@@ -248,12 +253,14 @@ var routes = []route{
 	{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}/files/{path...}",
-		handle:  (*Server).handleFilePage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}/rounds/{round}/files/{path...}",
-		handle:  (*Server).handleRoundFilePage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
@@ -263,12 +270,14 @@ var routes = []route{
 	{
 		side:    sideSurface,
 		pattern: "GET /projects/{project}",
-		handle:  (*Server).handleProjectPage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /projects/{project}/files/{path...}",
-		handle:  (*Server).handleProjectFilePage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,

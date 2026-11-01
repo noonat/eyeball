@@ -1,4 +1,5 @@
 import type { File, Toolbar } from "../api/types";
+import { AppLink } from "./AppLink";
 import { CodeTable } from "./CodeTable";
 import { Crumb } from "./Crumb";
 import { DocumentBody } from "./DocumentBody";
@@ -127,12 +128,12 @@ interface SegmentedProps {
 function Segmented({ first, second, secondShown }: SegmentedProps) {
   return (
     <span className="segmented">
-      <a href={first.href} aria-current={secondShown ? undefined : true}>
+      <AppLink href={first.href} current={!secondShown}>
         {first.label}
-      </a>
-      <a href={second.href} aria-current={secondShown ? true : undefined}>
+      </AppLink>
+      <AppLink href={second.href} current={secondShown}>
         {second.label}
-      </a>
+      </AppLink>
     </span>
   );
 }
