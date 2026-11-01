@@ -23,7 +23,7 @@ func TestServer_handleEvents(t *testing.T) {
 	srv := httptest.NewServer(f.s.Surface())
 	t.Cleanup(srv.Close)
 
-	printed := attr(find(f.page(g, "/reviews/"+itoa(id), http.StatusOK), "page"), "data-stamp")
+	printed := f.roundAt(g, "/reviews/"+itoa(id)).Stamp
 	g.Expect(printed).NotTo(BeEmpty())
 	events := openStream(g, t, srv.URL+"/events?review="+itoa(id))
 	g.Eventually(events).Should(Receive(Equal("retry: 2000")))

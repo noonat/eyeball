@@ -29,32 +29,20 @@ func TestServer_Surface_reviewAllFiles(t *testing.T) {
 	// comparison.
 	pages := []struct {
 		page string
-		name string
 		href string
 	}{
-		{page: base, name: "All files", href: base + "/files/"},
-		{
-			page: base + "?against=base",
-			name: "All files",
-			href: base + "/files/?against=base",
-		},
-		{page: base + "/rounds/1", name: "All files", href: base + "/rounds/1/files/"},
+		{page: base, href: base + "/files/"},
+		{page: base + "?against=base", href: base + "/files/?against=base"},
+		{page: base + "/rounds/1", href: base + "/rounds/1/files/"},
 		{
 			page: base + "/rounds/1?against=base",
-			name: "All files",
 			href: base + "/rounds/1/files/?against=base",
 		},
 	}
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {
 			g := NewWithT(t)
-			var all []string
-			for _, row := range findAll(f.page(g, c.page, http.StatusOK), hasClass("treerow")) {
-				if strings.HasPrefix(text(find(row, "nm")), "All files") {
-					all = append(all, text(find(row, "nm"))+" "+attr(row, "href"))
-				}
-			}
-			g.Expect(all).To(Equal([]string{c.name + " " + c.href}))
+			g.Expect(f.roundAt(g, c.page).AllFiles).To(Equal(c.href))
 		})
 	}
 }

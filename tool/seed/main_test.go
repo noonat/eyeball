@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -208,6 +209,7 @@ func (c *crawler) crawl(g *WithT, addresses ...string) {
 		at := queue[0]
 		queue = queue[1:]
 		res := c.get(at)
+		g.Expect(res.Body.String()).NotTo(ContainSubstring(` data-stamp="`), "the template review page is read through its view")
 		doc, err := html.Parse(bytes.NewReader(res.Body.Bytes()))
 		g.Expect(err).NotTo(HaveOccurred())
 		base, err := url.Parse(at)
@@ -301,6 +303,9 @@ func (c *crawler) check(base *url.URL, ids map[string]struct{}, a *html.Node) (s
 	if within(a, "prose") != nil && strings.Contains(target.RawQuery, "view=source") {
 		c.sources++
 	}
+	if strings.Contains(res.Body.String(), ` data-stamp="`) {
+		return fail("the template review page is read through its view")
+	}
 	doc, err := html.Parse(bytes.NewReader(res.Body.Bytes()))
 	if err != nil {
 		return fail("the page does not parse: %v", err)
@@ -381,9 +386,76 @@ func (c *crawler) get(address string) *httptest.ResponseRecorder {
 		c.answers[address] = res
 		return res
 	}
+	if reviewRound.MatchString(address) {
+		// A review's round is the app's as well. Its links are in the view, so
+		// the crawl follows those, and no test reads the template page.
+		api := httptest.NewRecorder()
+		c.surface.ServeHTTP(api, httptest.NewRequest(http.MethodGet, "http://eyeball/api"+address, nil))
+		res.Header().Set("Content-Type", "text/html; charset=utf-8")
+		res.WriteHeader(api.Code)
+		if api.Code == http.StatusOK {
+			var round view.Review
+			if err := json.Unmarshal(api.Body.Bytes(), &round); err == nil {
+				_, _ = res.WriteString(roundLinks(round))
+			}
+		}
+		c.answers[address] = res
+		return res
+	}
 	c.surface.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "http://eyeball"+address, nil))
 	c.answers[address] = res
 	return res
+}
+
+// reviewRound matches the address of a review's round, and not of one of its
+// files.
+var reviewRound = regexp.MustCompile(`^/reviews/[0-9]+(/rounds/[0-9]+)?(\?[^#]*)?$`)
+
+// roundLinks is every link a round's view holds, in the places the page put
+// them, so the crawl checks the same links. A card's links sit in an element
+// named for the card, and a document's passages sit in the prose, since two of
+// the checks read where a link is.
+func roundLinks(round view.Review) string {
+	var b strings.Builder
+	link := func(class, href string) {
+		fmt.Fprintf(&b, `<a class="%s" href="%s">%s</a>`, class, html.EscapeString(href), class)
+	}
+	link("back", round.Back)
+	link("bit", round.ProjectHref)
+	link("treerow", round.AllFiles)
+	for _, e := range round.Earlier {
+		link("treerow", e.Href)
+	}
+	if round.Against != nil {
+		link("segment", "?against=previous")
+		link("segment", "?against=base")
+	}
+	for _, card := range round.Cards {
+		if round.Listed {
+			fmt.Fprintf(&b, `<a class="treerow" href="#%s">%s</a>`, html.EscapeString(card.ID), html.EscapeString(card.Path))
+		}
+		fmt.Fprintf(&b, `<details class="file" id="%s"><summary><span class="path">%s</span>`, html.EscapeString(card.ID), html.EscapeString(card.Path))
+		link("fileopen", card.Whole)
+		if card.RawDiff != "" {
+			link("fileopen", card.RawDiff)
+		}
+		b.WriteString(`</summary>`)
+		if card.Body != nil {
+			b.WriteString(`<div class="prose">`)
+			for _, part := range card.Body.Passages {
+				passages := part.Fold
+				if part.Passage != nil {
+					passages = []view.DocPassage{*part.Passage}
+				}
+				for _, p := range passages {
+					b.WriteString(`<div class="blk">` + string(p.HTML) + `</div>`)
+				}
+			}
+			b.WriteString(`</div>`)
+		}
+		b.WriteString(`</details>`)
+	}
+	return `<div class="page">` + b.String() + `</div>`
 }
 
 // linksIn is every element carrying an href, in document order.

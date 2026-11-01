@@ -151,6 +151,139 @@ Where the work went differently from the paragraphs above.
   template's `submission` field is always empty, since its script draws the key,
   so the test leaves it out of both sides.
 
+### Iteration 2
+
+Each Go test that read the review page now reads the round's view, the cards
+route or a JSON write. A fact only the page's markup held is listed here with
+the story that checks it. Every story named compares a component with the
+committed template markup, which `make api-check` keeps equal to what the
+template routes send, so the template page is still held while it is served. The
+four new stories, `TooLarge`, `Binary`, `ChangesRequested` and `RenderedBox`,
+are in `ReviewChecks.stories.tsx` and assert what they draw. They are not on the
+sheets, since the sheets are the pages the owner approved.
+
+- `review_test.go`, `TestServer_Surface_review`: the note is the letter, with
+  the class `note letter`, a signature, no `from` label and first on the page.
+  The `Code` story, from `review-code.html`. The decision bar's buttons and the
+  card's `open` attribute are in the same story.
+- `TestServer_Surface_reviewAgainst`: the control's labels, its `?against=`
+  links and `aria-current`. The `RoundTwo` and `WholeReview` stories, from
+  `review-doc.html` and `review-doc-whole.html`. The Go test holds the label and
+  the flag in the view.
+- `TestServer_Surface_reviewChangesRequested`: the notice "Changes requested."
+  ahead of the sentence. No committed page holds a current round with changes
+  requested, so the new `ChangesRequested` story asserts it. The `Approved`
+  story holds the approved form.
+- `TestServer_Surface_reviewComments`: the verdict note under the notice, one
+  box with "Sends immediately" for a late comment, and no actions on a released
+  comment. The `Approved` story, and the `ComposerLate`, `CommentAfterVerdict`
+  and `CommentReleased` stories. The "What was done" section is the
+  `RoundOneClosed` story. The Go test holds that the same replies are in the
+  view of an approved current round.
+- `TestServer_Surface_reviewDocument`: the Raw diff link's label. The `RoundTwo`
+  story. The scan of the whole page for scripts, styles, images and event
+  attributes now covers the passages' HTML, the one field the app inserts as
+  markup. Every other string reaches the page through React's escaping, and the
+  source test that keeps `DocumentHTML` to one conversion holds the rest.
+- `TestServer_Surface_reviewEarlierRounds`: the order of the letter, the
+  sections, the verdict note and the toolbar on a closed round, and the
+  sections' headings. The `RoundOneClosed` story. The 404 sentence is the
+  `NotFoundScreen` text the arrival stories draw.
+- `TestServer_Surface_reviewFilesWithNoRows`: the lines "Too large to show as a
+  diff." and "Binary file, not shown as a diff." in place of rows. No committed
+  page held a card of either kind, so the new `TooLarge` and `Binary` stories
+  assert each. A binary file from git is a rendered facts line in the view, as
+  the `Rendered` story's cards are.
+- `TestServer_Surface_reviewFresh`: the toolbar's "1 file, new Raw diff", the
+  small button, the prose directly in the page and no card. The `Fresh` story.
+  No page holds a fresh document beside the comparison control. The toolbar
+  draws the control from `against` alone, so the Go test holds that both are in
+  the view.
+- `TestServer_Surface_reviewHoldsAFilePastFiveHundred`: a held card sends no
+  `hx-trigger`, shows "501 changed lines" and a Load anyway link equal to the
+  file's own. The `Held` story, except the `hx-` attributes, which the markup
+  comparison leaves out. The view holds the same fact as `deferred` false with
+  no body. The app's own behavior is a browser test in the long review's
+  iteration.
+- `TestServer_Surface_reviewSendsBodiesUpToItsLimits`: the card's `hx-get` and
+  `hx-trigger` of "eyeball:near once". These are the template script's wiring
+  and no story compares them. The browser tests that run against the template
+  page still exercise them until the templates go, and the long review's
+  iteration tests the app's own fetch. The skeleton's `data-hunks` and
+  `data-lines` are `skeleton_hunks` and `skeleton_lines` in the view.
+- `TestServer_Surface_reviewListsFilesPastTen`: each row's link to `#` and the
+  card's id, its name and its plus count. The `Listed` story.
+- `TestServer_Surface_reviewLostRepository`: the warning's second sentence,
+  "Each file is shown as this round captured it.", and no counts on the card.
+  The `Unmeasurable` story.
+- `TestServer_Surface_reviewLateLineComment`: a slot under a late comment's
+  file. `Approved` holds a `slot-` id, and the view's `slot` is asserted.
+- `TestServer_Surface_reviewMarksAChangedWord`: the classes `k`, `n` and `w`
+  around the keyword, the number and the changed word. The tokens' roles and
+  marks are asserted in the view, and the `Code` story holds the class each role
+  draws as.
+- `TestServer_Surface_reviewModeChange`: the mode line's markup. The view's
+  `mode`, and the `File` story's `file-mode.html` for the line itself.
+- `TestServer_Surface_reviewRendered`: a rendered card in a box of its own, and
+  a page in a sandboxed frame. The new `RenderedBox` story, and the file page's
+  frame stories. The card's sides, frame and facts are asserted in the view.
+- `TestServer_Surface_reviewTotalsMatchTheStoredSize`: the toolbar's "N files +X
+  −Y" as one string. The view's three fields are compared with the stored size,
+  and the `Code` story holds how they are written out.
+- `acting_test.go`: the form routes' answers are no longer parsed. A comment's
+  anchor, quote and actions, the tally and the bar being left alone are asserted
+  by the JSON routes' tests and drawn by the `AnswerLine`, `AnswerLate` and
+  `TallyAfterDelete` stories. The tests that remain on the form routes read the
+  stored comment, the status and the headers, and look for the answer's list or
+  row id as a substring, until the routes go.
+- The composer, comment and edit form routes' tests read their answers as
+  substrings for the same reason. The chips' order and which is pressed, the
+  anchor line, the row a line's composer opens in, and the hint on a line above
+  the chips on a decided round are the `ComposerLine`, `ComposerLate` and
+  `CommentEditing` stories, and `composerText` is what the app draws the words
+  from. The refused bar's notice and its single textarea are `BarRefused` and
+  `BarRefusedNote`.
+- `surface_test.go`: the eye on the review page is the view's `waiting_count`,
+  and the error page keeps the parse of its eye. The htmx configuration test
+  reads the error page, the one template page left.
+- `file_test.go` and `tree_test.go` read a card's counts, its whole-file link
+  and the All files link from the view. The "Whole file" label, the link sitting
+  in the card's summary and the "All files" row's text are in the `Code` story.
+- `tool/seed`'s link crawler also parsed the template review page, which the
+  review pass did not list. It now follows the links the round's view holds,
+  drawn into a page of anchors in the places the template put them, since two of
+  its checks read where a link sits. A review card's frame Open link and Load
+  anyway link are not followed. The file pages' links still reach the raw route.
+- The guard is in the helpers: `parse` fails on a body that holds the template
+  review page's `data-stamp` or `data-review`, and the crawler fails on the same
+  mark. A test that fetches the page and parses it fails at once, which was
+  checked with a test added and then removed. It found four tests in
+  `file_test.go` and `tree_test.go` that a search for the review address had
+  missed.
+- `documentDoc` and `docFromView` in the tests send a review card's passages
+  through the file page's existing `viewdoc.Page` drawing, so the tests read
+  each block by the old class names. This is not the extension of `viewdoc` to
+  the review page that the spec rejected. `viewdoc` is unchanged, only a card's
+  passages are drawn that way, and a passage's thread and comments are read from
+  the view. The cost is that this reading of a card is held by the file page's
+  markup comparison, `file-document.html` and the stories that compare it, and
+  not by one of a review card's.
+- Mutation check. Five facts chosen across files and kinds of check were broken
+  in the view builder one at a time, each from an assertion the old tests held:
+  added rows read as context (`TestServer_Surface_review`'s rows, a row check),
+  late comments counted with the verdict (`TestServer_Surface_reviewComments`, a
+  sentence), a card held at 500 lines and not 501
+  (`TestServer_Surface_reviewHoldsAFilePastFiveHundred`, a threshold), the stamp
+  left out of the view (`TestServer_handleEvents`, which read `data-stamp`) and
+  the project link dropped (`TestServer_Surface_projectFromAReview`, which read
+  `.who .bit`). Each failed the rewritten test named. Ten more were caught by
+  the tests that follow their facts: released comments editable, a fresh
+  document that ignores its old side's blocks, the eye's count, the All files
+  link, swapped counts, earlier rounds in the wrong order, the whole-file link,
+  the quote read from the wrong lines, a passage's thread dropped and the mode
+  line dropped. Three component changes failed the new `TooLarge`,
+  `ChangesRequested` and `RenderedBox` stories. None survived.
+
 ## Iteration 1: The API
 
 - [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
@@ -175,17 +308,23 @@ Where the work went differently from the paragraphs above.
 
 ## Iteration 2: The Go tests over the views
 
-- [ ] Every Go test that reads the review page's markup reads the round's view,
+- [x] Every Go test that reads the review page's markup reads the round's view,
       the cards route or a JSON write instead, among them the stamp test in
       `stream_test.go`, the eye and htmx configuration tests in
       `surface_test.go` and the brief's project link in `project_test.go`.
-- [ ] The htmx configuration test reads the error page, the one template page
+- [x] The htmx configuration test reads the error page, the one template page
       left after the review's.
-- [ ] No Go test outside `tool/fixtures` parses the template review page.
-- [ ] A fact an old test checked that only markup holds is listed in this spec's
+- [x] No Go test outside `tool/fixtures` parses the template review page.
+- [x] A fact an old test checked that only markup holds is listed in this spec's
       Departures with the story that now checks it.
-- [ ] Five facts the old tests checked, chosen across the rewritten files, are
+- [x] Five facts the old tests checked, chosen across the rewritten files, are
       broken in the view builder one at a time, and each fails a rewritten test.
+
+> **Completed** 2026-11-01 23:32 UTC
+>
+> - `make check` — 41.4s
+> - `go test -race ./...` — 64.4s
+> - `go test -count=1 -tags browser ./internal/server` — 72.8s
 
 ## Iteration 3: The screen and its comments
 

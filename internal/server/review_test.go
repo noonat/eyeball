@@ -1,9 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,6 +16,7 @@ import (
 	"github.com/noonat/eyeball/internal/diff"
 	"github.com/noonat/eyeball/internal/kind"
 	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -29,6 +30,117 @@ func Test_thousands(t *testing.T) {
 	g.Expect(thousands(-1284)).To(Equal("-1,284"))
 }
 
+// roundAt reads the view of the review page at an address.
+func (f *fixture) roundAt(g *WithT, address string) view.Review {
+	g.THelper()
+	return readReview(g, f, "/api"+address)
+}
+
+// bodiesOf is each card's body by path: the one the round holds, or the one
+// the card's own address answers where the round holds none.
+func (f *fixture) bodiesOf(g *WithT, round view.Review) map[string]view.CardBody {
+	g.THelper()
+	out := map[string]view.CardBody{}
+	for _, card := range round.Cards {
+		if card.Body != nil {
+			out[card.Path] = *card.Body
+			continue
+		}
+		out[card.Path] = readBody(g, f, card.BodyHref)
+	}
+	return out
+}
+
+// cardPaths is the paths of a round's cards, in order.
+func cardPaths(round view.Review) []string {
+	var out []string
+	for _, card := range round.Cards {
+		out = append(out, card.Path)
+	}
+	return out
+}
+
+// commentLines is each comment as its anchor, its quote and its text, with
+// the mark of one written after the verdict.
+func commentLines(comments []view.Comment) []string {
+	var out []string
+	for _, c := range comments {
+		line := c.Where
+		if c.Late {
+			line += " (after the verdict)"
+		}
+		if c.Quoted != "" {
+			line += " | " + c.Quoted
+		}
+		out = append(out, line+" | "+c.Body)
+	}
+	return out
+}
+
+// rowLines is each row of a card's code as its kind, its number and its text,
+// the way a reader sees the line.
+func rowLines(rows []view.CodeRow) []string {
+	var out []string
+	for _, row := range rows {
+		if row.Kind == view.CodeRowKindHunk {
+			out = append(out, "hunk "+row.Header)
+			continue
+		}
+		var text strings.Builder
+		for _, tok := range row.Tokens {
+			text.WriteString(tok.Text)
+		}
+		out = append(out, fmt.Sprintf("%s %d %s", row.Kind, row.Number, text.String()))
+	}
+	return out
+}
+
+// markedRow is a row's text with each token's role and mark written out, so a
+// test sees what the app is told to draw.
+func markedRow(row view.CodeRow) string {
+	var out strings.Builder
+	for _, tok := range row.Tokens {
+		text := tok.Text
+		if tok.Role != view.TokenRolePlain {
+			text = "[" + string(tok.Role) + " " + text + "]"
+		}
+		if tok.Mark {
+			text = "{" + text + "}"
+		}
+		out.WriteString(text)
+	}
+	return out.String()
+}
+
+// documentDoc draws a document's passages through the file page's drawing, so
+// a test reads each block as the template page marked it. The passages are the
+// card's own, and nothing of the review page is drawn.
+func documentDoc(g *WithT, parts []view.DocPart) *html.Node {
+	g.THelper()
+	body, err := json.Marshal(view.Files{
+		Kind: view.FilesKindFile,
+		File: &view.File{Name: "doc.md", Body: view.FileBodyDocument, Passages: parts},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	return docFromView(g, body)
+}
+
+// threadOf is the thread under the passage that covers a range, or nil.
+func threadOf(parts []view.DocPart, first, last int32) *view.Thread {
+	for _, part := range parts {
+		passages := part.Fold
+		if part.Passage != nil {
+			passages = []view.DocPassage{*part.Passage}
+		}
+		for _, p := range passages {
+			if p.First == first && p.Last == last {
+				return p.Thread
+			}
+		}
+	}
+	return nil
+}
+
 func TestServer_Surface_review(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -37,50 +149,30 @@ func TestServer_Surface_review(t *testing.T) {
 	note := "Upload worker and its retry ladder\n\nThe second paragraph says what to look at."
 	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: note}).Review.ID
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(barText(doc)).To(Equal("QueueUpload worker and its retry ladder"), "the full title, which app.css truncates")
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(Equal("Waiting nowRound 1harborspec/012-surface"))
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Title).To(Equal("Upload worker and its retry ladder"), "the full title, which app.css truncates")
+	g.Expect([]string{round.Back, round.BackLabel}).To(Equal([]string{"/", "Queue"}))
+	g.Expect(round.Waiting).To(Equal("now"))
+	g.Expect(round.Abandoned).To(BeFalse())
+	g.Expect(round.Decided).To(BeNil())
+	g.Expect([]any{round.Round, round.Project, round.Agent}).To(Equal([]any{int32(1), "harbor", "spec/012-surface"}))
 	// The brief's project is a link to its view.
-	project := find(find(doc, "who"), "bit")
-	g.Expect(project.Data).To(Equal("a"))
-	g.Expect(text(project)).To(Equal("harbor"))
 	review, err := f.store.Review(t.Context(), id)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(attr(project, "href")).To(Equal(projectHref(review.ProjectID)))
-	f.page(g, attr(project, "href"), http.StatusOK)
-	g.Expect(text(find(doc, "title"))).To(Equal("Upload worker and its retry ladder"))
-	var paragraphs []string
-	for _, p := range findAll(find(doc, "note"), func(n *html.Node) bool { return n.Data == "p" }) {
-		paragraphs = append(paragraphs, text(p))
-	}
-	g.Expect(paragraphs).To(Equal([]string{"Upload worker and its retry ladder", "The second paragraph says what to look at."}))
-	// The note is the letter: signed with the agent, and the page's first
-	// element, ahead of the brief.
-	letter := find(doc, "note")
-	g.Expect(attr(letter, "class")).To(Equal("note letter"))
-	g.Expect(text(find(find(letter, "sig"), "agent"))).To(Equal("spec/012-surface"))
-	g.Expect(find(letter, "from")).To(BeNil(), "a letter carries no label")
-	page := find(doc, "page")
-	first := page.FirstChild
-	for first != nil && first.Type != html.ElementNode {
-		first = first.NextSibling
-	}
-	g.Expect(first).To(Equal(letter), "the letter comes before the brief")
-	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file +1 −0"))
-	g.Expect(find(doc, "segmented")).To(BeNil(), "a first round has only its base")
-	bar := find(doc, "decide")
-	g.Expect(bar).NotTo(BeNil(), "an open round has the decision bar")
-	g.Expect(text(find(bar, "buttons"))).To(Equal("Request changesApprove"))
+	g.Expect(round.ProjectHref).To(Equal(projectHref(review.ProjectID)))
+	f.page(g, round.ProjectHref, http.StatusOK)
+	g.Expect(round.ReviewTitle).To(Equal("Upload worker and its retry ladder"))
+	g.Expect(round.Note).To(Equal([]string{"Upload worker and its retry ladder", "The second paragraph says what to look at."}))
+	g.Expect([]string{round.Files, round.Added, round.Removed}).To(Equal([]string{"1 file", "1", "0"}))
+	g.Expect(round.Against).To(BeNil(), "a first round has only its base")
+	g.Expect(round.Acting).NotTo(BeNil())
+	g.Expect(round.Acting.State).To(Equal("open"))
+	g.Expect(round.Acting.Bar).NotTo(BeNil(), "an open round has the decision bar")
 
-	files := findAll(doc, hasClass("file"))
-	g.Expect(files).To(HaveLen(1))
-	g.Expect(text(find(files[0], "path"))).To(Equal("a.txt"))
-	g.Expect(hasAttr(files[0], "open")).To(BeTrue())
-	var rows []string
-	for _, tr := range findAll(files[0], func(n *html.Node) bool { return n.Data == "tr" }) {
-		rows = append(rows, strings.TrimSpace(attr(tr, "class")+" "+text(tr)))
-	}
-	g.Expect(rows).To(Equal([]string{"hunkhead @@ -1 +1,2 @@", "1one", "add 2+two"}))
+	g.Expect(cardPaths(round)).To(Equal([]string{"a.txt"}))
+	body := f.bodiesOf(g, round)["a.txt"]
+	g.Expect(body.Kind).To(Equal(view.FileBodyRows))
+	g.Expect(rowLines(body.Rows)).To(Equal([]string{"hunk @@ -1 +1,2 @@", "context 1 one", "add 2 two"}))
 }
 
 func TestServer_Surface_reviewAbandoned(t *testing.T) {
@@ -91,8 +183,9 @@ func TestServer_Surface_reviewAbandoned(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
 	f.ok(g, t, http.MethodPost, "/agent/reviews/"+itoa(id)+"/abandon", api.AbandonBody{Caller: me}, &api.AbandonResult{})
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("AbandonedRound 1"), "a withdrawn review does not wait")
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Abandoned).To(BeTrue(), "a withdrawn review does not wait")
+	g.Expect(round.Round).To(BeEquivalentTo(1))
 }
 
 func TestServer_Surface_reviewAgainst(t *testing.T) {
@@ -106,21 +199,17 @@ func TestServer_Surface_reviewAgainst(t *testing.T) {
 	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
 
 	// From round two the previous round is the default: one line moved.
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	links := findAll(find(doc, "segmented"), func(n *html.Node) bool { return n.Data == "a" })
-	g.Expect(links).To(HaveLen(2))
-	g.Expect(text(links[0])).To(Equal("Since round 1"))
-	g.Expect(attr(links[0], "href")).To(Equal("?against=previous"))
-	g.Expect(attr(links[0], "aria-current")).To(Equal("true"))
-	g.Expect(text(links[1])).To(Equal("Whole review"))
-	g.Expect(attr(links[1], "aria-current")).To(BeEmpty())
-	g.Expect(text(find(doc, "toolbar"))).To(HavePrefix("1 file +1 −0"))
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Against).To(Equal(&view.Against{Previous: "Since round 1", Base: false}))
+	g.Expect([]string{round.Files, round.Added, round.Removed}).To(Equal([]string{"1 file", "1", "0"}))
+	g.Expect(round.Place).To(Equal(itoa(id) + ":2:"))
 
 	// The whole review is measured from the base: two lines.
-	doc = f.page(g, "/reviews/"+itoa(id)+"?against=base", http.StatusOK)
-	links = findAll(find(doc, "segmented"), func(n *html.Node) bool { return n.Data == "a" })
-	g.Expect(attr(links[1], "aria-current")).To(Equal("true"))
-	g.Expect(text(find(doc, "toolbar"))).To(HavePrefix("1 file +2 −0"))
+	whole := f.roundAt(g, "/reviews/"+itoa(id)+"?against=base")
+	g.Expect(whole.Against).To(Equal(&view.Against{Previous: "Since round 1", Base: true}))
+	g.Expect([]string{whole.Files, whole.Added, whole.Removed}).To(Equal([]string{"1 file", "2", "0"}))
+	g.Expect(whole.Place).To(Equal(itoa(id) + ":2:base"))
+	g.Expect(whole.Acting.Against).To(Equal("base"), "a removed row's quote needs the comparison")
 }
 
 func TestServer_Surface_reviewChangesRequested(t *testing.T) {
@@ -130,9 +219,13 @@ func TestServer_Surface_reviewChangesRequested(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
 	f.decide(g, t, id, store.VerdictChanges, "Redo it.")
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requested just nowRound 1"))
-	g.Expect(text(find(doc, "notice"))).To(Equal("Changes requested. The verdict went out just now."))
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Decided).To(Equal(&view.Decided{
+		Approved: false,
+		Pill:     "Changes requested just now",
+		Sentence: "The verdict went out just now.",
+		Note:     []string{"Redo it."},
+	}))
 }
 
 func TestServer_Surface_reviewComments(t *testing.T) {
@@ -150,50 +243,45 @@ func TestServer_Surface_reviewComments(t *testing.T) {
 	nextMillisecond()
 	f.addComment(g, t, store.NewComment{RoundID: roundID, Level: store.LevelReview, Body: "One more thing."})
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Approved just nowRound 1"))
-	g.Expect(text(find(doc, "notice"))).To(Equal("Approved. 3 comments and the verdict went out just now."), "the late comment went out on its own")
-	notes := findAll(doc, hasClass("note"))
-	g.Expect(notes).To(HaveLen(2))
-	// The agent's letter first, then the reviewer's own verdict note as a
-	// plain note under the notice.
-	g.Expect(attr(notes[0], "class")).To(Equal("note letter"))
-	g.Expect(text(notes[0])).To(HavePrefix("first "), "the note's paragraph, then the signature")
-	g.Expect(attr(notes[1], "class")).To(Equal("note"))
-	g.Expect(text(notes[1])).To(Equal("Verdict note Good. Ship it."))
-	g.Expect(find(doc, "decide")).To(BeNil(), "a decided round has no decision bar")
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Decided).To(Equal(&view.Decided{
+		Approved: true,
+		Pill:     "Approved just now",
+		Sentence: "3 comments and the verdict went out just now.",
+		Note:     []string{"Good.", "Ship it."},
+	}), "the late comment went out on its own")
+	g.Expect(round.Acting.Bar).To(BeNil(), "a decided round has no decision bar")
+	g.Expect(round.Acting.State).To(Equal("late"), "a decided round keeps one box, for a late comment")
 
 	// A file's comments follow its diff, in line order.
-	file := find(doc, "file")
+	body := f.bodiesOf(g, round)["a.txt"]
 	var onFile []string
-	for _, c := range findAll(file, hasClass("comment")) {
-		onFile = append(onFile, text(c))
+	for _, thread := range body.Threads {
+		onFile = append(onFile, fmt.Sprintf("line %d: %s", thread.Line, strings.Join(commentLines(thread.Comments), "; ")))
 	}
-	g.Expect(onFile).To(Equal([]string{"a.txt:1–2 one two Both lines.", "a.txt:2 two Why two?"}))
+	g.Expect(onFile).To(Equal([]string{"line 1: a.txt:1–2 | one\ntwo | Both lines.", "line 2: a.txt:2 | two | Why two?"}))
 
 	// The review's own comments sit under the box a late comment is written
 	// in, and the late one says so. Nothing released can change.
-	var onReview []string
-	for _, c := range findAll(byID(doc, "comments-review"), hasClass("comment")) {
-		onReview = append(onReview, text(c))
+	g.Expect(commentLines(round.Acting.Comments)).To(Equal([]string{"This review | Overall fine.", "This review (after the verdict) | One more thing."}))
+	var all []view.Comment
+	all = append(all, round.Acting.Comments...)
+	for _, thread := range body.Threads {
+		all = append(all, thread.Comments...)
 	}
-	g.Expect(onReview).To(Equal([]string{"This review Overall fine.", "This reviewafter the verdict One more thing."}))
-	forms := findAll(doc, isElement("form"))
-	g.Expect(forms).To(HaveLen(1), "a decided round keeps one box, for a late comment")
-	g.Expect(text(find(forms[0], "foot"))).To(Equal("Sends immediately Send"))
-	for _, c := range findAll(doc, hasClass("comment")) {
-		g.Expect(find(c, "acts")).To(BeNil(), "released comments cannot change")
+	for _, c := range all {
+		g.Expect(c.Editable).To(BeFalse(), "released comments cannot change: "+c.Body)
 	}
-	g.Expect(text(doc)).NotTo(ContainSubstring("What was done"), "nothing has been answered yet")
+	g.Expect(round.Replies).To(BeEmpty(), "nothing has been answered yet")
 
 	// An approved round is the last, so a reply the agent writes to it can
 	// show nowhere else.
 	comments, err := f.store.Comments(t.Context(), roundID)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(f.store.Reply(t.Context(), comments[0].ID, "Renamed it.")).To(Succeed())
-	doc = f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	sections := findAll(doc, hasClass("section"))
-	g.Expect(text(sections[len(sections)-1])).To(Equal("What was done 1 a.txt:1\u20132 Renamed it."))
+	round = f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Replies).To(HaveLen(1))
+	g.Expect([]string{round.Replies[0].Where, round.Replies[0].Body}).To(Equal([]string{"a.txt:1–2", "Renamed it."}))
 }
 
 func TestServer_Surface_reviewDocument(t *testing.T) {
@@ -213,10 +301,11 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 
 	// Since round 1, each block is kept, replaced, removed or added, in the
 	// card's prose.
-	doc := f.page(g, base, http.StatusOK)
-	cards := documentCards(doc)
-	g.Expect(cards).To(HaveKey("docs/product.md"))
-	g.Expect(proseBlocks(cards["docs/product.md"])).To(Equal([]string{
+	round := f.roundAt(g, base)
+	product := f.bodiesOf(g, round)["docs/product.md"]
+	g.Expect(product.Kind).To(Equal(view.FileBodyDocument))
+	doc := documentDoc(g, product.Passages)
+	g.Expect(proseBlocks(doc)).To(Equal([]string{
 		"kept: Product",
 		"kept: Kept one.",
 		"marked: New wording. | was: Old wording.",
@@ -225,16 +314,18 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"kept: Kept two.",
 		"whole: Added at the end.",
 	}))
-	g.Expect(findAll(find(cards["docs/product.md"], "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
-	link := find(cards["docs/product.md"], "fileopen")
-	g.Expect(attr(link, "aria-label")).To(Equal("Raw diff"))
-	g.Expect(attr(link, "href")).To(Equal(base + "/files/docs/product.md?view=source"))
+	g.Expect(findAll(find(doc, "prose"), func(n *html.Node) bool { return attr(n, "id") != "" })).To(BeEmpty(), "two documents on one page could repeat an id")
+	for _, card := range round.Cards {
+		if card.Path == "docs/product.md" {
+			g.Expect(card.RawDiff).To(Equal(base+"/files/docs/product.md?view=source"), "the Raw diff link")
+		}
+	}
 
 	// The whole review compares with the base, which held the heading alone,
 	// and every link keeps that comparison.
-	doc = f.page(g, base+"?against=base", http.StatusOK)
-	cards = documentCards(doc)
-	g.Expect(proseBlocks(cards["docs/product.md"])).To(Equal([]string{
+	whole := f.roundAt(g, base+"?against=base")
+	product = f.bodiesOf(g, whole)["docs/product.md"]
+	g.Expect(proseBlocks(documentDoc(g, product.Passages))).To(Equal([]string{
 		"kept: Product",
 		"whole: Kept one.",
 		"whole: New wording.",
@@ -242,23 +333,27 @@ func TestServer_Surface_reviewDocument(t *testing.T) {
 		"whole: Kept two.",
 		"whole: Added at the end.",
 	}))
-	g.Expect(attr(find(cards["docs/product.md"], "fileopen"), "href")).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
+	for _, card := range whole.Cards {
+		if card.Path == "docs/product.md" {
+			g.Expect(card.RawDiff).To(Equal(base + "/files/docs/product.md?against=base&view=source"))
+		}
+	}
 
 	// The attack corpus leaves no script, no style, no image and no event
-	// attribute anywhere on the page, and every link it kept stays inside the
-	// round. An HTML block's placeholder links to Source, keeping the
-	// comparison.
-	pages := []string{base, base + "?against=base"}
-	for _, page := range pages {
-		doc := f.page(g, page, http.StatusOK)
-		attack := documentCards(doc)["docs/attack.md"]
-		g.Expect(attack).NotTo(BeNil(), page)
+	// attribute in what the server marks up, and every link it kept stays
+	// inside the round. An HTML block's placeholder links to Source, keeping
+	// the comparison.
+	rounds := map[string]view.Review{base: round, base + "?against=base": whole}
+	for page, rv := range rounds {
+		attack, ok := f.bodiesOf(g, rv)["docs/attack.md"]
+		g.Expect(ok).To(BeTrue(), page)
+		doc := documentDoc(g, attack.Passages)
 		elements := findAll(doc, func(n *html.Node) bool {
-			return n.Type == html.ElementNode && (n.Data == "script" && !layoutScript(n) || n.Data == "style" || n.Data == "img" || n.Data == "svg" || n.Data == "iframe")
+			return n.Type == html.ElementNode && (n.Data == "script" || n.Data == "style" || n.Data == "img" || n.Data == "svg" || n.Data == "iframe")
 		})
 		g.Expect(elements).To(BeEmpty(), page)
 		g.Expect(eventAttributes(doc)).To(BeEmpty(), page)
-		hrefs := documentLinks(find(attack, "prose"))
+		hrefs := documentLinks(find(doc, "prose"))
 		source := base + "/files/docs/attack.md?view=source"
 		if strings.Contains(page, "against") {
 			source = base + "/files/docs/attack.md?against=base&view=source"
@@ -283,11 +378,12 @@ func TestServer_Surface_reviewDocumentFolds(t *testing.T) {
 	write(g, repo, "docs/spec.md", "# Spec\n\nIntro.\n\n## Items\n\n- one\n- two\n- three\n- 4th\n- five\n- six\n- seven\n\n1. a\n2. b\n3. c\n4. d\n5. e\n")
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"docs"}, Note: "first"}).Review.ID
 	base := "/reviews/" + itoa(id)
-	form := url.Values{"round": {"1"}, "level": {"passage"}, "path": {"docs/spec.md"}, "start": {"16"}, "end": {"16"}, "body": {"Why b?"}}
-	res := sendForm(f.s.Surface(), http.MethodPost, base+"/comments", form, true)
+	req := view.CommentRequest{Round: 1, Level: view.CommentLevelPassage, Path: "docs/spec.md", Start: 16, End: 16, Body: "Why b?"}
+	res := sendJSON(f.s.Surface(), http.MethodPost, commentsAPI(id), req)
 	g.Expect(res.Code).To(Equal(http.StatusOK), res.Body.String())
 
-	card := documentCards(f.page(g, base, http.StatusOK))["docs/spec.md"]
+	body := f.bodiesOf(g, f.roundAt(g, base))["docs/spec.md"]
+	card := documentDoc(g, body.Passages)
 	g.Expect(proseBlocks(card)).To(Equal([]string{
 		"fold: 2 unchanged passages: Spec / Intro.",
 		"kept: Items",
@@ -297,7 +393,6 @@ func TestServer_Surface_reviewDocumentFolds(t *testing.T) {
 		"kept: five",
 		"fold: 3 unchanged passages: six / seven / a",
 		"kept: b",
-		"comments: docs/spec.md:16 2. b Why b? EditDelete",
 		"fold: 3 unchanged passages: c / d / e",
 	}))
 	var starts []string
@@ -305,7 +400,11 @@ func TestServer_Surface_reviewDocumentFolds(t *testing.T) {
 		starts = append(starts, attr(ol, "start"))
 	}
 	g.Expect(starts).To(Equal([]string{"1", "2", "3", "4", "5"}))
-	g.Expect(text(find(find(card, "comment"), "quoted"))).To(Equal("2. b"))
+	thread := threadOf(body.Passages, 16, 16)
+	g.Expect(thread).NotTo(BeNil(), "the commented passage carries its thread")
+	g.Expect(thread.ID).To(Equal(passageID("docs/spec.md", 16, 16)))
+	g.Expect(thread.Comments).To(HaveLen(1))
+	g.Expect([]any{thread.Comments[0].Where, thread.Comments[0].Quoted, thread.Comments[0].Body, thread.Comments[0].Editable}).To(Equal([]any{"docs/spec.md:16", "2. b", "Why b?", true}))
 
 	// The file's own page shows every passage, with nothing folded.
 	doc := f.page(g, base+"/files/docs/spec.md", http.StatusOK)
@@ -350,9 +449,9 @@ func TestServer_Surface_reviewDocumentLinks(t *testing.T) {
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {
 			g := NewWithT(t)
-			card := documentCards(f.page(g, c.page, http.StatusOK))["docs/product.md"]
+			body := f.bodiesOf(g, f.roundAt(g, c.page))["docs/product.md"]
 			files := c.prefix + "/files/"
-			g.Expect(documentLinks(find(card, "prose"))).To(Equal([]string{
+			g.Expect(documentLinks(find(documentDoc(g, body.Passages), "prose"))).To(Equal([]string{
 				files + "docs/architecture.md" + c.query,
 				files + c.query,
 				files + "docs/product.md" + c.query + "#part",
@@ -368,9 +467,10 @@ func TestServer_Surface_reviewDocumentLinks(t *testing.T) {
 
 	// Followed, each lands on the page it names. A path the round lacks reads
 	// live where the disk has it and is the 404 page where it does not.
-	card := documentCards(f.page(g, base, http.StatusOK))["docs/product.md"]
+	body := f.bodiesOf(g, f.roundAt(g, base))["docs/product.md"]
+	prose := find(documentDoc(g, body.Passages), "prose")
 	followed := map[string]string{}
-	for _, a := range findAll(find(card, "prose"), isElement("a")) {
+	for _, a := range findAll(prose, isElement("a")) {
 		href, _, _ := strings.Cut(attr(a, "href"), "#")
 		if !strings.HasPrefix(href, "/") {
 			continue
@@ -412,45 +512,35 @@ func TestServer_Surface_reviewEarlierRounds(t *testing.T) {
 	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
 
 	// The current round lists the earlier one.
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	rows := earlierRows(doc)
-	g.Expect(rows).To(HaveLen(1))
-	g.Expect(attr(rows[0], "href")).To(Equal("/reviews/" + itoa(id) + "/rounds/1"))
-	g.Expect(text(find(rows[0], "nm"))).To(Equal("Round 1 \u00b7 changes requested"))
-	g.Expect(text(find(rows[0], "hint"))).To(Equal("just now"))
+	current := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(current.Earlier).To(Equal([]view.EarlierRound{{
+		Href:  "/reviews/" + itoa(id) + "/rounds/1",
+		Label: "Round 1 · changes requested",
+		Age:   "just now",
+	}}))
+	g.Expect(current.Closed).To(BeEmpty())
 
 	// The earlier round is closed, and lists its comments and what was done.
-	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/1", http.StatusOK)
-	g.Expect(barText(doc)).To(Equal("ReviewRound 1"))
-	g.Expect(attr(find(doc, "back"), "href")).To(Equal("/reviews/" + itoa(id)))
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Changes requestedRound 1"))
-	g.Expect(text(find(doc, "notice"))).To(Equal("Closed just now. Round 2 is the current one."))
-	g.Expect(earlierRows(doc)).To(BeEmpty(), "an earlier round lists no earlier rounds")
-	// The agent's letter leads, as review.html draws it, then the round's
-	// sections, the verdict note and the files.
-	g.Expect(classOrder(doc, "section", "note", "toolbar")).To(Equal([]string{"note", "section", "section", "note", "toolbar"}))
-	var sections []string
-	for _, sec := range findAll(doc, hasClass("section")) {
-		var cards []string
-		for _, c := range findAll(sec, hasClass("comment")) {
-			cards = append(cards, text(c))
-		}
-		sections = append(sections, text(find(sec, "count"))+": "+strings.Join(cards, " | "))
-	}
-	g.Expect(sections).To(Equal([]string{
-		"2: a.txt:2 two Name it. | This review Move the empty case.",
-		"1: a.txt:2 Named it.",
-	}))
+	earlier := f.roundAt(g, "/reviews/"+itoa(id)+"/rounds/1")
+	g.Expect([]string{earlier.Title, earlier.Back, earlier.BackLabel}).To(Equal([]string{"Round 1", "/reviews/" + itoa(id), "Review"}))
+	g.Expect(earlier.Decided).NotTo(BeNil())
+	g.Expect(earlier.Decided.Pill).To(Equal("Changes requested"))
+	g.Expect(earlier.Round).To(BeEquivalentTo(1))
+	g.Expect(earlier.Closed).To(Equal("Closed just now. Round 2 is the current one."))
+	g.Expect(earlier.Earlier).To(BeEmpty(), "an earlier round lists no earlier rounds")
+	g.Expect(earlier.Acting).To(BeNil(), "nothing more can be said on a closed round")
+	g.Expect(commentLines(earlier.Comments)).To(Equal([]string{"a.txt:2 | two | Name it.", "This review | Move the empty case."}))
+	g.Expect(commentLines(earlier.Replies)).To(Equal([]string{"a.txt:2 | Named it."}))
 
 	// The latest round under the rounds address is the review's own page.
-	doc = f.page(g, "/reviews/"+itoa(id)+"/rounds/2", http.StatusOK)
-	g.Expect(barText(doc)).To(Equal("Queuefirst"))
-	g.Expect(earlierRows(doc)).NotTo(BeEmpty())
+	again := f.roundAt(g, "/reviews/"+itoa(id)+"/rounds/2")
+	g.Expect([]string{again.Title, again.Back, again.BackLabel}).To(Equal([]string{"first", "/", "Queue"}))
+	g.Expect(again.Earlier).NotTo(BeEmpty())
 
 	missing := []string{"/reviews/" + itoa(id) + "/rounds/3", "/reviews/" + itoa(id) + "/rounds/0", "/reviews/" + itoa(id) + "/rounds/x", "/reviews/999/rounds/1"}
 	for _, path := range missing {
-		doc := f.page(g, path, http.StatusNotFound)
-		g.Expect(text(find(doc, "empty"))).To(ContainSubstring("There is no page at this address."), path)
+		res := getView(f, "/api"+path, nil)
+		g.Expect(res.Code).To(Equal(http.StatusNotFound), path)
 	}
 }
 
@@ -472,14 +562,15 @@ func TestServer_Surface_reviewEarlierRoundsNewestFirst(t *testing.T) {
 	// one.
 	f.s.now = func() time.Time { return time.Now().Add(2 * time.Hour) }
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(find(doc, "brief"), "where"))).To(HavePrefix("Approved 2h agoRound 3"))
-	g.Expect(text(find(doc, "notice"))).To(Equal("Approved. The verdict went out 2 hours ago."))
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Round).To(BeEquivalentTo(3))
+	g.Expect(round.Decided.Pill).To(Equal("Approved 2h ago"))
+	g.Expect(round.Decided.Sentence).To(Equal("The verdict went out 2 hours ago."))
 	var rows []string
-	for _, row := range earlierRows(doc) {
-		rows = append(rows, text(find(row, "nm"))+" "+text(find(row, "hint")))
+	for _, row := range round.Earlier {
+		rows = append(rows, row.Label+" "+row.Age)
 	}
-	g.Expect(rows).To(Equal([]string{"Round 2 \u00b7 changes requested 2h ago", "Round 1 \u00b7 changes requested 2h ago"}))
+	g.Expect(rows).To(Equal([]string{"Round 2 · changes requested 2h ago", "Round 1 · changes requested 2h ago"}))
 }
 
 func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
@@ -497,20 +588,26 @@ func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
 	paths := []string{"a.txt", "a.bin", "binary.md", "huge.md", "long.md"}
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: paths, Note: "big"}).Review.ID
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
 	got := map[string]string{}
-	for _, file := range findAll(doc, hasClass("file")) {
-		got[text(find(file, "path"))] = text(find(file, "toobig")) + text(find(file, "filefacts")) + " " + attr(find(file, "fileopen"), "aria-label")
-		g.Expect(find(file, "code")).To(BeNil())
-		g.Expect(find(file, "prose")).To(BeNil())
+	for path, body := range f.bodiesOf(g, f.roundAt(g, "/reviews/"+itoa(id))) {
+		g.Expect(body.Rows).To(BeEmpty(), path)
+		g.Expect(body.Passages).To(BeEmpty(), path)
+		line := string(body.Kind)
+		if body.Rendered != nil && body.Rendered.Facts != nil {
+			line += " " + body.Rendered.Facts.Kind + " " + body.Rendered.Facts.Size
+		}
+		got[path] = line
 	}
 	g.Expect(got).To(Equal(map[string]string{
-		"a.bin":     "Binary file8 B Whole file",
-		"a.txt":     "Too large to show as a diff. Whole file",
-		"binary.md": "Binary file11 B Whole file",
-		"huge.md":   "Too large to show as a diff. Whole file",
-		"long.md":   "Too large to show as a diff. Whole file",
+		"a.bin":     "rendered Binary file 8 B",
+		"a.txt":     "too_large",
+		"binary.md": "rendered Binary file 11 B",
+		"huge.md":   "too_large",
+		"long.md":   "too_large",
 	}))
+	for _, card := range f.roundAt(g, "/reviews/"+itoa(id)).Cards {
+		g.Expect(card.Whole).To(Equal("/reviews/"+itoa(id)+"/files/"+card.Path), "every card opens its whole file")
+	}
 }
 
 func TestServer_Surface_reviewFresh(t *testing.T) {
@@ -526,18 +623,18 @@ func TestServer_Surface_reviewFresh(t *testing.T) {
 	f.addComment(g, t, store.NewComment{RoundID: roundID, Level: store.LevelFile, Path: "specs/018.md", Body: "Name the manifest."})
 
 	// One new document reads on the page, with nothing marked and no card.
-	doc := f.page(g, base, http.StatusOK)
-	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file, new Raw diff"))
-	g.Expect(attr(find(find(doc, "toolbar"), "btn"), "href")).To(Equal(base + "/files/specs/018.md?view=source"))
-	g.Expect(hasClass("small")(find(find(doc, "toolbar"), "btn"))).To(BeTrue())
-	g.Expect(findAll(doc, hasClass("file"))).To(BeEmpty())
-	prose := find(doc, "prose")
-	g.Expect(prose).NotTo(BeNil())
-	g.Expect(hasClass("page")(prose.Parent)).To(BeTrue(), "app.css pulls prose back by the gutter only directly in .page")
-	g.Expect(proseBlocks(prose.Parent)).To(Equal([]string{"kept: Bulk import", "kept: Tagging one at a time.", "kept: Iteration 1"}))
-	g.Expect(findAll(doc, hasClass("fold"))).To(BeEmpty(), "a document with nothing to compare against shows whole")
+	round := f.roundAt(g, base)
+	g.Expect(round.Fresh).To(BeTrue())
+	g.Expect(round.Files).To(Equal("1 file"))
+	g.Expect(cardPaths(round)).To(Equal([]string{"specs/018.md"}))
+	g.Expect(round.Cards[0].RawDiff).To(Equal(base + "/files/specs/018.md?view=source"))
+	body := f.bodiesOf(g, round)["specs/018.md"]
+	g.Expect(proseBlocks(documentDoc(g, body.Passages))).To(Equal([]string{"kept: Bulk import", "kept: Tagging one at a time.", "kept: Iteration 1"}))
+	g.Expect(findAll(documentDoc(g, body.Passages), hasClass("fold"))).To(BeEmpty(), "a document with nothing to compare against shows whole")
 	// With no card to hold it, the file's comment joins the review's own.
-	g.Expect(text(find(find(doc, "section"), "comment"))).To(Equal("specs/018.md Name the manifest."))
+	g.Expect(commentLines(round.Comments)).To(Equal([]string{"specs/018.md | Name the manifest."}))
+	g.Expect(round.Acting.Comments).To(BeEmpty())
+	g.Expect(body.Comments).To(BeEmpty())
 
 	// A document new since round 1, alone in its round, keeps the layout
 	// beside the comparison control. The whole review holds both documents,
@@ -545,13 +642,15 @@ func TestServer_Surface_reviewFresh(t *testing.T) {
 	f.decide(g, t, id, store.VerdictChanges, "more")
 	write(g, repo, "specs/019.md", "# Next\n")
 	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
-	doc = f.page(g, base, http.StatusOK)
-	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file, new Raw diff Since round 1Whole review"))
-	g.Expect(attr(find(find(doc, "toolbar"), "btn"), "href")).To(Equal(base + "/files/specs/019.md?view=source"))
-	g.Expect(hasClass("page")(find(doc, "prose").Parent)).To(BeTrue())
-	doc = f.page(g, base+"?against=base", http.StatusOK)
-	g.Expect(text(find(find(doc, "toolbar"), "counts"))).To(HavePrefix("2 files"))
-	g.Expect(documentCards(doc)).To(HaveLen(2))
+	round = f.roundAt(g, base)
+	g.Expect(round.Fresh).To(BeTrue())
+	g.Expect(round.Files).To(Equal("1 file"))
+	g.Expect(round.Against).NotTo(BeNil(), "the comparison control sits beside the layout")
+	g.Expect(round.Cards[0].RawDiff).To(Equal(base + "/files/specs/019.md?view=source"))
+	whole := f.roundAt(g, base+"?against=base")
+	g.Expect(whole.Fresh).To(BeFalse())
+	g.Expect(whole.Files).To(Equal("2 files"))
+	g.Expect(cardPaths(whole)).To(Equal([]string{"specs/018.md", "specs/019.md"}))
 }
 
 func TestServer_Surface_reviewFreshConditions(t *testing.T) {
@@ -611,15 +710,9 @@ func TestServer_Surface_reviewFreshConditions(t *testing.T) {
 			}
 			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: c.paths, Note: "first"}).Review.ID
 
-			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-			counts := text(find(find(doc, "toolbar"), "counts"))
-			if c.fresh {
-				g.Expect(counts).To(Equal("1 file, new"))
-				g.Expect(findAll(doc, hasClass("file"))).To(BeEmpty())
-				return
-			}
-			g.Expect(counts).NotTo(ContainSubstring("new"))
-			g.Expect(findAll(doc, hasClass("file"))).To(HaveLen(len(c.paths)))
+			round := f.roundAt(g, "/reviews/"+itoa(id))
+			g.Expect(round.Fresh).To(Equal(c.fresh))
+			g.Expect(round.Cards).To(HaveLen(len(c.paths)))
 		})
 	}
 }
@@ -638,27 +731,29 @@ func TestServer_Surface_reviewHoldsAFilePastFiveHundred(t *testing.T) {
 			write(g, repo, "d/lock.json", strings.Repeat("line\n", n))
 			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "lock"}).Review.ID
 
-			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-			card := find(doc, "file")
-			g.Expect(card).NotTo(BeNil())
-			g.Expect(hasAttr(card, "open")).To(BeTrue())
+			round := f.roundAt(g, "/reviews/"+itoa(id))
+			g.Expect(round.Cards).To(HaveLen(1))
+			card := round.Cards[0]
+			g.Expect(card.Body).To(BeNil())
 			if n <= 500 {
-				g.Expect(find(card, "skeleton")).NotTo(BeNil())
-				g.Expect(find(card, "load")).To(BeNil())
+				g.Expect(card.Held).To(BeEmpty())
+				g.Expect(card.Deferred).To(BeTrue(), "a skeleton holds the place until the body is asked for")
+				g.Expect(card.SkeletonLines).To(BeEquivalentTo(n))
 				return
 			}
 			// A held card waits for the tap, so it never asks on its own.
-			g.Expect(hasAttr(card, "hx-trigger")).To(BeFalse())
-			g.Expect(find(card, "skeleton")).To(BeNil())
-			g.Expect(text(find(card, "kind"))).To(Equal("501 changed lines"))
-			g.Expect(text(find(card, "hint"))).To(Equal("Past the 500 a card shows on its own."))
-			load := find(card, "load")
-			g.Expect(attr(load, "href")).To(Equal(attr(find(card, "fileopen"), "href")), "with no script, Load anyway opens the whole file")
-			res := serveSurface(f.s.Surface(), http.MethodGet, attr(load, "hx-get"))
-			g.Expect(res.Code).To(Equal(http.StatusOK))
-			body := parse(g, res.Body.String())
-			g.Expect(findAll(body, hasClass("src"))).To(HaveLen(n))
-			g.Expect(find(body, "load")).To(BeNil(), "the loaded body held itself again")
+			g.Expect(card.Deferred).To(BeFalse())
+			g.Expect(card.Held).To(Equal("501"))
+			g.Expect(card.HeldHint).To(Equal("Past the 500 a card shows on its own."))
+			body := readBody(g, f, card.BodyHref)
+			g.Expect(body.Kind).To(Equal(view.FileBodyRows))
+			var lines int
+			for _, row := range body.Rows {
+				if row.Kind == view.CodeRowKindAdd {
+					lines++
+				}
+			}
+			g.Expect(lines).To(Equal(n))
 		})
 	}
 }
@@ -676,16 +771,16 @@ func TestServer_Surface_reviewLateLineComment(t *testing.T) {
 	nextMillisecond()
 	f.addComment(g, t, store.NewComment{RoundID: roundID, Level: store.LevelLine, Path: "a.txt", StartLine: 2, EndLine: 2, Quoted: "two", Body: "After."})
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	thread := byID(doc, threadID("a.txt", 2))
-	g.Expect(thread).NotTo(BeNil(), "both comments sit under their line")
-	var cards []string
-	for _, c := range findAll(thread, hasClass("comment")) {
-		cards = append(cards, text(c))
-		g.Expect(find(c, "acts")).To(BeNil(), "released comments cannot change")
+	body := f.bodiesOf(g, f.roundAt(g, "/reviews/"+itoa(id)))["a.txt"]
+	g.Expect(body.Threads).To(HaveLen(1), "both comments sit under their line")
+	thread := body.Threads[0]
+	g.Expect(thread.ID).To(Equal(threadID("a.txt", 2)))
+	g.Expect(commentLines(thread.Comments)).To(Equal([]string{"a.txt:2 | two | Before.", "a.txt:2 (after the verdict) | two | After."}))
+	for _, c := range thread.Comments {
+		g.Expect(c.Editable).To(BeFalse(), "released comments cannot change: "+c.Body)
 	}
-	g.Expect(cards).To(Equal([]string{"a.txt:2 two Before.", "a.txt:2after the verdict two After."}))
-	g.Expect(byID(doc, slotID("a.txt"))).NotTo(BeNil(), "a late comment on the file has somewhere to open")
+	g.Expect(body.Slot).To(Equal(slotID("a.txt")), "a late comment on the file has somewhere to open")
+	g.Expect(body.ListID).To(Equal(listID(store.LevelFile, "a.txt")))
 }
 
 // A review past ten files lists them above the cards, each linking to its
@@ -703,21 +798,13 @@ func TestServer_Surface_reviewListsFilesPastTen(t *testing.T) {
 			}
 			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
 
-			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-			list := find(doc, "filelist")
-			if n <= 10 {
-				g.Expect(list).To(BeNil())
-				return
-			}
-			g.Expect(list).NotTo(BeNil())
-			links := findAll(list, hasClass("treerow"))
-			g.Expect(links).To(HaveLen(n))
-			cards := findAll(doc, hasClass("file"))
-			for i, link := range links {
-				g.Expect(text(find(link, "nm"))).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
-				g.Expect(text(find(link, "plus"))).To(Equal("+" + itoa(int64(i+1))))
-				g.Expect(attr(link, "href")).To(Equal("#"+attr(cards[i], "id")), "a link names a card that is not its file's")
-				g.Expect(attr(cards[i], "data-path")).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
+			round := f.roundAt(g, "/reviews/"+itoa(id))
+			g.Expect(round.Listed).To(Equal(n > 10))
+			g.Expect(round.Cards).To(HaveLen(n))
+			for i, card := range round.Cards {
+				g.Expect(card.Path).To(Equal(fmt.Sprintf("d/%02d.txt", i)))
+				g.Expect(card.Added).To(Equal(strconv.Itoa(i + 1)))
+				g.Expect(card.ID).To(Equal("file-"+pathKey(card.Path)), "a link names a card that is not its file's")
 			}
 		})
 	}
@@ -733,17 +820,23 @@ func TestServer_Surface_reviewLostRepository(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
 	g.Expect(os.RemoveAll(filepath.Join(repo, ".git"))).To(Succeed())
 
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(text(find(doc, "warn"))).To(Equal("The project's repository is gone, so the change cannot be measured. Each file is shown as this round captured it."))
-	g.Expect(text(find(doc, "toolbar"))).To(Equal("1 file"))
-	file := find(doc, "file")
-	g.Expect(find(file, "counts")).To(BeNil(), "nothing was compared, so nothing is counted")
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Unmeasurable).To(Equal("The project's repository is gone, so the change cannot be measured."))
+	g.Expect(round.Files).To(Equal("1 file"))
+	g.Expect([]string{round.Added, round.Removed}).To(Equal([]string{"", ""}), "nothing was compared, so nothing is counted")
+	g.Expect(round.Cards).To(HaveLen(1))
+	g.Expect(round.Cards[0].Unmeasured).To(BeTrue())
 	var lines []string
-	for _, src := range findAll(file, hasClass("src")) {
-		lines = append(lines, text(src))
+	for _, row := range f.bodiesOf(g, round)["a.txt"].Rows {
+		g.Expect(row.Kind).NotTo(Equal(view.CodeRowKindAdd), "the file is shown as captured, with no change marked")
+		var text strings.Builder
+		for _, tok := range row.Tokens {
+			text.WriteString(tok.Text)
+		}
+		lines = append(lines, text.String())
 	}
 	g.Expect(lines).To(Equal([]string{"one", "two"}))
-	g.Expect(find(doc, "decide")).NotTo(BeNil(), "the review can still be decided")
+	g.Expect(round.Acting.Bar).NotTo(BeNil(), "the review can still be decided")
 }
 
 func TestServer_Surface_reviewMarksAChangedWord(t *testing.T) {
@@ -759,12 +852,18 @@ func TestServer_Surface_reviewMarksAChangedWord(t *testing.T) {
 	write(g, repo, "x.go", "package x\n\nfunc f() int {\n\treturn 2\n}\n")
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"x.go"}, Note: "two"}).Review.ID
 
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id))
-	g.Expect(res.Code).To(Equal(http.StatusOK))
 	// The changed word is a mark around its role, and the keyword before it
 	// is highlighted on its own.
-	g.Expect(res.Body.String()).To(ContainSubstring(`<td class="src">	<span class="k">return</span> <span class="w"><span class="n">2</span></span></td>`))
-	g.Expect(res.Body.String()).To(ContainSubstring(`<td class="src">	<span class="k">return</span> <span class="w"><span class="n">1</span></span></td>`))
+	var marked []string
+	for _, row := range f.bodiesOf(g, f.roundAt(g, "/reviews/"+itoa(id)))["x.go"].Rows {
+		if row.Kind == view.CodeRowKindAdd || row.Kind == view.CodeRowKindDel {
+			marked = append(marked, string(row.Kind)+" "+markedRow(row))
+		}
+	}
+	g.Expect(marked).To(Equal([]string{
+		"del \t[keyword return] {[number 1]}",
+		"add \t[keyword return] {[number 2]}",
+	}))
 }
 
 func TestServer_Surface_reviewModeChange(t *testing.T) {
@@ -781,18 +880,18 @@ func TestServer_Surface_reviewModeChange(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: me, Paths: paths, Note: "first"}).Review.ID
 
 	// lines is each card's mode line, by path, for the cards that have one.
-	lines := func(doc *html.Node) map[string]string {
+	lines := func(round view.Review) map[string]string {
 		out := map[string]string{}
-		for _, file := range findAll(doc, hasClass("file")) {
-			if line := find(file, "modeline"); line != nil {
-				out[text(find(file, "path"))] = text(line)
+		for path, body := range f.bodiesOf(g, round) {
+			if body.Mode != "" {
+				out[path] = body.Mode
 			}
 		}
 		return out
 	}
 	// An execute bit with no byte changed, against the base, and a new
 	// symlink. A new text file and an edited one carry no line.
-	g.Expect(lines(f.page(g, "/reviews/"+itoa(id), http.StatusOK))).To(Equal(map[string]string{
+	g.Expect(lines(f.roundAt(g, "/reviews/"+itoa(id)))).To(Equal(map[string]string{
 		"deploy.sh":    "regular file (644) → executable file (755)",
 		"docs/current": "new symlink",
 	}))
@@ -803,8 +902,7 @@ func TestServer_Surface_reviewModeChange(t *testing.T) {
 	f.decide(g, t, id, store.VerdictChanges, "more")
 	g.Expect(os.Chmod(filepath.Join(repo, "a.txt"), 0o700)).To(Succeed())
 	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(lines(doc)).To(Equal(map[string]string{"a.txt": "regular file (644) → executable file (755)"}))
+	g.Expect(lines(f.roundAt(g, "/reviews/"+itoa(id)))).To(Equal(map[string]string{"a.txt": "regular file (644) → executable file (755)"}))
 }
 
 func TestServer_Surface_reviewNotFound(t *testing.T) {
@@ -812,8 +910,11 @@ func TestServer_Surface_reviewNotFound(t *testing.T) {
 	f := newFixture(g, t)
 	paths := []string{"/reviews/999", "/reviews/abc", "/reviews/0"}
 	for _, path := range paths {
-		doc := f.page(g, path, http.StatusNotFound)
-		g.Expect(text(find(doc, "empty"))).To(ContainSubstring("There is no page at this address."), path)
+		res := getView(f, "/api"+path, nil)
+		g.Expect(res.Code).To(Equal(http.StatusNotFound), path)
+		var missing view.NotFound
+		g.Expect(json.Unmarshal(res.Body.Bytes(), &missing)).To(Succeed(), path)
+		g.Expect(missing.Notice).To(BeNil(), path)
 	}
 }
 
@@ -833,50 +934,54 @@ func TestServer_Surface_reviewRendered(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: paths, Note: "first", Views: map[string]string{"site/index.html": "rendered"}}).Review.ID
 	raw := "/reviews/" + itoa(id) + "/raw/"
 
-	// card is each rendered card as what it shows, by path.
-	cards := func(doc *html.Node) map[string]string {
+	// shown is each card as what it shows, by path.
+	shown := func(round view.Review) map[string]string {
 		out := map[string]string{}
-		for _, file := range findAll(doc, hasClass("file")) {
+		bodies := f.bodiesOf(g, round)
+		for _, card := range round.Cards {
+			body := bodies[card.Path]
+			g.Expect(body.Kind).To(Equal(view.FileBodyRendered), card.Path)
 			var parts []string
-			if find(file, "counts") != nil {
-				parts = append(parts, "counts "+text(find(file, "counts")))
+			if !card.Unmeasured {
+				parts = append(parts, "counts +"+card.Added+" −"+card.Removed)
 			}
-			for _, n := range findAll(file, func(n *html.Node) bool {
-				return n.Data == "img" || n.Data == "video" || n.Data == "audio" || n.Data == "iframe"
-			}) {
-				parts = append(parts, n.Data+" "+attr(n, "src")+" "+attr(n, "sandbox"))
+			r := body.Rendered
+			for _, side := range r.Sides {
+				parts = append(parts, string(side.Element)+" "+side.Src)
 			}
-			if facts := find(file, "filefacts"); facts != nil {
-				parts = append(parts, "facts "+text(facts))
+			if r.Frame != "" {
+				frame := "iframe " + r.Frame
+				if r.Sandboxed {
+					frame += " allow-scripts"
+				}
+				parts = append(parts, frame)
 			}
-			if find(file, "code") != nil {
-				parts = append(parts, "code")
+			if facts := r.Facts; facts != nil {
+				line := "facts " + facts.Kind + facts.Size + facts.Hint
+				if facts.Load != "" {
+					line += "Load anyway"
+				}
+				parts = append(parts, line)
 			}
-			out[text(find(file, "path"))] = strings.Join(parts, " | ")
+			out[card.Path] = strings.Join(parts, " | ")
 		}
 		return out
 	}
 	want := map[string]string{
-		"icon.png":        "img " + raw + "0/icon.png  | img " + raw + "1/icon.png ",
+		"icon.png":        "img " + raw + "0/icon.png | img " + raw + "1/icon.png",
 		"site/index.html": "counts +1 −1 | iframe " + raw + "1/site/index.html allow-scripts",
-		"clip.mp4":        "video " + raw + "1/clip.mp4 ",
-		"paper.pdf":       "iframe " + raw + "1/paper.pdf ",
+		"clip.mp4":        "video " + raw + "1/clip.mp4",
+		"paper.pdf":       "iframe " + raw + "1/paper.pdf",
 		"big.png":         "facts PNG image20.0 MB" + pastSendLimit + "Load anyway",
 		"data.zip":        "facts ZIP archive4 B",
 	}
-	doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	g.Expect(cards(doc)).To(Equal(want))
-	g.Expect(find(find(doc, "rendered"), "beforeafter")).NotTo(BeNil(), "a rendered card sits in from the card's edge")
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(shown(round)).To(Equal(want))
 
-	// A deferred card's body, fetched on its first open, shows the same.
-	for p, body := range want {
-		res := serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/"+p)
-		g.Expect(res.Code).To(Equal(http.StatusOK), p)
-		frag := parse(g, `<details class="file"><summary><span class="path">`+p+`</span></summary>`+res.Body.String()+`</details>`)
-		got := cards(frag)[p]
-		g.Expect(got).To(Equal(strings.TrimPrefix(body, "counts +1 −1 | ")), p)
-	}
+	// A deferred card's body, fetched on its first open, is the same.
+	g.Expect(expectCardBodies(g, f, id, 0, "")).To(HaveLen(len(want)))
 }
+
 func TestServer_Surface_reviewSendsBodiesUpToItsLimits(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -921,34 +1026,31 @@ func TestServer_Surface_reviewSendsBodiesUpToItsLimits(t *testing.T) {
 			}
 			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
 
-			doc := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-			files := findAll(doc, hasClass("file"))
-			g.Expect(files).To(HaveLen(c.files))
-			for _, file := range files {
-				// Every card opens at any size. Past the thresholds it sends
-				// no body with the page, and loads it from its own address
-				// once it nears the screen.
-				g.Expect(hasAttr(file, "open")).To(BeTrue(), text(find(file, "path")))
-				g.Expect(find(file, "code") == nil).To(Equal(!c.sent))
-				g.Expect(hasAttr(file, "hx-get")).To(Equal(!c.sent))
+			round := f.roundAt(g, "/reviews/"+itoa(id))
+			g.Expect(round.Cards).To(HaveLen(c.files))
+			for _, card := range round.Cards {
+				// Past the thresholds a card sends no body with the round, and
+				// asks for it at its own address once it nears the screen.
+				g.Expect(card.Deferred).To(Equal(!c.sent), card.Path)
+				g.Expect(card.Body == nil).To(Equal(!c.sent), card.Path)
 			}
 			if c.sent {
 				return
 			}
 			// The skeleton holds the body's rows, one hunk header and each
 			// line, so the body arriving moves nothing below it.
-			for _, file := range files {
-				skeleton := find(file, "skeleton")
-				g.Expect(attr(skeleton, "data-hunks")).To(Equal("1"))
-				g.Expect(attr(skeleton, "data-lines")).To(Equal(itoa(int64(c.lines))))
+			for _, card := range round.Cards {
+				g.Expect([]int32{card.SkeletonHunks, card.SkeletonLines}).To(Equal([]int32{1, int32(c.lines)}), card.Path)
 			}
-			body := attr(files[0], "hx-get")
-			g.Expect(attr(files[0], "hx-trigger")).To(Equal("eyeball:near once"))
-			res := serveSurface(f.s.Surface(), http.MethodGet, body)
-			g.Expect(res.Code).To(Equal(http.StatusOK))
-			rows := findAll(parse(g, res.Body.String()), hasClass("src"))
-			g.Expect(rows).To(HaveLen(c.lines))
-			res = serveSurface(f.s.Surface(), http.MethodGet, "/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt")
+			body := readBody(g, f, round.Cards[0].BodyHref)
+			var lines int
+			for _, row := range body.Rows {
+				if row.Kind == view.CodeRowKindAdd {
+					lines++
+				}
+			}
+			g.Expect(lines).To(Equal(c.lines))
+			res := getView(f, "/api/reviews/"+itoa(id)+"/rounds/1/cards/d/missing.txt", nil)
 			g.Expect(res.Code).To(Equal(http.StatusNotFound))
 		})
 	}
@@ -1030,23 +1132,9 @@ func TestServer_Surface_reviewTotalsMatchTheStoredSize(t *testing.T) {
 	}
 }
 
-// earlierRows is each row of a review page's list of earlier rounds, which
-// is its first section when there is one.
-func earlierRows(doc *html.Node) []*html.Node {
-	sec := find(doc, "section")
-	if sec == nil {
-		return nil
-	}
-	heading := findAll(sec, func(n *html.Node) bool { return n.Data == "h2" })
-	if len(heading) == 0 || !strings.HasPrefix(text(heading[0]), "Earlier rounds") {
-		return nil
-	}
-	return findAll(sec, hasClass("treerow"))
-}
-
 // page fetches a surface page and parses it, failing on any other status. The
 // project, tree and file pages are React screens, so they are read through
-// their views.
+// their views, and so is a review's round, whose template page no test parses.
 func (f *fixture) page(g *WithT, path string, status int) *html.Node {
 	g.THelper()
 	if scopedPage(path) {
@@ -1075,19 +1163,19 @@ func (f *fixture) addComment(g *WithT, t *testing.T, c store.NewComment) store.C
 	return comment
 }
 
-// expectStoredTotals holds the review page's totals to the size the store
-// summed when the latest round was written.
+// expectStoredTotals holds the review's totals to the size the store summed
+// when the latest round was written.
 func (f *fixture) expectStoredTotals(g *WithT, t *testing.T, reviewID int64) {
 	g.THelper()
 	review, err := f.store.Review(t.Context(), reviewID)
 	g.Expect(err).NotTo(HaveOccurred())
 	round, err := f.store.Round(t.Context(), reviewID, review.LatestRound)
 	g.Expect(err).NotTo(HaveOccurred())
-	doc := f.page(g, "/reviews/"+itoa(reviewID), http.StatusOK)
-	toolbar := find(doc, "toolbar")
+	view := f.roundAt(g, "/reviews/"+itoa(reviewID))
+	got := fmt.Sprintf("%s +%s −%s", view.Files, view.Added, view.Removed)
 	want := fmt.Sprintf("%s +%s −%s", count(round.Files, "file", "files"), thousands(round.Added), thousands(round.Removed))
-	g.Expect(text(find(toolbar, "counts"))).To(Equal(want), "round "+strconv.Itoa(round.Number))
-	g.Expect(findAll(doc, hasClass("file"))).To(HaveLen(round.Files), "the files listed are the files counted")
+	g.Expect(got).To(Equal(want), "round "+strconv.Itoa(round.Number))
+	g.Expect(view.Cards).To(HaveLen(round.Files), "the files listed are the files counted")
 }
 
 // attackCorpus is a document written to break out of the page: raw HTML,
@@ -1120,17 +1208,6 @@ A paragraph <img src=x onerror=alert(1)> and <a href="javascript:x" onclick="ale
 |---|---|
 | <script>x</script> | <img src=x onerror=y> |
 `
-
-// documentCards maps each file card shown as a document to its path.
-func documentCards(doc *html.Node) map[string]*html.Node {
-	out := map[string]*html.Node{}
-	for _, card := range findAll(doc, hasClass("file")) {
-		if find(find(card, "filebody"), "prose") != nil {
-			out[text(find(card, "path"))] = card
-		}
-	}
-	return out
-}
 
 // textWithout is n's text less every element named skip, as text reads it.
 func textWithout(n *html.Node, skip string) string {
@@ -1233,40 +1310,4 @@ func nextMillisecond() {
 	for time.Now().Truncate(time.Millisecond).Equal(start) {
 		runtime.Gosched()
 	}
-}
-
-// classOrder lists, in document order, each element carrying one of classes,
-// by that class.
-func classOrder(n *html.Node, classes ...string) []string {
-	var out []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		for _, c := range classes {
-			if hasClass(c)(n) {
-				out = append(out, c)
-			}
-		}
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(n)
-	return out
-}
-
-// hasAttr reports whether an element carries an attribute at all.
-func hasAttr(n *html.Node, name string) bool {
-	for _, a := range n.Attr {
-		if a.Key == name {
-			return true
-		}
-	}
-	return false
-}
-
-// layoutScript reports whether n is one of the two scripts the layout loads in
-// the head, which are the only scripts a page may hold.
-func layoutScript(n *html.Node) bool {
-	src := attr(n, "src")
-	return n.Parent != nil && n.Parent.Data == "head" && (strings.HasPrefix(src, "/static/htmx.js?b=") || strings.HasPrefix(src, "/static/app.js?b="))
 }

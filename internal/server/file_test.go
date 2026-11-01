@@ -150,9 +150,9 @@ func TestServer_Surface_fileAgainst(t *testing.T) {
 		t.Run("against "+c.query, func(t *testing.T) {
 			g := NewWithT(t)
 			card := ""
-			for _, file := range findAll(f.page(g, base+c.query, http.StatusOK), hasClass("file")) {
-				if text(find(file, "path")) == "a.txt" {
-					card = text(find(file, "counts"))
+			for _, shown := range f.roundAt(g, base+c.query).Cards {
+				if shown.Path == "a.txt" {
+					card = "+" + shown.Added + " −" + shown.Removed
 				}
 			}
 			g.Expect(card).NotTo(BeEmpty())
@@ -564,8 +564,8 @@ func TestServer_Surface_fileEscapedNames(t *testing.T) {
 	// The card's link is the escaped address, and following it lands on a
 	// page naming the whole file, not a prefix cut short at a # or a ?.
 	links := map[string]string{}
-	for _, file := range findAll(f.page(g, "/reviews/"+itoa(id), http.StatusOK), hasClass("file")) {
-		links[text(find(file, "path"))] = attr(find(file, "fileopen"), "href")
+	for _, card := range f.roundAt(g, "/reviews/"+itoa(id)).Cards {
+		links[card.Path] = card.Whole
 	}
 	g.Expect(links).To(Equal(map[string]string{
 		"a#b.txt":          "/reviews/" + itoa(id) + "/files/a%23b.txt",
@@ -988,10 +988,9 @@ func TestServer_Surface_reviewWholeFileLink(t *testing.T) {
 	for _, c := range pages {
 		t.Run(c.page, func(t *testing.T) {
 			g := NewWithT(t)
-			link := find(find(f.page(g, c.page, http.StatusOK), "file"), "fileopen")
-			g.Expect(attr(link, "aria-label")).To(Equal("Whole file"))
-			g.Expect(attr(link, "href")).To(Equal(c.want))
-			g.Expect(link.Parent.Data).To(Equal("summary"), "the link sits in the card's header")
+			round := f.roundAt(g, c.page)
+			g.Expect(round.Cards).To(HaveLen(1))
+			g.Expect(round.Cards[0].Whole).To(Equal(c.want))
 		})
 	}
 }

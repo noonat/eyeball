@@ -32,3 +32,11 @@ func viewDocument(g *WithT, h http.Handler, address string, status int) *xhtml.N
 	g.Expect(err).NotTo(HaveOccurred())
 	return parse(g, doc)
 }
+
+// docFromView draws a view's JSON as the template pages drew it.
+func docFromView(g *WithT, body []byte) *xhtml.Node {
+	g.THelper()
+	doc, err := viewdoc.Page(http.StatusOK, body)
+	g.Expect(err).NotTo(HaveOccurred())
+	return parse(g, doc)
+}

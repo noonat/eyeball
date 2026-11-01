@@ -13,6 +13,7 @@ import (
 
 	"github.com/noonat/eyeball"
 	"github.com/noonat/eyeball/internal/api"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -297,16 +298,21 @@ func TestServer_Surface_eye(t *testing.T) {
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "look"}).Review.ID
 
-	pages := []string{"/reviews/" + itoa(id), "/nope"}
-	for _, target := range pages {
-		res := serveSurface(f.s.Surface(), http.MethodGet, target)
-		eye := find(parse(g, res.Body.String()), "eye")
-		g.Expect(attr(eye, "class")).To(Equal("eye"), target)
-		g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"), target)
-	}
+	// The review's view carries the count its top bar's eye draws.
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.WaitingCount).To(HaveValue(BeEquivalentTo(1)))
+	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	eye := find(parse(g, res.Body.String()), "eye")
+	g.Expect(attr(eye, "class")).To(Equal("eye"))
+	g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"))
 
 	g.Expect(f.store.Close()).To(Succeed())
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	res = getView(f, "/api/reviews/abc", nil)
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+	var missing view.NotFound
+	g.Expect(json.Unmarshal(res.Body.Bytes(), &missing)).To(Succeed())
+	g.Expect(missing.WaitingCount).To(BeNil(), "no count, so no eye")
+	res = serveSurface(f.s.Surface(), http.MethodGet, "/nope")
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 	doc := parse(g, res.Body.String())
 	g.Expect(find(doc, "topbar")).NotTo(BeNil(), "the page still renders")
@@ -389,8 +395,9 @@ func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {
 func TestServer_Surface_htmxConfig(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	// A template page, since the queue is the React app and loads no htmx.
-	doc := f.page(g, "/reviews/"+itoa(actingReview(g, t, f)), http.StatusOK)
+	// The error page is the one template page left that loads htmx, since the
+	// queue is the React app.
+	doc := f.page(g, "/nope", http.StatusNotFound)
 	meta := findAll(doc, func(n *html.Node) bool {
 		return n.Type == html.ElementNode && n.Data == "meta" && attr(n, "name") == "htmx-config"
 	})
@@ -508,8 +515,7 @@ func serveSurface(h http.Handler, method, path string) *httptest.ResponseRecorde
 // reads rather than matching markup.
 func pageText(g *WithT, body string) string {
 	g.THelper()
-	doc, err := html.Parse(strings.NewReader(body))
-	g.Expect(err).NotTo(HaveOccurred())
+	doc := parse(g, body)
 	var b strings.Builder
 	var walk func(n *html.Node)
 	walk = func(n *html.Node) {
