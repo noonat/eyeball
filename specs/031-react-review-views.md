@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -231,5 +231,12 @@ required_acks:
       and a card waiting for its body.
 - [x] Screen sheets lay every state out light beside dark, with a story per
       state.
-- [/] The owner judges the sheets on the phone against review.html, and every
-  change asked for is made before the ack.
+- [x] The owner judges the sheets on the phone against review.html, and every
+      change asked for is made before the ack.
+
+> **Completed** 2026-11-01 19:48 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 20.5s
+> - `go test -race ./...` — 49.4s
+> - `go test -count=1 -tags browser ./internal/server` — 71.9s
