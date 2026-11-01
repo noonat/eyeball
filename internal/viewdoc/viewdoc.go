@@ -400,7 +400,7 @@ func docFile(f view.File) string {
 	case view.FileBodyDeleted:
 		b.WriteString(`<div class="empty"><span class="headline">Deleted</span><p>` + esc(f.Deleted) + `</p></div>`)
 	case view.FileBodyDocument:
-		b.WriteString(`<div class="prose">` + string(f.Document) + `</div>`)
+		b.WriteString(`<div class="prose">` + docPassages(f.Passages) + `</div>`)
 	default:
 		b.WriteString(`<div class="file">`)
 		if f.Mode != "" {
@@ -417,5 +417,23 @@ func docFile(f view.File) string {
 		b.WriteString(`</div>`)
 	}
 	b.WriteString(`</div></div>`)
+	return b.String()
+}
+
+// docPassages joins a document's parts as the template page wrote them, with a
+// fold as a details element holding its run.
+func docPassages(parts []view.DocPart) string {
+	var b strings.Builder
+	for _, part := range parts {
+		if part.Passage != nil {
+			b.WriteString(string(part.Passage.HTML))
+			continue
+		}
+		fmt.Fprintf(&b, "<details class=\"fold\"><summary>%d unchanged passages</summary>\n", len(part.Fold))
+		for _, p := range part.Fold {
+			b.WriteString(string(p.HTML))
+		}
+		b.WriteString("</details>\n")
+	}
 	return b.String()
 }

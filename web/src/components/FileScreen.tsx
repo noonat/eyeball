@@ -64,7 +64,7 @@ function FileBody({ file }: { readonly file: File }) {
     return <EmptyBox as="span" headline="Deleted" text={file.deleted} />;
   }
   if (file.body === "document") {
-    return <DocumentBody html={file.document} />;
+    return <DocumentBody passages={file.passages ?? []} />;
   }
   return (
     <div className="file">

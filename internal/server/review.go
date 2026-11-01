@@ -44,6 +44,8 @@ const maxUnlistedFiles = 10
 
 // reviewPage is what the review template prints for one round.
 type reviewPage struct {
+	// ID is the review's id.
+	ID int64
 	// Title, Project and Agent say what the review is and where it came from.
 	Title, Project, Agent string
 	// ProjectHref is the project's view, which the brief's project links to.
@@ -166,8 +168,14 @@ type fileView struct {
 	Diff render.File
 	// IsDocument says the file is shown as a document rather than as rows.
 	IsDocument bool
-	// Document is a markdown file rendered with what moved marked.
+	// Document is a markdown file rendered with what moved marked, joined with
+	// its threads as the template page draws it.
 	Document template.HTML
+	// Parts are the same document as a list, which the view sends.
+	Parts []render.Part
+	// PassageCards are the comments under each passage, keyed by its range,
+	// on the current round.
+	PassageCards map[[2]int][]cardView
 	// Rendered is the file shown as itself, a page in its frame, or the line
 	// naming a file the surface does not show, and nil for rows or a
 	// document.
@@ -254,6 +262,8 @@ type threadView struct {
 
 // commentView is one comment card.
 type commentView struct {
+	// ID is the comment's id.
+	ID int64
 	// Where is what the comment is attached to.
 	Where string
 	// Quoted is the text it points at, empty where it points at none.
@@ -265,65 +275,62 @@ type commentView struct {
 	Late bool
 }
 
-// handleReviewPage answers GET /reviews/{review}: the review's latest round.
-func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) error {
+// roundPage reads the round an address names: the review's latest when the
+// address has no round. It reports false for a review or a round that does not
+// exist.
+func (s *Server) roundPage(r *http.Request) (store.Review, reviewPage, bool, error) {
 	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
 	if err != nil {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+		return store.Review{}, reviewPage{}, false, nil
 	}
 	review, err := s.db.s.Review(r.Context(), id)
 	if errors.Is(err, store.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+		return store.Review{}, reviewPage{}, false, nil
 	}
 	if err != nil {
-		return err
+		return store.Review{}, reviewPage{}, false, err
 	}
-	view, err := s.roundView(r.Context(), review, review.LatestRound, r.URL.Query().Get("against") == "base")
-	if err != nil {
-		return err
-	}
-	s.renderPage(w, http.StatusOK, "review", page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view})
-	return nil
-}
-
-// handleRoundPage answers GET /reviews/{review}/rounds/{round}: any round. The
-// latest round is the review's page, under either address.
-func (s *Server) handleRoundPage(w http.ResponseWriter, r *http.Request) error {
-	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
-	if err != nil {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
-	}
-	number, err := strconv.Atoi(r.PathValue("round"))
-	if err != nil {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
-	}
-	review, err := s.db.s.Review(r.Context(), id)
-	if errors.Is(err, store.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
-	}
-	if err != nil {
-		return err
+	number := review.LatestRound
+	if given := r.PathValue("round"); given != "" {
+		if number, err = strconv.Atoi(given); err != nil {
+			return store.Review{}, reviewPage{}, false, nil
+		}
 	}
 	// A round the review does not have is the store's not-found, from the
 	// round's own read.
 	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base")
 	if errors.Is(err, store.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+		return store.Review{}, reviewPage{}, false, nil
 	}
+	return review, view, err == nil, err
+}
+
+// roundAnswer is what a review's round address answers. The latest round is the
+// review's page, under either address.
+func (s *Server) roundAnswer(r *http.Request) (pageAnswer, error) {
+	review, view, ok, err := s.roundPage(r)
+	if err != nil || !ok {
+		return notFound(nil), err
+	}
+	if view.Round < review.LatestRound {
+		return pageAnswer{page: page{Title: fmt.Sprintf("Round %d", view.Round), Back: "/reviews/" + strconv.FormatInt(review.ID, 10), BackLabel: "Review", Body: view}}, nil
+	}
+	return pageAnswer{page: page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view}}, nil
+}
+
+// handleReviewPage answers GET /reviews/{review}: the review's latest round.
+// handleRoundPage answers GET /reviews/{review}/rounds/{round}, any round, and
+// is the same page.
+func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) error {
+	ans, err := s.roundAnswer(r)
 	if err != nil {
 		return err
 	}
-	p := page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view}
-	if number < review.LatestRound {
-		p = page{Title: fmt.Sprintf("Round %d", number), Back: "/reviews/" + strconv.FormatInt(review.ID, 10), BackLabel: "Review", Body: view}
+	if ans.missing {
+		s.errorPage(w, http.StatusNotFound)
+		return nil
 	}
-	s.renderPage(w, http.StatusOK, "review", p)
+	s.renderPage(w, http.StatusOK, "review", ans.page)
 	return nil
 }
 
@@ -339,6 +346,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	now := s.now()
 	view := reviewPage{
+		ID:          review.ID,
 		Title:       review.Title,
 		Project:     project.Name,
 		ProjectHref: projectHref(project.ID),
@@ -490,16 +498,24 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		doc := at.page()
 		doc.HeadingIDs = false
 		doc.Fold = true
+		var after render.After
 		if byRange := passages[m.Path]; byRange != nil {
 			path := m.Path
-			doc.After = func(first, last int) template.HTML {
-				var cards []cardView
-				for _, c := range byRange[[2]int{first, last}] {
-					cards = append(cards, cardOf(review.ID, c, open, decisionAt))
-					placed[c.ID] = true
+			doc.Commented = make(map[[2]int]struct{}, len(byRange))
+			file.PassageCards = make(map[[2]int][]cardView, len(byRange))
+			for key, comments := range byRange {
+				doc.Commented[key] = struct{}{}
+				for _, c := range comments {
+					file.PassageCards[key] = append(file.PassageCards[key], cardOf(review.ID, c, open, decisionAt))
 				}
+			}
+			after = func(first, last int) template.HTML {
+				cards := file.PassageCards[[2]int{first, last}]
 				if len(cards) == 0 {
 					return ""
+				}
+				for _, c := range byRange[[2]int{first, last}] {
+					placed[c.ID] = true
 				}
 				out, err := s.fragment("passagethread", threadView{ID: passageID(path, first, last), Cards: cards})
 				if err != nil && renderErr == nil {
@@ -509,7 +525,8 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 			}
 		}
 		file.IsDocument = true
-		file.Document = render.Document(old, content, doc)
+		file.Parts = render.Document(old, content, doc)
+		file.Document = render.Join(file.Parts, after)
 		file.RawDiff = at.viewHref("source")
 		lastOld = old
 		view.Shown = append(view.Shown, file)
@@ -557,9 +574,9 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		if !late {
 			batched++
 		}
-		card := commentView{Where: where(c), Quoted: dedent(c.Quoted), Body: c.Body, Late: late}
+		card := commentView{ID: c.ID, Where: where(c), Quoted: dedent(c.Quoted), Body: c.Body, Late: late}
 		if c.Reply != "" {
-			view.Replies = append(view.Replies, commentView{Where: card.Where, Body: c.Reply})
+			view.Replies = append(view.Replies, commentView{ID: c.ID, Where: card.Where, Body: c.Reply})
 		}
 		// The fresh layout has no card to hold a file's comments, so they
 		// join the review's own.
@@ -813,31 +830,13 @@ func shows(f render.File, line int) bool {
 // file of the round for each body asked for, which only a review past the
 // thresholds does.
 func (s *Server) handleCardBody(w http.ResponseWriter, r *http.Request) error {
-	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
-	if err != nil {
-		plain(w, http.StatusNotFound, "There is no such review.")
-		return nil
-	}
-	number, err := strconv.Atoi(r.PathValue("round"))
-	if err != nil {
-		plain(w, http.StatusNotFound, noRound)
-		return nil
-	}
-	review, err := s.db.s.Review(r.Context(), id)
-	if errors.Is(err, store.ErrNotFound) {
-		plain(w, http.StatusNotFound, "There is no such review.")
-		return nil
-	}
+	_, view, ok, err := s.roundPage(r)
 	if err != nil {
 		return err
 	}
-	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base")
-	if errors.Is(err, store.ErrNotFound) {
-		plain(w, http.StatusNotFound, noRound)
+	if !ok {
+		plain(w, http.StatusNotFound, "There is no such review or round.")
 		return nil
-	}
-	if err != nil {
-		return err
 	}
 	for _, f := range view.Shown {
 		if f.Path == r.PathValue("path") {

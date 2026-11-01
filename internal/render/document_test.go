@@ -21,7 +21,7 @@ const (
 
 func TestDocument(t *testing.T) {
 	g := NewWithT(t)
-	out := Document([]byte(everyKindOld), []byte(everyKindNew), testPage())
+	out := docHTML([]byte(everyKindOld), []byte(everyKindNew), testPage())
 	g.Expect(shapesOf(g, out)).To(Equal([]shape{
 		{Text: "Title"},
 		{Text: "A paragraph that stays."},
@@ -60,30 +60,16 @@ func TestDocument(t *testing.T) {
 	}
 }
 
-// After writes what a page shows under a passage, given its range.
-func TestDocument_after(t *testing.T) {
-	g := NewWithT(t)
-	p := testPage()
-	var asked []string
-	p.After = func(first, last int) template.HTML {
-		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
-		return template.HTML(fmt.Sprintf(`<aside data-after="%d"></aside>`, first))
-	}
-	out := string(Document(nil, []byte("One.\n\n---\n\nTwo.\n"), p))
-	g.Expect(asked).To(Equal([]string{"1-1", "5-5"}))
-	g.Expect(out).To(MatchRegexp(`(?s)One\..*data-after="1".*<hr>.*Two\..*data-after="5"`))
-}
-
 func TestDocument_appendedBlock(t *testing.T) {
 	g := NewWithT(t)
 	old := "One.\n\nTwo.\n"
 	new := "One.\n\nTwo.\n\nThree.\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", markWhole}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", markWhole}))
 }
 
 func TestDocument_classesListed(t *testing.T) {
 	g := NewWithT(t)
-	body := parseBody(g, Document([]byte(everyKindOld), []byte(everyKindNew), testPage()))
+	body := parseBody(g, docHTML([]byte(everyKindOld), []byte(everyKindNew), testPage()))
 	seen := map[string]struct{}{}
 	for _, n := range findAll(body, hasAttr("class")) {
 		for _, class := range strings.Fields(attr(n, "class")) {
@@ -99,7 +85,7 @@ func TestDocument_classesListed(t *testing.T) {
 
 func TestDocument_emptiedDocument(t *testing.T) {
 	g := NewWithT(t)
-	g.Expect(shapesOf(g, Document([]byte("One.\n\nTwo.\n"), nil, testPage()))).To(Equal([]shape{
+	g.Expect(shapesOf(g, docHTML([]byte("One.\n\nTwo.\n"), nil, testPage()))).To(Equal([]shape{
 		{Mark: markRemoved, Was: []string{"One.", "Two."}},
 	}))
 }
@@ -108,14 +94,14 @@ func TestDocument_emptyOld(t *testing.T) {
 	g := NewWithT(t)
 	olds := []string{"", "\n\n", "[r]: x.md\n"}
 	for _, old := range olds {
-		g.Expect(marks(g, Document([]byte(old), []byte("# New\n\nOne.\n"), testPage()))).To(Equal([]string{"", ""}), "old %q", old)
+		g.Expect(marks(g, docHTML([]byte(old), []byte("# New\n\nOne.\n"), testPage()))).To(Equal([]string{"", ""}), "old %q", old)
 	}
 }
 
 func TestDocument_fencedCode(t *testing.T) {
 	g := NewWithT(t)
 	md := "```go\nfunc f() int {\n\treturn 1 // one\n}\n```\n\n```nosuchlanguage\nfunc f()\n```\n\n    func f()\n"
-	body := parseBody(g, Document(nil, []byte(md), testPage()))
+	body := parseBody(g, docHTML(nil, []byte(md), testPage()))
 	codes := findAll(body, isElement("code"))
 	g.Expect(codes).To(HaveLen(3))
 	for _, code := range codes {
@@ -135,7 +121,7 @@ func TestDocument_fencedMiddleLine(t *testing.T) {
 	g := NewWithT(t)
 	old := "Before.\n\n```\none\ntwo\nthree\n```\n\nAfter one.\n\nAfter two.\n\nAfter three.\n"
 	new := strings.Replace(old, "two", "TWO", 1)
-	got := shapesOf(g, Document([]byte(old), []byte(new), testPage()))
+	got := shapesOf(g, docHTML([]byte(old), []byte(new), testPage()))
 	g.Expect(got).To(Equal([]shape{
 		{Text: "Before."},
 		{Mark: markMarked, Text: "one TWO three", Was: []string{"one two three"}},
@@ -210,7 +196,65 @@ func TestDocument_fold(t *testing.T) {
 			g := NewWithT(t)
 			p := testPage()
 			p.Fold = true
-			g.Expect(outline(g, Document([]byte(c.old), []byte(c.new), p))).To(Equal(c.want))
+			g.Expect(outline(g, docHTML([]byte(c.old), []byte(c.new), p))).To(Equal(c.want))
+		})
+	}
+}
+
+// Which passages fold depends only on which carry a comment, so the list is
+// checked with the commented range at the start of a run, in its middle and at
+// its end. A different choice, such as folding around a comment's neighbors or
+// keeping the run whole, changes one of these outlines.
+func TestDocument_foldAroundComments(t *testing.T) {
+	old := "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n\nE.\n\nF.\n\nG.\n\nH.\n"
+	new := "New.\n\nA.\n\nB.\n\nC.\n\nD.\n\nE.\n\nF.\n\nG.\n\nH.\n"
+	cases := []struct {
+		name      string
+		commented []int
+		want      []string
+	}{
+		{
+			name: "none",
+			want: []string{"marked: New.", "A.", "fold 7: B. / C. / D. / E. / F. / G. / H."},
+		},
+		{
+			name:      "first of the run",
+			commented: []int{5},
+			want:      []string{"marked: New.", "A.", "B.", "after 5", "fold 6: C. / D. / E. / F. / G. / H."},
+		},
+		{
+			name:      "middle of the run",
+			commented: []int{11},
+			want:      []string{"marked: New.", "A.", "fold 3: B. / C. / D.", "E.", "after 11", "fold 3: F. / G. / H."},
+		},
+		{
+			name:      "end of the run",
+			commented: []int{17},
+			want:      []string{"marked: New.", "A.", "fold 6: B. / C. / D. / E. / F. / G.", "H.", "after 17"},
+		},
+		{
+			name:      "two, leaving a run of one between",
+			commented: []int{5, 9},
+			want:      []string{"marked: New.", "A.", "B.", "after 5", "C.", "D.", "after 9", "fold 4: E. / F. / G. / H."},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			p := testPage()
+			p.Fold = true
+			p.Commented = map[[2]int]struct{}{}
+			for _, line := range c.commented {
+				p.Commented[[2]int{line, line}] = struct{}{}
+			}
+			after := func(first, last int) template.HTML {
+				if _, ok := p.Commented[[2]int{first, last}]; ok {
+					return template.HTML(fmt.Sprintf(`<aside data-after="%d"></aside>`, first))
+				}
+				return ""
+			}
+			parts := Document([]byte(old), []byte(new), p)
+			g.Expect(outline(g, Join(parts, after))).To(Equal(c.want))
 		})
 	}
 }
@@ -224,14 +268,15 @@ func TestDocument_foldKeepsComments(t *testing.T) {
 	p := testPage()
 	p.Fold = true
 	var asked []string
-	p.After = func(first, last int) template.HTML {
+	after := func(first, last int) template.HTML {
 		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
 		if first == 9 {
 			return `<aside data-after="9"></aside>`
 		}
 		return ""
 	}
-	g.Expect(outline(g, Document([]byte(old), []byte(new), p))).To(Equal([]string{
+	p.Commented = map[[2]int]struct{}{{9, 9}: {}}
+	g.Expect(outline(g, Join(Document([]byte(old), []byte(new), p), after))).To(Equal([]string{
 		"marked: New.",
 		"A.",
 		"fold 2: B. / C.",
@@ -250,7 +295,7 @@ func TestDocument_foldNumbersItems(t *testing.T) {
 	new := "1. a\n2. b\n3. c\n4. d\n5. changed\n6. f\n"
 	p := testPage()
 	p.Fold = true
-	out := Document([]byte(old), []byte(new), p)
+	out := docHTML([]byte(old), []byte(new), p)
 	g.Expect(outline(g, out)).To(Equal([]string{"fold 3: a / b / c", "d", "marked: changed", "f"}))
 	var starts []string
 	for _, ol := range findAll(parseBody(g, out), isElement("ol")) {
@@ -265,13 +310,13 @@ func TestDocument_foldWhole(t *testing.T) {
 	g := NewWithT(t)
 	old := "One.\n\nTwo.\n\nThree.\n\nFour.\n"
 	new := "One.\n\nTwo.\n\nThree.\n\nChanged.\n"
-	g.Expect(outline(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"One.", "Two.", "Three.", "marked: Changed."}))
+	g.Expect(outline(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{"One.", "Two.", "Three.", "marked: Changed."}))
 	folded := testPage()
 	folded.Fold = true
-	g.Expect(outline(g, Document([]byte(old), []byte(new), folded))).To(Equal([]string{"fold 2: One. / Two.", "Three.", "marked: Changed."}))
-	g.Expect(outline(g, Document(nil, []byte(new), folded))).To(Equal([]string{"One.", "Two.", "Three.", "Changed."}))
+	g.Expect(outline(g, docHTML([]byte(old), []byte(new), folded))).To(Equal([]string{"fold 2: One. / Two.", "Three.", "marked: Changed."}))
+	g.Expect(outline(g, docHTML(nil, []byte(new), folded))).To(Equal([]string{"One.", "Two.", "Three.", "Changed."}))
 	long := strings.Repeat("a\n\n", 20001)
-	out := outline(g, Document([]byte(long), []byte(long+"b\n"), folded))
+	out := outline(g, docHTML([]byte(long), []byte(long+"b\n"), folded))
 	g.Expect(out).To(HaveLen(20002))
 	g.Expect(slices.Compact(out)).To(Equal([]string{"a", "b"}), "every passage shown, none marked")
 }
@@ -280,12 +325,12 @@ func TestDocument_headingIDs(t *testing.T) {
 	g := NewWithT(t)
 	md := []byte("# Title\n\n## Title\n")
 	p := testPage()
-	for _, h := range findAll(parseBody(g, Document(nil, md, p)), isElement("h1", "h2")) {
+	for _, h := range findAll(parseBody(g, docHTML(nil, md, p)), isElement("h1", "h2")) {
 		g.Expect(hasAttr("id")(h)).To(BeFalse())
 	}
 	p.HeadingIDs = true
 	var ids []string
-	for _, h := range findAll(parseBody(g, Document(nil, md, p)), isElement("h1", "h2")) {
+	for _, h := range findAll(parseBody(g, docHTML(nil, md, p)), isElement("h1", "h2")) {
 		ids = append(ids, attr(h, "id"))
 	}
 	g.Expect(ids).To(Equal([]string{"title", "title-1"}))
@@ -317,7 +362,7 @@ func TestDocument_htmlBlock(t *testing.T) {
 			doc := "Before.\n\n%s\nAfter.\n"
 			old := strings.Replace(doc, "%s", c.old, 1)
 			new := strings.Replace(doc, "%s", c.new, 1)
-			out := Document([]byte(old), []byte(new), testPage())
+			out := docHTML([]byte(old), []byte(new), testPage())
 			g.Expect(shapesOf(g, out)).To(Equal([]shape{
 				{Text: "Before."},
 				{
@@ -328,7 +373,7 @@ func TestDocument_htmlBlock(t *testing.T) {
 				{Text: "After."},
 			}))
 			g.Expect(hrefs(parseBody(g, out))).To(Equal([]string{"/source"}))
-			g.Expect(marks(g, Document([]byte(old), []byte(old), testPage()))).To(Equal([]string{"", "", ""}))
+			g.Expect(marks(g, docHTML([]byte(old), []byte(old), testPage()))).To(Equal([]string{"", "", ""}))
 		})
 	}
 }
@@ -339,14 +384,14 @@ func TestDocument_htmlBlockPre(t *testing.T) {
 	// attributes included.
 	old := "<pre class=\"x\">\na  b\n</pre>\n"
 	new := "<pre class=\"x\">\na b\n</pre>\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markStruck}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{markStruck}))
 }
 
 func TestDocument_htmlBlockUnlinked(t *testing.T) {
 	g := NewWithT(t)
 	p := testPage()
 	p.SourceHref = ""
-	body := parseBody(g, Document(nil, []byte("<div>a</div>\n"), p))
+	body := parseBody(g, docHTML(nil, []byte("<div>a</div>\n"), p))
 	g.Expect(hrefs(body)).To(BeEmpty())
 	g.Expect(collapsed(textOf(body))).To(Equal("This block is HTML, which is not rendered."))
 }
@@ -405,7 +450,7 @@ func TestDocument_images(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			body := parseBody(g, Document(nil, []byte(c.md+"\n"), testPage()))
+			body := parseBody(g, docHTML(nil, []byte(c.md+"\n"), testPage()))
 			g.Expect(findAll(body, isElement("img"))).To(BeEmpty())
 			g.Expect(collapsed(textOf(body))).To(Equal(c.text))
 			if c.href == "" {
@@ -421,7 +466,7 @@ func TestDocument_inlineHTMLChanged(t *testing.T) {
 	g := NewWithT(t)
 	old := "A <span>x</span> word.\n"
 	new := "A <span>y</span> word.\n"
-	out := Document([]byte(old), []byte(new), testPage())
+	out := docHTML([]byte(old), []byte(new), testPage())
 	g.Expect(shapesOf(g, out)).To(Equal([]shape{
 		{Mark: markMarked, Text: "A y word.", Was: []string{"A x word."}},
 	}))
@@ -434,7 +479,7 @@ func TestDocument_lineEndings(t *testing.T) {
 	// goldmark keeps a lone CR, and a form feed, as text.
 	old := "One\r\ntwo.\r\n\r\nThree\tfour.\r\n\r\nFive\rsix.\r\n\r\nSeven\feight.\r\n"
 	new := "One two.\n\nThree four.\n\nFive six.\n\nSeven eight.\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", "", ""}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", "", ""}))
 }
 
 func TestDocument_links(t *testing.T) {
@@ -518,7 +563,7 @@ func TestDocument_links(t *testing.T) {
 			g := NewWithT(t)
 			p := testPage()
 			p.HeadingIDs = c.ids
-			body := parseBody(g, Document(nil, []byte(c.md+"\n"), p))
+			body := parseBody(g, docHTML(nil, []byte(c.md+"\n"), p))
 			if c.text != "" {
 				g.Expect(collapsed(textOf(body))).To(Equal(c.text))
 			}
@@ -577,7 +622,7 @@ func TestDocument_listItemChanged(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			g.Expect(marks(g, Document([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
+			g.Expect(marks(g, docHTML([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
 		})
 	}
 }
@@ -587,7 +632,7 @@ func TestDocument_listItemChanged(t *testing.T) {
 func TestDocument_listItems(t *testing.T) {
 	g := NewWithT(t)
 	md := "- one\n- two\n  wrapped\n\n3. three\n4. four\n"
-	body := parseBody(g, Document(nil, []byte(md), testPage()))
+	body := parseBody(g, docHTML(nil, []byte(md), testPage()))
 	blocks := elementChildren(body)
 	g.Expect(blocks).To(HaveLen(4))
 	var got []string
@@ -683,7 +728,7 @@ func TestDocument_pairing(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			g.Expect(shapesOf(g, Document([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
+			g.Expect(shapesOf(g, docHTML([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
 		})
 	}
 }
@@ -693,7 +738,7 @@ func TestDocument_pastTheLineLimit(t *testing.T) {
 	// Past diff's 20,000 lines the comparison gives no hunks, and the
 	// document shows whole with nothing marked rather than empty.
 	old := strings.Repeat("a\n\n", 20001)
-	got := marks(g, Document([]byte(old), []byte(old+"b\n"), testPage()))
+	got := marks(g, docHTML([]byte(old), []byte(old+"b\n"), testPage()))
 	g.Expect(got).To(HaveLen(20002))
 	g.Expect(slices.Compact(got)).To(Equal([]string{""}))
 }
@@ -741,7 +786,7 @@ func TestDocument_ranges(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			body := parseBody(g, Document(nil, []byte(c.md), testPage()))
+			body := parseBody(g, docHTML(nil, []byte(c.md), testPage()))
 			var got []string
 			for _, n := range findAll(body, hasAttrNamed("data-lines")) {
 				got = append(got, attrOf(n, "data-lines"))
@@ -757,10 +802,10 @@ func TestDocument_rangesNone(t *testing.T) {
 	g := NewWithT(t)
 	empty := []string{"---\n", "```\n```\n"}
 	for _, md := range empty {
-		body := parseBody(g, Document(nil, []byte(md), testPage()))
+		body := parseBody(g, docHTML(nil, []byte(md), testPage()))
 		g.Expect(findAll(body, hasAttrNamed("data-lines"))).To(BeEmpty(), md)
 	}
-	body := parseBody(g, Document([]byte("Kept.\n\nGone.\n"), []byte("Kept.\n"), testPage()))
+	body := parseBody(g, docHTML([]byte("Kept.\n\nGone.\n"), []byte("Kept.\n"), testPage()))
 	g.Expect(findAll(body, hasAttrNamed("data-lines"))).To(HaveLen(1), "the removed block has no range")
 }
 
@@ -770,7 +815,7 @@ func TestDocument_rawHTMLMarked(t *testing.T) {
 	g := NewWithT(t)
 	old := "A <img src=x onerror=alert(1)> word and <script>alert(1)</script> more.\n\n<div onclick=\"alert(2)\">x</div>\n"
 	new := "A <b onmouseover=\"alert(3)\">bold</b> phrase and <script>alert(4)</script> more.\n\n<div onclick=\"alert(5)\">y</div>\n"
-	out := Document([]byte(old), []byte(new), testPage())
+	out := docHTML([]byte(old), []byte(new), testPage())
 	g.Expect(marks(g, out)).To(Equal([]string{markMarked, markStruck}))
 	body := parseBody(g, out)
 	elements := []string{"img", "script", "b", "div"}
@@ -792,7 +837,7 @@ func TestDocument_rawHTMLMarked(t *testing.T) {
 func TestDocument_rawHTMLOmitted(t *testing.T) {
 	g := NewWithT(t)
 	attack := "<script>alert(1)</script>\n\nA paragraph <img src=x onerror=alert(1)> and <a href=\"javascript:x\" onclick=\"alert(1)\">a link</a>.\n\n<style>body { display: none }</style>\n\n- <script>alert(2)</script>\n"
-	body := parseBody(g, Document(nil, []byte(attack), testPage()))
+	body := parseBody(g, docHTML(nil, []byte(attack), testPage()))
 	g.Expect(findAll(body, isElement("script"))).To(BeEmpty())
 	g.Expect(findAll(body, isElement("img"))).To(BeEmpty())
 	g.Expect(findAll(body, isElement("style"))).To(BeEmpty())
@@ -810,7 +855,7 @@ func TestDocument_reflowedParagraph(t *testing.T) {
 	g := NewWithT(t)
 	old := "A paragraph wrapped\nin one place.\n\nAnother.\n"
 	new := "A paragraph\nwrapped in   another.\n\nAnother.\n"
-	g.Expect(shapesOf(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
+	g.Expect(shapesOf(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
 		{
 			Mark: markMarked,
 			Text: "A paragraph wrapped in another.",
@@ -819,14 +864,14 @@ func TestDocument_reflowedParagraph(t *testing.T) {
 		{Text: "Another."},
 	}))
 	new = "A paragraph\nwrapped in one\nplace.\n\nAnother.\n"
-	g.Expect(shapesOf(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
+	g.Expect(shapesOf(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
 		{Text: "A paragraph wrapped in one place."},
 		{Text: "Another."},
 	}))
 	// A paragraph between two code blocks in one block is outside both.
 	old = "> ```\n> one\n> ```\n>\n> A paragraph wrapped\n> in one place.\n>\n> ```\n> two\n> ```\n"
 	new = "> ```\n> one\n> ```\n>\n> A paragraph\n> wrapped in one place.\n>\n> ```\n> two\n> ```\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{""}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{""}))
 }
 
 func TestDocument_refusedLinkChanged(t *testing.T) {
@@ -835,14 +880,14 @@ func TestDocument_refusedLinkChanged(t *testing.T) {
 	// destination as written sees the change.
 	old := "Go [here](vscode://a).\n"
 	new := "Go [here](vscode://b).\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markChanged}), "the rule alone, since no word changed")
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{markChanged}), "the rule alone, since no word changed")
 }
 
 func TestDocument_reindentedCode(t *testing.T) {
 	g := NewWithT(t)
 	old := "Before.\n\n```go\nif x {\n\treturn\n}\n```\n\nAfter.\n"
 	new := "Before.\n\n```go\nif x {\n    return\n}\n```\n\nAfter.\n"
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", markMarked, ""}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", markMarked, ""}))
 }
 
 func TestDocument_relativeLinks(t *testing.T) {
@@ -958,7 +1003,7 @@ func TestDocument_relativeLinks(t *testing.T) {
 			g := NewWithT(t)
 			p := testPage()
 			p.Path = c.doc
-			body := parseBody(g, Document(nil, []byte(c.md+"\n"), p))
+			body := parseBody(g, docHTML(nil, []byte(c.md+"\n"), p))
 			if c.href == "" {
 				g.Expect(hrefs(body)).To(BeEmpty())
 				g.Expect(collapsed(textOf(body))).To(Equal("a"))
@@ -975,7 +1020,7 @@ func TestDocument_repeatedHeading(t *testing.T) {
 	p.HeadingIDs = true
 	old := "## Title\n\nText.\n"
 	new := "## Title\n\nNew text.\n\n## Title\n\nText.\n"
-	out := Document([]byte(old), []byte(new), p)
+	out := docHTML([]byte(old), []byte(new), p)
 	g.Expect(marks(g, out)).To(Equal([]string{markWhole, markWhole, "", ""}))
 	var ids []string
 	for _, h := range findAll(parseBody(g, out), isElement("h2")) {
@@ -1032,7 +1077,7 @@ func TestDocument_replacedText(t *testing.T) {
 			g := NewWithT(t)
 			old := "Kept.\n\n" + c.old + "\n\nEnd.\n"
 			new := "Kept.\n\nReplacement.\n\nEnd.\n"
-			got := shapesOf(g, Document([]byte(old), []byte(new), testPage()))
+			got := shapesOf(g, docHTML([]byte(old), []byte(new), testPage()))
 			g.Expect(got).To(HaveLen(3))
 			g.Expect(got[1].Was).To(Equal([]string{c.was}))
 		})
@@ -1043,7 +1088,7 @@ func TestDocument_replacedText(t *testing.T) {
 // removed word.
 func TestDocument_strikethrough(t *testing.T) {
 	g := NewWithT(t)
-	body := parseBody(g, Document(nil, []byte("A ~~struck~~ word.\n"), testPage()))
+	body := parseBody(g, docHTML(nil, []byte("A ~~struck~~ word.\n"), testPage()))
 	g.Expect(findAll(body, isElement("del"))).To(BeEmpty())
 	struck := findAll(body, isElement("s"))
 	g.Expect(struck).To(HaveLen(1))
@@ -1101,7 +1146,7 @@ func TestDocument_struck(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			g.Expect(string(Document([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
+			g.Expect(string(docHTML([]byte(c.old), []byte(c.new), testPage()))).To(Equal(c.want))
 		})
 	}
 }
@@ -1134,7 +1179,7 @@ func TestDocument_wordBlocks(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			s := shapesOf(g, Document([]byte(c.old), []byte(c.new), testPage()))
+			s := shapesOf(g, docHTML([]byte(c.old), []byte(c.new), testPage()))
 			g.Expect(s).To(HaveLen(1))
 			g.Expect(s[0].Mark).To(Equal(markWhole))
 			g.Expect(s[0].Was).To(HaveLen(1))
@@ -1150,9 +1195,9 @@ func TestDocument_wordLimit(t *testing.T) {
 		return strings.Repeat("word ", words) + "old.\n", strings.Repeat("word ", words) + "new.\n"
 	}
 	old, new := pair(1240)
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markMarked}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{markMarked}))
 	old, new = pair(1260)
-	g.Expect(marks(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]string{markWhole}))
+	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{markWhole}))
 }
 
 // Three of the four rules in architecture.md that hold the marking together:
@@ -1337,6 +1382,26 @@ func TestHasBlocks(t *testing.T) {
 	}
 }
 
+// docHTML is a document joined as the template page joins it, with nothing
+// under a passage.
+func docHTML(old, new []byte, p Page) template.HTML {
+	return Join(Document(old, new, p), nil)
+}
+
+// Join writes what a page shows under a passage, given its range.
+func TestJoin(t *testing.T) {
+	g := NewWithT(t)
+	p := testPage()
+	var asked []string
+	after := func(first, last int) template.HTML {
+		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
+		return template.HTML(fmt.Sprintf(`<aside data-after="%d"></aside>`, first))
+	}
+	out := string(Join(Document(nil, []byte("One.\n\n---\n\nTwo.\n"), p), after))
+	g.Expect(asked).To(Equal([]string{"1-1", "5-5"}))
+	g.Expect(out).To(MatchRegexp(`(?s)One\..*data-after="1".*<hr>.*Two\..*data-after="5"`))
+}
+
 // shape is one block of a rendered document as a reader sees it.
 type shape struct {
 	// Mark is empty for a kept block, or one of the marks.
@@ -1353,13 +1418,13 @@ type shape struct {
 // is replaced by new.
 func markedBody(g *WithT, old, new string) string {
 	g.THelper()
-	return blockBody(g, Document([]byte(old), []byte(new), testPage()))
+	return blockBody(g, docHTML([]byte(old), []byte(new), testPage()))
 }
 
 // unmarkedBody is a one-passage document's block as it renders unmarked.
 func unmarkedBody(g *WithT, md string) string {
 	g.THelper()
-	return blockBody(g, Document(nil, []byte(md), testPage()))
+	return blockBody(g, docHTML(nil, []byte(md), testPage()))
 }
 
 // oneBlock is a rendering of one block, and what is inside it.

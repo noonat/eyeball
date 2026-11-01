@@ -1,0 +1,179 @@
+{
+  "title": "Raise the retry limit",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 8,
+  "id": "3",
+  "round": 1,
+  "review_title": "Raise the retry limit",
+  "project": "harbor",
+  "project_href": "/projects/1",
+  "agent": "fix/limit",
+  "abandoned": false,
+  "waiting": "3h",
+  "decided": {
+    "approved": true,
+    "pill": "Approved 1h ago",
+    "sentence": "1 comment and the verdict went out 1 hour ago.",
+    "note": [
+      "Approved with the cap in mind."
+    ]
+  },
+  "note": [
+    "The limit goes from three to five."
+  ],
+  "files": "1 file",
+  "added": "1",
+  "removed": "1",
+  "against": null,
+  "cards": [
+    {
+      "path": "internal/approved/limit.go",
+      "id": "file-1789eb48ac9e",
+      "added": "1",
+      "removed": "1",
+      "unmeasured": false,
+      "whole": "/reviews/3/files/internal/approved/limit.go",
+      "raw_diff": "",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/3/rounds/1/cards/internal/approved/limit.go",
+      "skeleton_hunks": 1,
+      "skeleton_lines": 4,
+      "body": {
+        "kind": "rows",
+        "mode": "",
+        "rendered": null,
+        "passages": null,
+        "rows": [
+          {
+            "kind": "hunk",
+            "header": "@@ -1,3 +1,3 @@",
+            "number": 0,
+            "sign": "",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 1,
+            "sign": "",
+            "tokens": [
+              {
+                "text": "package",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " approved",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 2,
+            "sign": "",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "del",
+            "header": "",
+            "number": 3,
+            "sign": "−",
+            "tokens": [
+              {
+                "text": "const",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " limit = ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "3",
+                "role": "number",
+                "mark": true
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 3,
+            "sign": "+",
+            "tokens": [
+              {
+                "text": "const",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " limit = ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "5",
+                "role": "number",
+                "mark": true
+              }
+            ],
+            "no_newline": false
+          }
+        ],
+        "threads": null,
+        "list_id": "comments-1789eb48ac9e",
+        "comments": [
+          {
+            "id": "8",
+            "href": "/reviews/3/comments/8",
+            "where": "internal/approved/limit.go",
+            "quoted": "",
+            "body": "Fine, if the backoff caps at thirty seconds.",
+            "late": false,
+            "editable": false
+          }
+        ],
+        "slot": "slot-1789eb48ac9e"
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": null,
+  "replies": null,
+  "earlier": null,
+  "closed": "",
+  "all_files": "/reviews/3/files/",
+  "acting": {
+    "state": "late",
+    "against": "",
+    "list_id": "comments-review",
+    "comments": [
+      {
+        "id": "9",
+        "href": "/reviews/3/comments/9",
+        "where": "This review",
+        "quoted": "",
+        "body": "One more thing: log the limit at startup.",
+        "late": true,
+        "editable": false
+      }
+    ],
+    "bar": null
+  },
+  "stream": "/events?review=3",
+  "stamp": "f48b40ca34f8837c",
+  "place": "3:1:",
+  "unmeasurable": ""
+}

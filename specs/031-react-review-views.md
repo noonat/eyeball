@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -80,36 +80,84 @@ The owner approved the spec on 2026-11-01, with both review passes declined.
 - Every open design item in specs/TODO.md about the review page. Each state
   keeps today's behavior.
 
+## Departures
+
+Where the work went differently from the paragraphs above.
+
+- The cards route builds the whole round and keeps one card, as the template
+  route does, and calls `cardBody` on it. The Go test therefore compares the
+  route's body with the body the round's view holds for a small round, and with
+  `cardBody` over the same round's cards for a deferred one. The route and the
+  view share the function by construction, so the test cannot catch a second
+  function appearing, only a change to what the one function sends.
+- A bundle has no ETag. Only the fonts do, and they are not compressed. The gzip
+  test checks that a font keeps its ETag and its 304 with gzip accepted, and
+  that the wrapper passes a 304 or a 204 through with no Content-Encoding.
+  Giving the bundle an ETag is not part of this spec.
+- The gzip flag is also set on the stylesheet `shell.css`, the queue view and
+  the project and file views, since all are views or stylesheets. A Go test
+  lists the flagged routes, so a route added to or dropped from the list fails
+  it.
+- `view.File` has `passages` in place of `document`, so every file view fixture
+  changed. The file page's component joins the passages and inserts them as the
+  one `.prose` element, which keeps the markup the story compares.
+- The view has no composer. A composer is built from the anchor the reader taps,
+  so the view sends the lists' ids, the line threads and the bar's address and
+  count, and the next spec builds the rest. The bar's verdict note and its
+  refusal are answers to a write, so they are not in the view.
+- `tool/fixtures` also writes each page state's view as `review-*.json`, typed
+  in `scenes.ts`, and the template routes' answers as `review-*.html` and
+  `review-*.txt`, committed first as the baseline. It has its own world for the
+  states with comments, a decided round, a deferred round, a held card, a list
+  of files, a lost base and an abandoned review, and reads the cards and the
+  history from the week world.
+- The Makefile leaves `web/src/fixtures/review-*.json` out of the format check.
+  A view with a one-paragraph note has a one-entry array, which oxfmt writes on
+  one line and the server's encoder does not, and `make api-check` compares the
+  files byte for byte.
+- The template cards route answers one plain sentence, "There is no such review
+  or round.", where it answered two, because both now come from one function
+  that reads the round.
+- The fold test checks the list against expected outlines with a comment at the
+  first passage, in the middle and at the end of a run. The old `After` path is
+  gone, so there is nothing left to compare it with.
+
 ## Iteration 1: The API
 
-- [ ] `internal/view` holds the round's view, the card and its body, the
+- [x] `internal/view` holds the round's view, the card and its body, the
       comment, the thread, the decision bar's state and the document's passages,
       and `tool/apitypes` writes their types.
-- [ ] `GET /api/reviews/{review}` and `GET /api/reviews/{review}/rounds/{round}`
+- [x] `GET /api/reviews/{review}` and `GET /api/reviews/{review}/rounds/{round}`
       answer the round, with `?against=base`, and 404 with `NotFound` where the
       page answers 404.
-- [ ] `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` answers one
+- [x] `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` answers one
       card's body, and a Go test builds every body of a deferred round from both
       routes and finds them equal.
-- [ ] Before render changes, `tool/fixtures` writes each review state's template
+- [x] Before render changes, `tool/fixtures` writes each review state's template
       page, and those files are committed with the spec's first code commit as
       the baseline.
-- [ ] render returns a document as passages and folds. The template page joins
+- [x] render returns a document as passages and folds. The template page joins
       them with its threads, and regenerating the fixtures leaves every
       committed template page unchanged byte for byte.
-- [ ] The file page's view sends its document as the same list.
-- [ ] Each passage's HTML is a `DocumentHTML`, and the source test that keeps
+- [x] The file page's view sends its document as the same list.
+- [x] Each passage's HTML is a `DocumentHTML`, and the source test that keeps
       the conversion to one function still passes with no new exception.
-- [ ] The round's view carries the stamp `/events?review=N` sends.
-- [ ] The surface sends a view, the bundle and the stylesheet gzipped at level 6
+- [x] The round's view carries the stamp `/events?review=N` sends.
+- [x] The surface sends a view, the bundle and the stylesheet gzipped at level 6
       when the request accepts it, with `Vary: Accept-Encoding`. `/events` and
       the raw route are sent as they are, since gzip would buffer the stream and
       break a video's range requests. A Go test reads a view both ways, and
       finds the stream and a raw range unwrapped.
-- [ ] `tool/fixtures` writes each state's view and its template page: every
+- [x] `tool/fixtures` writes each state's view and its template page: every
       frame in review.html, a deferred round, a held card, a round with the list
       of files, a whole-review comparison, a round whose base git cannot read,
       and an abandoned review.
+
+> **Completed** 2026-11-01 18:33 UTC
+>
+> - `make check` — 18.7s
+> - `go test -race ./...` — 5.3s
+> - `go test -count=1 -tags browser ./internal/server` — 74.6s
 
 ## Iteration 2: The tearout
 

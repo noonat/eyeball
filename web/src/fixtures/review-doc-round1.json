@@ -1,0 +1,209 @@
+{
+  "title": "Round 1",
+  "back": "/reviews/1",
+  "back_label": "Review",
+  "waiting_count": 8,
+  "id": "1",
+  "round": 1,
+  "review_title": "Product doc, second pass",
+  "project": "eyeball",
+  "project_href": "/projects/2",
+  "agent": "spec/012-surface",
+  "abandoned": false,
+  "waiting": "8h",
+  "decided": {
+    "approved": false,
+    "pill": "Changes requested",
+    "sentence": "2 comments and the verdict went out 6 hours ago.",
+    "note": [
+      "Not yet."
+    ]
+  },
+  "note": [
+    "First pass at the widening section."
+  ],
+  "files": "1 file",
+  "added": "17",
+  "removed": "1",
+  "against": null,
+  "cards": [
+    {
+      "path": "docs/product.md",
+      "id": "file-5daa9283a671",
+      "added": "17",
+      "removed": "1",
+      "unmeasured": false,
+      "whole": "/reviews/1/rounds/1/files/docs/product.md",
+      "raw_diff": "/reviews/1/rounds/1/files/docs/product.md?view=source",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/1/rounds/1/cards/docs/product.md",
+      "skeleton_hunks": 0,
+      "skeleton_lines": 0,
+      "body": {
+        "kind": "document",
+        "mode": "",
+        "rendered": null,
+        "passages": [
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1\u003eProduct\u003c/h1\u003e\u003c/div\u003e\n",
+              "first": 1,
+              "last": 1,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003ch2\u003eWidening\u003c/h2\u003e\u003c/div\u003e\n",
+              "first": 3,
+              "last": 3,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"5-5\"\u003e\u003cdel class=\"old\"\u003eThree steps out.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003eWidening is one control, not a navigation.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 5,
+              "last": 5,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"7-7\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 7,
+              "last": 7,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"9-9\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eA control offers whatever bases exist.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 9,
+              "last": 9,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"11-11\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eMaking a comment\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 11,
+              "last": 11,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"13-13\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of lines. To a passage, which is what a rendered document offers instead of lines.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 13,
+              "last": 13,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"15-15\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eOpen questions\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 15,
+              "last": 15,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"17-17\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eWhat happens when the base is empty?\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 17,
+              "last": 17,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"19-19\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eSee also\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 19,
+              "last": 19,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdiv class=\"blk changed\" data-lines=\"21-21\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/rounds/1/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/rounds/1/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/rounds/1/files/docs/product.md#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "first": 21,
+              "last": 21,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          }
+        ],
+        "rows": null,
+        "threads": null,
+        "list_id": "",
+        "comments": null,
+        "slot": ""
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": [
+    {
+      "id": "2",
+      "href": "",
+      "where": "docs/product.md",
+      "quoted": "Open questions",
+      "body": "Move the base question out of here.",
+      "late": false,
+      "editable": false
+    },
+    {
+      "id": "1",
+      "href": "",
+      "where": "This review",
+      "quoted": "",
+      "body": "The widening section reads as a list of buttons. Say what the reader is trying to do.",
+      "late": false,
+      "editable": false
+    }
+  ],
+  "replies": [
+    {
+      "id": "1",
+      "href": "",
+      "where": "This review",
+      "quoted": "",
+      "body": "The section now opens with the reader's goal.",
+      "late": false,
+      "editable": false
+    }
+  ],
+  "earlier": null,
+  "closed": "Closed 6 hours ago. Round 2 is the current one.",
+  "all_files": "/reviews/1/rounds/1/files/",
+  "acting": null,
+  "stream": "/events?review=1",
+  "stamp": "df32667c2bb1eccc",
+  "place": "1:1:",
+  "unmeasurable": ""
+}

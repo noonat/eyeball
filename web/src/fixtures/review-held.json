@@ -1,0 +1,77 @@
+{
+  "title": "A generated file",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 8,
+  "id": "5",
+  "round": 1,
+  "review_title": "A generated file",
+  "project": "harbor",
+  "project_href": "/projects/1",
+  "agent": "feat/generated",
+  "abandoned": false,
+  "waiting": "1h",
+  "decided": null,
+  "note": [
+    "The generator's output, checked in."
+  ],
+  "files": "2 files",
+  "added": "601",
+  "removed": "1",
+  "against": null,
+  "cards": [
+    {
+      "path": "internal/held/gen.go",
+      "id": "file-4667e635ea68",
+      "added": "600",
+      "removed": "0",
+      "unmeasured": false,
+      "whole": "/reviews/5/files/internal/held/gen.go",
+      "raw_diff": "",
+      "held": "600",
+      "held_hint": "Past the 500 a card shows on its own.",
+      "deferred": false,
+      "body_href": "/api/reviews/5/rounds/1/cards/internal/held/gen.go",
+      "skeleton_hunks": 1,
+      "skeleton_lines": 603,
+      "body": null
+    },
+    {
+      "path": "internal/held/tiny.go",
+      "id": "file-e40a1ded1edf",
+      "added": "1",
+      "removed": "1",
+      "unmeasured": false,
+      "whole": "/reviews/5/files/internal/held/tiny.go",
+      "raw_diff": "",
+      "held": "",
+      "held_hint": "",
+      "deferred": true,
+      "body_href": "/api/reviews/5/rounds/1/cards/internal/held/tiny.go",
+      "skeleton_hunks": 1,
+      "skeleton_lines": 4,
+      "body": null
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": null,
+  "replies": null,
+  "earlier": null,
+  "closed": "",
+  "all_files": "/reviews/5/files/",
+  "acting": {
+    "state": "open",
+    "against": "",
+    "list_id": "comments-review",
+    "comments": null,
+    "bar": {
+      "action": "/reviews/5/decision",
+      "count": 0
+    }
+  },
+  "stream": "/events?review=5",
+  "stamp": "5029c18f76364cb6",
+  "place": "5:1:",
+  "unmeasurable": ""
+}

@@ -37,17 +37,39 @@ const (
 	foldHTML = `<details class="` + classFold + `"><summary>%d unchanged passages</summary>` + "\n"
 )
 
+// Passage is one passage of a rendered document, as markup the renderer wrote.
+type Passage struct {
+	// HTML is the passage's markup, ending in a newline.
+	HTML template.HTML
+	// First and Last are the source lines the passage covers, and zero for a
+	// run a change removed, which is not in the new file and takes no comment.
+	First, Last int
+	// Changed says the passage was added, or differs from the old side.
+	Changed bool
+}
+
+// Part is one entry of a rendered document: a passage, or a fold holding a run
+// of unchanged passages. A fold is the entry whose Fold is not empty, and a
+// run is two or more, so a fold never holds one.
+type Part struct {
+	// Passage is the passage, and is empty for a fold.
+	Passage Passage
+	// Fold is the run of passages folded into one line that opens in place.
+	Fold []Passage
+}
+
 // Document renders a markdown document with what changed against old marked
-// passage by passage. An old side with no passages marks nothing: an empty
-// base and a new file read the same way, and marking every passage marks none.
+// passage by passage, as a list. An old side with no passages marks nothing: an
+// empty base and a new file read the same way, and marking every passage marks
+// none.
 //
 // With p.Fold set, only what changed is shown: each changed passage, the
 // nearest heading at or above it, one passage on each side, and any passage
-// After writes a comment under. Every other run of two or more passages folds
-// into one line that opens in place. A run of one is shown, since its fold line
-// would take as much room as the passage. Nothing folds where nothing was
+// whose range is in p.Commented. Every other run of two or more passages folds
+// into one entry that opens in place. A run of one is shown, since its fold
+// line would take as much room as the passage. Nothing folds where nothing was
 // compared, against an empty base or past the comparison's limit.
-func Document(old, new []byte, p Page) template.HTML {
+func Document(old, new []byte, p Page) []Part {
 	oldSide, newSide := keyed(old), keyed(new)
 	shown := shownMarkdown(p)
 	doc := shown.Parser().Parse(text.NewReader(new))
@@ -56,10 +78,7 @@ func Document(old, new []byte, p Page) template.HTML {
 	passages := passagesOf(doc)
 	starts := lineStarts(new)
 	items, compared := plan(oldSide, newSide)
-	// Each item is written whole first, comments and all, because whether a
-	// passage folds depends on whether After wrote anything under it. After
-	// is asked once per passage, since the page counts what it placed.
-	written := make([]string, len(items))
+	written := make([]Passage, len(items))
 	commented := make([]bool, len(items))
 	var oldShown []passage
 	if len(oldSide.keys) > 0 {
@@ -67,7 +86,7 @@ func Document(old, new []byte, p Page) template.HTML {
 	}
 	for i, it := range items {
 		if it.block < 0 {
-			written[i] = fmt.Sprintf(changedHTML, "") + oldSide.struck(it.old) + "</div>\n"
+			written[i] = Passage{HTML: template.HTML(fmt.Sprintf(changedHTML, "") + oldSide.struck(it.old) + "</div>\n"), Changed: true}
 			continue
 		}
 		ps := passages[it.block]
@@ -77,31 +96,30 @@ func Document(old, new []byte, p Page) template.HTML {
 		if first > 0 {
 			lines = fmt.Sprintf(` data-lines="%d-%d"`, first, last)
 		}
+		var out string
 		switch {
 		case !it.changed:
-			written[i] = fmt.Sprintf(keptHTML, lines) + body + "</div>"
+			out = fmt.Sprintf(keptHTML, lines) + body + "</div>"
 		case it.paired && !isHTMLBlock(ps.node) && !isHTMLBlock(oldSide.blocks[it.old[0]]):
 			was := strings.TrimSuffix(oldShown[it.old[0]].render(shown.Renderer(), old, true), "\n")
 			if marked, ok := markWords(was, body); ok {
-				written[i] = fmt.Sprintf(changedHTML, lines) + marked + "</div>"
+				out = fmt.Sprintf(changedHTML, lines) + marked + "</div>"
 				break
 			}
-			written[i] = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
+			out = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
 		default:
-			written[i] = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
+			out = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
 		}
-		written[i] += "\n"
-		if first > 0 && p.After != nil {
-			after := string(p.After(first, last))
-			written[i] += after
-			commented[i] = after != ""
+		written[i] = Passage{HTML: template.HTML(out + "\n"), First: first, Last: last, Changed: it.changed}
+		if first > 0 {
+			_, commented[i] = p.Commented[[2]int{first, last}]
 		}
 	}
 	var visible []bool
 	if p.Fold && compared {
 		visible = shownItems(items, passages, commented)
 	}
-	var b strings.Builder
+	var parts []Part
 	for i := 0; i < len(items); {
 		end := i + 1
 		if visible != nil && !visible[i] {
@@ -110,19 +128,43 @@ func Document(old, new []byte, p Page) template.HTML {
 			}
 		}
 		if end-i < 2 {
-			b.WriteString(written[i])
-			i = end
-			continue
+			parts = append(parts, Part{Passage: written[i]})
+		} else {
+			parts = append(parts, Part{Fold: written[i:end]})
 		}
-		b.WriteString(fmt.Sprintf(foldHTML, end-i))
-		for _, w := range written[i:end] {
-			b.WriteString(w)
-		}
-		b.WriteString("</details>\n")
 		i = end
 	}
-	// Raw HTML is omitted, every destination went through the allowlist, and
-	// goldmark escapes text, so the markup is the renderer's own.
+	return parts
+}
+
+// After writes what follows a passage that has a range, given its first and
+// last source line: the comments on that passage, on a page that shows them.
+type After func(first, last int) template.HTML
+
+// Join writes a document's parts as one piece of markup, as the template page
+// draws a document. after is called once for each passage with a range, folded
+// or not, and may be nil. Raw HTML is omitted, every destination went through
+// the allowlist, and goldmark escapes text, so the markup is the renderer's
+// own.
+func Join(parts []Part, after After) template.HTML {
+	var b strings.Builder
+	write := func(p Passage) {
+		b.WriteString(string(p.HTML))
+		if p.First > 0 && after != nil {
+			b.WriteString(string(after(p.First, p.Last)))
+		}
+	}
+	for _, part := range parts {
+		if len(part.Fold) == 0 {
+			write(part.Passage)
+			continue
+		}
+		b.WriteString(fmt.Sprintf(foldHTML, len(part.Fold)))
+		for _, p := range part.Fold {
+			write(p)
+		}
+		b.WriteString("</details>\n")
+	}
 	return template.HTML(b.String())
 }
 

@@ -725,9 +725,10 @@ review is drawn in pieces" the round's view holds every body. Past them each
 body is `null`, and the card asks `GET /api/reviews/42/rounds/2/cards/{path}`
 for it. One function builds a body from one file and its comments, and both
 routes call it, so a body fetched later is the body the round would have sent.
-The template route for a body builds the whole round and keeps one card, which
-compares every file in the round to answer for one. Both routes take
-`?against=base`, as the page does.
+The cards route compares only the file it answers for, using
+`capture.ComparePaths`. The template route for a body builds the whole round and
+keeps one card, which compares every file in the round to answer for one. Both
+routes take `?against=base`, as the page does.
 
 **A document arrives as a list of passages.** In the template page a document
 card is one piece of HTML, and the threads under its passages are written into
@@ -744,15 +745,18 @@ appears. Rejected: keeping threads in the HTML and mounting components into it
 with portals. The components would sit inside markup React does not own, and a
 refetch that replaced the HTML would remove them.
 
-**The surface compresses what it sends.** A JSON view and the bundle are sent
-gzipped when the request accepts it. A code row's tokens are objects that repeat
-their key names, and a review's view is mostly tokens. Measured 2026-11-01 on
-11,846 rows of this repository's Go source in 26 cards, in the code row's shape
-without its header and final-newline fields: 4.8 MB as JSON, and 258 KB gzipped
-at level 6, the level the daemon uses. The daemon compressed nothing before
-this, and sent the 383 KB bundle as it is. A terser encoding, such as a token as
-an array, was rejected, since gzip removes the same repetition and the generated
-types stay readable.
+**The surface compresses what it sends.** A JSON view, the bundle and the
+stylesheets are sent gzipped when the request accepts it, with
+`Vary: Accept-Encoding`. A flag on the route table says which routes, so
+`/events` and the raw route are never wrapped: gzip would hold the stream's
+events in its buffer, and a range request names bytes of the stored file. A code
+row's tokens are objects that repeat their key names, and a review's view is
+mostly tokens. Measured 2026-11-01 on 11,846 rows of this repository's Go source
+in 26 cards, in the code row's shape without its header and final-newline
+fields: 4.8 MB as JSON, and 258 KB gzipped at level 6, the level the daemon
+uses. The daemon compressed nothing before this, and sent the 383 KB bundle as
+it is. A terser encoding, such as a token as an array, was rejected, since gzip
+removes the same repetition and the generated types stay readable.
 
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
@@ -797,8 +801,9 @@ describes and no spec has built yet.
 | `GET /api/reviews/{review}/rounds/{round}/files/{path...}` | the tree or the file at that round, as JSON         | 030     |
 | `GET /api/projects/{project}`                              | the project view, as JSON                           | 030     |
 | `GET /api/projects/{project}/files/{path...}`              | a live file, by `copy`, as JSON                     | 030     |
-| `GET /api/...`, each other page path above                 | that page's view, as JSON                           | planned |
-| `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | planned |
+| `GET /api/reviews/{review}`                                | the current round's view, as JSON                   | 031     |
+| `GET /api/reviews/{review}/rounds/{round}`                 | that round's view, as JSON                          | 031     |
+| `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | 031     |
 | `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |
 | `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | planned |
 | `DELETE /api/reviews/{review}/comments/{comment}`          | drop one before the verdict                         | planned |

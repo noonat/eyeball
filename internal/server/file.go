@@ -36,6 +36,8 @@ type filePage struct {
 	ShowDocument bool
 	// Document is a markdown file rendered, with heading ids.
 	Document template.HTML
+	// Parts are the same document as a list, which the view sends.
+	Parts []render.Part
 	// Diff is the file's rows, or the flag saying why it has none.
 	Diff render.File
 	// Rendered is the file shown as itself, a page in its frame, or the line
@@ -534,7 +536,8 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 		// a reviewer flips. A deleted document shows its removed blocks.
 		if at.document() {
 			view.ShowDocument = true
-			view.Document = render.Document(old, content, at.page())
+			view.Parts = render.Document(old, content, at.page())
+			view.Document = render.Join(view.Parts, nil)
 			return nil
 		}
 		view.Diff = render.Whole(at.path, result)
@@ -564,7 +567,8 @@ func (v *filePage) showPlain(at fileAt, content []byte, tooLarge bool) {
 	}
 	if r := diff.Plain(content); at.document() && !r.Binary && !r.TooLarge {
 		v.ShowDocument = true
-		v.Document = render.Document(nil, content, at.page())
+		v.Parts = render.Document(nil, content, at.page())
+		v.Document = render.Join(v.Parts, nil)
 		return
 	}
 	v.Diff = render.Plain(at.path, content)
