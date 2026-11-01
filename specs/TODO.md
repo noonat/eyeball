@@ -18,42 +18,24 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the service worker's shell cache and the tap handling, after the
-      queue. With no cache the daemon answers every navigation, so the worker
-      cannot hand a template page the shell, and a tap on the React window gets
-      `navigate`, which reloads the app. The cache brings two problems of the
-      mixed period. The worker must not answer a template page's navigation with
-      the shell. A tap posted to a template window reaches nothing, so the tap
-      needs an answer from the app within a short timeout and `navigate` as the
-      fallback, with the beacons logging how long the answer took and whether
-      the fallback ran. The cache also has a failure only the installed app can
-      show, a shell older than the daemon, which needs its own phone check. The
-      cache's version has to follow the app bundle, since the worker's stamp
-      hashes only the worker and an app-only change leaves `sw.js` unchanged.
-      Whether Cache Storage keeps a response sent with `no-store` is not probed.
-      The answering listener goes in the template bundle too, so `navigate` runs
-      only for a page that does not answer. The one-second wait for an answer is
-      a guess. `focus()` stays after an answer, since a page cannot bring itself
-      forward. Measured 2026-10-29 in headless Chromium: a page answered on a
-      `MessageChannel` in under a millisecond, and a page with no listener gave
-      nothing until the worker's one-second timeout. A relaunch of the installed
-      app with the daemon down shows a black screen today, measured on the phone
-      on 2026-10-30 with the React queue's build. Master is expected to behave
-      the same, since the worker intercepts no fetches. The shell cache is what
-      fixes it.
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
-      [026](026-tap-opens-the-review.md) is blocked until the fault is seen
-      again. The tap handling item above posts the address to the open app
-      instead of navigating it, which may remove the fault, and the beacons stay
-      to show which branch ran if it recurs.
+      [026](026-tap-opens-the-review.md) is blocked. The fault was seen again on
+      2026-10-31 with no beacon at all, so its next step is a beacon sent first
+      thing in the click handler.
 
 ## Unscheduled
 
+- [ ] product: a stream that never connects shows no offline notice. The notice
+      waits for the stream's `error` event, and a phone's connection to a daemon
+      whose tailnet node is offline gets no error: the packets are dropped, and
+      a request from the desktop had no answer after 30 s on 2026-10-30. A
+      stream that was open and is cut does error, so the notice shows there. One
+      fix counts a stream that has not opened within the notice's delay as down.
 - [ ] tooling: a flaky browser test. `TestServer_Surface_browserJump`
       (`internal/server/browser_test.go`) fails at "the target moved as bodies
       loaded around it", with the target 3482px from the head where the limit

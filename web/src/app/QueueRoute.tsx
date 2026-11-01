@@ -11,8 +11,8 @@ import { trackHead } from "../../ts/head";
 import { setBadge } from "../../ts/push";
 import { fetchQueue, queueKey } from "../api/queue";
 import type { Queue as QueueView } from "../api/types";
-import { Banners } from "../components/Banners";
 import { Queue } from "../components/Queue";
+import { QueueLoading } from "../components/QueueLoading";
 import { useQueueStream } from "./useQueueStream";
 import { usePush } from "./usePush";
 
@@ -29,9 +29,8 @@ function blinkFor(marked: string | null, queue: QueueView): boolean {
 }
 
 /**
- * Keeps the sticky head's height on the root element. It is keyed by what the
- * route draws, so it measures the head that is on screen after the first view
- * replaces the one before it.
+ * Keeps the sticky head's height on the root element. It is drawn with the
+ * first view, since the state before it has no head to measure.
  */
 function HeadTracker() {
   useEffect(() => {
@@ -93,24 +92,7 @@ export function QueueRoute() {
   }, [data]);
 
   if (data === undefined) {
-    // Before the first view the bar has no count to show, and a shut eye would
-    // say nothing is waiting.
-    return (
-      <>
-        <div className="head">
-          <div className="topbar">
-            <span className="wordmark">eyeball</span>
-          </div>
-          <Banners
-            offline={connection.offline}
-            updateReady={connection.updateReady}
-            onRetry={connection.retry}
-          />
-        </div>
-        <div className="scroll" />
-        <HeadTracker key="loading" />
-      </>
-    );
+    return <QueueLoading />;
   }
   return (
     <>
@@ -127,7 +109,7 @@ export function QueueRoute() {
         onAllow={push.allow}
         onResubscribe={push.resubscribe}
       />
-      <HeadTracker key="loaded" />
+      <HeadTracker />
     </>
   );
 }

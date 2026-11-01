@@ -1263,5 +1263,5 @@ func hasAttr(n *html.Node, name string) bool {
 // the head, which are the only scripts a page may hold.
 func layoutScript(n *html.Node) bool {
 	src := attr(n, "src")
-	return n.Parent != nil && n.Parent.Data == "head" && (src == "/static/htmx.js" || src == "/static/app.js")
+	return n.Parent != nil && n.Parent.Data == "head" && (strings.HasPrefix(src, "/static/htmx.js?b=") || strings.HasPrefix(src, "/static/app.js?b="))
 }
