@@ -13,7 +13,7 @@ components that draw it, judged on the phone as a tearout. The template page
 stays the page the surface serves. The next spec in specs/TODO.md moves the
 route to the app, with the writes, the deferred bodies, the reader's place, the
 stream and the browser tests. The design is in
-[docs/architecture.md](../docs/architecture.md) under The surface and Client
+[docs/architecture.md](../../docs/architecture.md) under The surface and Client
 state, which this spec's first commit extends. The screens are the ones approved
 in `docs/design/review.html`, so the tearout reproduces them from components
 rather than redesigning them.

@@ -18,8 +18,6 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the review page's views and components, as a tearout. Spec
-      [031](031-react-review-views.md).
 - [ ] product: the review page in React: the route, the writes, the deferred
       bodies, the reader's place, the stream and the browser tests, removing the
       review templates, and a long review measured on the phone. The cards route
