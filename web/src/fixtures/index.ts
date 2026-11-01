@@ -8,3 +8,7 @@ import populatedJson from "./queue-populated.json";
 export const populated: Queue = populatedJson;
 export const nothingWaiting: Queue = nothingWaitingJson;
 export const awkward: Queue = awkwardJson;
+
+// The views of the project, the tree and the file pages, typed by the file
+// tool/fixtures writes.
+export * from "./scenes";

@@ -36,6 +36,11 @@ export function normalize(node: Node): string {
     return "";
   }
   const attrs = [...node.attributes]
+    // The code table is focusable so a keyboard can scroll it. The template
+    // page's table was not, and the approved markup is otherwise unchanged.
+    .filter(
+      (attr) => !(attr.name === "tabindex" && node.classList.contains("code")),
+    )
     .map((attr) => {
       const value =
         attr.name === "class"

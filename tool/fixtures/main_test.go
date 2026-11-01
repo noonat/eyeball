@@ -19,12 +19,22 @@ func TestGenerate_committedFilesAreCurrent(t *testing.T) {
 	g := NewWithT(t)
 	files, err := Generate(t.Context())
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(files).To(HaveLen(len(states) + 2*len(scenes)))
+	for _, st := range states {
+		g.Expect(files).To(HaveKey(st.file + ".json"))
+	}
+	for _, sc := range scenes {
+		g.Expect(files).To(HaveKey(sc.file + ".json"))
+		g.Expect(files).To(HaveKey(sc.file + ".html"))
+	}
+	g.Expect(files).To(HaveKey("scenes.ts"))
 	for name, body := range files {
 		have, err := os.ReadFile(filepath.Join("../..", outDir, name))
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(string(have)).To(Equal(string(body)), "run: make api")
 	}
+	stray, err := strayRaw(filepath.Join("../..", outDir), files)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stray).To(BeEmpty(), "files under _raw that no view points at")
 }
 
 func TestGenerate_everyRunIsTheSame(t *testing.T) {
@@ -45,6 +55,49 @@ func TestGenerate_pagesCarryNoQueueFiles(t *testing.T) {
 			g.Expect(name).To(HaveSuffix(".json"), "the queue's markup files are frozen")
 		}
 	}
+}
+
+func TestGenerate_rawFilesAreWritten(t *testing.T) {
+	g := NewWithT(t)
+	files, err := Generate(t.Context())
+	g.Expect(err).NotTo(HaveOccurred())
+	var wanted int
+	for _, sc := range scenes {
+		var f view.Files
+		g.Expect(json.Unmarshal(files[sc.file+".json"], &f)).To(Succeed(), sc.file)
+		if f.File == nil || f.File.Rendered == nil {
+			continue
+		}
+		rendered := f.File.Rendered
+		var addresses []string
+		for _, side := range rendered.Sides {
+			addresses = append(addresses, side.Src)
+		}
+		if rendered.Frame != "" {
+			addresses = append(addresses, rendered.Frame)
+		}
+		for _, address := range addresses {
+			wanted++
+			g.Expect(files).To(HaveKey(rawDir+address), sc.file)
+			g.Expect(files[rawDir+address]).NotTo(BeEmpty(), sc.file+" "+address)
+		}
+	}
+	g.Expect(wanted).To(BeNumerically(">=", 12))
+
+	// A page in a frame brings the stylesheet it links.
+	const page = "/reviews/4/raw/1/web/status.html"
+	g.Expect(string(files[rawDir+page])).To(ContainSubstring("status.css"))
+	g.Expect(files[rawDir+"/reviews/4/raw/1/web/status.css"]).NotTo(BeEmpty())
+
+	// The files are what their names say, not placeholders.
+	pdf := files[rawDir+"/reviews/4/raw/1/docs/retry-policy.pdf"]
+	g.Expect(string(pdf)).To(HavePrefix("%PDF-"))
+	before := files[rawDir+"/reviews/4/raw/0/media/chime.wav"]
+	after := files[rawDir+"/reviews/4/raw/1/media/chime.wav"]
+	g.Expect(string(before)).To(HavePrefix("RIFF"))
+	g.Expect(string(after)).To(HavePrefix("RIFF"))
+	g.Expect(before).NotTo(Equal(after))
+	g.Expect(string(files[rawDir+"/reviews/4/raw/1/media/clip.mp4"])).To(ContainSubstring("ftyp"))
 }
 
 func TestGenerate_sceneViewsHoldTheirParts(t *testing.T) {

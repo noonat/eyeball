@@ -191,7 +191,7 @@ func seedWeek(w *world) error {
 	status, err := w.repo("status-page", map[string]string{
 		"bin/sync":        syncBefore,
 		"docs/README.md":  "# Status page\n",
-		"media/chime.wav": "RIFF....WAVEfmt  before",
+		"media/chime.wav": wavTone(440, 8000, 1),
 		"web/icon.png":    pngImage(48, 48, color.RGBA{R: 0xb0, G: 0x4a, B: 0x3c, A: 0xff}),
 		"web/old.png":     pngImage(32, 32, color.RGBA{R: 0x8a, G: 0xab, B: 0xff, A: 0xff}),
 		"web/badge.svg":   svgBefore,
@@ -203,11 +203,11 @@ func seedWeek(w *world) error {
 	}
 	if err := w.edit(status, map[string]string{
 		"bin/sync":              syncAfter,
-		"media/chime.wav":       "RIFF....WAVEfmt  after, a little longer",
-		"media/clip.mp4":        "\x00\x00\x00\x18ftypmp42 a clip",
+		"media/chime.wav":       wavTone(660, 8000, 1),
+		"media/clip.mp4":        clipMP4,
 		"media/capture-03.mov":  pastSendLimit(),
 		"media/fixture.zip":     "PK\x03\x04 an archive nobody opens on a phone",
-		"docs/retry-policy.pdf": "%PDF-1.4\n% a policy\n",
+		"docs/retry-policy.pdf": retryPolicy,
 		"web/icon.png":          pngImage(48, 48, color.RGBA{R: 0x1f, G: 0x7a, B: 0x6a, A: 0xff}),
 		"web/new.png":           pngImage(64, 40, color.RGBA{R: 0xf0, G: 0xc6, B: 0x74, A: 0xff}),
 		"web/badge.svg":         svgAfter,
@@ -312,4 +312,22 @@ func seedWorktrees(w *world, committed bool) error {
 		return w.commit(retry, "the retry ladder")
 	}
 	return nil
+}
+
+// retryPolicy is the PDF the status page's review adds: two pages with text a
+// reader can read.
+var retryPolicy = pdfDocument(policyPage, backstopPage)
+
+var policyPage = []string{
+	"Retry policy",
+	"A job that fails to upload is tried again, up to three times.",
+	"Each wait is longer than the last: 5 seconds, then 20, then 60.",
+	"The first wait is 60 seconds on a cold connection.",
+}
+
+var backstopPage = []string{
+	"When a job gives up",
+	"After the third attempt the job records why it stopped.",
+	"The reason is the last error, written to the job's row.",
+	"Nothing is retried after that until somebody asks.",
 }

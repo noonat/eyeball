@@ -33,6 +33,11 @@ const webDir = "web"
 // storybookOutput is where `npm run build-storybook` writes, under webDir.
 const storybookOutput = "storybook-static"
 
+// rawDir is where tool/fixtures writes the files its views point at, under webDir.
+// The raw route's addresses are absolute, so the stories ask the origin's root
+// for them, not the path Storybook is served under.
+const rawDir = "src/fixtures/_raw"
+
 // storybookPath is where the built Storybook is served.
 const storybookPath = "/storybook/"
 
@@ -102,6 +107,7 @@ func run(args []string) error {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(dir)))
+	mux.Handle("/reviews/", http.FileServer(http.Dir(filepath.Join(root, webDir, rawDir))))
 	mux.Handle(storybookPath, http.StripPrefix(storybookPath, http.FileServer(http.Dir(built))))
 	server := &http.Server{
 		Addr:              addr,

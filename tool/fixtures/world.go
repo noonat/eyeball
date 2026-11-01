@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
+	_ "embed"
+	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -313,5 +316,78 @@ func statusPage(title string) string {
 	for i := 1; i <= 4; i++ {
 		fmt.Fprintf(&b, "<section>Job %d: retrying, attempt %d of 3</section>\n", i, i%3+1)
 	}
+	return b.String()
+}
+
+// clipMP4 is three seconds of ffmpeg's test pattern at 320 by 180, H.264
+// baseline with its index at the front. It is a copy of tool/seed's, since
+// nothing can import a main package, and a real video is the only way to see
+// one play.
+//
+//go:embed testdata/clip.mp4
+var clipMP4 string
+
+// wavTone is seconds of a sine at freq hertz, 16-bit mono PCM at rate, fading
+// out so the end does not click.
+func wavTone(freq, rate, seconds int) string {
+	n := rate * seconds
+	var buf bytes.Buffer
+	le := binary.LittleEndian
+	buf.WriteString("RIFF")
+	_ = binary.Write(&buf, le, uint32(36+n*2))
+	buf.WriteString("WAVEfmt ")
+	_ = binary.Write(&buf, le, struct {
+		Size                      uint32
+		Format, Channels          uint16
+		Rate, ByteRate            uint32
+		BlockAlign, BitsPerSample uint16
+	}{Size: 16, Format: 1, Channels: 1, Rate: uint32(rate), ByteRate: uint32(rate * 2), BlockAlign: 2, BitsPerSample: 16})
+	buf.WriteString("data")
+	_ = binary.Write(&buf, le, uint32(n*2))
+	for i := 0; i < n; i++ {
+		v := math.Sin(2*math.Pi*float64(freq)*float64(i)/float64(rate)) * (1 - float64(i)/float64(n))
+		_ = binary.Write(&buf, le, int16(v*12000))
+	}
+	return buf.String()
+}
+
+// pdfDocument is a PDF with one page for each list of lines, the first line of
+// a page its title. The cross-reference offsets are computed so a strict
+// reader opens it, and nothing in it varies between runs.
+func pdfDocument(pages ...[]string) string {
+	// Objects 1 and 2 are the catalog and the page tree, 3 is the font, and
+	// each page takes two: the page, then its content stream.
+	objects := make([]string, 3+2*len(pages))
+	kids := make([]string, len(pages))
+	for i, lines := range pages {
+		var stream strings.Builder
+		for j, line := range lines {
+			size, y := 11, 730-(j-1)*18
+			if j == 0 {
+				size, y = 18, 760
+			}
+			fmt.Fprintf(&stream, "BT /F1 %d Tf 56 %d Td (%s) Tj ET\n", size, y, line)
+		}
+		page, content := 4+2*i, 5+2*i
+		kids[i] = fmt.Sprintf("%d 0 R", page)
+		objects[page-1] = fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents %d 0 R /Resources << /Font << /F1 3 0 R >> >> >>", content)
+		objects[content-1] = fmt.Sprintf("<< /Length %d >>\nstream\n%sendstream", stream.Len(), stream.String())
+	}
+	objects[0] = "<< /Type /Catalog /Pages 2 0 R >>"
+	objects[1] = fmt.Sprintf("<< /Type /Pages /Kids [%s] /Count %d >>", strings.Join(kids, " "), len(pages))
+	objects[2] = "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>"
+	var b strings.Builder
+	b.WriteString("%PDF-1.4\n")
+	offsets := make([]int, len(objects))
+	for i, o := range objects {
+		offsets[i] = b.Len()
+		fmt.Fprintf(&b, "%d 0 obj\n%s\nendobj\n", i+1, o)
+	}
+	xref := b.Len()
+	fmt.Fprintf(&b, "xref\n0 %d\n0000000000 65535 f \n", len(objects)+1)
+	for _, off := range offsets {
+		fmt.Fprintf(&b, "%010d 00000 n \n", off)
+	}
+	fmt.Fprintf(&b, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(objects)+1, xref)
 	return b.String()
 }

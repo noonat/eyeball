@@ -17,14 +17,14 @@
         {
           "label": "Before",
           "tint": "was",
-          "caption": "WAV audio · 23 B",
+          "caption": "WAV audio · 16.0 kB",
           "src": "/reviews/4/raw/0/media/chime.wav",
           "element": "audio"
         },
         {
           "label": "After",
           "tint": "now",
-          "caption": "WAV audio · 39 B",
+          "caption": "WAV audio · 16.0 kB",
           "src": "/reviews/4/raw/1/media/chime.wav",
           "element": "audio"
         }

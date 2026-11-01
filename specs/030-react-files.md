@@ -102,6 +102,47 @@ Where the work went differently from the paragraphs above.
   passages is a short one. The frames' `plate-04.jpg` is a PNG here.
 - `tool/fixtures` writes no markup file for the queue's states, as before. Only
   the new states get one beside their view.
+- Iteration 2's first todo says the components' markup equals the template
+  page's for each state. It does, with one attribute the template never had: the
+  code table is `tabindex="0"`. It scrolls sideways, and axe fails a scrolling
+  region that a keyboard cannot reach (`scrollable-region-focusable`) on every
+  file story. The comparison drops `tabindex` from `.code` on both sides, and
+  the first file story asserts the attribute is there. The template page has the
+  same fault and is not changed, since Iteration 3 removes it.
+- The view fixtures are also written as `web/src/fixtures/scenes.ts`, typed
+  constants, beside their JSON. TypeScript reads a JSON import's strings as
+  `string`, so `kind` and every other union failed a typed assignment, and a
+  cast would have checked nothing. An object literal keeps its strings as
+  literals and is checked against the type, so a field the types do not allow
+  fails the build. The Makefile leaves the file out of the format check, since
+  `make api-check` compares it byte for byte.
+- A story's markup is compared with the template page for the screen's `.topbar`
+  and `.scroll` only, as the queue's is. A state the template never drew has no
+  markup to compare: the screen before its view arrives, and a 404. Their
+  stories assert what the design decided instead.
+- The screen before its view arrives shows the queue's wordmark bar with no eye,
+  over the queue's connecting eye. The view's title, way back and count are not
+  known, and a label drawn now would change when the view came. A 404 draws the
+  template error page's bar and box, with the view's banner above the box where
+  a live read was refused.
+- The sheets show real media, and this corrects an earlier bullet that said they
+  served no file bytes. A frame, an image or a player points at the raw route's
+  address, which only the daemon answers. `tool/fixtures` now reads each such
+  address through the server's own raw route and writes the bytes under
+  `web/src/fixtures/_raw/` at the same path, so the views and the markup are
+  unchanged. Storybook's `staticDirs` serves the directory at the root for
+  `storybook dev` and the stories, and `tool/tearout` serves `/reviews/` from
+  it, since the phone opens Storybook under `/storybook/` and the addresses are
+  absolute. The directory starts with an underscore so `go:embed` leaves it out
+  of the binary. The files are real and small: a two-page PDF with text written
+  by Go, a different tone on each side of the chime, tool/seed's clip as a copy,
+  and the PNGs and SVGs. Their sizes changed three captions, and the template
+  comparison passes with the regenerated files. The empty tree has no state,
+  since no store produces one.
+- The states are on four sheets, in four files, since one sheet of 29 states is
+  too long to read on a phone: the project view with the two states no template
+  draws, the tree, code and documents, and media. `ScreenSheet` leaves the wide
+  layout out where a screen has none.
 
 ## Iteration 1: The API
 
@@ -131,14 +172,21 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] The project view, the tree and the file page are components whose markup
+- [x] The project view, the tree and the file page are components whose markup
       equals the template page's for each state from Iteration 1.
-- [ ] Two states no template draws are designed here: a screen whose view has
+- [x] Two states no template draws are designed here: a screen whose view has
       not arrived, and an address the view answers 404.
-- [ ] A screen sheet lays every state out light beside dark, as the queue's
+- [x] A screen sheet lays every state out light beside dark, as the queue's
       does, with a story per state.
-- [ ] The owner judges the sheet on the phone against project.html and
+- [x] The owner judges the sheet on the phone against project.html and
       widening.html, and every change asked for is made before the ack.
+
+> **Completed** 2026-11-01 13:26 UTC
+>
+> - acks: tearout-approved
+> - `make check` — 18.2s
+> - `go test -race ./...` — 47.5s
+> - `go test -count=1 -tags browser ./internal/server` — 64.7s
 
 ## Iteration 3: The shell
 
