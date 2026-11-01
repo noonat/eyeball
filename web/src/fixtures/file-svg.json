@@ -1,0 +1,55 @@
+{
+  "title": "badge.svg",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "web/",
+    "name": "badge.svg",
+    "notices": null,
+    "toolbar": {
+      "note": "",
+      "added": "1",
+      "removed": "1",
+      "counted": "in this round",
+      "marked": "",
+      "plain": "",
+      "show_plain": false,
+      "rendered": "/reviews/4/files/web/badge.svg?view=image",
+      "rendered_label": "Image",
+      "source": "/reviews/4/files/web/badge.svg?view=source",
+      "show_source": false
+    },
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": [
+        {
+          "label": "Before",
+          "tint": "was",
+          "caption": "114 B",
+          "src": "/reviews/4/raw/0/web/badge.svg",
+          "element": "img"
+        },
+        {
+          "label": "After",
+          "tint": "now",
+          "caption": "131 B",
+          "src": "/reviews/4/raw/1/web/badge.svg",
+          "element": "img"
+        }
+      ],
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

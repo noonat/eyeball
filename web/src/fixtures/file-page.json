@@ -1,0 +1,46 @@
+{
+  "title": "status.html",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "web/",
+    "name": "status.html",
+    "notices": [
+      {
+        "warn": false,
+        "heading": "",
+        "text": "Runs with no access to this surface. A page an agent wrote is a program, not a document."
+      }
+    ],
+    "toolbar": {
+      "note": "",
+      "added": "1",
+      "removed": "1",
+      "counted": "in this round",
+      "marked": "",
+      "plain": "",
+      "show_plain": false,
+      "rendered": "/reviews/4/files/web/status.html?view=page",
+      "rendered_label": "Page",
+      "source": "/reviews/4/files/web/status.html?view=source",
+      "show_source": false
+    },
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": null,
+      "frame": "/reviews/4/raw/1/web/status.html",
+      "sandboxed": true,
+      "title": "web/status.html",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

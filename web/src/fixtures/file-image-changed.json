@@ -1,0 +1,43 @@
+{
+  "title": "icon.png",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "web/",
+    "name": "icon.png",
+    "notices": null,
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": [
+        {
+          "label": "Before",
+          "tint": "was",
+          "caption": "48 × 48 · 277 B",
+          "src": "/reviews/4/raw/0/web/icon.png",
+          "element": "img"
+        },
+        {
+          "label": "After",
+          "tint": "now",
+          "caption": "48 × 48 · 295 B",
+          "src": "/reviews/4/raw/1/web/icon.png",
+          "element": "img"
+        }
+      ],
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

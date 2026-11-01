@@ -8,11 +8,12 @@ GOFILES = $(shell git ls-files --cached --others --exclude-standard '*.go' \
 	| grep -v '/testdata/')
 
 # The same, for what oxfmt formats. HTML is excluded, and so are web/vendor/ and
-# web/deps/, whose files must stay byte for byte the release they name. See
-# docs/conventions.md.
+# web/deps/, whose files must stay byte for byte the release they name, and
+# web/src/fixtures/scenes.ts and web/src/fixtures/_raw/, which tool/fixtures
+# writes and make api-check compares byte for byte. See docs/conventions.md.
 FMTFILES = $(shell git ls-files --cached --others --exclude-standard \
 	'*.md' '*.css' '*.json' '*.ts' '*.tsx' | grep -v -e '^web/vendor/' -e '^web/deps/' \
-	| grep -v '^web/package-lock.json$$')
+	| grep -v -e '^web/package-lock.json$$' -e '^web/src/fixtures/scenes.ts$$' -e '^web/src/fixtures/_raw/')
 
 # The JavaScript tools are pinned once, in web/package.json and its lockfile,
 # and run from the node_modules `npm ci` installs there. Nothing is fetched at

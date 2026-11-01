@@ -1,4 +1,5 @@
 import type { Preview } from "@storybook/react-vite";
+import { MemoryRouter } from "react-router";
 import "../../docs/design/app.css";
 import "../src/stories/stories.css";
 import { Framed, type Frame } from "../src/stories/Framed";
@@ -34,12 +35,16 @@ const preview: Preview = {
       const theme = [pinned, chosen].find(isTheme) ?? "light";
       const frame: Frame =
         context.parameters["frame"] === "screen" ? "screen" : "page";
+      // A link draws a router link for an address the app draws, which needs a
+      // router. Nothing here moves it, so a memory router is enough.
       return (
-        <ThemeStamp theme={theme}>
-          <Framed frame={frame}>
-            <Story />
-          </Framed>
-        </ThemeStamp>
+        <MemoryRouter>
+          <ThemeStamp theme={theme}>
+            <Framed frame={frame}>
+              <Story />
+            </Framed>
+          </ThemeStamp>
+        </MemoryRouter>
       );
     },
   ],

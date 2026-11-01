@@ -76,29 +76,25 @@ type notice struct {
 	Heading, Text string
 }
 
-// handleFilePage answers GET /reviews/{review}/files/{path...}: a path at the
-// review's latest round.
-func (s *Server) handleFilePage(w http.ResponseWriter, r *http.Request) error {
-	review, ok, err := s.reviewFromPath(r)
-	if err != nil || !ok {
-		return s.missing(w, err)
-	}
-	return s.filePage(w, r, review, review.LatestRound)
-}
-
-// handleRoundFilePage answers GET /reviews/{review}/rounds/{round}/files/
-// {path...}: a path at any round. The latest round answers here as well.
-func (s *Server) handleRoundFilePage(w http.ResponseWriter, r *http.Request) error {
-	number, err := strconv.Atoi(r.PathValue("round"))
-	if err != nil {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+// fileAnswer is what a review's file address answers, with the round in the
+// path or the review's latest.
+func (s *Server) fileAnswer(r *http.Request) (pageAnswer, error) {
+	round := r.PathValue("round")
+	number := 0
+	if round != "" {
+		var err error
+		if number, err = strconv.Atoi(round); err != nil {
+			return notFound(nil), nil
+		}
 	}
 	review, ok, err := s.reviewFromPath(r)
 	if err != nil || !ok {
-		return s.missing(w, err)
+		return notFound(nil), err
 	}
-	return s.filePage(w, r, review, number)
+	if round == "" {
+		number = review.LatestRound
+	}
+	return s.filePage(r, review, number)
 }
 
 // reviewFromPath reads the review an address names, reporting false for one
@@ -131,31 +127,30 @@ func (s *Server) missing(w http.ResponseWriter, err error) error {
 // which reader is built, whether anything is compared, and which banners the
 // page carries. A path is then located before anything is read, so a
 // directory is never read as a file.
-func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.Review, number int) error {
+func (s *Server) filePage(r *http.Request, review store.Review, number int) (pageAnswer, error) {
 	ctx := r.Context()
 	round, err := s.db.s.Round(ctx, review.ID, number)
 	if errors.Is(err, store.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+		return notFound(nil), nil
 	}
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	project, err := s.db.s.Project(ctx, review.ProjectID)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	root, err := s.copyRoot(ctx, round)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	st, err := capture.Inspect(ctx, root, round.BaseCommit, project.InsideCheckout)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	if st.FoundCheckout && !project.InsideCheckout {
 		if err := s.db.MarkInsideCheckout(ctx, project.ID); err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 	}
 
@@ -167,16 +162,15 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	if p := r.PathValue("path"); strings.Trim(p, "/") != "" {
 		clean, err = capture.CleanPath(p)
 		if errors.Is(err, capture.ErrNotFound) {
-			s.errorPage(w, http.StatusNotFound)
-			return nil
+			return notFound(nil), nil
 		}
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 	}
 	stored, err := s.db.s.RoundFiles(ctx, round.ID)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	files := make([]store.File, len(stored))
 	scope := make(map[string]bool, len(stored))
@@ -198,19 +192,18 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		load:        r.URL.Query().Get("load") == "1",
 	}
 	if clean == "" {
-		return s.treeView(ctx, w, at, project, st, files, scope)
+		return s.treeView(ctx, at, project, st, files, scope)
 	}
 	now := st.Reader(s.blobs, files)
 	pathType, source, err := now.Locate(ctx, clean)
 	if errors.Is(err, capture.ErrNotFound) {
-		s.notFoundPage(w, refusalNotice(st, err, s.tilde(st.Root)))
-		return nil
+		return notFound(refusalNotice(st, err, s.tilde(st.Root))), nil
 	}
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	if pathType == capture.PathDir {
-		return s.treeView(ctx, w, at, project, st, files, scope)
+		return s.treeView(ctx, at, project, st, files, scope)
 	}
 
 	view := filePage{Name: path.Base(clean)}
@@ -239,18 +232,18 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		}
 		previous, err := s.previousFiles(ctx, at)
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		if at.file.Shown() || at.rendering() == kind.ViewImage {
 			before := sideReader{reader: st.Reader(s.blobs, previous), number: at.previousNumber()}
 			changed := st.Measurable() && capture.Differs(previous, files, at.path)
 			if changed {
 				if view.Mode, err = modeLine(ctx, before.reader, now, at.path); err != nil {
-					return err
+					return pageAnswer{}, err
 				}
 			}
 			if view.Rendered, err = s.renderShown(ctx, at, before, sideReader{reader: now, number: round.Number}, changed); err != nil {
-				return err
+				return pageAnswer{}, err
 			}
 			if view.Rendered == nil && pathType == capture.PathDeleted {
 				view.Deleted = fmt.Sprintf("The agent deleted this file as of round %d.", at.round.Number)
@@ -261,14 +254,14 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		}
 		rendered := view.Rendered
 		if err := s.compareView(ctx, &view, at, st, now, previous, files, inScope, pathType == capture.PathDeleted); err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		if rendered != nil {
 			view.Rendered, view.Deleted = rendered, ""
 		}
 		if at.rendering() == kind.ViewPage && pathType != capture.PathDeleted {
 			if view.Rendered, err = s.framePage(ctx, at, now); err != nil {
-				return err
+				return pageAnswer{}, err
 			}
 			view.Notices = append(view.Notices, sandboxNotice)
 		}
@@ -276,34 +269,33 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 		view.Notices = append(view.Notices, baseNotice(store.Covers(review.Paths, clean)))
 		if at.file.Shown() || at.rendering() == kind.ViewImage {
 			if view.Rendered, err = s.renderShown(ctx, at, sideReader{}, sideReader{reader: now, number: round.Number}, false); err != nil {
-				return err
+				return pageAnswer{}, err
 			}
 			break
 		}
 		if at.rendering() == kind.ViewPage {
 			if view.Rendered, err = s.framePage(ctx, at, now); err != nil {
-				return err
+				return pageAnswer{}, err
 			}
 			view.Notices = append(view.Notices, sandboxNotice)
 			break
 		}
 		content, tooLarge, err := now.Side(ctx, clean)
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		view.showPlain(at, content, tooLarge)
 	default:
 		rc, err := capture.ReadLive(ctx, st, clean)
 		if errors.Is(err, capture.ErrNotFound) {
-			s.notFoundPage(w, refusalNotice(st, err, s.tilde(st.Root)))
-			return nil
+			return notFound(refusalNotice(st, err, s.tilde(st.Root))), nil
 		}
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		content, err := readBounded(rc)
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		view.Notices = append(view.Notices, liveNotice(st))
 		view.showPlain(at, content, false)
@@ -319,12 +311,11 @@ func (s *Server) filePage(w http.ResponseWriter, r *http.Request, review store.R
 	view.viewControl(at)
 	if view.Rendered == nil && view.Deleted == "" && (view.Diff.Binary || at.file.Kind == kind.Other) {
 		if view.Rendered, err = nameBinary(ctx, at, now); err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 	}
 
-	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: back, BackLabel: label, Body: view})
-	return nil
+	return pageAnswer{page: page{Title: view.Name, Back: back, BackLabel: label, Body: view}}, nil
 }
 
 // fileAt is the address a file page answers, which every link it writes is
@@ -695,12 +686,6 @@ func unmeasurable(st capture.State) string {
 		return "The project's repository is gone, so the change cannot be measured."
 	}
 	return "The commit this review started from is gone, so the change cannot be measured."
-}
-
-// notFoundPage writes the 404 page, with a banner where one says why.
-func (s *Server) notFoundPage(w http.ResponseWriter, n *notice) {
-	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address.", Notice: n}}
-	s.renderPage(w, http.StatusNotFound, "error", p)
 }
 
 // roundHref is a round's page: the review's own address for its latest round,

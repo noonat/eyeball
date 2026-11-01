@@ -1,0 +1,33 @@
+{
+  "title": "scratch",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 4,
+  "name": "scratch",
+  "root": "~/src/scratch",
+  "open": 0,
+  "waiting": null,
+  "working": null,
+  "copies": [
+    {
+      "name": "",
+      "hint": "",
+      "notices": [
+        {
+          "warn": true,
+          "heading": "No git repository here.",
+          "text": "A round has nothing to diff against, so a first request will show whole files."
+        }
+      ],
+      "count": "",
+      "capped": null,
+      "rows": null,
+      "empty": {
+        "headline": "Cannot be listed",
+        "text": "What changed on disk is a question only git answers. Reviews still work; this view does not."
+      }
+    }
+  ],
+  "live": false,
+  "named": false
+}

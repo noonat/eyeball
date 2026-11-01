@@ -1,0 +1,36 @@
+{
+  "title": "old.png",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "web/",
+    "name": "old.png",
+    "notices": null,
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": [
+        {
+          "label": "Deleted",
+          "tint": "was",
+          "caption": "32 × 32 · 207 B",
+          "src": "/reviews/4/raw/0/web/old.png",
+          "element": "img"
+        }
+      ],
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

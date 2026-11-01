@@ -1,0 +1,33 @@
+{
+  "title": "capture-03.mov",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "media/",
+    "name": "capture-03.mov",
+    "notices": null,
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": null,
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": {
+        "kind": "QuickTime video",
+        "size": "20.0 MB",
+        "hint": "Past the 20 MB the surface sends on its own.",
+        "load": "/reviews/4/files/media/capture-03.mov?load=1"
+      }
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

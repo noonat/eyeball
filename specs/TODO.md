@@ -18,7 +18,6 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
@@ -30,6 +29,22 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] tests: rewrite the Go tests that read the project, tree and file screens
+      through `internal/viewdoc` as assertions over the views' fields, then
+      delete the package. They were left reading the old class names because
+      about 140 assertions across file_test.go, tree_test.go, project_test.go
+      and the seed's link crawl would all change at once, and a rewrite that
+      large risks losing a check without a failure to show it.
+- [ ] design: a table in a rendered document is one passage, so any change in it
+      marks the whole table as changed, as a list did before each of its items
+      became a passage of its own. A row as a passage would follow the lists,
+      and has the same question of where a row's comments go. The owner's note
+      on 2026-10-31.
+- [ ] product: the worker answers a moved screen's navigation with the shell
+      when the daemon cannot answer. It answers `/` only, so a reload of the
+      project view or a file page with the daemon down fails as a template page
+      does, and those screens have no state yet for a view that cannot load.
+      Left out of spec [030](done/030-react-files.md).
 - [ ] product: a stream that never connects shows no offline notice. The notice
       waits for the stream's `error` event, and a phone's connection to a daemon
       whose tailnet node is offline gets no error: the packets are dropped, and

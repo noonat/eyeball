@@ -1,0 +1,94 @@
+{
+  "title": "Files",
+  "back": "/reviews/2",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "tree",
+  "tree": {
+    "dir": "",
+    "name": "harbor",
+    "notices": [
+      {
+        "warn": false,
+        "heading": "",
+        "text": "The project as the agent had it. Files this review changes are in bold."
+      }
+    ],
+    "rows": [
+      {
+        "name": "docs",
+        "href": "/reviews/2/files/docs/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "internal",
+        "href": "/reviews/2/files/internal/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "migrations",
+        "href": "/reviews/2/files/internal/migrations/",
+        "dir": true,
+        "indent": true,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "outbox",
+        "href": "/reviews/2/files/internal/outbox/",
+        "dir": true,
+        "indent": true,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "storage",
+        "href": "/reviews/2/files/internal/storage/",
+        "dir": true,
+        "indent": true,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "upload",
+        "href": "/reviews/2/files/internal/upload/",
+        "dir": true,
+        "indent": true,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "doc.go",
+        "href": "/reviews/2/files/internal/doc.go",
+        "dir": false,
+        "indent": true,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "testdata",
+        "href": "/reviews/2/files/testdata/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      }
+    ],
+    "empty": "Nothing is here as of round 1."
+  },
+  "file": null
+}

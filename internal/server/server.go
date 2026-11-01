@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -52,6 +53,9 @@ type Server struct {
 	log     *slog.Logger
 	stop    func()
 	now     func() time.Time
+	// waiting counts the reviews waiting on the reviewer. A test replaces it to
+	// make the count unreadable while every other read works.
+	waiting func(context.Context) (int, error)
 
 	// stopping closes when the daemon begins to shut down, which ends every
 	// wait at once. Requests doing work are left to finish.
@@ -109,6 +113,7 @@ func New(c Config) *Server {
 		log:      log,
 		stop:     stop,
 		now:      now,
+		waiting:  c.Store.Waiting,
 	}
 }
 
@@ -135,6 +140,10 @@ type route struct {
 	side    side
 	pattern string
 	handle  func(s *Server, w http.ResponseWriter, r *http.Request) error
+	// shell says the route answers the shell, so the React app draws the
+	// address. A test holds these to the addresses the app's client function
+	// says it draws.
+	shell bool
 }
 
 // routes is every route the daemon serves, declared once.
@@ -204,11 +213,32 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /{$}",
 		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /api/{$}",
 		handle:  (*Server).handleQueueView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}/files/{path...}",
+		handle:  (*Server).handleFileView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}/rounds/{round}/files/{path...}",
+		handle:  (*Server).handleRoundFileView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/projects/{project}",
+		handle:  (*Server).handleProjectView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/projects/{project}/files/{path...}",
+		handle:  (*Server).handleProjectFileView,
 	},
 	{
 		side:    sideSurface,
@@ -223,12 +253,14 @@ var routes = []route{
 	{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}/files/{path...}",
-		handle:  (*Server).handleFilePage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}/rounds/{round}/files/{path...}",
-		handle:  (*Server).handleRoundFilePage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
@@ -238,12 +270,14 @@ var routes = []route{
 	{
 		side:    sideSurface,
 		pattern: "GET /projects/{project}",
-		handle:  (*Server).handleProjectPage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /projects/{project}/files/{path...}",
-		handle:  (*Server).handleProjectFilePage,
+		handle:  (*Server).handleApp,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,

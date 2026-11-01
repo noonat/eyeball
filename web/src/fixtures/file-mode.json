@@ -1,0 +1,75 @@
+{
+  "title": "sync",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "bin/",
+    "name": "sync",
+    "notices": null,
+    "toolbar": {
+      "note": "",
+      "added": "1",
+      "removed": "0",
+      "counted": "in this round",
+      "marked": "/reviews/4/files/bin/sync?view=marked",
+      "plain": "/reviews/4/files/bin/sync?view=plain",
+      "show_plain": false,
+      "rendered": "",
+      "rendered_label": "",
+      "source": "",
+      "show_source": false
+    },
+    "mode": "regular file (644) → executable file (755)",
+    "body": "rows",
+    "rendered": null,
+    "deleted": "",
+    "document": "",
+    "rows": [
+      {
+        "kind": "context",
+        "header": "",
+        "number": 1,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "#!/bin/sh",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 2,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "set -eu",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 3,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "exec ./sync --once",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      }
+    ]
+  }
+}

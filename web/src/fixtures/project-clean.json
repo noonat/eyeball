@@ -1,0 +1,40 @@
+{
+  "title": "field-notes",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 4,
+  "name": "field-notes",
+  "root": "~/src/field-notes",
+  "open": 1,
+  "waiting": [
+    {
+      "id": "5",
+      "project": "",
+      "agent": "spec/018-tag-import",
+      "title": "Spec 018: bulk import for the tag index",
+      "age": "3h",
+      "round": 1,
+      "files": "1 file",
+      "added": "9",
+      "removed": "0",
+      "gist": "The importer now refuses a file with duplicate tags instead of merging them."
+    }
+  ],
+  "working": null,
+  "copies": [
+    {
+      "name": "",
+      "hint": "",
+      "notices": null,
+      "count": "",
+      "capped": null,
+      "rows": null,
+      "empty": {
+        "headline": "Nothing changed on disk",
+        "text": "Everything the open review covers is committed."
+      }
+    }
+  ],
+  "live": false,
+  "named": false
+}

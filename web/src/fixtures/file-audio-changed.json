@@ -1,0 +1,43 @@
+{
+  "title": "chime.wav",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "media/",
+    "name": "chime.wav",
+    "notices": null,
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": [
+        {
+          "label": "Before",
+          "tint": "was",
+          "caption": "WAV audio · 16.0 kB",
+          "src": "/reviews/4/raw/0/media/chime.wav",
+          "element": "audio"
+        },
+        {
+          "label": "After",
+          "tint": "now",
+          "caption": "WAV audio · 16.0 kB",
+          "src": "/reviews/4/raw/1/media/chime.wav",
+          "element": "audio"
+        }
+      ],
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

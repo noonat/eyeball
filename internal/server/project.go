@@ -94,17 +94,17 @@ type openReview struct {
 	copyID int64
 }
 
-// handleProjectPage answers GET /projects/{project}: the project's open
-// reviews, then each working copy on disk as it is now.
-func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error {
+// projectAnswer is what a project's address answers: its open reviews, then
+// each working copy on disk as it is now.
+func (s *Server) projectAnswer(r *http.Request) (pageAnswer, error) {
 	project, ok, err := s.projectFromPath(r)
 	if err != nil || !ok {
-		return s.missing(w, err)
+		return notFound(nil), err
 	}
 	ctx := r.Context()
 	open, err := s.openReviews(ctx, project.ID)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 
 	view := projectPage{Name: project.Name, Root: s.tilde(project.Root), Open: len(open)}
@@ -118,7 +118,7 @@ func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error
 	}
 	copies, err := s.copiesOnDisk(ctx, project)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	for _, c := range copies {
 		// A single working copy that is not at the project's root is a
@@ -127,13 +127,12 @@ func (s *Server) handleProjectPage(w http.ResponseWriter, r *http.Request) error
 		view.Named = view.Named || named
 		section, err := s.copySection(ctx, project, c, open, named)
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		view.Live = view.Live || len(section.Rows) > 0
 		view.Copies = append(view.Copies, section)
 	}
-	s.renderPage(w, http.StatusOK, "projectpage", page{Title: project.Name, Back: "/", BackLabel: "Queue", Body: view})
-	return nil
+	return pageAnswer{page: page{Title: project.Name, Back: "/", BackLabel: "Queue", Body: view}}, nil
 }
 
 // copiesOnDisk is the project's working copies that are still on disk, the
@@ -313,46 +312,43 @@ func unlisted(st capture.State, listErr error, root string) ([]notice, *emptyBox
 	return []notice{{Warn: true, Heading: "Live browsing is unavailable.", Text: reason}}, &emptyBox{Headline: cannot, Text: "Nothing on disk is read for this project. Reviews still work, and the files their rounds captured still open."}
 }
 
-// handleProjectFilePage answers GET /projects/{project}/files/{path...}: one
-// file the working copy lists, live, against HEAD.
+// projectFileAnswer is what a working copy's file address answers: one file the
+// working copy lists, live, against HEAD.
 //
 // Only a listed path answers, including one past the rows' cap, so the route
 // never becomes a reader of any file under the root. An unchanged file has
 // nothing this view adds anyway.
-func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) projectFileAnswer(r *http.Request) (pageAnswer, error) {
 	project, ok, err := s.projectFromPath(r)
 	if err != nil || !ok {
-		return s.missing(w, err)
+		return notFound(nil), err
 	}
 	ctx := r.Context()
 	clean, err := capture.CleanPath(r.PathValue("path"))
 	if errors.Is(err, capture.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+		return notFound(nil), nil
 	}
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	c, ok, err := s.copyFromQuery(ctx, r, project)
 	if err != nil || !ok {
-		return s.missing(w, err)
+		return notFound(nil), err
 	}
 	wc, err := s.workingCopy(ctx, project, c.Root)
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 	entry, held := wc.Holds(clean)
 	if !held {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
+		return notFound(nil), nil
 	}
 	head, disk, tooLarge, err := wc.Sides(ctx, clean)
 	if errors.Is(err, capture.ErrRulesUnreadable) {
-		s.notFoundPage(w, refusalNotice(wc.State, err, s.tilde(c.Root)))
-		return nil
+		return notFound(refusalNotice(wc.State, err, s.tilde(c.Root))), nil
 	}
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 
 	view := filePage{
@@ -363,8 +359,7 @@ func (s *Server) handleProjectFilePage(w http.ResponseWriter, r *http.Request) e
 		view.Dir = dir + "/"
 	}
 	view.showWorking(projectFileHref(project.ID, copyParam(project, c), clean), clean, entry.Deleted, head, disk, tooLarge, r.URL.Query().Get("view") == "plain")
-	s.renderPage(w, http.StatusOK, "filepage", page{Title: view.Name, Back: projectHref(project.ID), BackLabel: project.Name, Body: view})
-	return nil
+	return pageAnswer{page: page{Title: view.Name, Back: projectHref(project.ID), BackLabel: project.Name, Body: view}}, nil
 }
 
 // showWorking fills in a working-copy file: its counts on disk and the Marked

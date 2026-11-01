@@ -1,3 +1,4 @@
+import { AppLink } from "./AppLink";
 import { Eye } from "./Eye";
 import { Icon } from "./Icon";
 
@@ -7,8 +8,11 @@ interface Back {
 }
 
 interface TopBarProps {
-  /** How many reviews wait, shown by the eye. */
-  readonly waiting: number;
+  /**
+   * How many reviews wait, shown by the eye. Null where the count is not known,
+   * and the bar then draws no eye, since a shut one would say nothing waits.
+   */
+  readonly waiting: number | null;
   /** A screen below the queue names its title and the way back. */
   readonly back?: Back;
   readonly title?: string;
@@ -33,19 +37,21 @@ export function TopBar({
         <span className="wordmark">eyeball</span>
       ) : (
         <>
-          <a className="back" href={back.href}>
+          <AppLink className="back" href={back.href}>
             <Icon name="chevron-left" />
             {back.label}
-          </a>
+          </AppLink>
           <h1>{title}</h1>
         </>
       )}
-      <Eye
-        waiting={waiting}
-        blink={blink}
-        onBlinkStart={onBlinkStart}
-        onBlinkEnd={onBlinkEnd}
-      />
+      {waiting === null ? null : (
+        <Eye
+          waiting={waiting}
+          blink={blink}
+          onBlinkStart={onBlinkStart}
+          onBlinkEnd={onBlinkEnd}
+        />
+      )}
     </div>
   );
 }

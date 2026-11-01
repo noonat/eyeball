@@ -1,0 +1,716 @@
+{
+  "title": "worker.go",
+  "back": "/reviews/2",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "internal/upload/",
+    "name": "worker.go",
+    "notices": null,
+    "toolbar": {
+      "note": "",
+      "added": "16",
+      "removed": "1",
+      "counted": "in this round",
+      "marked": "/reviews/2/files/internal/upload/worker.go?view=marked",
+      "plain": "/reviews/2/files/internal/upload/worker.go?view=plain",
+      "show_plain": true,
+      "rendered": "",
+      "rendered_label": "",
+      "source": "",
+      "show_source": false
+    },
+    "mode": "",
+    "body": "rows",
+    "rendered": null,
+    "deleted": "",
+    "document": "",
+    "rows": [
+      {
+        "kind": "context",
+        "header": "",
+        "number": 1,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "package",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " upload",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 2,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 3,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "import",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " (",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 4,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"context\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 5,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"time\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 6,
+        "sign": "",
+        "tokens": [
+          {
+            "text": ")",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 7,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 8,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "// Worker uploads one file.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 9,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "type",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " Worker ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "struct",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": "{ maxTries ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "int",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " }",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 10,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 11,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "func",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " (w *Worker) ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "run",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(ctx context.Context) ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "error",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 12,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "for",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " attempt := ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "0",
+            "role": "number",
+            "mark": false
+          },
+          {
+            "text": "; attempt \u003c w.maxTries; attempt++ {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 13,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "if",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " err := w.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "send",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(ctx); err == ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "nil",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 14,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "nil",
+            "role": "keyword",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 15,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 16,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "select",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 17,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "case",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " \u003c-ctx.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Done",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "():",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 18,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ctx.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Err",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "()",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 19,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "case",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " \u003c-time.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "After",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "backoff",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(attempt)):",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 20,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 21,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 22,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " w.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "send",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(ctx)",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 23,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 24,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 25,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "func",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "backoff",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(attempt ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "int",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": ") time.Duration { ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " time.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Duration",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "1",
+            "role": "number",
+            "mark": false
+          },
+          {
+            "text": "\u003c\u003cattempt) * time.Second }",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 26,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 27,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "func",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " (w *Worker) ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "send",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(ctx context.Context) ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "error",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " { ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "nil",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " }",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      }
+    ]
+  }
+}

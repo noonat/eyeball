@@ -1137,8 +1137,7 @@ func TestServer_Surface_browserStickyHeader(t *testing.T) {
 }
 
 // The live stream: a verdict recorded elsewhere reloads an open review page,
-// but not while something typed is unsaved; a page with no stamp stays put;
-// and a dropped connection shows the notice, holds the verdicts back, and
+// but not while something typed is unsaved; and a dropped connection shows the notice, holds the verdicts back, and
 // clears once the server is back.
 func TestServer_Surface_browserStream(t *testing.T) {
 	g := NewWithT(t)
@@ -1168,13 +1167,6 @@ func TestServer_Surface_browserStream(t *testing.T) {
 	b.typeInto(g, ".page > form.composer textarea", "")
 	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
 	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
-
-	// A file page has no stamp, so nothing published reloads it.
-	b.navigate(g, base+"/reviews/"+itoa(id)+"/files/a.txt")
-	b.eval(g, `window.__before = true`)
-	f.comment(g, t, id, "A point.")
-	time.Sleep(500 * time.Millisecond)
-	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page with no stamp reloaded")
 
 	// A verdict given elsewhere reloads the open review page.
 	b.navigate(g, base+"/reviews/"+itoa(id))

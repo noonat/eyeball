@@ -14,8 +14,11 @@ interface ScreenSheetProps {
   readonly intro: ReactNode;
   readonly entries: readonly Entry[];
   readonly states: readonly ScreenState[];
-  /** The wide layout's story, which a phone frame cannot show. */
-  readonly wide: ScreenState;
+  /**
+   * The wide layout's story, which a phone frame cannot show. A screen with no
+   * wide layout of its own leaves it out.
+   */
+  readonly wide?: ScreenState | undefined;
   readonly notes?: readonly ReactNode[];
 }
 
@@ -74,31 +77,33 @@ export function ScreenSheet({
             </section>
           );
         })}
-        <section className="spec" id="wide">
-          <h2>
-            Wide layout <span className="tag">full screen</span>
-          </h2>
-          <p>
-            A phone frame cannot show it beside a second copy of itself. Open it
-            at a desktop width.
-          </p>
-          <div className="pair">
-            <a
-              className="wide-link"
-              href={storyHref(wide.id, "light")}
-              aria-label="Full screen, light, wide layout"
-            >
-              Full screen, light
-            </a>
-            <a
-              className="wide-link"
-              href={storyHref(wide.id, "dark")}
-              aria-label="Full screen, dark, wide layout"
-            >
-              Full screen, dark
-            </a>
-          </div>
-        </section>
+        {wide === undefined ? null : (
+          <section className="spec" id="wide">
+            <h2>
+              Wide layout <span className="tag">full screen</span>
+            </h2>
+            <p>
+              A phone frame cannot show it beside a second copy of itself. Open
+              it at a desktop width.
+            </p>
+            <div className="pair">
+              <a
+                className="wide-link"
+                href={storyHref(wide.id, "light")}
+                aria-label="Full screen, light, wide layout"
+              >
+                Full screen, light
+              </a>
+              <a
+                className="wide-link"
+                href={storyHref(wide.id, "dark")}
+                aria-label="Full screen, dark, wide layout"
+              >
+                Full screen, dark
+              </a>
+            </div>
+          </section>
+        )}
         {notes === undefined ? null : (
           <ul className="note-list">
             {notes.map((note, i) => (

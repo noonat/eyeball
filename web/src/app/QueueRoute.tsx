@@ -7,12 +7,12 @@ import {
   reducedMotion,
   takeBlinkMark,
 } from "../../ts/blink";
-import { trackHead } from "../../ts/head";
 import { setBadge } from "../../ts/push";
 import { fetchQueue, queueKey } from "../api/queue";
 import type { Queue as QueueView } from "../api/types";
 import { Queue } from "../components/Queue";
 import { QueueLoading } from "../components/QueueLoading";
+import { HeadTracker } from "./HeadTracker";
 import { useQueueStream } from "./useQueueStream";
 import { usePush } from "./usePush";
 
@@ -28,20 +28,12 @@ function blinkFor(marked: string | null, queue: QueueView): boolean {
   ]);
 }
 
-/**
- * Keeps the sticky head's height on the root element. It is drawn with the
- * first view, since the state before it has no head to measure.
- */
-function HeadTracker() {
-  useEffect(() => {
-    trackHead();
-  }, []);
-  return null;
-}
-
 /** The queue, drawn from the API and kept current by the live stream. */
 export function QueueRoute() {
   const { data } = useQuery({ queryKey: queueKey, queryFn: fetchQueue });
+  useEffect(() => {
+    document.title = "Queue · Eyeball";
+  }, []);
   const connection = useQueueStream();
   const push = usePush();
   // The mark is read once, on the load the verdict returned to, and the eye

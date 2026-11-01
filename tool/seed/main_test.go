@@ -18,6 +18,7 @@ import (
 	"github.com/noonat/eyeball/internal/capture"
 	"github.com/noonat/eyeball/internal/server"
 	"github.com/noonat/eyeball/internal/view"
+	"github.com/noonat/eyeball/internal/viewdoc"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -364,6 +365,22 @@ func (c *crawler) get(address string) *httptest.ResponseRecorder {
 		return res
 	}
 	res := httptest.NewRecorder()
+	if viewdoc.Scoped(address) {
+		// The project, tree and file pages are the app's, so the shell holds no
+		// link. Their links are in the view, drawn here as the pages were.
+		api := httptest.NewRecorder()
+		c.surface.ServeHTTP(api, httptest.NewRequest(http.MethodGet, "http://eyeball/api"+address, nil))
+		doc, err := viewdoc.Page(api.Code, api.Body.Bytes())
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+		} else {
+			res.Header().Set("Content-Type", "text/html; charset=utf-8")
+			res.WriteHeader(api.Code)
+			_, _ = res.WriteString(doc)
+		}
+		c.answers[address] = res
+		return res
+	}
 	c.surface.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "http://eyeball"+address, nil))
 	c.answers[address] = res
 	return res

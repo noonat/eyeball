@@ -1,0 +1,39 @@
+<!-- The markup the template page rendered for this state, frozen when the
+     templates were removed. A story compares its component with it, so it is the
+     markup the owner approved on the phone. Change it by hand, with the
+     component, when the approved markup changes. -->
+<div class="topbar"><a class="back" href="/reviews/2/files/internal/storage/"><span class="i i-chevron-left" aria-hidden="true"></span>storage</a><h1>store.go</h1><span class="eye" role="img" aria-label="4 waiting"><span class="iris">4</span></span></div>
+<div class="scroll"><div class="page">
+<div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/storage/</bdi></span><span class="name">store.go</span></div>
+<div class="notice"><span class="glyph i i-info" aria-hidden="true"></span><span><strong>Not part of this review.</strong> Unchanged since the commit round 1 was taken from.</span></div>
+<div class="file">
+<div class="code narrow">
+<table>
+<tbody><tr data-line="1"><td class="ln">1</td><td class="sign"></td><td class="src"><span class="k">package</span> storage</td></tr>
+<tr data-line="2"><td class="ln">2</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="3"><td class="ln">3</td><td class="sign"></td><td class="src"><span class="k">import</span> (</td></tr>
+<tr data-line="4"><td class="ln">4</td><td class="sign"></td><td class="src">	<span class="s">&#34;context&#34;</span></td></tr>
+<tr data-line="5"><td class="ln">5</td><td class="sign"></td><td class="src">	<span class="s">&#34;database/sql&#34;</span></td></tr>
+<tr data-line="6"><td class="ln">6</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="7"><td class="ln">7</td><td class="sign"></td><td class="src">	<span class="s">&#34;github.com/cockroachdb/errors&#34;</span></td></tr>
+<tr data-line="8"><td class="ln">8</td><td class="sign"></td><td class="src">)</td></tr>
+<tr data-line="9"><td class="ln">9</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="10"><td class="ln">10</td><td class="sign"></td><td class="src"><span class="c">// Store is the jobs table.</span></td></tr>
+<tr data-line="11"><td class="ln">11</td><td class="sign"></td><td class="src"><span class="k">type</span> Store <span class="k">struct</span>{ db *sql.DB }</td></tr>
+<tr data-line="12"><td class="ln">12</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="13"><td class="ln">13</td><td class="sign"></td><td class="src"><span class="c">// Job is one queued upload.</span></td></tr>
+<tr data-line="14"><td class="ln">14</td><td class="sign"></td><td class="src"><span class="k">type</span> Job <span class="k">struct</span>{ ID <span class="k">int64</span> }</td></tr>
+<tr data-line="15"><td class="ln">15</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="16"><td class="ln">16</td><td class="sign"></td><td class="src"><span class="c">// Next claims the oldest queued job.</span></td></tr>
+<tr data-line="17"><td class="ln">17</td><td class="sign"></td><td class="src"><span class="k">func</span> (s *Store) <span class="f">Next</span>(ctx context.Context) (Job, <span class="k">error</span>) {</td></tr>
+<tr data-line="18"><td class="ln">18</td><td class="sign"></td><td class="src">	tx, err := s.db.<span class="f">BeginTx</span>(ctx, <span class="k">nil</span>)</td></tr>
+<tr data-line="19"><td class="ln">19</td><td class="sign"></td><td class="src">	<span class="k">if</span> err != <span class="k">nil</span> {</td></tr>
+<tr data-line="20"><td class="ln">20</td><td class="sign"></td><td class="src">		<span class="k">return</span> Job{}, errors.<span class="f">Wrap</span>(err, <span class="s">&#34;begin&#34;</span>)</td></tr>
+<tr data-line="21"><td class="ln">21</td><td class="sign"></td><td class="src">	}</td></tr>
+<tr data-line="22"><td class="ln">22</td><td class="sign"></td><td class="src">	<span class="k">defer</span> <span class="k">func</span>() { _ = tx.<span class="f">Rollback</span>() }()</td></tr>
+<tr data-line="23"><td class="ln">23</td><td class="sign"></td><td class="src">	<span class="k">return</span> Job{}, <span class="k">nil</span></td></tr>
+<tr data-line="24"><td class="ln">24</td><td class="sign"></td><td class="src">}</td></tr>
+</tbody></table>
+</div>
+</div>
+</div></div>

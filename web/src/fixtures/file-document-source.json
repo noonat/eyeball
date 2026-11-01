@@ -1,0 +1,633 @@
+{
+  "title": "product.md",
+  "back": "/reviews/3",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "docs/",
+    "name": "product.md",
+    "notices": null,
+    "toolbar": {
+      "note": "",
+      "added": "8",
+      "removed": "6",
+      "counted": "in this round",
+      "marked": "",
+      "plain": "",
+      "show_plain": false,
+      "rendered": "/reviews/3/files/docs/product.md?view=document",
+      "rendered_label": "Document",
+      "source": "/reviews/3/files/docs/product.md?view=source",
+      "show_source": true
+    },
+    "mode": "",
+    "body": "rows",
+    "rendered": null,
+    "deleted": "",
+    "document": "",
+    "rows": [
+      {
+        "kind": "context",
+        "header": "",
+        "number": 1,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "# Product",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 2,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 3,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "## Widening",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 4,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "del",
+        "header": "",
+        "number": 5,
+        "sign": "−",
+        "tokens": [
+          {
+            "text": "Widening is one control, not a navigation.",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "del",
+        "header": "",
+        "number": 6,
+        "sign": "−",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 5,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "Three steps out, each one control rather than a navigation.",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 6,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "del",
+        "header": "",
+        "number": 9,
+        "sign": "−",
+        "tokens": [
+          {
+            "text": "A",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "control",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "offers",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "whatever",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "bases",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "exist",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": ".",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 7,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "**From a hunk to the whole file**, with the",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "change",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "still",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "marked",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "in",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "place",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": ".",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 8,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 9,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "**What the change is measured against is one control with two settings.** The previous round is the default from round two onward and answers what moved since the last reading.",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 10,
+        "sign": "+",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 11,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "## Making a comment",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 12,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "del",
+        "header": "",
+        "number": 13,
+        "sign": "−",
+        "tokens": [
+          {
+            "text": "A comment attaches at one of four levels. To a line or a range of lines. To a passage, which is what a rendered document offers instead of lines.",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 13,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "A comment attaches at one of four levels. To a line or a range of",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 14,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "lines. To a passage, which is what a rendered document offers",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 15,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "instead of lines.",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 16,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "del",
+        "header": "",
+        "number": 15,
+        "sign": "−",
+        "tokens": [
+          {
+            "text": "## ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Open",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "questions",
+            "role": "plain",
+            "mark": true
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 17,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "## ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "A round is",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "frozen",
+            "role": "plain",
+            "mark": true
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 18,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "del",
+        "header": "",
+        "number": 17,
+        "sign": "−",
+        "tokens": [
+          {
+            "text": "What",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "happens",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "when",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "the",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "base",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "is",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "empty?",
+            "role": "plain",
+            "mark": true
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 19,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "An",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "empty base compares with nothing, so",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "every",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "line",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "reads",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "as",
+            "role": "plain",
+            "mark": true
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "added.",
+            "role": "plain",
+            "mark": true
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 20,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 21,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "## See also",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 22,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 23,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "The voice is in [voice.md](voice.md) and the design in [architecture.md](/docs/architecture.md). [The four levels](#making-a-comment) are above. Questions go to [the tracker](https://example.com/eyeball/issues).",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      }
+    ]
+  }
+}

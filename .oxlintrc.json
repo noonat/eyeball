@@ -9,8 +9,15 @@
     "typescript/no-explicit-any": "error",
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "error",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "react/no-danger": "error"
   },
+  "overrides": [
+    {
+      "files": ["web/src/components/DocumentBody.tsx"],
+      "rules": { "react/no-danger": "off" }
+    }
+  ],
   "ignorePatterns": ["web/vendor/**", "web/deps/**"],
   "plugins": ["oxc", "typescript", "unicorn", "react"]
 }
