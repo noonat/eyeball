@@ -1,0 +1,93 @@
+{
+  "title": "harbor",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 4,
+  "name": "harbor",
+  "root": "~/src/harbor",
+  "open": 2,
+  "waiting": [
+    {
+      "id": "2",
+      "project": "",
+      "agent": "feat/upload-retry",
+      "title": "Upload worker and its retry ladder",
+      "age": "1h",
+      "round": 1,
+      "files": "2 files",
+      "added": "22",
+      "removed": "1",
+      "gist": "The worker retries three times with backoff, then gives up and records the failure on the job. Measured against the staging bucket: a cold connection takes 40s, so the first wait is 60s not 5s."
+    }
+  ],
+  "working": [
+    {
+      "id": "1",
+      "project": "",
+      "agent": "fix/outbox-drain",
+      "title": "Offline outbox drainer",
+      "age": "26m",
+      "round": 2,
+      "files": "2 files",
+      "added": "13",
+      "removed": "2",
+      "gist": "Takes a context, and a test."
+    }
+  ],
+  "copies": [
+    {
+      "name": "",
+      "hint": "",
+      "notices": null,
+      "count": "6 files",
+      "capped": null,
+      "rows": [
+        {
+          "path": "docs/architecture.md",
+          "href": "/projects/1/files/docs/architecture.md",
+          "claimed": false,
+          "added": "4",
+          "removed": "2"
+        },
+        {
+          "path": "internal/outbox/drain.go",
+          "href": "/reviews/1/files/internal/outbox/drain.go",
+          "claimed": true,
+          "added": "",
+          "removed": ""
+        },
+        {
+          "path": "internal/outbox/drain_test.go",
+          "href": "/reviews/1/files/internal/outbox/drain_test.go",
+          "claimed": true,
+          "added": "",
+          "removed": ""
+        },
+        {
+          "path": "internal/upload/backoff.go",
+          "href": "/reviews/2/files/internal/upload/backoff.go",
+          "claimed": true,
+          "added": "",
+          "removed": ""
+        },
+        {
+          "path": "internal/upload/queue.go",
+          "href": "/reviews/2/files/internal/upload/queue.go",
+          "claimed": true,
+          "added": "",
+          "removed": ""
+        },
+        {
+          "path": "internal/upload/worker.go",
+          "href": "/reviews/2/files/internal/upload/worker.go",
+          "claimed": true,
+          "added": "",
+          "removed": ""
+        }
+      ],
+      "empty": null
+    }
+  ],
+  "live": true,
+  "named": false
+}

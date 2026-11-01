@@ -1,0 +1,343 @@
+{
+  "title": "queue.go",
+  "back": "/reviews/2/files/internal/upload/",
+  "back_label": "upload",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "internal/upload/",
+    "name": "queue.go",
+    "notices": [
+      {
+        "warn": true,
+        "heading": "Live, not from this round.",
+        "text": "Nothing captured this file, so it is shown as it is on disk now and may have moved."
+      }
+    ],
+    "toolbar": null,
+    "mode": "",
+    "body": "rows",
+    "rendered": null,
+    "deleted": "",
+    "document": "",
+    "rows": [
+      {
+        "kind": "context",
+        "header": "",
+        "number": 1,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "package",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " upload",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 2,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 3,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "import",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"sync\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 4,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 5,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "// queue is the jobs waiting to upload.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 6,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "type",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " queue ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "struct",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 7,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\tmu      sync.Mutex",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 8,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\tpending []",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "string",
+            "role": "keyword",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 9,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 10,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 11,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "// next returns the oldest queued job.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 12,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "func",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " (q *queue) ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "next",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "() ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "string",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 13,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\tq.mu.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Lock",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "()",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 14,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "defer",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " q.mu.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Unlock",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "()",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 15,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " q.pending[",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "0",
+            "role": "number",
+            "mark": false
+          },
+          {
+            "text": "]",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 16,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      }
+    ]
+  }
+}

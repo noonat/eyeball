@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -73,20 +73,56 @@ The owner approved the spec on 2026-10-31 without the spec review pass.
   file page, and the eye that does not follow the stream. Each screen keeps
   today's behavior.
 
+## Departures
+
+Where the work went differently from the paragraphs above.
+
+- An address with nothing at it answers its view with 404 and a body,
+  `NotFound`: the waiting count and, where a live read was refused, the banner
+  saying why. The spec says only that the view answers 404. The page carries
+  that banner today, and a body with none would leave the screen Iteration 2
+  designs for a missing address unable to draw it.
+- A file's view has a `body`, a union that says which of its fields holds what
+  the page shows: rendered, deleted, document, binary, too large or rows. The
+  template chooses by testing fields in that order, and the app would repeat the
+  order in a component. Go decides it once and sends the answer.
+- The code row's kind and role are named, not the template's classes. A row is
+  `hunk`, `context`, `add` or `del`, and a token's role is `keyword`, `string`,
+  `comment`, `number`, `function` or `plain`. The component maps a role to its
+  class. `internal/view` does not import `render`, since the generator would
+  then load goldmark, so `internal/server` maps the classes `render` writes to
+  the roles, and a test proves each role comes out of the highlighter.
+- `tool/fixtures` builds its own repositories and does not read `tool/seed`. The
+  seed is a `main` package, so nothing imports it, and it ages rows from the
+  real clock, so its output differs on every run. The worlds copy the seed's
+  files where a frame needs them. Every frame in project.html and widening.html
+  that is in scope has a state, light and dark being one state in two themes.
+  The content is smaller than the frames': one file's counts, the document's
+  length and the working copy's rows differ, and the frame for a document of 184
+  passages is a short one. The frames' `plate-04.jpg` is a PNG here.
+- `tool/fixtures` writes no markup file for the queue's states, as before. Only
+  the new states get one beside their view.
+
 ## Iteration 1: The API
 
-- [ ] `internal/view` holds the project view, the tree and file view with its
+- [x] `internal/view` holds the project view, the tree and file view with its
       `kind`, and the code row, and `tool/apitypes` writes their types.
-- [ ] Each page route in scope has its view at the same path under `/api`,
+- [x] Each page route in scope has its view at the same path under `/api`,
       answering 404 where the page does, and a Go test walks the route table to
       show it.
-- [ ] Each view carries its title, its back link and label, and the waiting
+- [x] Each view carries its title, its back link and label, and the waiting
       count, as `renderPage` fills them today.
-- [ ] The document field is a named type, and a Go test that reads the package's
+- [x] The document field is a named type, and a Go test that reads the package's
       source fails on a conversion to it outside the one function.
-- [ ] `tool/fixtures` writes each state's view and its template page: the
+- [x] `tool/fixtures` writes each state's view and its template page: the
       project view's populated, worktree and edge frames, the tree's root and a
       subdirectory, and the file page's frames in widening.html.
+
+> **Completed** 2026-11-01 03:56 UTC
+>
+> - `make check` — 30.7s
+> - `go test -race ./...` — 49.3s
+> - `go test -count=1 -tags browser ./internal/server` — 65.0s
 
 ## Iteration 2: The tearout
 

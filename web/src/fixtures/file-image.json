@@ -1,0 +1,42 @@
+{
+  "title": "plate-04.png",
+  "back": "/reviews/2/files/testdata/",
+  "back_label": "testdata",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "testdata/",
+    "name": "plate-04.png",
+    "notices": [
+      {
+        "warn": false,
+        "heading": "Not part of this review.",
+        "text": "Unchanged since the commit round 1 was taken from."
+      }
+    ],
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": [
+        {
+          "label": "PNG image",
+          "tint": "",
+          "caption": "160 × 107 · 643 B",
+          "src": "/reviews/2/raw/1/testdata/plate-04.png",
+          "element": "img"
+        }
+      ],
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

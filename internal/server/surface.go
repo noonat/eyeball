@@ -201,21 +201,31 @@ func (s *Server) errorPage(w http.ResponseWriter, status int) {
 	s.renderPage(w, status, "error", p)
 }
 
+// waitingCount is the number of reviews waiting, for the top bar's eye, and nil
+// where it cannot be read: a zero would say nothing waits. what names the page
+// or view in the log. The count is a read of the local store, so it gets a
+// context of its own with a bound, since the caller's may be the request of a
+// failure and its answer should not wait on the store a second time.
+func (s *Server) waitingCount(what string) *int32 {
+	ctx, cancel := context.WithTimeout(context.Background(), eyeTimeout)
+	defer cancel()
+	n, err := s.waiting(ctx)
+	if err != nil {
+		s.log.Error("count waiting", "page", what, "err", err)
+		return nil
+	}
+	count := int32(n)
+	return &count
+}
+
 // renderPage executes a page template inside the layout and writes it.
 func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
 	data.VAPID = s.vapidPublic()
 	data.Build = s.daemon.Build
 	data.Token = s.buildToken()
 	if data.Eye == nil {
-		// renderPage has no request of its own, and the count is a read of
-		// the local store, so it gets a context of its own with a bound.
-		ctx, cancel := context.WithTimeout(context.Background(), eyeTimeout)
-		n, err := s.db.s.Waiting(ctx)
-		cancel()
-		if err != nil {
-			s.log.Error("count waiting", "page", name, "err", err)
-		} else {
-			data.Eye = &eye{Count: n}
+		if n := s.waitingCount(name); n != nil {
+			data.Eye = &eye{Count: int(*n)}
 		}
 	}
 	// The clone's own copy of the page's tree, never s.pages's: executing a

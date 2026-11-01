@@ -1,0 +1,85 @@
+{
+  "title": "Files",
+  "back": "/reviews/2/files/",
+  "back_label": "Files",
+  "waiting_count": 4,
+  "kind": "tree",
+  "tree": {
+    "dir": "harbor / ",
+    "name": "internal",
+    "notices": [
+      {
+        "warn": false,
+        "heading": "",
+        "text": "The project as the agent had it. Files this review changes are in bold."
+      }
+    ],
+    "rows": [
+      {
+        "name": "migrations",
+        "href": "/reviews/2/files/internal/migrations/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "outbox",
+        "href": "/reviews/2/files/internal/outbox/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "storage",
+        "href": "/reviews/2/files/internal/storage/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "upload",
+        "href": "/reviews/2/files/internal/upload/",
+        "dir": true,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      },
+      {
+        "name": "backoff.go",
+        "href": "/reviews/2/files/internal/upload/backoff.go",
+        "dir": false,
+        "indent": true,
+        "in_scope": true,
+        "added": "6",
+        "removed": ""
+      },
+      {
+        "name": "worker.go",
+        "href": "/reviews/2/files/internal/upload/worker.go",
+        "dir": false,
+        "indent": true,
+        "in_scope": true,
+        "added": "16",
+        "removed": "1"
+      },
+      {
+        "name": "doc.go",
+        "href": "/reviews/2/files/internal/doc.go",
+        "dir": false,
+        "indent": false,
+        "in_scope": false,
+        "added": "",
+        "removed": ""
+      }
+    ],
+    "empty": "Nothing is here as of round 1."
+  },
+  "file": null
+}

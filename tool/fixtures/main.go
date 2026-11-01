@@ -1,8 +1,14 @@
-// Command fixtures writes the queue's JSON view for seeded states into
+// Command fixtures writes the JSON view of each seeded state into
 // web/src/fixtures, so a story draws what the API really sends.
 //
-// Each state is built in a store of its own through the server's own handler,
-// on a fixed clock, so a review's id and a row's age are the same on every run.
+// A queue state is built in a store of its own. The project view, the tree and
+// the file pages are read from a few worlds of real repositories, and each also
+// gets the markup the template page renders for the same address, which the
+// component's story compares itself with. The queue's markup files are frozen
+// and are not written here.
+//
+// Every state is built through the server's own handlers, on a fixed clock, so
+// a review's id and a row's age are the same on every run.
 // With --check the command writes nothing and fails when a committed file
 // differs.
 package main
@@ -89,7 +95,41 @@ func Generate(ctx context.Context) (map[string][]byte, error) {
 		}
 		out[st.file+".json"] = body
 	}
+	for _, key := range worldOrder {
+		if err := readScenes(ctx, key, out); err != nil {
+			return nil, errors.Wrapf(err, "world %s", key)
+		}
+	}
 	return out, nil
+}
+
+// readScenes builds one world and reads each of its scenes through the API and
+// through the template page.
+func readScenes(ctx context.Context, key string, out map[string][]byte) error {
+	w, err := worlds[key](ctx)
+	if err != nil {
+		return err
+	}
+	defer w.close()
+	for _, sc := range scenes {
+		if sc.world != key {
+			continue
+		}
+		address := sc.address(w.ids)
+		view, err := w.get("/api" + address)
+		if err != nil {
+			return errors.Wrapf(err, "scene %s", sc.file)
+		}
+		page, err := w.get(address)
+		if err != nil {
+			return errors.Wrapf(err, "scene %s", sc.file)
+		}
+		if out[sc.file+".html"], err = pageMarkup(page); err != nil {
+			return errors.Wrapf(err, "scene %s", sc.file)
+		}
+		out[sc.file+".json"] = view
+	}
+	return nil
 }
 
 // render builds one state in a temporary store and reads the queue back through

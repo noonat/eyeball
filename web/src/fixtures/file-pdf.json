@@ -1,0 +1,28 @@
+{
+  "title": "retry-policy.pdf",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "docs/",
+    "name": "retry-policy.pdf",
+    "notices": null,
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": null,
+      "frame": "/reviews/4/raw/1/docs/retry-policy.pdf",
+      "sandboxed": false,
+      "title": "docs/retry-policy.pdf",
+      "kind": "PDF document",
+      "size": "20 B",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

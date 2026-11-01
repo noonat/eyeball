@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"path"
 	"sort"
 	"strings"
@@ -61,7 +60,7 @@ type treeEntry struct {
 // base, because the tree's notice says bold is what the review changes, and a
 // tree counting the latest change would show nothing for a file the review
 // changed in round 1 and left alone since.
-func (s *Server) treeView(ctx context.Context, w http.ResponseWriter, at fileAt, project store.Project, st capture.State, files []store.File, scope map[string]bool) error {
+func (s *Server) treeView(ctx context.Context, at fileAt, project store.Project, st capture.State, files []store.File, scope map[string]bool) (pageAnswer, error) {
 	now := st.Reader(s.blobs, files)
 	entries, err := listTree(ctx, now, at.path, scope)
 	if errors.Is(err, capture.ErrRulesUnreadable) {
@@ -76,11 +75,10 @@ func (s *Server) treeView(ctx context.Context, w http.ResponseWriter, at fileAt,
 	if errors.Is(err, capture.ErrNotFound) {
 		// Locate found a directory a moment ago, and the disk no longer has
 		// it.
-		s.notFoundPage(w, refusalNotice(st, err, s.tilde(st.Root)))
-		return nil
+		return notFound(refusalNotice(st, err, s.tilde(st.Root))), nil
 	}
 	if err != nil {
-		return err
+		return pageAnswer{}, err
 	}
 
 	view := treePage{
@@ -116,7 +114,7 @@ func (s *Server) treeView(ctx context.Context, w http.ResponseWriter, at fileAt,
 	if len(bold) > 0 && st.Measurable() {
 		moved, err := capture.ComparePaths(ctx, st.Reader(s.blobs, nil), now, bold)
 		if err != nil {
-			return err
+			return pageAnswer{}, err
 		}
 		counts := make(map[string]diff.Result, len(moved))
 		for _, m := range moved {
@@ -143,8 +141,7 @@ func (s *Server) treeView(ctx context.Context, w http.ResponseWriter, at fileAt,
 	case !at.current:
 		label = fmt.Sprintf("Round %d", at.round.Number)
 	}
-	s.renderPage(w, http.StatusOK, "treepage", page{Title: "Files", Back: back, BackLabel: label, Body: view})
-	return nil
+	return pageAnswer{page: page{Title: "Files", Back: back, BackLabel: label, Body: view}}, nil
 }
 
 // listTree lists a directory as the tree shows it: directories first, a

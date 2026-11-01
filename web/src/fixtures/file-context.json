@@ -1,0 +1,538 @@
+{
+  "title": "store.go",
+  "back": "/reviews/2/files/internal/storage/",
+  "back_label": "storage",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "internal/storage/",
+    "name": "store.go",
+    "notices": [
+      {
+        "warn": false,
+        "heading": "Not part of this review.",
+        "text": "Unchanged since the commit round 1 was taken from."
+      }
+    ],
+    "toolbar": null,
+    "mode": "",
+    "body": "rows",
+    "rendered": null,
+    "deleted": "",
+    "document": "",
+    "rows": [
+      {
+        "kind": "context",
+        "header": "",
+        "number": 1,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "package",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " storage",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 2,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 3,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "import",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " (",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 4,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"context\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 5,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"database/sql\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 6,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 7,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"github.com/cockroachdb/errors\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 8,
+        "sign": "",
+        "tokens": [
+          {
+            "text": ")",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 9,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 10,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "// Store is the jobs table.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 11,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "type",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " Store ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "struct",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": "{ db *sql.DB }",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 12,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 13,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "// Job is one queued upload.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 14,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "type",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " Job ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "struct",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": "{ ID ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "int64",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " }",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 15,
+        "sign": "",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 16,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "// Next claims the oldest queued job.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 17,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "func",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " (s *Store) ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Next",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(ctx context.Context) (Job, ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "error",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": ") {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 18,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\ttx, err := s.db.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "BeginTx",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(ctx, ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "nil",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": ")",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 19,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "if",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " err != ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "nil",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " {",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 20,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " Job{}, errors.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Wrap",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "(err, ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"begin\"",
+            "role": "string",
+            "mark": false
+          },
+          {
+            "text": ")",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 21,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 22,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "defer",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "func",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": "() { _ = tx.",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "Rollback",
+            "role": "function",
+            "mark": false
+          },
+          {
+            "text": "() }()",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 23,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "\t",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "return",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " Job{}, ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "nil",
+            "role": "keyword",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "context",
+        "header": "",
+        "number": 24,
+        "sign": "",
+        "tokens": [
+          {
+            "text": "}",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      }
+    ]
+  }
+}

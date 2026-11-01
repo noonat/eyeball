@@ -1,0 +1,45 @@
+{
+  "title": "fixture.zip",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "media/",
+    "name": "fixture.zip",
+    "notices": null,
+    "toolbar": {
+      "note": "",
+      "added": "1",
+      "removed": "0",
+      "counted": "in this round",
+      "marked": "/reviews/4/files/media/fixture.zip?view=marked",
+      "plain": "/reviews/4/files/media/fixture.zip?view=plain",
+      "show_plain": false,
+      "rendered": "",
+      "rendered_label": "",
+      "source": "",
+      "show_source": false
+    },
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": null,
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": {
+        "kind": "ZIP archive",
+        "size": "39 B",
+        "hint": "",
+        "load": ""
+      }
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

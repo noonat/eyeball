@@ -1,0 +1,36 @@
+{
+  "title": "clip.mp4",
+  "back": "/reviews/4",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "media/",
+    "name": "clip.mp4",
+    "notices": null,
+    "toolbar": null,
+    "mode": "",
+    "body": "rendered",
+    "rendered": {
+      "sides": [
+        {
+          "label": "New",
+          "tint": "now",
+          "caption": "MP4 video · 19 B",
+          "src": "/reviews/4/raw/1/media/clip.mp4",
+          "element": "video"
+        }
+      ],
+      "frame": "",
+      "sandboxed": false,
+      "title": "",
+      "kind": "",
+      "size": "",
+      "facts": null
+    },
+    "deleted": "",
+    "document": "",
+    "rows": null
+  }
+}

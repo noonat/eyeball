@@ -1,0 +1,42 @@
+<div class="topbar"><a class="back" href="/reviews/2"><span class="i i-chevron-left" aria-hidden="true"></span>Review</a><h1>worker.go</h1><span class="eye" role="img" aria-label="4 waiting"><span class="iris">4</span></span></div>
+<div class="scroll"><div class="page">
+<div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/upload/</bdi></span><span class="name">worker.go</span></div>
+<div class="toolbar">
+<span class="counts"><span class="plus">+16</span> <span class="minus">−1</span> <span class="hint">in this round</span></span>
+<span class="segmented"><a aria-current="true" href="/reviews/2/files/internal/upload/worker.go?view=marked">Marked</a><a href="/reviews/2/files/internal/upload/worker.go?view=plain">Plain</a></span>
+</div>
+<div class="file">
+<div class="code narrow">
+<table>
+<tbody><tr data-line="1"><td class="ln">1</td><td class="sign"></td><td class="src"><span class="k">package</span> upload</td></tr>
+<tr data-line="2"><td class="ln">2</td><td class="sign"></td><td class="src"></td></tr>
+<tr class="del" data-old="3"><td class="ln">3</td><td class="sign">−</td><td class="src"><span class="k">import</span> <span class="s">&#34;context&#34;</span></td></tr>
+<tr class="add" data-line="3"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">import</span> (</td></tr>
+<tr class="add" data-line="4"><td class="ln">4</td><td class="sign">+</td><td class="src">	<span class="s">&#34;context&#34;</span></td></tr>
+<tr class="add" data-line="5"><td class="ln">5</td><td class="sign">+</td><td class="src">	<span class="s">&#34;time&#34;</span></td></tr>
+<tr class="add" data-line="6"><td class="ln">6</td><td class="sign">+</td><td class="src">)</td></tr>
+<tr data-line="7"><td class="ln">7</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="8"><td class="ln">8</td><td class="sign"></td><td class="src"><span class="c">// Worker uploads one file.</span></td></tr>
+<tr data-line="9"><td class="ln">9</td><td class="sign"></td><td class="src"><span class="k">type</span> Worker <span class="k">struct</span>{ maxTries <span class="k">int</span> }</td></tr>
+<tr data-line="10"><td class="ln">10</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="11"><td class="ln">11</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">run</span>(ctx context.Context) <span class="k">error</span> {</td></tr>
+<tr class="add" data-line="12"><td class="ln">12</td><td class="sign">+</td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; w.maxTries; attempt++ {</td></tr>
+<tr class="add" data-line="13"><td class="ln">13</td><td class="sign">+</td><td class="src">		<span class="k">if</span> err := w.<span class="f">send</span>(ctx); err == <span class="k">nil</span> {</td></tr>
+<tr class="add" data-line="14"><td class="ln">14</td><td class="sign">+</td><td class="src">			<span class="k">return</span> <span class="k">nil</span></td></tr>
+<tr class="add" data-line="15"><td class="ln">15</td><td class="sign">+</td><td class="src">		}</td></tr>
+<tr class="add" data-line="16"><td class="ln">16</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+<tr class="add" data-line="17"><td class="ln">17</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+<tr class="add" data-line="18"><td class="ln">18</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+<tr class="add" data-line="19"><td class="ln">19</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(<span class="f">backoff</span>(attempt)):</td></tr>
+<tr class="add" data-line="20"><td class="ln">20</td><td class="sign">+</td><td class="src">		}</td></tr>
+<tr class="add" data-line="21"><td class="ln">21</td><td class="sign">+</td><td class="src">	}</td></tr>
+<tr data-line="22"><td class="ln">22</td><td class="sign"></td><td class="src">	<span class="k">return</span> w.<span class="f">send</span>(ctx)</td></tr>
+<tr data-line="23"><td class="ln">23</td><td class="sign"></td><td class="src">}</td></tr>
+<tr class="add" data-line="24"><td class="ln">24</td><td class="sign">+</td><td class="src"></td></tr>
+<tr class="add" data-line="25"><td class="ln">25</td><td class="sign">+</td><td class="src"><span class="k">func</span> <span class="f">backoff</span>(attempt <span class="k">int</span>) time.Duration { <span class="k">return</span> time.<span class="f">Duration</span>(<span class="n">1</span>&lt;&lt;attempt) * time.Second }</td></tr>
+<tr data-line="26"><td class="ln">26</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="27"><td class="ln">27</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">send</span>(ctx context.Context) <span class="k">error</span> { <span class="k">return</span> <span class="k">nil</span> }</td></tr>
+</tbody></table>
+</div>
+</div>
+</div></div>

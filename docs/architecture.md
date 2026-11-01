@@ -665,13 +665,13 @@ document.
 
 **One field type carries that HTML, and one component inserts it.** The view
 sends a document passage in a named type that only `render.Document`'s result is
-converted to, and a Go test that reads the package's source fails on a
-conversion anywhere else. The app inserts it with `dangerouslySetInnerHTML` in
-one component, and oxlint's `react/no-danger` fails the prop anywhere else.
-Measured 2026-10-31: oxlint 1.87.0 failed a planted use with the rule on, and
-refused a misspelled rule name, so a typo cannot turn the check off. Each check
-covers one side, so trusted markup reaches the page only along the path that
-made it.
+converted to, and a Go test that type-checks the package's source fails on a
+conversion anywhere else, and on a constant of the type, which Go converts with
+no call. The app inserts it with `dangerouslySetInnerHTML` in one component, and
+oxlint's `react/no-danger` fails the prop anywhere else. Measured 2026-10-31:
+oxlint 1.87.0 failed a planted use with the rule on, and refused a misspelled
+rule name, so a typo cannot turn the check off. Each check covers one side, so
+trusted markup reaches the page only along the path that made it.
 
 **Every page address answers the same shell**, and the app's router reads the
 address. Links, bookmarks and a notification's deep link keep the addresses they
@@ -689,6 +689,25 @@ view the page at `/reviews/42` draws. One rule instead of a second address
 scheme means a page and its data cannot drift apart in name, and a person
 debugging can fetch the view of the page in front of them by adding four
 characters.
+
+**A view answers 404 where its page does, with a body.** An address with nothing
+at it answers its page with the 404 page, and its view with `NotFound`: the
+waiting count and, where a live read was refused, the banner saying why. The
+page and the view are built by one function that returns either the page's data
+or the missing answer, so the two cannot disagree about whether an address
+exists. The waiting count is read for a view as `renderPage` reads it for the
+eye, by one helper, with a bound and the error logged. A count that cannot be
+read is `null` in the view, and the page draws no eye, since a zero would say
+nothing waits.
+
+**A review's file address answers a tree or a file, and the view says which.**
+The route draws a tree for a directory or an empty path. A view has a `kind`,
+which the generator makes a union, and one part per kind, `null` for the other.
+A file's `body` says which of its fields holds what the page shows, in the order
+the template chose: a rendering, the deleted box, a document, the binary line,
+the too-large line, then rows of code. A row of code is a list of tokens, each
+with its role and whether its word changed, so the review page can draw its
+hunks from the same type.
 
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
@@ -729,6 +748,10 @@ describes and no spec has built yet.
 | `GET /projects/{project}`                                  | the shell, drawing the project view                 | 030     |
 | `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | 030     |
 | `GET /api/{$}`                                             | the queue's view, as JSON, with a stamp of its rows | 028     |
+| `GET /api/reviews/{review}/files/{path...}`                | the tree or the file at the latest round, as JSON   | 030     |
+| `GET /api/reviews/{review}/rounds/{round}/files/{path...}` | the tree or the file at that round, as JSON         | 030     |
+| `GET /api/projects/{project}`                              | the project view, as JSON                           | 030     |
+| `GET /api/projects/{project}/files/{path...}`              | a live file, by `copy`, as JSON                     | 030     |
 | `GET /api/...`, each other page path above                 | that page's view, as JSON                           | planned |
 | `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | planned |
 | `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |

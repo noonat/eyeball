@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -52,6 +53,9 @@ type Server struct {
 	log     *slog.Logger
 	stop    func()
 	now     func() time.Time
+	// waiting counts the reviews waiting on the reviewer. A test replaces it to
+	// make the count unreadable while every other read works.
+	waiting func(context.Context) (int, error)
 
 	// stopping closes when the daemon begins to shut down, which ends every
 	// wait at once. Requests doing work are left to finish.
@@ -109,6 +113,7 @@ func New(c Config) *Server {
 		log:      log,
 		stop:     stop,
 		now:      now,
+		waiting:  c.Store.Waiting,
 	}
 }
 
@@ -209,6 +214,26 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /api/{$}",
 		handle:  (*Server).handleQueueView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}/files/{path...}",
+		handle:  (*Server).handleFileView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}/rounds/{round}/files/{path...}",
+		handle:  (*Server).handleRoundFileView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/projects/{project}",
+		handle:  (*Server).handleProjectView,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/projects/{project}/files/{path...}",
+		handle:  (*Server).handleProjectFileView,
 	},
 	{
 		side:    sideSurface,

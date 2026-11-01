@@ -1,0 +1,141 @@
+{
+  "title": "backoff.go",
+  "back": "/projects/1",
+  "back_label": "harbor",
+  "waiting_count": 1,
+  "kind": "file",
+  "tree": null,
+  "file": {
+    "dir": "internal/upload/",
+    "name": "backoff.go",
+    "notices": [
+      {
+        "warn": true,
+        "heading": "Live, not from any round.",
+        "text": "The file as it is on disk now, compared with HEAD. It moves while an agent works."
+      }
+    ],
+    "toolbar": {
+      "note": "",
+      "added": "6",
+      "removed": "0",
+      "counted": "on disk",
+      "marked": "/projects/1/files/internal/upload/backoff.go?copy=2\u0026view=marked",
+      "plain": "/projects/1/files/internal/upload/backoff.go?copy=2\u0026view=plain",
+      "show_plain": false,
+      "rendered": "",
+      "rendered_label": "",
+      "source": "",
+      "show_source": false
+    },
+    "mode": "",
+    "body": "rows",
+    "rendered": null,
+    "deleted": "",
+    "document": "",
+    "rows": [
+      {
+        "kind": "add",
+        "header": "",
+        "number": 1,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "package",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " upload",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 2,
+        "sign": "+",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 3,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "import",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "\"time\"",
+            "role": "string",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 4,
+        "sign": "+",
+        "tokens": null,
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 5,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "// backoffCap is the longest a retry waits.",
+            "role": "comment",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      },
+      {
+        "kind": "add",
+        "header": "",
+        "number": 6,
+        "sign": "+",
+        "tokens": [
+          {
+            "text": "const",
+            "role": "keyword",
+            "mark": false
+          },
+          {
+            "text": " backoffCap = ",
+            "role": "plain",
+            "mark": false
+          },
+          {
+            "text": "30",
+            "role": "number",
+            "mark": false
+          },
+          {
+            "text": " * time.Second",
+            "role": "plain",
+            "mark": false
+          }
+        ],
+        "no_newline": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+<div class="topbar"><a class="back" href="/reviews/2/files/internal/upload/"><span class="i i-chevron-left" aria-hidden="true"></span>upload</a><h1>queue.go</h1><span class="eye" role="img" aria-label="4 waiting"><span class="iris">4</span></span></div>
+<div class="scroll"><div class="page">
+<div class="crumb"><span class="i i-file-text" aria-hidden="true"></span><span class="dir"><bdi>internal/upload/</bdi></span><span class="name">queue.go</span></div>
+<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span><strong>Live, not from this round.</strong> Nothing captured this file, so it is shown as it is on disk now and may have moved.</span></div>
+<div class="file">
+<div class="code narrow">
+<table>
+<tbody><tr data-line="1"><td class="ln">1</td><td class="sign"></td><td class="src"><span class="k">package</span> upload</td></tr>
+<tr data-line="2"><td class="ln">2</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="3"><td class="ln">3</td><td class="sign"></td><td class="src"><span class="k">import</span> <span class="s">&#34;sync&#34;</span></td></tr>
+<tr data-line="4"><td class="ln">4</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="5"><td class="ln">5</td><td class="sign"></td><td class="src"><span class="c">// queue is the jobs waiting to upload.</span></td></tr>
+<tr data-line="6"><td class="ln">6</td><td class="sign"></td><td class="src"><span class="k">type</span> queue <span class="k">struct</span> {</td></tr>
+<tr data-line="7"><td class="ln">7</td><td class="sign"></td><td class="src">	mu      sync.Mutex</td></tr>
+<tr data-line="8"><td class="ln">8</td><td class="sign"></td><td class="src">	pending []<span class="k">string</span></td></tr>
+<tr data-line="9"><td class="ln">9</td><td class="sign"></td><td class="src">}</td></tr>
+<tr data-line="10"><td class="ln">10</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="11"><td class="ln">11</td><td class="sign"></td><td class="src"><span class="c">// next returns the oldest queued job.</span></td></tr>
+<tr data-line="12"><td class="ln">12</td><td class="sign"></td><td class="src"><span class="k">func</span> (q *queue) <span class="f">next</span>() <span class="k">string</span> {</td></tr>
+<tr data-line="13"><td class="ln">13</td><td class="sign"></td><td class="src">	q.mu.<span class="f">Lock</span>()</td></tr>
+<tr data-line="14"><td class="ln">14</td><td class="sign"></td><td class="src">	<span class="k">defer</span> q.mu.<span class="f">Unlock</span>()</td></tr>
+<tr data-line="15"><td class="ln">15</td><td class="sign"></td><td class="src">	<span class="k">return</span> q.pending[<span class="n">0</span>]</td></tr>
+<tr data-line="16"><td class="ln">16</td><td class="sign"></td><td class="src">}</td></tr>
+</tbody></table>
+</div>
+</div>
+</div></div>
