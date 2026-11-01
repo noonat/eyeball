@@ -20,12 +20,8 @@ client code. Each item is a spec.
 
 - [ ] product: the review page in React: the route, the writes, the deferred
       bodies, the reader's place, the stream and the browser tests, removing the
-      review templates, and a long review measured on the phone. The cards route
-      answers from its file's comparison alone. Today it builds the whole round
-      and keeps one card, so each body fetched on a long review compares every
-      file again. The tearout's components hold no form fields, so nothing yet
-      checks that a composer's anchor sends the level, path, range and old line
-      the template's hidden fields send.
+      review templates, and a long review measured on the phone. Spec
+      [032](032-react-review.md).
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
