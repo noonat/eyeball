@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -74,8 +74,12 @@ checks between them: the app's request and the template's hidden fields, the
 template's storage shapes and the app's reader, the router's scroll and the
 screen's, the cards route's one-file comparison and the round's, and the blink
 mark across a router move instead of a page load. End-of-branch review pass:
-declined, because the review agent reads each iteration and each browser test
-fails with the route answering the template.
+requested, because Iteration 2 rewrites about 235 markup reads in the Go tests
+and Iteration 5 removes what they read, and a check lost between the two fails
+nothing, where the review agent reads one iteration at a time.
+
+The owner approved the spec on 2026-11-01, and after Iteration 1 had started
+agreed to both review passes, the spec's to be run against this draft.
 
 ## Out of scope
 
@@ -92,21 +96,69 @@ fails with the route answering the template.
 - The cause of the flaky `TestServer_Surface_browserJump`. Its port is run 20
   times, and its entry in specs/TODO.md records whether it still fails.
 
+## Departures
+
+Where the work went differently from the paragraphs above.
+
+- `DELETE /api/reviews/{review}/comments/{comment}` takes no body. The address
+  names the comment, and a delete with a JSON body is a request some proxies
+  drop. It answers `CommentDeleted`, the count. The edit takes `CommentEdit`,
+  and the add and the verdict take `CommentRequest` and `DecisionRequest`.
+- A verdict the server refuses as an empty change request answers 422 with a
+  `Refusal` that holds the template's sentence, so the rule that a refusal is a
+  `Refusal` has no exception. The bar draws its own refused state from the
+  status.
+- The count in a write's answer is the comments on the review's latest round,
+  the number the bar shows, as the template's tally was. The template sent it
+  only while the round was open. The JSON answer always carries it, and the app
+  ignores it once the bar is gone.
+- A write's body must be declared `application/json`, is bounded at a megabyte,
+  and is refused when it holds a field the type does not or has data after it.
+  The type check is not in the spec. It answers a body not declared as JSON with
+  415 and a `Refusal` rather than a decode failure, and sits behind the
+  cross-origin check every surface request passes. It has no reason beyond being
+  explicit. A store failure in a write under `/api` answers 500 with `Refusal`
+  where the error page would have answered, since the app cannot read a page.
+- The cards route still builds the card with the round's own code. It gives
+  `roundView` the path, so one file is compared with `capture.ComparePaths` and
+  the comments are placed as the round places them. It also needed a new
+  `capture.MovedPaths`, which lists the paths that moved from the captures'
+  digests with no diff. The route reads the count of files the round moved from
+  it, since a document is drawn as the page itself only when it is the round's
+  one file, and a card built alone always looks like the only one. The same list
+  answers 404 for a path that did not move. This corrects 031's departure that
+  the route and the view share a function by construction: they share
+  `cardBody`, and the comments each holds come from the same code, but the
+  comparison is now separate. The Go test covers a later round, `?against=base`,
+  a fresh document alone and beside other files, and a round whose other file
+  has no blob left, which only a route that compares one file can answer.
+- The Vitest test runs in a second project, `checks`, of the same Chromium,
+  since it reads the answers with the browser's DOM parser. `make stories` runs
+  both projects. The request is built by `commentRequest` in `composer.ts`. The
+  template's `submission` field is always empty, since its script draws the key,
+  so the test leaves it out of both sides.
+
 ## Iteration 1: The API
 
-- [ ] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
+- [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
       `POST /api/reviews/{review}/decision` take JSON bodies typed in
       `internal/view`, and `tool/apitypes` writes the request types.
-- [ ] A comment write answers the stored comment and the count, a delete the
+- [x] A comment write answers the stored comment and the count, a delete the
       count, and a verdict nothing, and a refusal answers 4xx with `Refusal`
       wherever the template route refuses.
-- [ ] The JSON routes take the same submission key the form routes do, and a Go
+- [x] The JSON routes take the same submission key the form routes do, and a Go
       test sends one comment twice under one key and finds it stored once.
-- [ ] The cards route compares only its own file with `capture.ComparePaths`,
+- [x] The cards route compares only its own file with `capture.ComparePaths`,
       and the test that builds every body both ways still finds them equal, for
       the latest round and with `?against=base`.
-- [ ] A Vitest test builds the app's request for each committed composer answer
+- [x] A Vitest test builds the app's request for each committed composer answer
       and finds its fields equal to that answer's hidden form fields.
+
+> **Completed** 2026-11-01 23:02 UTC
+>
+> - `make check` — 35.5s
+> - `go test -race ./...` — 58.7s
+> - `go test -count=1 -tags browser ./internal/server` — 73.1s
 
 ## Iteration 2: The Go tests over the views
 

@@ -60,6 +60,25 @@ func TestServer_AgentHandler_refusesEveryWrite(t *testing.T) {
 			path:   "/reviews/" + itoa(id) + "/decision",
 			form:   url.Values{"round": {"1"}, "verdict": {"approve"}},
 		},
+		{
+			method: http.MethodPost,
+			path:   "/api/reviews/" + itoa(id) + "/comments",
+			form:   url.Values{"round": {"1"}, "level": {"review"}, "body": {"x"}},
+		},
+		{
+			method: http.MethodPut,
+			path:   "/api/reviews/" + itoa(id) + "/comments/" + itoa(c.ID),
+			form:   url.Values{"body": {"changed"}},
+		},
+		{
+			method: http.MethodDelete,
+			path:   "/api/reviews/" + itoa(id) + "/comments/" + itoa(c.ID),
+		},
+		{
+			method: http.MethodPost,
+			path:   "/api/reviews/" + itoa(id) + "/decision",
+			form:   url.Values{"round": {"1"}, "verdict": {"approve"}},
+		},
 	}
 	for _, w := range writes {
 		res := sendForm(f.s.AgentHandler(), w.method, w.path, w.form, false)

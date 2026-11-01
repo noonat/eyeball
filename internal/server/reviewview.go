@@ -15,10 +15,12 @@ func (s *Server) handleReviewView(w http.ResponseWriter, r *http.Request) error 
 }
 
 // handleCardView answers GET /api/reviews/{review}/rounds/{round}/cards/
-// {path...}: one card's body. It builds the round and keeps the card, so the
-// body is the one the round's own view would hold.
+// {path...}: one card's body. It compares only its own file, so a long review
+// does not compare every file again for each body it asks for. The round's view
+// and this route both build the body with cardBody, and a Go test finds the
+// two equal for every card.
 func (s *Server) handleCardView(w http.ResponseWriter, r *http.Request) error {
-	_, page, ok, err := s.roundPage(r)
+	_, page, ok, err := s.roundPageOf(r, r.PathValue("path"))
 	if err != nil {
 		return err
 	}

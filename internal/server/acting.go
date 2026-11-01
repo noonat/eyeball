@@ -23,10 +23,15 @@ const (
 	failedWrite     = "eyeball could not do that. The daemon's log says why."
 	noRound         = "That round is not part of this review."
 	noComment       = "That comment is not part of this review."
+	noReview        = "There is no such review."
 	notThisForm     = "This page could not have sent that. Reload it and try again."
 	emptyComment    = "A comment needs some text."
 	staleVerdict    = "This round was decided or withdrawn since the page loaded. The page reloads once nothing on it is unsaved."
 	releasedComment = "This comment went out with the verdict, so it can no longer change."
+	// emptyChangeRequest is the sentence beside a change request with no comment
+	// or note. The bar draws its own wording for this state, so the sentence is
+	// what a client that draws nothing of its own can show.
+	emptyChangeRequest = "Requesting changes needs something to act on. Add a comment, or write a note with the verdict."
 )
 
 // cardView is one comment's card, with Edit and Delete while it can change.
@@ -123,6 +128,51 @@ type chipView struct {
 	Pressed bool
 }
 
+// refuser writes the answer for a write the server will not do. The form routes
+// answer one plain sentence and the JSON routes a view.Refusal, and both read
+// the same checks.
+type refuser func(w http.ResponseWriter, status int, text string)
+
+// rejection is a write the server will not do, with the sentence saying why.
+// A form route and a JSON route both get one from the same function, so the
+// two refuse in the same cases and in the same words.
+type rejection struct {
+	status int
+	text   string
+}
+
+// commentInput is a comment as either kind of route read it. A form holds
+// strings and a JSON body holds numbers, so each route reads its own and fills
+// this.
+type commentInput struct {
+	level            store.Level
+	path             string
+	start, end, old  int
+	againstBase      bool
+	body, submission string
+	// malformed says a field could not be read as a line number.
+	malformed bool
+}
+
+// formComment reads a comment form.
+func formComment(r *http.Request) commentInput {
+	form := r.PostForm
+	start, startErr := optionalLine(form.Get("start"))
+	end, endErr := optionalLine(form.Get("end"))
+	old, oldErr := optionalLine(form.Get("oldline"))
+	return commentInput{
+		level:       store.Level(form.Get("level")),
+		path:        form.Get("path"),
+		start:       start,
+		end:         end,
+		old:         old,
+		againstBase: form.Get("against") == "base",
+		body:        form.Get("body"),
+		submission:  form.Get("submission"),
+		malformed:   startErr != nil || endErr != nil || oldErr != nil,
+	}
+}
+
 // handleAddComment answers POST /reviews/{review}/comments: one comment on the
 // round the form names, whatever has happened to that round since.
 //
@@ -130,7 +180,7 @@ type chipView struct {
 // and it goes out on its own. Refusing it would discard what somebody typed.
 func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
+	review, ok, err := s.writeReview(w, r, plain)
 	if !ok || err != nil {
 		return err
 	}
@@ -138,21 +188,13 @@ func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) error 
 	if !ok || err != nil {
 		return err
 	}
-	if strings.TrimSpace(r.PostFormValue("body")) == "" {
-		plain(w, http.StatusBadRequest, emptyComment)
-		return nil
-	}
-	nc, problem, err := s.newComment(ctx, r, review, round)
+	stored, rj, err := s.storeComment(ctx, review, round, formComment(r))
 	if err != nil {
 		return err
 	}
-	if problem != "" {
-		plain(w, http.StatusBadRequest, problem)
+	if rj != nil {
+		plain(w, rj.status, rj.text)
 		return nil
-	}
-	stored, err := s.db.AddComment(ctx, nc)
-	if err != nil {
-		return err
 	}
 	if stored.Level == store.LevelLine {
 		return s.answerThread(ctx, w, review, round, stored.Path, stored.StartLine)
@@ -163,28 +205,40 @@ func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) error 
 	return s.answerList(ctx, w, review, round, listID(stored.Level, stored.Path))
 }
 
-// newComment reads a comment form into what the store takes. The quote is read
+// storeComment checks a comment and stores it on a round. Both kinds of route
+// call it, after each has found its review and round.
+func (s *Server) storeComment(ctx context.Context, review store.Review, round store.Round, in commentInput) (store.Comment, *rejection, error) {
+	if strings.TrimSpace(in.body) == "" {
+		return store.Comment{}, &rejection{status: http.StatusBadRequest, text: emptyComment}, nil
+	}
+	nc, problem, err := s.newComment(ctx, review, round, in)
+	if err != nil {
+		return store.Comment{}, nil, err
+	}
+	if problem != "" {
+		return store.Comment{}, &rejection{status: http.StatusBadRequest, text: problem}, nil
+	}
+	stored, err := s.db.AddComment(ctx, nc)
+	return stored, nil, err
+}
+
+// newComment reads a comment into what the store takes. The quote is read
 // from the round's frozen content, never taken from the page: a second copy of
 // text the server holds would have nothing checking that the two agree. A
-// non-empty problem is the sentence a form that cannot be stored is refused
+// non-empty problem is the sentence a comment that cannot be stored is refused
 // with.
-func (s *Server) newComment(ctx context.Context, r *http.Request, review store.Review, round store.Round) (store.NewComment, string, error) {
-	form := r.PostForm
-	level := store.Level(form.Get("level"))
-	path := form.Get("path")
-	start, startErr := optionalLine(form.Get("start"))
-	end, endErr := optionalLine(form.Get("end"))
-	old, oldErr := optionalLine(form.Get("oldline"))
-	if startErr != nil || endErr != nil || oldErr != nil {
-		return store.NewComment{}, notThisForm, nil
-	}
+func (s *Server) newComment(ctx context.Context, review store.Review, round store.Round, in commentInput) (store.NewComment, string, error) {
 	nc := store.NewComment{
 		RoundID:    round.ID,
-		Level:      level,
-		Path:       path,
-		Body:       form.Get("body"),
-		Submission: form.Get("submission"),
+		Level:      in.level,
+		Path:       in.path,
+		Body:       in.body,
+		Submission: in.submission,
 	}
+	if in.malformed {
+		return nc, notThisForm, nil
+	}
+	level, path, start, end, old := in.level, in.path, in.start, in.end, in.old
 	switch level {
 	case store.LevelReview:
 		if path != "" || start != 0 || end != 0 || old != 0 {
@@ -198,7 +252,7 @@ func (s *Server) newComment(ctx context.Context, r *http.Request, review store.R
 		if old == 0 {
 			return nc, "", nil
 		}
-		quoted, problem, err := s.quote(ctx, review, round, path, old, old, true, form.Get("against") == "base")
+		quoted, problem, err := s.quote(ctx, review, round, path, old, old, true, in.againstBase)
 		nc.Quoted = quoted
 		return nc, problem, err
 	case store.LevelLine, store.LevelPassage:
@@ -265,25 +319,21 @@ func (s *Server) quote(ctx context.Context, review store.Review, round store.Rou
 // comment's new body, before the verdict releases it.
 func (s *Server) handleEditComment(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
+	review, ok, err := s.writeReview(w, r, plain)
 	if !ok || err != nil {
 		return err
 	}
-	id, ok, err := s.reviewComment(w, r, review)
+	id, ok, err := s.reviewComment(w, r, review, plain)
 	if !ok || err != nil {
 		return err
 	}
-	if strings.TrimSpace(r.PostFormValue("body")) == "" {
-		plain(w, http.StatusBadRequest, emptyComment)
-		return nil
-	}
-	err = s.db.EditComment(ctx, id, r.PostFormValue("body"))
-	if errors.Is(err, store.ErrRoundClosed) {
-		plain(w, http.StatusConflict, releasedComment)
-		return nil
-	}
+	rj, err := s.changeComment(ctx, id, r.PostFormValue("body"))
 	if err != nil {
 		return err
+	}
+	if rj != nil {
+		plain(w, rj.status, rj.text)
+		return nil
 	}
 	card, err := s.card(ctx, review, id)
 	if err != nil {
@@ -292,28 +342,39 @@ func (s *Server) handleEditComment(w http.ResponseWriter, r *http.Request) error
 	return s.fragments(w, http.StatusOK, fragment{name: "card", data: card})
 }
 
+// changeComment replaces a comment's body. A comment that is gone is the
+// store's not-found, which the caller already ruled out by resolving the id.
+func (s *Server) changeComment(ctx context.Context, id int64, body string) (*rejection, error) {
+	if strings.TrimSpace(body) == "" {
+		return &rejection{status: http.StatusBadRequest, text: emptyComment}, nil
+	}
+	err := s.db.EditComment(ctx, id, body)
+	if errors.Is(err, store.ErrRoundClosed) {
+		return &rejection{status: http.StatusConflict, text: releasedComment}, nil
+	}
+	return nil, err
+}
+
 // handleDeleteComment answers DELETE /reviews/{review}/comments/{comment}. A
 // comment already gone is a success: the reviewer wanted it gone, and a delete
 // sent twice must not report a failure.
 func (s *Server) handleDeleteComment(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
+	review, ok, err := s.writeReview(w, r, plain)
 	if !ok || err != nil {
 		return err
 	}
-	id, ok, err := s.reviewComment(w, r, review)
+	id, ok, err := s.reviewComment(w, r, review, plain)
 	if !ok || err != nil {
 		return err
 	}
-	if id != 0 {
-		err = s.db.DeleteComment(ctx, id)
-		if errors.Is(err, store.ErrRoundClosed) {
-			plain(w, http.StatusConflict, releasedComment)
-			return nil
-		}
-		if err != nil && !errors.Is(err, store.ErrNotFound) {
-			return err
-		}
+	rj, err := s.removeComment(ctx, id)
+	if err != nil {
+		return err
+	}
+	if rj != nil {
+		plain(w, rj.status, rj.text)
+		return nil
 	}
 	tally, err := s.tally(ctx, review)
 	if err != nil {
@@ -322,13 +383,28 @@ func (s *Server) handleDeleteComment(w http.ResponseWriter, r *http.Request) err
 	return s.fragments(w, http.StatusOK, fragment{name: "tally", data: tally})
 }
 
+// removeComment deletes a comment. An id of 0 is a comment already gone.
+func (s *Server) removeComment(ctx context.Context, id int64) (*rejection, error) {
+	if id == 0 {
+		return nil, nil
+	}
+	err := s.db.DeleteComment(ctx, id)
+	if errors.Is(err, store.ErrRoundClosed) {
+		return &rejection{status: http.StatusConflict, text: releasedComment}, nil
+	}
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, err
+	}
+	return nil, nil
+}
+
 // handleDecide answers POST /reviews/{review}/decision: the verdict on the
 // round the form names, which must still be the open review's latest and
 // undecided. A recorded verdict reloads the page, since the decided page is a
 // different page.
 func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
+	review, ok, err := s.writeReview(w, r, plain)
 	if !ok || err != nil {
 		return err
 	}
@@ -336,30 +412,22 @@ func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) error {
 	if !ok || err != nil {
 		return err
 	}
-	verdict := store.Verdict(r.PostFormValue("verdict"))
-	if verdict != store.VerdictApprove && verdict != store.VerdictChanges {
-		plain(w, http.StatusBadRequest, notThisForm)
-		return nil
-	}
 	note := r.PostFormValue("note")
-	if review.State != store.StateOpen || round.Number != review.LatestRound {
-		plain(w, http.StatusConflict, staleVerdict)
-		return nil
+	rj, err := s.recordVerdict(ctx, review, round, store.Verdict(r.PostFormValue("verdict")), note)
+	if err != nil {
+		return err
 	}
-	err = s.db.Decide(ctx, round.ID, verdict, note)
 	switch {
-	case errors.Is(err, store.ErrEmptyChangeRequest):
+	case rj != nil && rj.status == http.StatusUnprocessableEntity:
 		tally, err := s.tally(ctx, review)
 		if err != nil {
 			return err
 		}
 		bar := barView{Action: decisionHref(review.ID), Round: round.Number, Tally: tally, Note: note, Refused: true}
 		return s.fragments(w, http.StatusUnprocessableEntity, fragment{name: "bar", data: bar})
-	case errors.Is(err, store.ErrAlreadyDecided), errors.Is(err, store.ErrNotOpen):
-		plain(w, http.StatusConflict, staleVerdict)
+	case rj != nil:
+		plain(w, rj.status, rj.text)
 		return nil
-	case err != nil:
-		return err
 	}
 	// A redirect rather than HX-Location, which swaps the queue in without a page
 	// load, so blinkOnLoad would never run on it.
@@ -368,10 +436,30 @@ func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// recordVerdict stores a verdict on a round. A change request with nothing in
+// it is a 422, which the form route answers with the bar and the JSON route
+// with the sentence.
+func (s *Server) recordVerdict(ctx context.Context, review store.Review, round store.Round, verdict store.Verdict, note string) (*rejection, error) {
+	if verdict != store.VerdictApprove && verdict != store.VerdictChanges {
+		return &rejection{status: http.StatusBadRequest, text: notThisForm}, nil
+	}
+	if review.State != store.StateOpen || round.Number != review.LatestRound {
+		return &rejection{status: http.StatusConflict, text: staleVerdict}, nil
+	}
+	err := s.db.Decide(ctx, round.ID, verdict, note)
+	switch {
+	case errors.Is(err, store.ErrEmptyChangeRequest):
+		return &rejection{status: http.StatusUnprocessableEntity, text: emptyChangeRequest}, nil
+	case errors.Is(err, store.ErrAlreadyDecided), errors.Is(err, store.ErrNotOpen):
+		return &rejection{status: http.StatusConflict, text: staleVerdict}, nil
+	}
+	return nil, err
+}
+
 // handleComposer answers GET /reviews/{review}/composer: a composer anchored
 // where the query says.
 func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
-	review, ok, err := s.writeReview(w, r)
+	review, ok, err := s.writeReview(w, r, plain)
 	if !ok || err != nil {
 		return err
 	}
@@ -494,11 +582,11 @@ func composer(reviewID int64, round int, level store.Level, path string, start, 
 // handleComment answers GET /reviews/{review}/comments/{comment}: its card,
 // or with ?edit=1 its edit form while it can still change.
 func (s *Server) handleComment(w http.ResponseWriter, r *http.Request) error {
-	review, ok, err := s.writeReview(w, r)
+	review, ok, err := s.writeReview(w, r, plain)
 	if !ok || err != nil {
 		return err
 	}
-	id, ok, err := s.reviewComment(w, r, review)
+	id, ok, err := s.reviewComment(w, r, review, plain)
 	if !ok || err != nil {
 		return err
 	}
@@ -518,15 +606,15 @@ func (s *Server) handleComment(w http.ResponseWriter, r *http.Request) error {
 
 // writeReview resolves the review a write's address names. A review that does
 // not exist is a 404 with a sentence the page can show.
-func (s *Server) writeReview(w http.ResponseWriter, r *http.Request) (store.Review, bool, error) {
+func (s *Server) writeReview(w http.ResponseWriter, r *http.Request, refuse refuser) (store.Review, bool, error) {
 	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
 	if err != nil {
-		plain(w, http.StatusNotFound, "There is no such review.")
+		refuse(w, http.StatusNotFound, noReview)
 		return store.Review{}, false, nil
 	}
 	review, err := s.db.s.Review(r.Context(), id)
 	if errors.Is(err, store.ErrNotFound) {
-		plain(w, http.StatusNotFound, "There is no such review.")
+		refuse(w, http.StatusNotFound, noReview)
 		return store.Review{}, false, nil
 	}
 	if err != nil {
@@ -544,9 +632,14 @@ func (s *Server) formRound(w http.ResponseWriter, r *http.Request, review store.
 		plain(w, http.StatusNotFound, noRound)
 		return store.Round{}, false, nil
 	}
+	return s.findRound(w, r, review, number, plain)
+}
+
+// findRound resolves a round by its number within its review.
+func (s *Server) findRound(w http.ResponseWriter, r *http.Request, review store.Review, number int, refuse refuser) (store.Round, bool, error) {
 	round, err := s.db.s.Round(r.Context(), review.ID, number)
 	if errors.Is(err, store.ErrNotFound) {
-		plain(w, http.StatusNotFound, noRound)
+		refuse(w, http.StatusNotFound, noRound)
 		return store.Round{}, false, nil
 	}
 	if err != nil {
@@ -558,10 +651,10 @@ func (s *Server) formRound(w http.ResponseWriter, r *http.Request, review store.
 // reviewComment resolves the comment an address names. A comment of another
 // review is a 404, so one review's page cannot touch another's comment. A
 // comment that no longer exists answers id 0 and leaves the caller to decide.
-func (s *Server) reviewComment(w http.ResponseWriter, r *http.Request, review store.Review) (int64, bool, error) {
+func (s *Server) reviewComment(w http.ResponseWriter, r *http.Request, review store.Review, refuse refuser) (int64, bool, error) {
 	id, err := strconv.ParseInt(r.PathValue("comment"), 10, 64)
 	if err != nil {
-		plain(w, http.StatusNotFound, noComment)
+		refuse(w, http.StatusNotFound, noComment)
 		return 0, false, nil
 	}
 	owner, err := s.db.CommentReview(r.Context(), id)
@@ -572,7 +665,7 @@ func (s *Server) reviewComment(w http.ResponseWriter, r *http.Request, review st
 		return 0, false, err
 	}
 	if owner != review.ID {
-		plain(w, http.StatusNotFound, noComment)
+		refuse(w, http.StatusNotFound, noComment)
 		return 0, false, nil
 	}
 	return id, true, nil

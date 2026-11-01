@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -335,6 +336,167 @@ func Test_compressedNoBody(t *testing.T) {
 // A round's view and its cards route build a body with one function, so the
 // bodies match for every card of a round past the thresholds, which the view
 // leaves out, and of a round under them, which the view holds.
+func expectCardBodies(g *WithT, f *fixture, id int64, round int, query string) []string {
+	g.THelper()
+	_, page, ok, err := f.s.roundPage(requestFor(id, round, query))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeTrue())
+	var paths []string
+	for _, file := range page.Shown {
+		target := fmt.Sprintf("/api/reviews/%d/rounds/%d/cards/%s%s", id, page.Round, file.Path, query)
+		g.Expect(readBody(g, f, target)).To(Equal(cardBody(file)), target)
+		paths = append(paths, file.Path)
+	}
+	return paths
+}
+
+func TestServer_cardViewComparesOnlyItsFile(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := largeReview(g, t, f)
+	want := readBody(g, f, "/api/reviews/"+itoa(id)+"/rounds/1/cards/a.txt")
+
+	files, err := f.store.RoundFiles(t.Context(), roundID(g, t, f, id))
+	g.Expect(err).NotTo(HaveOccurred())
+	var digest string
+	for _, file := range files {
+		if file.Path == "d/big.txt" {
+			digest = file.Digest
+		}
+	}
+	g.Expect(digest).NotTo(BeEmpty())
+	blobPath := filepath.Join(f.state, "blobs", digest[0:2], digest[2:4], digest)
+	g.Expect(os.Remove(blobPath)).To(Succeed())
+
+	_, _, _, err = f.s.roundPage(requestFor(id, 0, ""))
+	g.Expect(err).To(HaveOccurred(), "the whole round reads every file")
+	g.Expect(readBody(g, f, "/api/reviews/"+itoa(id)+"/rounds/1/cards/a.txt")).To(Equal(want))
+}
+
+func TestServer_cardViewFreshDocument(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	cases := []struct {
+		name  string
+		extra int
+		lines int
+		fresh bool
+	}{
+		{
+			name:  "alone",
+			extra: 0,
+			lines: maxSentLines + 20,
+			fresh: true,
+		},
+		{
+			name:  "beside many files",
+			extra: maxSentFiles + 1,
+			lines: 3,
+			fresh: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			repo := gitRepo(g, filepath.Join(t.TempDir(), "fresh"))
+			write(g, repo, "docs/new.md", "# New\n\n"+strings.Repeat("A line of prose.\n\n", c.lines))
+			for i := range c.extra {
+				write(g, repo, fmt.Sprintf("files/f%02d.txt", i), "text\n")
+			}
+			paths := []string{"docs"}
+			if c.extra > 0 {
+				paths = append(paths, "files")
+			}
+			id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: paths, Note: "A new document."}).Review.ID
+			_, err := f.s.db.AddComment(t.Context(), store.NewComment{RoundID: roundID(g, t, f, id), Level: store.LevelFile, Path: "docs/new.md", Body: "On the file."})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			_, page, ok, err := f.s.roundPage(requestFor(id, 0, ""))
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(ok).To(BeTrue())
+			g.Expect(page.Fresh != nil).To(Equal(c.fresh))
+			compared := expectCardBodies(g, f, id, 0, "")
+			g.Expect(compared).To(HaveLen(1 + c.extra))
+			body := readBody(g, f, fmt.Sprintf("/api/reviews/%d/rounds/1/cards/docs/new.md", id))
+			if c.fresh {
+				g.Expect(body.Comments).To(BeEmpty(), "the page itself holds the review's comments")
+			} else {
+				g.Expect(body.Comments).To(HaveLen(1), "a card holds the file's comments")
+			}
+		})
+	}
+}
+
+func TestServer_cardViewLaterRound(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := largeReview(g, t, f)
+	g.Expect(f.s.db.Decide(t.Context(), roundID(g, t, f, id), store.VerdictChanges, "More.")).To(Succeed())
+	review, err := f.store.Review(t.Context(), id)
+	g.Expect(err).NotTo(HaveOccurred())
+	project, err := f.store.Project(t.Context(), review.ProjectID)
+	g.Expect(err).NotTo(HaveOccurred())
+	write(g, project.Root, "a.txt", "one\ntwo\nthree\n")
+	write(g, project.Root, "docs/g.md", "# G\n\nOne changed again.\n\nTwo.\n")
+	write(g, project.Root, "d/big.txt", strings.Repeat("line\n", maxSentLines+40))
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: project.Root}, Note: "Round two.", Review: id})
+	second, err := f.store.Round(t.Context(), id, 2)
+	g.Expect(err).NotTo(HaveOccurred())
+	comments := []store.NewComment{
+		{
+			RoundID:   second.ID,
+			Level:     store.LevelLine,
+			Path:      "a.txt",
+			StartLine: 3,
+			EndLine:   3,
+			Quoted:    "three",
+			Body:      "New line.",
+		},
+		{
+			RoundID: second.ID,
+			Level:   store.LevelFile,
+			Path:    "d/big.txt",
+			Body:    "Still long.",
+		},
+	}
+	for _, c := range comments {
+		_, err := f.s.db.AddComment(t.Context(), c)
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	queries := []struct {
+		query string
+		paths []string
+	}{
+		{query: "", paths: []string{"a.txt"}},
+		{query: "?against=base", paths: []string{"a.txt", "d/big.txt", "docs/g.md"}},
+	}
+	rounds := []int{0, 2, 1}
+	for _, q := range queries {
+		for _, round := range rounds {
+			paths := expectCardBodies(g, f, id, round, q.query)
+			if round != 1 {
+				g.Expect(paths).To(ContainElements(q.paths), q.query)
+			}
+		}
+	}
+}
+
+// A file the review covers that did not move has no card, so the route answers
+// 404 for it as the round's view shows none.
+func TestServer_cardViewUnmovedFile(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "unmoved"))
+	commitFile(g, repo, "docs/same.txt", "unchanged\n")
+	write(g, repo, "docs/changed.txt", "new\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"docs"}, Note: "One moved."}).Review.ID
+
+	g.Expect(expectCardBodies(g, f, id, 0, "")).To(Equal([]string{"docs/changed.txt"}))
+	res := getView(f, "/api/reviews/"+itoa(id)+"/rounds/1/cards/docs/same.txt", nil)
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+}
+
 func TestServer_handleCardView(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -370,6 +532,7 @@ func TestServer_handleCardView(t *testing.T) {
 	// A bad path or round is the view that says nothing is there.
 	missing := []string{
 		"/api/reviews/" + itoa(id) + "/rounds/1/cards/nope.txt",
+		"/api/reviews/" + itoa(id) + "/rounds/1/cards/keep.txt",
 		"/api/reviews/" + itoa(id) + "/rounds/9/cards/a.txt",
 		"/api/reviews/" + itoa(id) + "/rounds/x/cards/a.txt",
 		"/api/reviews/999/rounds/1/cards/a.txt",
@@ -383,6 +546,16 @@ func TestServer_handleCardView(t *testing.T) {
 	}
 }
 
+// expectCardBodies finds the cards route's body for every card of a round equal
+// to the body the whole round builds for it, and returns the paths it compared.
+// A later round compares against the previous one, or with ?against=base
+// against the base, and the route compares only its file either way.
+// Whether a document draws as a card or as the page itself depends on how many
+// files the round moved, which a card built alone cannot see. The route reads
+// the count from the captures, so its body matches the round's either way.
+// The route compares its own file and no other. A round whose other file can no
+// longer be read still answers for this one, which a route that built the
+// whole round could not.
 func TestServer_handleReviewView(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

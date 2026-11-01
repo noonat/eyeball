@@ -185,6 +185,13 @@ func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) 
 		plain(w, http.StatusInternalServerError, failedWrite)
 		return
 	}
+	// A write under /api is answered by the app, which reads JSON and shows
+	// the sentence beside its control. A page would reach it as text it cannot
+	// parse, and the control would show nothing.
+	if r.Method != http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/") {
+		refuseJSON(w, http.StatusInternalServerError, failedWrite)
+		return
+	}
 	p := page{Title: "Something went wrong", Back: "/", BackLabel: "Queue", Body: message{Heading: "This page could not be read", Text: "The daemon's log says why."}}
 	s.renderPage(w, http.StatusInternalServerError, "error", p)
 }

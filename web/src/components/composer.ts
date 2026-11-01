@@ -1,3 +1,5 @@
+import type { CommentRequest } from "../api/types";
+
 /**
  * Where a composer opens. A composer is keyed by its anchor, so moving to
  * another line or another file is a new composer with an empty field, and the
@@ -138,5 +140,48 @@ export function composerText(at: ComposerAt, late: boolean): ComposerText {
         hint,
         button,
       };
+  }
+}
+
+/** What a request carries that the anchor does not say. */
+export interface CommentSend {
+  /** The number of the round the reader was looking at. */
+  readonly round: number;
+  /** The page's comparison, which a removed row's quote needs. */
+  readonly against: "base" | "";
+  readonly body: string;
+  /** The key a retry sends again, so the comment is stored once. */
+  readonly submission: string;
+}
+
+/**
+ * The request a composer sends for its anchor. A line sends its own number as
+ * the end of its range, as the template's hidden fields did, and a field that
+ * does not apply is zero or empty, which the server reads as absent.
+ */
+export function commentRequest(
+  at: ComposerAt,
+  send: CommentSend,
+): CommentRequest {
+  const request: CommentRequest = {
+    round: send.round,
+    level: at.level,
+    path: "",
+    start: 0,
+    end: 0,
+    old_line: 0,
+    against: send.against,
+    body: send.body,
+    submission: send.submission,
+  };
+  switch (at.level) {
+    case "review":
+      return request;
+    case "file":
+      return { ...request, path: at.path, old_line: at.oldLine ?? 0 };
+    case "line":
+      return { ...request, path: at.path, start: at.line, end: at.line };
+    default:
+      return { ...request, path: at.path, start: at.first, end: at.last };
   }
 }

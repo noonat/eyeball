@@ -726,9 +726,14 @@ body is `null`, and the card asks `GET /api/reviews/42/rounds/2/cards/{path}`
 for it. One function builds a body from one file and its comments, and both
 routes call it, so a body fetched later is the body the round would have sent.
 The cards route compares only the file it answers for, using
-`capture.ComparePaths`. The template route for a body builds the whole round and
-keeps one card, which compares every file in the round to answer for one. Both
-routes take `?against=base`, as the page does.
+`capture.ComparePaths`. It still builds the card as the round does: the comments
+on the file are placed as the round places them, and whether a document draws as
+the page itself depends on how many files the round moved, which
+`capture.MovedPaths` reads from the captures' digests with no diff. A path that
+did not move, or is outside the review's paths, answers 404. The template route
+for a body builds the whole round and keeps one card, which compares every file
+in the round to answer for one. Both routes take `?against=base`, as the page
+does.
 
 **A document arrives as a list of passages.** In the template page a document
 card is one piece of HTML, and the threads under its passages are written into
@@ -771,16 +776,29 @@ request, and stores a comment on a round that is decided, withdrawn or followed
 by another as late, as the template route does. An added or edited comment is
 answered with the stored comment as the view sends it and the review's count of
 comments, and the app puts the comment at its anchor in the cached round or card
-body. A delete is answered with the count. A verdict names its round, the
-verdict and its note, and is answered with no body once it is stored. A request
-the server refuses, such as an empty comment or a verdict on a round no longer
-open, is answered 4xx with `Refusal`, one sentence, which the app shows beside
-the control while the text stays where it was typed. A change request with no
-comments is answered 422, which the bar draws as its refused state. No answer,
-or a 5xx, leaves a comment unsent with a retry that sends the same submission
-key, so a first try that reached the store and lost its answer is stored once.
-Form bodies, which the template routes take, were rejected: the app would build
-a form from typed data, and nothing generated would check it.
+body. A delete has no body, since its address names the comment, and is answered
+with the count. The count is the comments on the review's latest round, the
+number the bar shows. A verdict names its round, the verdict and its note, and
+is answered 204 with no body once it is stored. A request the server refuses,
+such as an empty comment or a verdict on a round no longer open, is answered 4xx
+with `Refusal`, one sentence, which the app shows beside the control while the
+text stays where it was typed. A change request with no comments is answered 422
+with the sentence, and the bar draws its own refused state from the status. A
+body that is not declared `application/json`, is larger than a megabyte, holds a
+field the type does not, or is followed by anything else is refused. The type
+check answers 415 with a `Refusal` instead of a decode failure. It is a second
+layer behind the cross-origin check every surface request passes, and has no
+reason beyond being explicit. A write that fails in the store is answered 500
+with `Refusal`, since the error page would reach the app as text it cannot read.
+The form routes and the JSON routes call one function for each write, so they
+refuse the same requests with the same sentences, and the form routes go when
+the template does. The app builds a comment's request from its anchor in
+`composer.ts`, and a Vitest test compares it with the hidden fields of each
+composer answer the template routes gave. No answer, or a 5xx, leaves a comment
+unsent with a retry that sends the same submission key, so a first try that
+reached the store and lost its answer is stored once. Form bodies, which the
+template routes take, were rejected: the app would build a form from typed data,
+and nothing generated would check it.
 
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
@@ -828,10 +846,10 @@ describes and no spec has built yet.
 | `GET /api/reviews/{review}`                                | the current round's view, as JSON                   | 031     |
 | `GET /api/reviews/{review}/rounds/{round}`                 | that round's view, as JSON                          | 031     |
 | `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | 031     |
-| `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |
-| `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | planned |
-| `DELETE /api/reviews/{review}/comments/{comment}`          | drop one before the verdict                         | planned |
-| `POST /api/reviews/{review}/decision`                      | the verdict, releasing the round                    | planned |
+| `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | 032     |
+| `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | 032     |
+| `DELETE /api/reviews/{review}/comments/{comment}`          | drop one before the verdict                         | 032     |
+| `POST /api/reviews/{review}/decision`                      | the verdict, releasing the round                    | 032     |
 | `GET /reviews/{review}/raw/{round}/{path...}`              | a file's bytes as of a round, 0 the base            | 010     |
 | `GET /events`                                              | the live stream, and therefore the connection       | 008     |
 | `GET /manifest.webmanifest`                                | what makes the page installable                     | 009     |
@@ -1300,6 +1318,9 @@ closes.
 - `tsc --noEmit` and `oxlint --type-aware` on the TypeScript.
 - Vitest over the components, including each story's interaction test and its
   accessibility audit, run in a real browser through Storybook's Vitest add-on.
+  A second Vitest project runs checks that have no screen, such as the app's
+  comment request against the template's hidden form fields, in the same
+  Chromium.
 - `web/deps/node_modules/` against a fresh run of the vendor step, and the
   generated API types against the Go structs. Either one stale fails.
 - `go test ./...`, which includes `internal/convention`, covering the Go

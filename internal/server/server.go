@@ -271,6 +271,26 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
+		pattern: "POST /api/reviews/{review}/comments",
+		handle:  (*Server).handleAddCommentJSON,
+	},
+	{
+		side:    sideSurface,
+		pattern: "PUT /api/reviews/{review}/comments/{comment}",
+		handle:  (*Server).handleEditCommentJSON,
+	},
+	{
+		side:    sideSurface,
+		pattern: "DELETE /api/reviews/{review}/comments/{comment}",
+		handle:  (*Server).handleDeleteCommentJSON,
+	},
+	{
+		side:    sideSurface,
+		pattern: "POST /api/reviews/{review}/decision",
+		handle:  (*Server).handleDecideJSON,
+	},
+	{
+		side:    sideSurface,
 		pattern: "GET /reviews/{review}",
 		handle:  (*Server).handleReviewPage,
 	},
