@@ -11,10 +11,10 @@ required_commands:
 The service worker keeps the React app's shell, so the installed app opens when
 the daemon cannot answer, and a notification tap moves the open app to the
 review instead of reloading it. The design is in
-[docs/architecture.md](../docs/architecture.md) under The live connection, which
-this spec's first commit corrects. Today the worker intercepts no fetches, so a
-relaunch with the daemon down shows a black screen, measured on the phone on
-2026-10-30.
+[docs/architecture.md](../../docs/architecture.md) under The live connection,
+which this spec's first commit corrects. Today the worker intercepts no fetches,
+so a relaunch with the daemon down shows a black screen, measured on the phone
+on 2026-10-30.
 
 **The daemon is asked for the shell first, and the cache answers when it
 cannot.** The owner chose this on 2026-10-30 over serving the shell from the
@@ -262,7 +262,7 @@ beacon logged. With the app closed, `matchAll` found no window and `openWindow`
 opened the review. With the app in the background on a review page, and then on
 the queue, the page answered the posted address in 7 ms and 9 ms and loaded the
 review itself, and `navigate` did not run. Nothing known differs between the
-failed taps and these.
+failed taps and these but the worker's age, which spec 026 records.
 
 **Tap over the terminal, 2026-10-31.** With the app in the background on the
 queue, a tap over the terminal opened the named review. The queue answered the

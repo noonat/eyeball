@@ -18,8 +18,6 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the service worker keeps the shell and a tap moves the open app,
-      spec [029](029-worker-shell.md).
 - [ ] product: the project view, the tree and the file pages in React.
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
