@@ -25,7 +25,9 @@ client code. Each item is a spec.
       review templates, and a long review measured on the phone. The cards route
       answers from its file's comparison alone. Today it builds the whole round
       and keeps one card, so each body fetched on a long review compares every
-      file again.
+      file again. The tearout's components hold no form fields, so nothing yet
+      checks that a composer's anchor sends the level, path, range and old line
+      the template's hidden fields send.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec

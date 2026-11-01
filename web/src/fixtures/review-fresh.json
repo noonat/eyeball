@@ -41,7 +41,7 @@
         "passages": [
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1\u003eThe plan\u003c/h1\u003e\u003c/div\u003e\n",
+              "html": "\u003ch1\u003eThe plan\u003c/h1\u003e",
               "first": 1,
               "last": 1,
               "changed": false,
@@ -51,7 +51,7 @@
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003cp\u003eThe first round has an empty base, so nothing is marked.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eThe first round has an empty base, so nothing is marked.\u003c/p\u003e",
               "first": 3,
               "last": 3,
               "changed": false,
@@ -61,7 +61,7 @@
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"5-5\"\u003e\u003ch2\u003eSteps\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eSteps\u003c/h2\u003e",
               "first": 5,
               "last": 5,
               "changed": false,
@@ -71,7 +71,7 @@
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"7-7\"\u003e\u003cp\u003eWrite it. Read it. Ship it.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eWrite it. Read it. Ship it.\u003c/p\u003e",
               "first": 7,
               "last": 7,
               "changed": false,

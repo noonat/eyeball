@@ -116,7 +116,7 @@ func fileBody(f filePage) view.FileBody {
 func docParts(parts []render.Part, thread func(first, last int) *view.Thread) []view.DocPart {
 	passage := func(p render.Passage) view.DocPassage {
 		out := view.DocPassage{
-			HTML:    documentHTML(p.HTML),
+			HTML:    documentHTML(p.Body),
 			First:   int32(p.First),
 			Last:    int32(p.Last),
 			Changed: p.Changed,

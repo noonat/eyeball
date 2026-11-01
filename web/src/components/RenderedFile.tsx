@@ -5,6 +5,12 @@ import { Icon } from "./Icon";
 
 interface RenderedFileProps {
   readonly rendered: Rendering;
+  /**
+   * The file is a card of the review page, which holds the line naming a file
+   * as it is and wraps a page or an image in a box of its own. A file page
+   * wraps the line in a box and draws the rest as they are.
+   */
+  readonly card?: boolean;
 }
 
 /**
@@ -12,27 +18,29 @@ interface RenderedFileProps {
  * show, one frame holding a page or a PDF, or its images and players, before
  * over after.
  */
-export function RenderedFile({ rendered }: RenderedFileProps) {
-  if (rendered.facts !== null) {
-    const facts = rendered.facts;
+export function RenderedFile({ rendered, card }: RenderedFileProps) {
+  if (card === true && rendered.facts === null) {
     return (
-      <div className="file">
-        <div className="filefacts">
-          <span className="kind">{facts.kind}</span>
-          {facts.size === "" ? null : (
-            <span className="size">{facts.size}</span>
-          )}
-          {facts.hint === "" ? null : (
-            <span className="hint">{facts.hint}</span>
-          )}
-          {facts.load === "" ? null : (
-            <AppLink className="load" href={facts.load}>
-              Load anyway
-            </AppLink>
-          )}
-        </div>
+      <div className="rendered">
+        <RenderedFile rendered={rendered} />
       </div>
     );
+  }
+  if (rendered.facts !== null) {
+    const facts = rendered.facts;
+    const line = (
+      <div className="filefacts">
+        <span className="kind">{facts.kind}</span>
+        {facts.size === "" ? null : <span className="size">{facts.size}</span>}
+        {facts.hint === "" ? null : <span className="hint">{facts.hint}</span>}
+        {facts.load === "" ? null : (
+          <AppLink className="load" href={facts.load}>
+            Load anyway
+          </AppLink>
+        )}
+      </div>
+    );
+    return card === true ? line : <div className="file">{line}</div>;
   }
   if (rendered.frame !== "") {
     return <Frame rendered={rendered} />;

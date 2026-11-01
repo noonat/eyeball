@@ -67,6 +67,30 @@ func TestDocument_appendedBlock(t *testing.T) {
 	g.Expect(marks(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]string{"", "", markWhole}))
 }
 
+// A page that draws a passage's block element itself needs what is inside it
+// and the flags the element is written from, so the three agree with the markup
+// Join writes.
+func TestDocument_bodyIsInsideTheBlock(t *testing.T) {
+	g := NewWithT(t)
+	old := "# Old\n\nKept.\n\nGone.\n\nChanged.\n"
+	new := "# New\n\nKept.\n\nChanged again.\n\nAdded.\n"
+	var seen int
+	for _, part := range Document([]byte(old), []byte(new), testPage()) {
+		passages := part.Fold
+		if len(passages) == 0 {
+			passages = []Passage{part.Passage}
+		}
+		for _, p := range passages {
+			seen++
+			html := string(p.HTML)
+			g.Expect(html).To(HaveSuffix(string(p.Body) + "</div>\n"))
+			g.Expect(strings.HasPrefix(html, `<div class="blk changed"`)).To(Equal(p.Changed), html)
+			g.Expect(strings.Contains(html[:strings.Index(html, ">")], "data-lines")).To(Equal(p.First > 0), html)
+		}
+	}
+	g.Expect(seen).To(BeNumerically(">=", 4))
+}
+
 func TestDocument_classesListed(t *testing.T) {
 	g := NewWithT(t)
 	body := parseBody(g, docHTML([]byte(everyKindOld), []byte(everyKindNew), testPage()))

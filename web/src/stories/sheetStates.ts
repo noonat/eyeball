@@ -56,3 +56,62 @@ export const mediaStates: readonly ScreenState[] = [
   { id: "file-screen--too-large", caption: "past the send limit" },
   { id: "file-screen--binary", caption: "no rendering" },
 ];
+
+/** The states on the sheet of a review's rounds. */
+export const reviewStates: readonly ScreenState[] = [
+  { id: "review-screen--round-two", caption: "a document, second round" },
+  { id: "review-screen--whole-review", caption: "the whole review" },
+  {
+    id: "review-screen--round-one-closed",
+    caption: "an earlier round, closed",
+  },
+  { id: "review-screen--code", caption: "code, waiting" },
+  { id: "review-screen--approved", caption: "approved" },
+  { id: "review-screen--fresh", caption: "a new document" },
+  { id: "review-screen--earlier", caption: "reached from the current round" },
+  { id: "review-screen--abandoned", caption: "withdrawn by the agent" },
+  { id: "review-screen--unmeasurable", caption: "a base git cannot read" },
+];
+
+/** The states on the sheet of large rounds and what a card holds. */
+export const largeReviewStates: readonly ScreenState[] = [
+  { id: "review-screen--deferred", caption: "bodies on their way" },
+  { id: "review-screen--held", caption: "a file held back" },
+  { id: "review-screen--listed", caption: "twelve files, listed" },
+  { id: "review-screen--rendered", caption: "files shown as themselves" },
+];
+
+/** The states on the sheet of comments and composers. */
+export const reviewCommentStates: readonly ScreenState[] = [
+  { id: "review-states--composer-on-line", caption: "a composer under a line" },
+  {
+    id: "review-states--composer-on-removed-line",
+    caption: "a composer on a removed line",
+  },
+  {
+    id: "review-states--composer-on-passage",
+    caption: "a composer under a passage",
+  },
+  { id: "review-states--composer-on-file", caption: "a composer on a file" },
+  {
+    id: "review-states--composer-on-decided-round",
+    caption: "a composer on a decided round",
+  },
+  { id: "review-states--editing-a-comment", caption: "a comment being edited" },
+  { id: "review-states--sending", caption: "a comment sending" },
+  { id: "review-states--unsent", caption: "a comment not saved" },
+];
+
+/** The states on the sheet of the decision bar and the screen before its view. */
+export const reviewBarStates: readonly ScreenState[] = [
+  {
+    id: "review-states--bar-while-writing",
+    caption: "a comment being written",
+  },
+  { id: "review-states--bar-offline", caption: "offline" },
+  {
+    id: "review-states--bar-refused",
+    caption: "changes requested with nothing",
+  },
+  { id: "review-states--loading", caption: "before the view arrives" },
+];

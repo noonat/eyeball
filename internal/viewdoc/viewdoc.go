@@ -420,18 +420,30 @@ func docFile(f view.File) string {
 	return b.String()
 }
 
-// docPassages joins a document's parts as the template page wrote them, with a
-// fold as a details element holding its run.
+// docPassages joins a document's parts as the template page wrote them: each
+// passage in its block element, and a fold as a details element holding its
+// run.
 func docPassages(parts []view.DocPart) string {
 	var b strings.Builder
+	passage := func(p view.DocPassage) {
+		class := "blk"
+		if p.Changed {
+			class += " changed"
+		}
+		lines := ""
+		if p.First > 0 {
+			lines = fmt.Sprintf(" data-lines=\"%d-%d\"", p.First, p.Last)
+		}
+		fmt.Fprintf(&b, "<div class=\"%s\"%s>%s</div>\n", class, lines, p.HTML)
+	}
 	for _, part := range parts {
 		if part.Passage != nil {
-			b.WriteString(string(part.Passage.HTML))
+			passage(*part.Passage)
 			continue
 		}
 		fmt.Fprintf(&b, "<details class=\"fold\"><summary>%d unchanged passages</summary>\n", len(part.Fold))
 		for _, p := range part.Fold {
-			b.WriteString(string(p.HTML))
+			passage(p)
 		}
 		b.WriteString("</details>\n")
 	}

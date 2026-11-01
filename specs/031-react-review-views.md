@@ -122,6 +122,61 @@ Where the work went differently from the paragraphs above.
   first passage, in the middle and at the end of a run. The old `After` path is
   gone, so there is nothing left to compare it with.
 
+- A passage's `html` is what is inside its block element, not the element. The
+  app draws `<div class="blk changed" data-lines="7-7">` from the range and the
+  changed flag, because a thread has to sit between two `.blk` elements, and
+  app.css has sibling rules (`.blk + .blk`, `.blk:has(...)`, `.fold > .blk`) a
+  wrapper around a run of passages would break. `render.Passage` gained `Body`,
+  and `DocPassage.html` and every fixture holding a document changed with it.
+  The template pages did not change. This corrects Iteration 1, which sent the
+  whole element.
+- The markup comparison leaves out what the template carried for its script and
+  nothing draws: `hx-*` attributes, `data-level`, `data-target`, `data-cancel`,
+  `data-retry`, `data-discard`, `data-body`, `data-path` and the `data-*` facts
+  on `.page` that no selector reads (`data-stream`, `data-stamp`, `data-place`,
+  `data-review`, `data-round`, `data-against`), hidden elements, `<template>`
+  elements, hidden form fields, and the `style` the app sets on a skeleton.
+  `data-acting` is compared, since app.css selects `.page[data-acting]` to make
+  rows, passages and files tappable on iOS Safari. Both sides are reduced the
+  same way, and the file pages' stories pass under the same rules.
+- A fragment is compared as the top-level elements the route answered with,
+  parsed as a template's content so a table row needs no table. The count a
+  write's answer carries after its thread is the tally, which has its own story
+  from the answer to a delete, so the add-comment stories compare the thread or
+  list alone.
+- axe fails a card's summary, which holds the link to the file, as nested
+  interactive controls. The template had the same markup and the owner approved
+  it, so the rule is off for `summary` on the review stories and sheets. It is a
+  known fault the template also had. The large sheet also turns off
+  `landmark-unique`, since it draws the list of files once for each theme in one
+  document.
+- The comparison's toolbar links, `?against=previous` and `?against=base`, are
+  plain anchors. A query alone is relative to the page it is on, and the router
+  resolved it against the story's root. The review has no route yet, so the next
+  spec makes them router links.
+- The composer is not in the view. Its words, chips and element id come from the
+  anchor in `composer.ts`, and the id from the card's own id, since the server
+  hashes a path into every id and the app cannot. The fragments check the words
+  and the ids against the template route's answers.
+- The states no template drew, as designed. A comment sending is the card with
+  the word Sending beside its anchor and no actions. A comment not saved reuses
+  the dashed `unsent` card the template kept for its script, with its text, a
+  Retry now and a Delete. The decision bar says each reason it cannot send a
+  verdict: unsent comments, a comment being written, offline. A card waiting for
+  its body is the skeleton sized from the view's hunk and line counts. The
+  template's script measured a row and a hunk header on the device first, which
+  is not ported, so the skeleton uses the stylesheet's fallback heights. The
+  screen before its view arrives is the arrival screen the other screens use.
+- Sheets: four, for rounds, large rounds, comments and the bar. The review's
+  stories are left out of the foundations catalog, as the other screens are. The
+  fragments are stories with a play function and no sheet, since each is a part
+  of a screen already on a sheet.
+- `review-edit.html` shows a review-level comment edited to a sentence about a
+  file. `tool/fixtures` names the comment it stored by taking the last one in
+  the store's order, and that order is not insertion order. The baseline is
+  committed, and the fragment's markup is right for what it holds, so it is left
+  as it is.
+
 ## Iteration 1: The API
 
 - [x] `internal/view` holds the round's view, the card and its body, the
@@ -166,15 +221,15 @@ required_acks:
   - tearout-approved
 ```
 
-- [ ] The review page, its cards and their bodies are components whose markup
+- [x] The review page, its cards and their bodies are components whose markup
       equals the template page's for each state from Iteration 1.
-- [ ] The composer, the comment card and its edit form, and the decision bar are
+- [x] The composer, the comment card and its edit form, and the decision bar are
       components whose markup equals the fragment the template route answers for
       each of their states.
-- [ ] States no template draws are designed here: the screen before its view
+- [x] States no template draws are designed here: the screen before its view
       arrives, a comment sending, a comment unsent with its text and a retry,
       and a card waiting for its body.
-- [ ] Screen sheets lay every state out light beside dark, with a story per
+- [x] Screen sheets lay every state out light beside dark, with a story per
       state.
-- [ ] The owner judges the sheets on the phone against review.html, and every
-      change asked for is made before the ack.
+- [/] The owner judges the sheets on the phone against review.html, and every
+  change asked for is made before the ack.

@@ -1,5 +1,10 @@
 import { expect } from "storybook/test";
-import { approvedMarkup, screenMarkup } from "./markup";
+import {
+  approvedMarkup,
+  drawnParts,
+  fragmentParts,
+  screenMarkup,
+} from "./markup";
 
 /**
  * A play function that fails when the story's markup is not the approved
@@ -22,5 +27,21 @@ export function sameAsApproved(
       approved.filter((part) => part.startsWith("missing ")),
     ).toEqual([]);
     await expect(drawn).toEqual(approved);
+  };
+}
+
+/**
+ * A play function that fails when the fragment a story draws, inside the
+ * element marked data-fragment, is not what a template route answered with.
+ */
+export function sameFragment(
+  html: string,
+): (context: { canvasElement: HTMLElement }) => Promise<void> {
+  return async ({ canvasElement }) => {
+    const root = canvasElement.querySelector("[data-fragment]");
+    await expect(root).not.toBeNull();
+    const approved = fragmentParts(html);
+    await expect(approved).not.toEqual([]);
+    await expect(drawnParts(root ?? canvasElement)).toEqual(approved);
   };
 }

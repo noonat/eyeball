@@ -288,7 +288,10 @@ export interface DocPart {
  */
 export interface DocPassage {
   /**
-   * HTML is the passage as the renderer wrote it.
+   * HTML is what is inside the passage's block element, as the renderer wrote
+   * it. The app draws the element itself, with the range and the changed flag
+   * below, so a comment can sit between two passages as an element of its
+   * own.
    */
   html: DocumentHTML;
   /**

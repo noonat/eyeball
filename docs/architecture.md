@@ -738,12 +738,15 @@ is inserted as it is. render instead returns the document as a list. Each entry
 is one passage, with its HTML, its line range and whether it changed, or a fold
 holding a run of passages. The view sends each passage's HTML as `DocumentHTML`
 with its comments beside it, and the app draws a thread as the passage's
-sibling. Whether a run folds still depends on which passages have a comment, so
-render is given the commented ranges in place of `After`. The file page sends
-the same list with no comments, so one component draws a document wherever it
-appears. Rejected: keeping threads in the HTML and mounting components into it
-with portals. The components would sit inside markup React does not own, and a
-refetch that replaced the HTML would remove them.
+sibling. The HTML is what is inside the passage's block element, and the app
+draws the element from the range and the changed flag, so a thread sits between
+two `.blk` elements as the stylesheet's sibling rules expect, with no wrapper
+around either. Whether a run folds still depends on which passages have a
+comment, so render is given the commented ranges in place of `After`. The file
+page sends the same list with no comments, so one component draws a document
+wherever it appears. Rejected: keeping threads in the HTML and mounting
+components into it with portals. The components would sit inside markup React
+does not own, and a refetch that replaced the HTML would remove them.
 
 **The surface compresses what it sends.** A JSON view, the bundle and the
 stylesheets are sent gzipped when the request accepts it, with

@@ -39,8 +39,12 @@ const (
 
 // Passage is one passage of a rendered document, as markup the renderer wrote.
 type Passage struct {
-	// HTML is the passage's markup, ending in a newline.
+	// HTML is the passage's markup, ending in a newline: its block element and
+	// what is inside it.
 	HTML template.HTML
+	// Body is what is inside the passage's block element, which a page that
+	// draws the element itself inserts.
+	Body template.HTML
 	// First and Last are the source lines the passage covers, and zero for a
 	// run a change removed, which is not in the new file and takes no comment.
 	First, Last int
@@ -86,7 +90,12 @@ func Document(old, new []byte, p Page) []Part {
 	}
 	for i, it := range items {
 		if it.block < 0 {
-			written[i] = Passage{HTML: template.HTML(fmt.Sprintf(changedHTML, "") + oldSide.struck(it.old) + "</div>\n"), Changed: true}
+			struck := oldSide.struck(it.old)
+			written[i] = Passage{
+				HTML:    template.HTML(fmt.Sprintf(changedHTML, "") + struck + "</div>\n"),
+				Body:    template.HTML(struck),
+				Changed: true,
+			}
 			continue
 		}
 		ps := passages[it.block]
@@ -96,21 +105,27 @@ func Document(old, new []byte, p Page) []Part {
 		if first > 0 {
 			lines = fmt.Sprintf(` data-lines="%d-%d"`, first, last)
 		}
-		var out string
+		var open, inner string
 		switch {
 		case !it.changed:
-			out = fmt.Sprintf(keptHTML, lines) + body + "</div>"
+			open, inner = fmt.Sprintf(keptHTML, lines), body
 		case it.paired && !isHTMLBlock(ps.node) && !isHTMLBlock(oldSide.blocks[it.old[0]]):
 			was := strings.TrimSuffix(oldShown[it.old[0]].render(shown.Renderer(), old, true), "\n")
 			if marked, ok := markWords(was, body); ok {
-				out = fmt.Sprintf(changedHTML, lines) + marked + "</div>"
+				open, inner = fmt.Sprintf(changedHTML, lines), marked
 				break
 			}
-			out = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
+			open, inner = fmt.Sprintf(changedHTML, lines), oldSide.struck(it.old)+whole(ps.node, body)
 		default:
-			out = fmt.Sprintf(changedHTML, lines) + oldSide.struck(it.old) + whole(ps.node, body) + "</div>"
+			open, inner = fmt.Sprintf(changedHTML, lines), oldSide.struck(it.old)+whole(ps.node, body)
 		}
-		written[i] = Passage{HTML: template.HTML(out + "\n"), First: first, Last: last, Changed: it.changed}
+		written[i] = Passage{
+			HTML:    template.HTML(open + inner + "</div>\n"),
+			Body:    template.HTML(inner),
+			First:   first,
+			Last:    last,
+			Changed: it.changed,
+		}
 		if first > 0 {
 			_, commented[i] = p.Commented[[2]int{first, last}]
 		}

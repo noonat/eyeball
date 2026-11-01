@@ -107,7 +107,10 @@ type DocPart struct {
 // DocPassage is one passage of a document: its markup, the source lines it
 // covers and whether it changed.
 type DocPassage struct {
-	// HTML is the passage as the renderer wrote it.
+	// HTML is what is inside the passage's block element, as the renderer wrote
+	// it. The app draws the element itself, with the range and the changed flag
+	// below, so a comment can sit between two passages as an element of its
+	// own.
 	HTML DocumentHTML `json:"html"`
 	// First and Last are the source lines the passage covers, and zero for a
 	// run a change removed, which is not in the file and takes no comment.

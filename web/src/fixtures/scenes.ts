@@ -2023,7 +2023,7 @@ export const fileDocument: Files = {
     "passages": [
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1 id=\"product\"\u003eProduct\u003c/h1\u003e\u003c/div\u003e\n",
+          "html": "\u003ch1 id=\"product\"\u003eProduct\u003c/h1\u003e",
           "first": 1,
           "last": 1,
           "changed": false,
@@ -2033,7 +2033,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003ch2 id=\"widening\"\u003eWidening\u003c/h2\u003e\u003c/div\u003e\n",
+          "html": "\u003ch2 id=\"widening\"\u003eWidening\u003c/h2\u003e",
           "first": 3,
           "last": 3,
           "changed": false,
@@ -2043,7 +2043,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk changed\"\u003e\u003cdel class=\"old\"\u003eWidening is one control, not a navigation.\u003c/del\u003e\n\u003c/div\u003e\n",
+          "html": "\u003cdel class=\"old\"\u003eWidening is one control, not a navigation.\u003c/del\u003e\n",
           "first": 0,
           "last": 0,
           "changed": true,
@@ -2053,7 +2053,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"5-5\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/div\u003e\n",
+          "html": "\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e",
           "first": 5,
           "last": 5,
           "changed": false,
@@ -2063,7 +2063,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk changed\" data-lines=\"7-7\"\u003e\u003cdel class=\"old\"\u003eA control offers whatever bases exist.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+          "html": "\u003cdel class=\"old\"\u003eA control offers whatever bases exist.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e",
           "first": 7,
           "last": 7,
           "changed": true,
@@ -2073,7 +2073,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk changed\" data-lines=\"9-9\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+          "html": "\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e",
           "first": 9,
           "last": 9,
           "changed": true,
@@ -2083,7 +2083,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"11-11\"\u003e\u003ch2 id=\"making-a-comment\"\u003eMaking a comment\u003c/h2\u003e\u003c/div\u003e\n",
+          "html": "\u003ch2 id=\"making-a-comment\"\u003eMaking a comment\u003c/h2\u003e",
           "first": 11,
           "last": 11,
           "changed": false,
@@ -2093,7 +2093,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"13-15\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e\u003c/div\u003e\n",
+          "html": "\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e",
           "first": 13,
           "last": 15,
           "changed": false,
@@ -2103,7 +2103,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk changed\" data-lines=\"17-17\"\u003e\u003ch2 id=\"a-round-is-frozen\"\u003e\u003cdel\u003eOpen questions\u003c/del\u003e\u003cins\u003eA round is frozen\u003c/ins\u003e\u003c/h2\u003e\u003c/div\u003e\n",
+          "html": "\u003ch2 id=\"a-round-is-frozen\"\u003e\u003cdel\u003eOpen questions\u003c/del\u003e\u003cins\u003eA round is frozen\u003c/ins\u003e\u003c/h2\u003e",
           "first": 17,
           "last": 17,
           "changed": true,
@@ -2113,7 +2113,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk changed\" data-lines=\"19-19\"\u003e\u003cp\u003e\u003cdel\u003eWhat happens when the base is empty?\u003c/del\u003e\u003cins\u003eAn empty base compares with nothing, so every line reads as added.\u003c/ins\u003e\u003c/p\u003e\u003c/div\u003e\n",
+          "html": "\u003cp\u003e\u003cdel\u003eWhat happens when the base is empty?\u003c/del\u003e\u003cins\u003eAn empty base compares with nothing, so every line reads as added.\u003c/ins\u003e\u003c/p\u003e",
           "first": 19,
           "last": 19,
           "changed": true,
@@ -2123,7 +2123,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"21-21\"\u003e\u003ch2 id=\"see-also\"\u003eSee also\u003c/h2\u003e\u003c/div\u003e\n",
+          "html": "\u003ch2 id=\"see-also\"\u003eSee also\u003c/h2\u003e",
           "first": 21,
           "last": 21,
           "changed": false,
@@ -2133,7 +2133,7 @@ export const fileDocument: Files = {
       },
       {
         "passage": {
-          "html": "\u003cdiv class=\"blk\" data-lines=\"23-23\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/3/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/3/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/div\u003e\n",
+          "html": "\u003cp\u003eThe voice is in \u003ca href=\"/reviews/3/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/3/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e",
           "first": 23,
           "last": 23,
           "changed": false,
@@ -4381,7 +4381,7 @@ export const reviewDoc: Review = {
         "passages": [
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1\u003eProduct\u003c/h1\u003e\u003c/div\u003e\n",
+              "html": "\u003ch1\u003eProduct\u003c/h1\u003e",
               "first": 1,
               "last": 1,
               "changed": false,
@@ -4391,7 +4391,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003ch2\u003eWidening\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eWidening\u003c/h2\u003e",
               "first": 3,
               "last": 3,
               "changed": false,
@@ -4401,7 +4401,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\"\u003e\u003cdel class=\"old\"\u003eWidening is one control, not a navigation.\u003c/del\u003e\n\u003c/div\u003e\n",
+              "html": "\u003cdel class=\"old\"\u003eWidening is one control, not a navigation.\u003c/del\u003e\n",
               "first": 0,
               "last": 0,
               "changed": true,
@@ -4411,7 +4411,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"5-5\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e",
               "first": 5,
               "last": 5,
               "changed": false,
@@ -4421,7 +4421,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"7-7\"\u003e\u003cdel class=\"old\"\u003eA control offers whatever bases exist.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cdel class=\"old\"\u003eA control offers whatever bases exist.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e",
               "first": 7,
               "last": 7,
               "changed": true,
@@ -4445,7 +4445,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"9-9\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e",
               "first": 9,
               "last": 9,
               "changed": true,
@@ -4455,7 +4455,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"11-11\"\u003e\u003ch2\u003eMaking a comment\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eMaking a comment\u003c/h2\u003e",
               "first": 11,
               "last": 11,
               "changed": false,
@@ -4465,7 +4465,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"13-15\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e",
               "first": 13,
               "last": 15,
               "changed": false,
@@ -4475,7 +4475,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"17-17\"\u003e\u003ch2\u003e\u003cdel\u003eOpen questions\u003c/del\u003e\u003cins\u003eA round is frozen\u003c/ins\u003e\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003e\u003cdel\u003eOpen questions\u003c/del\u003e\u003cins\u003eA round is frozen\u003c/ins\u003e\u003c/h2\u003e",
               "first": 17,
               "last": 17,
               "changed": true,
@@ -4485,7 +4485,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"19-19\"\u003e\u003cp\u003e\u003cdel\u003eWhat happens when the base is empty?\u003c/del\u003e\u003cins\u003eAn empty base compares with nothing, so every line reads as added.\u003c/ins\u003e\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003e\u003cdel\u003eWhat happens when the base is empty?\u003c/del\u003e\u003cins\u003eAn empty base compares with nothing, so every line reads as added.\u003c/ins\u003e\u003c/p\u003e",
               "first": 19,
               "last": 19,
               "changed": true,
@@ -4495,7 +4495,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"21-21\"\u003e\u003ch2\u003eSee also\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eSee also\u003c/h2\u003e",
               "first": 21,
               "last": 21,
               "changed": false,
@@ -4505,7 +4505,7 @@ export const reviewDoc: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"23-23\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/files/docs/product.md#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/files/docs/product.md#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e",
               "first": 23,
               "last": 23,
               "changed": false,
@@ -4607,7 +4607,7 @@ export const reviewDocWhole: Review = {
         "passages": [
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1\u003eProduct\u003c/h1\u003e\u003c/div\u003e\n",
+              "html": "\u003ch1\u003eProduct\u003c/h1\u003e",
               "first": 1,
               "last": 1,
               "changed": false,
@@ -4617,7 +4617,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003ch2\u003eWidening\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eWidening\u003c/h2\u003e",
               "first": 3,
               "last": 3,
               "changed": false,
@@ -4627,7 +4627,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"5-5\"\u003e\u003cdel class=\"old\"\u003eThree steps out.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cdel class=\"old\"\u003eThree steps out.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/ins\u003e",
               "first": 5,
               "last": 5,
               "changed": true,
@@ -4637,7 +4637,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"7-7\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e",
               "first": 7,
               "last": 7,
               "changed": true,
@@ -4661,7 +4661,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"9-9\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e",
               "first": 9,
               "last": 9,
               "changed": true,
@@ -4671,7 +4671,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"11-11\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eMaking a comment\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003ch2\u003eMaking a comment\u003c/h2\u003e\u003c/ins\u003e",
               "first": 11,
               "last": 11,
               "changed": true,
@@ -4681,7 +4681,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"13-15\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e\u003c/ins\u003e",
               "first": 13,
               "last": 15,
               "changed": true,
@@ -4691,7 +4691,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"17-17\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eA round is frozen\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003ch2\u003eA round is frozen\u003c/h2\u003e\u003c/ins\u003e",
               "first": 17,
               "last": 17,
               "changed": true,
@@ -4701,7 +4701,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"19-19\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eAn empty base compares with nothing, so every line reads as added.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eAn empty base compares with nothing, so every line reads as added.\u003c/p\u003e\u003c/ins\u003e",
               "first": 19,
               "last": 19,
               "changed": true,
@@ -4711,7 +4711,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"21-21\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eSee also\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003ch2\u003eSee also\u003c/h2\u003e\u003c/ins\u003e",
               "first": 21,
               "last": 21,
               "changed": true,
@@ -4721,7 +4721,7 @@ export const reviewDocWhole: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"23-23\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/files/docs/voice.md?against=base\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/files/docs/architecture.md?against=base\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/files/docs/product.md?against=base#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/files/docs/voice.md?against=base\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/files/docs/architecture.md?against=base\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/files/docs/product.md?against=base#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/ins\u003e",
               "first": 23,
               "last": 23,
               "changed": true,
@@ -4827,7 +4827,7 @@ export const reviewDocRound1: Review = {
         "passages": [
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1\u003eProduct\u003c/h1\u003e\u003c/div\u003e\n",
+              "html": "\u003ch1\u003eProduct\u003c/h1\u003e",
               "first": 1,
               "last": 1,
               "changed": false,
@@ -4837,7 +4837,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003ch2\u003eWidening\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eWidening\u003c/h2\u003e",
               "first": 3,
               "last": 3,
               "changed": false,
@@ -4847,7 +4847,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"5-5\"\u003e\u003cdel class=\"old\"\u003eThree steps out.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003eWidening is one control, not a navigation.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cdel class=\"old\"\u003eThree steps out.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003eWidening is one control, not a navigation.\u003c/p\u003e\u003c/ins\u003e",
               "first": 5,
               "last": 5,
               "changed": true,
@@ -4857,7 +4857,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"7-7\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e\u003c/ins\u003e",
               "first": 7,
               "last": 7,
               "changed": true,
@@ -4867,7 +4867,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"9-9\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eA control offers whatever bases exist.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eA control offers whatever bases exist.\u003c/p\u003e\u003c/ins\u003e",
               "first": 9,
               "last": 9,
               "changed": true,
@@ -4877,7 +4877,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"11-11\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eMaking a comment\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003ch2\u003eMaking a comment\u003c/h2\u003e\u003c/ins\u003e",
               "first": 11,
               "last": 11,
               "changed": true,
@@ -4887,7 +4887,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"13-13\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of lines. To a passage, which is what a rendered document offers instead of lines.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eA comment attaches at one of four levels. To a line or a range of lines. To a passage, which is what a rendered document offers instead of lines.\u003c/p\u003e\u003c/ins\u003e",
               "first": 13,
               "last": 13,
               "changed": true,
@@ -4897,7 +4897,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"15-15\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eOpen questions\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003ch2\u003eOpen questions\u003c/h2\u003e\u003c/ins\u003e",
               "first": 15,
               "last": 15,
               "changed": true,
@@ -4907,7 +4907,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"17-17\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eWhat happens when the base is empty?\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eWhat happens when the base is empty?\u003c/p\u003e\u003c/ins\u003e",
               "first": 17,
               "last": 17,
               "changed": true,
@@ -4917,7 +4917,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"19-19\"\u003e\u003cins class=\"whole\"\u003e\u003ch2\u003eSee also\u003c/h2\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003ch2\u003eSee also\u003c/h2\u003e\u003c/ins\u003e",
               "first": 19,
               "last": 19,
               "changed": true,
@@ -4927,7 +4927,7 @@ export const reviewDocRound1: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk changed\" data-lines=\"21-21\"\u003e\u003cins class=\"whole\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/rounds/1/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/rounds/1/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/rounds/1/files/docs/product.md#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/ins\u003e\u003c/div\u003e\n",
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/rounds/1/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/rounds/1/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/rounds/1/files/docs/product.md#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e\u003c/ins\u003e",
               "first": 21,
               "last": 21,
               "changed": true,
@@ -6581,7 +6581,7 @@ export const reviewFresh: Review = {
         "passages": [
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"1-1\"\u003e\u003ch1\u003eThe plan\u003c/h1\u003e\u003c/div\u003e\n",
+              "html": "\u003ch1\u003eThe plan\u003c/h1\u003e",
               "first": 1,
               "last": 1,
               "changed": false,
@@ -6591,7 +6591,7 @@ export const reviewFresh: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"3-3\"\u003e\u003cp\u003eThe first round has an empty base, so nothing is marked.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eThe first round has an empty base, so nothing is marked.\u003c/p\u003e",
               "first": 3,
               "last": 3,
               "changed": false,
@@ -6601,7 +6601,7 @@ export const reviewFresh: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"5-5\"\u003e\u003ch2\u003eSteps\u003c/h2\u003e\u003c/div\u003e\n",
+              "html": "\u003ch2\u003eSteps\u003c/h2\u003e",
               "first": 5,
               "last": 5,
               "changed": false,
@@ -6611,7 +6611,7 @@ export const reviewFresh: Review = {
           },
           {
             "passage": {
-              "html": "\u003cdiv class=\"blk\" data-lines=\"7-7\"\u003e\u003cp\u003eWrite it. Read it. Ship it.\u003c/p\u003e\u003c/div\u003e\n",
+              "html": "\u003cp\u003eWrite it. Read it. Ship it.\u003c/p\u003e",
               "first": 7,
               "last": 7,
               "changed": false,
