@@ -18,7 +18,8 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the project view, the tree and the file pages in React.
+- [ ] product: the project view, the tree and the file pages in React, spec
+      [030](030-react-files.md).
 - [ ] product: the review page in React: cards, composer, decision bar and
       deferred bodies, measuring a long review on the phone.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
@@ -30,6 +31,11 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] product: the worker answers a moved screen's navigation with the shell
+      when the daemon cannot answer. It answers `/` only, so a reload of the
+      project view or a file page with the daemon down fails as a template page
+      does, and those screens have no state yet for a view that cannot load.
+      Left out of spec [030](030-react-files.md).
 - [ ] product: a stream that never connects shows no offline notice. The notice
       waits for the stream's `error` event, and a phone's connection to a daemon
       whose tailnet node is offline gets no error: the packets are dropped, and
