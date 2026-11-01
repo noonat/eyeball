@@ -16,6 +16,18 @@ interface ScreenProps {
   readonly updateReady?: boolean | undefined;
   readonly onRetry?: (() => void) | undefined;
   readonly children: ReactNode;
+  /**
+   * What sits in the scrolling column after the page: the decision bar, which
+   * the stylesheet pins to the bottom of it.
+   */
+  readonly footer?: ReactNode;
+  /**
+   * What the page can be commented on as: "open" or "late", and absent where
+   * it cannot. app.css selects `.page[data-acting]` to make rows, passages and
+   * files tappable, since iOS Safari sends no click from an element it does
+   * not take to be clickable.
+   */
+  readonly acting?: string | undefined;
 }
 
 /**
@@ -31,6 +43,8 @@ export function Screen({
   updateReady,
   onRetry,
   children,
+  footer,
+  acting,
 }: ScreenProps) {
   return (
     <>
@@ -47,7 +61,10 @@ export function Screen({
         />
       </div>
       <div className="scroll">
-        <div className="page">{children}</div>
+        <div className="page" data-acting={acting}>
+          {children}
+        </div>
+        {footer}
       </div>
     </>
   );

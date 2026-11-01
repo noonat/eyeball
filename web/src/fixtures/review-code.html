@@ -1,0 +1,114 @@
+<div class="topbar"><a class="back" href="/"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Upload worker and its retry ladder</h1><span class="eye" role="img" aria-label="8 waiting"><span class="iris">8</span></span></div>
+<div class="scroll"><div class="page" data-stream="/events?review=2" data-stamp="5029c18f76364cb6" data-place="2:1:" data-review="2" data-round="1" data-acting="open">
+<div class="note letter">
+<p>The worker retries three times with backoff, then gives up and records the failure on the job.</p>
+<span class="sig"><span class="agent">feat/upload-retry</span></span>
+</div>
+<div class="brief">
+<div class="where"><span class="pill waiting">Waiting 1h</span><span class="pill plain">Round 1</span><span class="who"><a class="bit" href="/projects/1"><span class="i i-folder" aria-hidden="true"></span><span class="project">harbor</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">feat/upload-retry</span></span></span></div>
+<h2 class="title">Upload worker and its retry ladder</h2>
+</div>
+<form class="composer" hx-post="/reviews/2/comments" hx-target="#comments-review" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1"/>
+<input type="hidden" name="level" value="review"/>
+<input type="hidden" name="submission" value=""/>
+<div class="anchor">This review</div>
+<textarea class="field" name="body" aria-label="Comment" placeholder="Comment on the whole review…"></textarea>
+<div class="foot">
+<span class="hint">Saved as you type</span>
+<span class="acts"><button type="submit" class="btn small accent">Add</button></span>
+</div>
+</form>
+<div id="comments-review">
+<div class="comment" id="comment-7">
+<div class="anchor"><span class="where">This review</span></div>
+<p>Add a test for the give-up path.</p>
+<div class="acts"><a href="#comment-7" hx-get="/reviews/2/comments/7?edit=1" hx-swap="outerHTML" hx-target="#comment-7"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comment-7" hx-delete="/reviews/2/comments/7" hx-swap="outerHTML" hx-target="#comment-7"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+</div>
+</div>
+<template id="unsent-card"><div class="comment unsent"><div class="anchor"><span class="where"></span></div><p></p><div class="acts"><a data-retry="" role="button" tabindex="0"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a data-discard="" role="button" tabindex="0"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div></div></template>
+<div class="toolbar">
+<span class="counts"><b class="files">2 files</b>  <span class="plus">+22</span> <span class="minus">−1</span></span>
+</div>
+<details class="file" id="file-69fc8c325ab6" data-path="internal/upload/backoff.go" open="">
+<summary><span class="path"><bdi>internal/upload/backoff.go</bdi></span><span class="counts"><span class="plus">+6</span> <span class="minus">−0</span></span><a aria-label="Whole file" class="fileopen" href="/reviews/2/files/internal/upload/backoff.go" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+<div class="code narrow">
+<table>
+<tbody><tr class="hunkhead"><td colspan="3">@@ -0,0 +1,6 @@</td></tr>
+<tr class="add" data-line="1"><td class="ln">1</td><td class="sign">+</td><td class="src"><span class="k">package</span> upload</td></tr>
+<tr class="add" data-line="2"><td class="ln">2</td><td class="sign">+</td><td class="src"></td></tr>
+<tr class="add" data-line="3"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">import</span> <span class="s">&#34;time&#34;</span></td></tr>
+<tr class="add" data-line="4"><td class="ln">4</td><td class="sign">+</td><td class="src"></td></tr>
+<tr class="add" data-line="5"><td class="ln">5</td><td class="sign">+</td><td class="src"><span class="c">// backoffCap is the longest a retry waits.</span></td></tr>
+<tr class="add" data-line="6"><td class="ln">6</td><td class="sign">+</td><td class="src"><span class="k">const</span> backoffCap = <span class="n">30</span> * time.Second</td></tr>
+</tbody></table>
+</div>
+<div id="comments-69fc8c325ab6">
+<div class="comment" id="comment-6">
+<div class="anchor"><span class="where">internal/upload/backoff.go</span></div>
+<p>Is thirty seconds long enough for a cold connection?</p>
+<div class="acts"><a href="#comment-6" hx-get="/reviews/2/comments/6?edit=1" hx-swap="outerHTML" hx-target="#comment-6"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comment-6" hx-delete="/reviews/2/comments/6" hx-swap="outerHTML" hx-target="#comment-6"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+</div>
+</div>
+<div id="slot-69fc8c325ab6"></div>
+</details>
+<details class="file" id="file-6feac3716839" data-path="internal/upload/worker.go" open="">
+<summary><span class="path"><bdi>internal/upload/worker.go</bdi></span><span class="counts"><span class="plus">+16</span> <span class="minus">−1</span></span><a aria-label="Whole file" class="fileopen" href="/reviews/2/files/internal/upload/worker.go" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+<div class="code narrow">
+<table>
+<tbody><tr class="hunkhead"><td colspan="3">@@ -1,12 +1,27 @@</td></tr>
+<tr data-line="1"><td class="ln">1</td><td class="sign"></td><td class="src"><span class="k">package</span> upload</td></tr>
+<tr data-line="2"><td class="ln">2</td><td class="sign"></td><td class="src"></td></tr>
+<tr class="del" data-old="3"><td class="ln">3</td><td class="sign">−</td><td class="src"><span class="k">import</span> <span class="s">&#34;context&#34;</span></td></tr>
+<tr class="add" data-line="3"><td class="ln">3</td><td class="sign">+</td><td class="src"><span class="k">import</span> (</td></tr>
+<tr class="add" data-line="4"><td class="ln">4</td><td class="sign">+</td><td class="src">	<span class="s">&#34;context&#34;</span></td></tr>
+<tr class="add" data-line="5"><td class="ln">5</td><td class="sign">+</td><td class="src">	<span class="s">&#34;time&#34;</span></td></tr>
+<tr class="add" data-line="6"><td class="ln">6</td><td class="sign">+</td><td class="src">)</td></tr>
+<tr data-line="7"><td class="ln">7</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="8"><td class="ln">8</td><td class="sign"></td><td class="src"><span class="c">// Worker uploads one file.</span></td></tr>
+<tr data-line="9"><td class="ln">9</td><td class="sign"></td><td class="src"><span class="k">type</span> Worker <span class="k">struct</span>{ maxTries <span class="k">int</span> }</td></tr>
+<tr data-line="10"><td class="ln">10</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="11"><td class="ln">11</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">run</span>(ctx context.Context) <span class="k">error</span> {</td></tr>
+<tr class="add" data-line="12"><td class="ln">12</td><td class="sign">+</td><td class="src">	<span class="k">for</span> attempt := <span class="n">0</span>; attempt &lt; w.maxTries; attempt++ {</td></tr>
+<tr class="add" data-line="13"><td class="ln">13</td><td class="sign">+</td><td class="src">		<span class="k">if</span> err := w.<span class="f">send</span>(ctx); err == <span class="k">nil</span> {</td></tr>
+<tr class="thread" id="thread-6feac3716839-13"><td colspan="3"><div class="thread-body">
+<div class="comment" id="comment-5">
+<div class="anchor"><span class="where">internal/upload/worker.go:13</span></div>
+<blockquote class="quoted">if err := w.send(ctx); err == nil {</blockquote>
+<p>What does send return on a cancelled context?</p>
+<div class="acts"><a href="#comment-5" hx-get="/reviews/2/comments/5?edit=1" hx-swap="outerHTML" hx-target="#comment-5"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comment-5" hx-delete="/reviews/2/comments/5" hx-swap="outerHTML" hx-target="#comment-5"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+</div>
+</div></td></tr>
+<tr class="add" data-line="14"><td class="ln">14</td><td class="sign">+</td><td class="src">			<span class="k">return</span> <span class="k">nil</span></td></tr>
+<tr class="add" data-line="15"><td class="ln">15</td><td class="sign">+</td><td class="src">		}</td></tr>
+<tr class="add" data-line="16"><td class="ln">16</td><td class="sign">+</td><td class="src">		<span class="k">select</span> {</td></tr>
+<tr class="add" data-line="17"><td class="ln">17</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-ctx.<span class="f">Done</span>():</td></tr>
+<tr class="add" data-line="18"><td class="ln">18</td><td class="sign">+</td><td class="src">			<span class="k">return</span> ctx.<span class="f">Err</span>()</td></tr>
+<tr class="add" data-line="19"><td class="ln">19</td><td class="sign">+</td><td class="src">		<span class="k">case</span> &lt;-time.<span class="f">After</span>(<span class="f">backoff</span>(attempt)):</td></tr>
+<tr class="add" data-line="20"><td class="ln">20</td><td class="sign">+</td><td class="src">		}</td></tr>
+<tr class="add" data-line="21"><td class="ln">21</td><td class="sign">+</td><td class="src">	}</td></tr>
+<tr data-line="22"><td class="ln">22</td><td class="sign"></td><td class="src">	<span class="k">return</span> w.<span class="f">send</span>(ctx)</td></tr>
+<tr data-line="23"><td class="ln">23</td><td class="sign"></td><td class="src">}</td></tr>
+<tr class="add" data-line="24"><td class="ln">24</td><td class="sign">+</td><td class="src"></td></tr>
+<tr class="add" data-line="25"><td class="ln">25</td><td class="sign">+</td><td class="src"><span class="k">func</span> <span class="f">backoff</span>(attempt <span class="k">int</span>) time.Duration { <span class="k">return</span> time.<span class="f">Duration</span>(<span class="n">1</span>&lt;&lt;attempt) * time.Second }</td></tr>
+<tr data-line="26"><td class="ln">26</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="27"><td class="ln">27</td><td class="sign"></td><td class="src"><span class="k">func</span> (w *Worker) <span class="f">send</span>(ctx context.Context) <span class="k">error</span> { <span class="k">return</span> <span class="k">nil</span> }</td></tr>
+</tbody></table>
+</div>
+<div id="comments-6feac3716839">
+</div>
+<div id="slot-6feac3716839"></div>
+</details>
+<div class="tree">
+<a class="treerow" href="/reviews/2/files/"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+</div><form class="decide" id="bar" hx-post="/reviews/2/decision" hx-target="this" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1"/>
+<div id="unsent" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong><span id="unsent-count">1 comment</span> did not save.</strong> Retry it, or delete it, before deciding.</span></div></div>
+<div id="unsaved" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
+<div class="tally" id="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">3 comments</span><span>Ready to send</span></div>
+<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…"></textarea>
+<div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
+<div id="whynot" hidden=""><span class="why-not">You can’t submit a review while offline.</span></div>
+</form>
+</div>

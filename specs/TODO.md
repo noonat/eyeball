@@ -18,8 +18,14 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec.
 
-- [ ] product: the review page in React: cards, composer, decision bar and
-      deferred bodies, measuring a long review on the phone.
+- [ ] product: the review page in React: the route, the writes, the deferred
+      bodies, the reader's place, the stream and the browser tests, removing the
+      review templates, and a long review measured on the phone. The cards route
+      answers from its file's comparison alone. Today it builds the whole round
+      and keeps one card, so each body fetched on a long review compares every
+      file again. The tearout's components hold no form fields, so nothing yet
+      checks that a composer's anchor sends the level, path, range and old line
+      the template's hidden fields send.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories.
 - [ ] tooling: a tapped notification opens the review it names. Spec
@@ -154,9 +160,6 @@ client code. Each item is a spec.
       `NextProtos`, so the phone speaks HTTP/1.1 and each open tab's live stream
       holds one of the browser's few connections to the host. Advertising `h2`
       means eyeball wrapping the listener in a TLS configuration of its own.
-- [ ] tooling: answer a collapsed card's body from that file's comparison alone.
-      The cards route builds the whole round's page and takes one card, so each
-      body opened on a large review compares every file again.
 - [ ] tooling: batch the project view's reads of HEAD into one
       `git cat-file --batch`. Each working-copy row runs its own `cat-file blob`
       and its own `check-ignore`. 196 sequential `cat-file blob` calls took 259

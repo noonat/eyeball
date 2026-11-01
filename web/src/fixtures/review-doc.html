@@ -1,0 +1,83 @@
+<div class="topbar"><a class="back" href="/"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>Product doc, second pass</h1><span class="eye" role="img" aria-label="8 waiting"><span class="iris">8</span></span></div>
+<div class="scroll"><div class="page" data-stream="/events?review=1" data-stamp="df32667c2bb1eccc" data-place="1:2:" data-review="1" data-round="2" data-acting="open">
+<div class="note letter">
+<p>Both comments from round 1 are done.</p>
+<span class="sig"><span class="agent">spec/012-surface</span></span>
+</div>
+<div class="brief">
+<div class="where"><span class="pill waiting">Waiting 12m</span><span class="pill plain">Round 2</span><span class="who"><a class="bit" href="/projects/2"><span class="i i-folder" aria-hidden="true"></span><span class="project">eyeball</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">spec/012-surface</span></span></span></div>
+<h2 class="title">Product doc, second pass</h2>
+</div>
+<div class="section">
+<h2>Earlier rounds <span class="count">1</span></h2>
+<div class="tree">
+<a class="treerow" href="/reviews/1/rounds/1"><span class="i i-message-square" aria-hidden="true"></span><span class="nm">Round 1 · changes requested</span><span class="hint">6h ago</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+</div>
+<form class="composer" hx-post="/reviews/1/comments" hx-target="#comments-review" hx-swap="outerHTML">
+<input type="hidden" name="round" value="2"/>
+<input type="hidden" name="level" value="review"/>
+<input type="hidden" name="submission" value=""/>
+<div class="anchor">This review</div>
+<textarea class="field" name="body" aria-label="Comment" placeholder="Comment on the whole review…"></textarea>
+<div class="foot">
+<span class="hint">Saved as you type</span>
+<span class="acts"><button type="submit" class="btn small accent">Add</button></span>
+</div>
+</form>
+<div id="comments-review">
+<div class="comment" id="comment-4">
+<div class="anchor"><span class="where">This review</span></div>
+<p>Good. Check the links in See also.</p>
+<div class="acts"><a href="#comment-4" hx-get="/reviews/1/comments/4?edit=1" hx-swap="outerHTML" hx-target="#comment-4"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comment-4" hx-delete="/reviews/1/comments/4" hx-swap="outerHTML" hx-target="#comment-4"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+</div>
+</div>
+<template id="unsent-card"><div class="comment unsent"><div class="anchor"><span class="where"></span></div><p></p><div class="acts"><a data-retry="" role="button" tabindex="0"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a data-discard="" role="button" tabindex="0"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div></div></template>
+<div class="toolbar">
+<span class="counts"><b class="files">1 file</b>  <span class="plus">+8</span> <span class="minus">−6</span></span>
+<span class="segmented"><a aria-current="true" href="?against=previous">Since round 1</a><a href="?against=base">Whole review</a></span>
+</div>
+<details class="file" id="file-5daa9283a671" data-path="docs/product.md" open="">
+<summary><span class="path"><bdi>docs/product.md</bdi></span><span class="counts"><span class="plus">+8</span> <span class="minus">−6</span></span><a aria-label="Raw diff" class="fileopen" href="/reviews/1/files/docs/product.md?view=source" title="Raw diff"><span class="i i-file-text" aria-hidden="true"></span></a></summary>
+<div class="filebody"><div class="prose"><div class="blk" data-lines="1-1"><h1>Product</h1></div>
+<div class="blk" data-lines="3-3"><h2>Widening</h2></div>
+<div class="blk changed"><del class="old">Widening is one control, not a navigation.</del>
+</div>
+<div class="blk" data-lines="5-5"><p>Three steps out, each one control rather than a navigation.</p></div>
+<div class="blk changed" data-lines="7-7"><del class="old">A control offers whatever bases exist.</del>
+<ins class="whole"><p><strong>From a hunk to the whole file</strong>, with the change still marked in place.</p></ins></div>
+<div id="thread-5daa9283a671-p7-7">
+<div class="comment" id="comment-3">
+<div class="anchor"><span class="where">docs/product.md:7</span></div>
+<blockquote class="quoted">**From a hunk to the whole file**, with the change still marked in place.</blockquote>
+<p>Name the control here.</p>
+<div class="acts"><a href="#comment-3" hx-get="/reviews/1/comments/3?edit=1" hx-swap="outerHTML" hx-target="#comment-3"><span class="i i-pencil" aria-hidden="true"></span>Edit</a><a href="#comment-3" hx-delete="/reviews/1/comments/3" hx-swap="outerHTML" hx-target="#comment-3"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div>
+</div>
+</div>
+<div class="blk changed" data-lines="9-9"><ins class="whole"><p><strong>What the change is measured against is one control with two settings.</strong> The previous round is the default from round two onward and answers what moved since the last reading.</p></ins></div>
+<div class="blk" data-lines="11-11"><h2>Making a comment</h2></div>
+<div class="blk" data-lines="13-15"><p>A comment attaches at one of four levels. To a line or a range of
+lines. To a passage, which is what a rendered document offers
+instead of lines.</p></div>
+<div class="blk changed" data-lines="17-17"><h2><del>Open questions</del><ins>A round is frozen</ins></h2></div>
+<div class="blk changed" data-lines="19-19"><p><del>What happens when the base is empty?</del><ins>An empty base compares with nothing, so every line reads as added.</ins></p></div>
+<div class="blk" data-lines="21-21"><h2>See also</h2></div>
+<div class="blk" data-lines="23-23"><p>The voice is in <a href="/reviews/1/files/docs/voice.md">voice.md</a> and the design in <a href="/reviews/1/files/docs/architecture.md">architecture.md</a>. <a href="/reviews/1/files/docs/product.md#making-a-comment">The four levels</a> are above. Questions go to <a href="https://example.com/eyeball/issues">the tracker</a>.</p></div>
+</div></div>
+<div id="comments-5daa9283a671">
+</div>
+<div id="slot-5daa9283a671"></div>
+</details>
+<div class="tree">
+<a class="treerow" href="/reviews/1/files/"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+</div><form class="decide" id="bar" hx-post="/reviews/1/decision" hx-target="this" hx-swap="outerHTML">
+<input type="hidden" name="round" value="2"/>
+<div id="unsent" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong><span id="unsent-count">1 comment</span> did not save.</strong> Retry it, or delete it, before deciding.</span></div></div>
+<div id="unsaved" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
+<div class="tally" id="tally"><span class="i i-message-square" aria-hidden="true"></span><span class="pill plain">2 comments</span><span>Ready to send</span></div>
+<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…"></textarea>
+<div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
+<div id="whynot" hidden=""><span class="why-not">You can’t submit a review while offline.</span></div>
+</form>
+</div>

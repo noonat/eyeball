@@ -4,7 +4,7 @@ import { CodeTable } from "./CodeTable";
 import { Crumb } from "./Crumb";
 import { DocumentBody } from "./DocumentBody";
 import { EmptyBox } from "./EmptyBox";
-import { Icon } from "./Icon";
+import { ModeLine } from "./ModeLine";
 import { RenderedFile } from "./RenderedFile";
 import { Screen } from "./Screen";
 import { ViewNotices } from "./ViewNotice";
@@ -45,15 +45,6 @@ export function FileScreen({ file, ...bar }: FileScreenProps) {
   );
 }
 
-function ModeLine({ mode }: { readonly mode: string }) {
-  return (
-    <div className="modeline">
-      <Icon name="triangle-alert" />
-      <span>{mode}</span>
-    </div>
-  );
-}
-
 function FileBody({ file }: { readonly file: File }) {
   if (file.body === "rendered") {
     return file.rendered === null ? null : (
@@ -64,7 +55,7 @@ function FileBody({ file }: { readonly file: File }) {
     return <EmptyBox as="span" headline="Deleted" text={file.deleted} />;
   }
   if (file.body === "document") {
-    return <DocumentBody html={file.document} />;
+    return <DocumentBody passages={file.passages ?? []} />;
   }
   return (
     <div className="file">

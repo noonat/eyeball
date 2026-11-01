@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import type { CodeRow, Token, TokenRole } from "../api/types";
 
 /** The class the stylesheet colors each role with. Plain text has none. */
@@ -13,6 +14,11 @@ const roleClass: Readonly<Record<TokenRole, string | undefined>> = {
 interface CodeTableProps {
   /** The rows the API sent, in reading order. */
   readonly rows: readonly CodeRow[];
+  /**
+   * What sits in the table under a row, as rows of its own: the comments on a
+   * line, or a composer. A page with no comments leaves it out.
+   */
+  readonly under?: ((row: CodeRow) => ReactNode) | undefined;
 }
 
 /**
@@ -20,7 +26,7 @@ interface CodeTableProps {
  * and a word that changed within it is marked. The text is drawn from the
  * tokens the server cut, so no highlighting happens here.
  */
-export function CodeTable({ rows }: CodeTableProps) {
+export function CodeTable({ rows, under }: CodeTableProps) {
   return (
     // A line can run past the screen, so the table scrolls, and a scrolling
     // region has to be reachable by keyboard. The template's page was not.
@@ -28,7 +34,10 @@ export function CodeTable({ rows }: CodeTableProps) {
       <table>
         <tbody>
           {rows.map((row, i) => (
-            <CodeLine key={i} row={row} />
+            <Fragment key={i}>
+              <CodeLine row={row} />
+              {under?.(row)}
+            </Fragment>
           ))}
         </tbody>
       </table>

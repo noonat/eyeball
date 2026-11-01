@@ -26,6 +26,10 @@ func TestGenerate_committedFilesAreCurrent(t *testing.T) {
 	for _, sc := range scenes {
 		g.Expect(files).To(HaveKey(sc.file + ".json"))
 	}
+	for _, ps := range reviewPages {
+		g.Expect(files).To(HaveKey(ps.file + ".json"))
+		g.Expect(files).To(HaveKey(ps.file + ".html"))
+	}
 	g.Expect(files).To(HaveKey("scenes.ts"))
 	for name, body := range files {
 		have, err := os.ReadFile(filepath.Join("../..", outDir, name))
@@ -149,7 +153,8 @@ func TestGenerate_sceneViewsHoldTheirParts(t *testing.T) {
 
 	var doc view.Files
 	strict("file-document", &doc)
-	g.Expect(string(doc.File.Document)).To(ContainSubstring("<h2"))
+	g.Expect(doc.File.Passages).NotTo(BeEmpty())
+	g.Expect(string(doc.File.Passages[1].Passage.HTML)).To(ContainSubstring("<h2"))
 	var mode view.Files
 	strict("file-mode", &mode)
 	g.Expect(mode.File.Mode).To(ContainSubstring("executable file (755)"))

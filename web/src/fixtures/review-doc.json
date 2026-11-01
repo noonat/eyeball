@@ -1,0 +1,225 @@
+{
+  "title": "Product doc, second pass",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 8,
+  "id": "1",
+  "round": 2,
+  "review_title": "Product doc, second pass",
+  "project": "eyeball",
+  "project_href": "/projects/2",
+  "agent": "spec/012-surface",
+  "abandoned": false,
+  "waiting": "12m",
+  "decided": null,
+  "note": [
+    "Both comments from round 1 are done."
+  ],
+  "files": "1 file",
+  "added": "8",
+  "removed": "6",
+  "against": {
+    "previous": "Since round 1",
+    "base": false
+  },
+  "cards": [
+    {
+      "path": "docs/product.md",
+      "id": "file-5daa9283a671",
+      "added": "8",
+      "removed": "6",
+      "unmeasured": false,
+      "whole": "/reviews/1/files/docs/product.md",
+      "raw_diff": "/reviews/1/files/docs/product.md?view=source",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/1/rounds/2/cards/docs/product.md",
+      "skeleton_hunks": 0,
+      "skeleton_lines": 0,
+      "body": {
+        "kind": "document",
+        "mode": "",
+        "rendered": null,
+        "passages": [
+          {
+            "passage": {
+              "html": "\u003ch1\u003eProduct\u003c/h1\u003e",
+              "first": 1,
+              "last": 1,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003ch2\u003eWidening\u003c/h2\u003e",
+              "first": 3,
+              "last": 3,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdel class=\"old\"\u003eWidening is one control, not a navigation.\u003c/del\u003e\n",
+              "first": 0,
+              "last": 0,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cp\u003eThree steps out, each one control rather than a navigation.\u003c/p\u003e",
+              "first": 5,
+              "last": 5,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cdel class=\"old\"\u003eA control offers whatever bases exist.\u003c/del\u003e\n\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eFrom a hunk to the whole file\u003c/strong\u003e, with the change still marked in place.\u003c/p\u003e\u003c/ins\u003e",
+              "first": 7,
+              "last": 7,
+              "changed": true,
+              "thread": {
+                "id": "thread-5daa9283a671-p7-7",
+                "line": 0,
+                "comments": [
+                  {
+                    "id": "3",
+                    "href": "/reviews/1/comments/3",
+                    "where": "docs/product.md:7",
+                    "quoted": "**From a hunk to the whole file**, with the change still marked in place.",
+                    "body": "Name the control here.",
+                    "late": false,
+                    "editable": true
+                  }
+                ]
+              }
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cins class=\"whole\"\u003e\u003cp\u003e\u003cstrong\u003eWhat the change is measured against is one control with two settings.\u003c/strong\u003e The previous round is the default from round two onward and answers what moved since the last reading.\u003c/p\u003e\u003c/ins\u003e",
+              "first": 9,
+              "last": 9,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003ch2\u003eMaking a comment\u003c/h2\u003e",
+              "first": 11,
+              "last": 11,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cp\u003eA comment attaches at one of four levels. To a line or a range of\nlines. To a passage, which is what a rendered document offers\ninstead of lines.\u003c/p\u003e",
+              "first": 13,
+              "last": 15,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003ch2\u003e\u003cdel\u003eOpen questions\u003c/del\u003e\u003cins\u003eA round is frozen\u003c/ins\u003e\u003c/h2\u003e",
+              "first": 17,
+              "last": 17,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cp\u003e\u003cdel\u003eWhat happens when the base is empty?\u003c/del\u003e\u003cins\u003eAn empty base compares with nothing, so every line reads as added.\u003c/ins\u003e\u003c/p\u003e",
+              "first": 19,
+              "last": 19,
+              "changed": true,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003ch2\u003eSee also\u003c/h2\u003e",
+              "first": 21,
+              "last": 21,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cp\u003eThe voice is in \u003ca href=\"/reviews/1/files/docs/voice.md\"\u003evoice.md\u003c/a\u003e and the design in \u003ca href=\"/reviews/1/files/docs/architecture.md\"\u003earchitecture.md\u003c/a\u003e. \u003ca href=\"/reviews/1/files/docs/product.md#making-a-comment\"\u003eThe four levels\u003c/a\u003e are above. Questions go to \u003ca href=\"https://example.com/eyeball/issues\"\u003ethe tracker\u003c/a\u003e.\u003c/p\u003e",
+              "first": 23,
+              "last": 23,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          }
+        ],
+        "rows": null,
+        "threads": null,
+        "list_id": "comments-5daa9283a671",
+        "comments": null,
+        "slot": "slot-5daa9283a671"
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": null,
+  "replies": null,
+  "earlier": [
+    {
+      "href": "/reviews/1/rounds/1",
+      "label": "Round 1 · changes requested",
+      "age": "6h ago"
+    }
+  ],
+  "closed": "",
+  "all_files": "/reviews/1/files/",
+  "acting": {
+    "state": "open",
+    "against": "",
+    "list_id": "comments-review",
+    "comments": [
+      {
+        "id": "4",
+        "href": "/reviews/1/comments/4",
+        "where": "This review",
+        "quoted": "",
+        "body": "Good. Check the links in See also.",
+        "late": false,
+        "editable": true
+      }
+    ],
+    "bar": {
+      "action": "/reviews/1/decision",
+      "count": 2
+    }
+  },
+  "stream": "/events?review=1",
+  "stamp": "df32667c2bb1eccc",
+  "place": "1:2:",
+  "unmeasurable": ""
+}

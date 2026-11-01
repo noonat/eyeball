@@ -10,7 +10,7 @@ import (
 func TestDocument_frontMatter(t *testing.T) {
 	g := NewWithT(t)
 	md := "---\nstatus: draft\nrounds: 2\nrequired_acks:\n  - reviewed\n---\n\n# Title\n"
-	out := Document(nil, []byte(md), testPage())
+	out := docHTML(nil, []byte(md), testPage())
 	g.Expect(shapesOf(g, out)).To(Equal([]shape{
 		{Text: "--- status: draft rounds: 2 required_acks: - reviewed ---"},
 		{Text: "Title"},
@@ -33,7 +33,7 @@ func TestDocument_frontMatterChanged(t *testing.T) {
 	g := NewWithT(t)
 	old := "---\nstatus: draft\n---\n\n# Title\n"
 	new := strings.Replace(old, "draft", "ready", 1)
-	g.Expect(shapesOf(g, Document([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
+	g.Expect(shapesOf(g, docHTML([]byte(old), []byte(new), testPage()))).To(Equal([]shape{
 		{
 			Mark: markMarked,
 			Text: "--- status: ready ---",
@@ -56,7 +56,7 @@ func TestDocument_frontMatterRanges(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			body := parseBody(g, Document(nil, []byte(c.md), testPage()))
+			body := parseBody(g, docHTML(nil, []byte(c.md), testPage()))
 			g.Expect(findAll(body, isElement("pre"))).To(HaveLen(1))
 			var got []string
 			for _, n := range findAll(body, hasAttrNamed("data-lines")) {
@@ -81,12 +81,12 @@ func TestDocument_notFrontMatter(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			g := NewWithT(t)
-			body := parseBody(g, Document(nil, []byte(c.md), testPage()))
+			body := parseBody(g, docHTML(nil, []byte(c.md), testPage()))
 			g.Expect(findAll(body, isElement("pre"))).To(BeEmpty())
 		})
 	}
 	g := NewWithT(t)
-	g.Expect(shapesOf(g, Document(nil, []byte(cases[0].md), testPage()))).To(Equal([]shape{
+	g.Expect(shapesOf(g, docHTML(nil, []byte(cases[0].md), testPage()))).To(Equal([]shape{
 		{Text: ""},
 		{Text: "status: draft"},
 		{Text: "Title"},

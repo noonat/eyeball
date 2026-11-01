@@ -144,6 +144,12 @@ type route struct {
 	// address. A test holds these to the addresses the app's client function
 	// says it draws.
 	shell bool
+	// gzip says the response is sent compressed when the request accepts it.
+	// It is set for the views, the bundle and the stylesheets, which are large
+	// and have a definite end. The stream is left out, since compression would
+	// buffer it, and so is the raw route, since a range request names bytes of
+	// the file as stored.
+	gzip bool
 }
 
 // routes is every route the daemon serves, declared once.
@@ -219,26 +225,49 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /api/{$}",
 		handle:  (*Server).handleQueueView,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /api/reviews/{review}/files/{path...}",
 		handle:  (*Server).handleFileView,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /api/reviews/{review}/rounds/{round}/files/{path...}",
 		handle:  (*Server).handleRoundFileView,
+		gzip:    true,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}",
+		handle:  (*Server).handleReviewView,
+		gzip:    true,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}/rounds/{round}",
+		handle:  (*Server).handleReviewView,
+		gzip:    true,
+	},
+	{
+		side:    sideSurface,
+		pattern: "GET /api/reviews/{review}/rounds/{round}/cards/{path...}",
+		handle:  (*Server).handleCardView,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /api/projects/{project}",
 		handle:  (*Server).handleProjectView,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /api/projects/{project}/files/{path...}",
 		handle:  (*Server).handleProjectFileView,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
@@ -248,7 +277,7 @@ var routes = []route{
 	{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}/rounds/{round}",
-		handle:  (*Server).handleRoundPage,
+		handle:  (*Server).handleReviewPage,
 	},
 	{
 		side:    sideSurface,
@@ -288,11 +317,13 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /static/app.css",
 		handle:  (*Server).handleStylesheet,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /static/shell.css",
 		handle:  (*Server).handleShell,
+		gzip:    true,
 	},
 	{
 		side:    sideSurface,
@@ -378,6 +409,7 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /static/react.js",
 		handle:  (*Server).handleReact,
+		gzip:    true,
 	},
 }
 
@@ -403,7 +435,13 @@ func (s *Server) mux(which side) *http.ServeMux {
 		if which == sideSurface {
 			answer = s.failurePage
 		}
+		compress := rt.gzip
 		mux.HandleFunc(rt.pattern, func(w http.ResponseWriter, r *http.Request) {
+			if compress {
+				var done func()
+				w, done = compressed(w, r)
+				defer done()
+			}
 			if err := handle(s, w, r); err != nil {
 				answer(w, r, err)
 			}

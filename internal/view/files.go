@@ -94,6 +94,36 @@ const (
 // on any other conversion to it and on any constant of the type.
 type DocumentHTML string
 
+// DocPart is one entry of a rendered document: a passage, or a fold holding a
+// run of unchanged passages. Exactly one of Passage and Fold is set.
+type DocPart struct {
+	// Passage is the entry, and is null for a fold.
+	Passage *DocPassage `json:"passage"`
+	// Fold is the run of passages folded into one line that opens in place,
+	// and is null for a passage.
+	Fold []DocPassage `json:"fold"`
+}
+
+// DocPassage is one passage of a document: its markup, the source lines it
+// covers and whether it changed.
+type DocPassage struct {
+	// HTML is what is inside the passage's block element, as the renderer wrote
+	// it. The app draws the element itself, with the range and the changed flag
+	// below, so a comment can sit between two passages as an element of its
+	// own.
+	HTML DocumentHTML `json:"html"`
+	// First and Last are the source lines the passage covers, and zero for a
+	// run a change removed, which is not in the file and takes no comment.
+	First int32 `json:"first"`
+	// Last is the passage's last source line.
+	Last int32 `json:"last"`
+	// Changed says the passage was added or differs from the old side.
+	Changed bool `json:"changed"`
+	// Thread is the comments on the passage, and is null where it has none or
+	// the page shows no comments.
+	Thread *Thread `json:"thread"`
+}
+
 // File is one file at one round, or one file of a working copy on disk.
 type File struct {
 	// Dir is the path's directory with a trailing slash, and is empty at the
@@ -117,8 +147,8 @@ type File struct {
 	// Deleted is the sentence the empty box shows, and is empty unless Body is
 	// deleted.
 	Deleted string `json:"deleted"`
-	// Document is the markdown rendered, and is empty unless Body is document.
-	Document DocumentHTML `json:"document"`
+	// Passages are the markdown rendered, and are null unless Body is document.
+	Passages []DocPart `json:"passages"`
 	// Rows are the file's rows of code, and are null unless Body is rows.
 	Rows []CodeRow `json:"rows"`
 }

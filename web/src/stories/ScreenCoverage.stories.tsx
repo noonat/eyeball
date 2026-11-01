@@ -3,11 +3,17 @@ import { expect } from "storybook/test";
 import * as arrival from "./Arrival.stories";
 import * as file from "./File.stories";
 import * as project from "./Project.stories";
+import * as review from "./Review.stories";
+import * as reviewStatesModule from "./ReviewStates.stories";
 import { entries } from "./Sheet";
 import {
   fileStates,
+  largeReviewStates,
   mediaStates,
   projectStates,
+  reviewBarStates,
+  reviewCommentStates,
+  reviewStates,
   treeStates,
 } from "./sheetStates";
 import * as tree from "./Tree.stories";
@@ -24,8 +30,21 @@ const screens = entries({
   "./Arrival.stories.tsx": arrival,
   "./File.stories.tsx": file,
   "./Project.stories.tsx": project,
+  "./Review.stories.tsx": review,
+  "./ReviewStates.stories.tsx": reviewStatesModule,
   "./Tree.stories.tsx": tree,
 });
+
+const sheeted = [
+  ...projectStates,
+  ...treeStates,
+  ...fileStates,
+  ...mediaStates,
+  ...reviewStates,
+  ...largeReviewStates,
+  ...reviewCommentStates,
+  ...reviewBarStates,
+];
 
 /**
  * The sheets list their states by hand, so a state added to a screen and left
@@ -35,22 +54,13 @@ const screens = entries({
 export const EveryStateIsOnASheet: Story = {
   render: () => <p>Every screen state is on a sheet.</p>,
   play: async () => {
-    const placed = new Set(
-      [...projectStates, ...treeStates, ...fileStates, ...mediaStates].map(
-        (state) => state.id,
-      ),
-    );
+    const placed = new Set(sheeted.map((state) => state.id));
     const left = screens
       .map((entry) => entry.id)
       .filter((id) => !placed.has(id));
     await expect(left).toEqual([]);
     // A sheet naming a state twice, or one no screen has, is as wrong.
-    const listed = [
-      ...projectStates,
-      ...treeStates,
-      ...fileStates,
-      ...mediaStates,
-    ].map((state) => state.id);
+    const listed = sheeted.map((state) => state.id);
     await expect(listed).toHaveLength(placed.size);
     await expect(
       listed.filter((id) => !screens.some((e) => e.id === id)),

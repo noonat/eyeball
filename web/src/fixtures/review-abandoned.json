@@ -1,0 +1,132 @@
+{
+  "title": "A change nobody needs now",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 8,
+  "id": "7",
+  "round": 1,
+  "review_title": "A change nobody needs now",
+  "project": "harbor",
+  "project_href": "/projects/1",
+  "agent": "feat/never",
+  "abandoned": true,
+  "waiting": "5h",
+  "decided": null,
+  "note": [
+    "Superseded."
+  ],
+  "files": "1 file",
+  "added": "2",
+  "removed": "0",
+  "against": null,
+  "cards": [
+    {
+      "path": "internal/withdrawn/w.go",
+      "id": "file-471b7ae97d70",
+      "added": "2",
+      "removed": "0",
+      "unmeasured": false,
+      "whole": "/reviews/7/files/internal/withdrawn/w.go",
+      "raw_diff": "",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/7/rounds/1/cards/internal/withdrawn/w.go",
+      "skeleton_hunks": 1,
+      "skeleton_lines": 3,
+      "body": {
+        "kind": "rows",
+        "mode": "",
+        "rendered": null,
+        "passages": null,
+        "rows": [
+          {
+            "kind": "hunk",
+            "header": "@@ -1 +1,3 @@",
+            "number": 0,
+            "sign": "",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 1,
+            "sign": "",
+            "tokens": [
+              {
+                "text": "package",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " withdrawn",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 2,
+            "sign": "+",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 3,
+            "sign": "+",
+            "tokens": [
+              {
+                "text": "const",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " b = ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "2",
+                "role": "number",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          }
+        ],
+        "threads": null,
+        "list_id": "",
+        "comments": null,
+        "slot": ""
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": [
+    {
+      "id": "13",
+      "href": "",
+      "where": "This review",
+      "quoted": "",
+      "body": "Is this still wanted?",
+      "late": false,
+      "editable": false
+    }
+  ],
+  "replies": null,
+  "earlier": null,
+  "closed": "",
+  "all_files": "/reviews/7/files/",
+  "acting": null,
+  "stream": "/events?review=7",
+  "stamp": "401148eab0847ad3",
+  "place": "7:1:",
+  "unmeasurable": ""
+}

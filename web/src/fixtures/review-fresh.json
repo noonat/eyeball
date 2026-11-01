@@ -1,0 +1,112 @@
+{
+  "title": "A new plan",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 8,
+  "id": "10",
+  "round": 1,
+  "review_title": "A new plan",
+  "project": "eyeball",
+  "project_href": "/projects/2",
+  "agent": "spec/013-plan",
+  "abandoned": false,
+  "waiting": "25m",
+  "decided": null,
+  "note": [
+    "The plan, as a document."
+  ],
+  "files": "1 file",
+  "added": "7",
+  "removed": "0",
+  "against": null,
+  "cards": [
+    {
+      "path": "docs/plan.md",
+      "id": "file-61bf200863ca",
+      "added": "7",
+      "removed": "0",
+      "unmeasured": false,
+      "whole": "/reviews/10/files/docs/plan.md",
+      "raw_diff": "/reviews/10/files/docs/plan.md?view=source",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/10/rounds/1/cards/docs/plan.md",
+      "skeleton_hunks": 0,
+      "skeleton_lines": 0,
+      "body": {
+        "kind": "document",
+        "mode": "",
+        "rendered": null,
+        "passages": [
+          {
+            "passage": {
+              "html": "\u003ch1\u003eThe plan\u003c/h1\u003e",
+              "first": 1,
+              "last": 1,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cp\u003eThe first round has an empty base, so nothing is marked.\u003c/p\u003e",
+              "first": 3,
+              "last": 3,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003ch2\u003eSteps\u003c/h2\u003e",
+              "first": 5,
+              "last": 5,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          },
+          {
+            "passage": {
+              "html": "\u003cp\u003eWrite it. Read it. Ship it.\u003c/p\u003e",
+              "first": 7,
+              "last": 7,
+              "changed": false,
+              "thread": null
+            },
+            "fold": null
+          }
+        ],
+        "rows": null,
+        "threads": null,
+        "list_id": "comments-61bf200863ca",
+        "comments": null,
+        "slot": "slot-61bf200863ca"
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": true,
+  "comments": null,
+  "replies": null,
+  "earlier": null,
+  "closed": "",
+  "all_files": "/reviews/10/files/",
+  "acting": {
+    "state": "open",
+    "against": "",
+    "list_id": "comments-review",
+    "comments": null,
+    "bar": {
+      "action": "/reviews/10/decision",
+      "count": 0
+    }
+  },
+  "stream": "/events?review=10",
+  "stamp": "5029c18f76364cb6",
+  "place": "10:1:",
+  "unmeasurable": ""
+}

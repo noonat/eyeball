@@ -77,7 +77,7 @@ func fileFilesView(p page, body filePage, waiting *int32) view.Files {
 	case view.FileBodyDeleted:
 		file.Deleted = body.Deleted
 	case view.FileBodyDocument:
-		file.Document = documentHTML(body.Document)
+		file.Passages = docParts(body.Parts, nil)
 	case view.FileBodyRows:
 		file.Rows = codeRows(body.Diff)
 	}
@@ -108,6 +108,38 @@ func fileBody(f filePage) view.FileBody {
 		return view.FileBodyTooLarge
 	}
 	return view.FileBodyRows
+}
+
+// docParts is a rendered document's parts as the JSON view holds them. thread
+// says which comments sit under a passage by its range, and may be nil for a
+// page that shows none.
+func docParts(parts []render.Part, thread func(first, last int) *view.Thread) []view.DocPart {
+	passage := func(p render.Passage) view.DocPassage {
+		out := view.DocPassage{
+			HTML:    documentHTML(p.Body),
+			First:   int32(p.First),
+			Last:    int32(p.Last),
+			Changed: p.Changed,
+		}
+		if thread != nil && p.First > 0 {
+			out.Thread = thread(p.First, p.Last)
+		}
+		return out
+	}
+	var out []view.DocPart
+	for _, part := range parts {
+		if len(part.Fold) == 0 {
+			p := passage(part.Passage)
+			out = append(out, view.DocPart{Passage: &p})
+			continue
+		}
+		var run []view.DocPassage
+		for _, p := range part.Fold {
+			run = append(run, passage(p))
+		}
+		out = append(out, view.DocPart{Fold: run})
+	}
+	return out
 }
 
 // documentHTML is the one place a rendered document becomes the view's trusted

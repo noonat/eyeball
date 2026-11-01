@@ -7,6 +7,9 @@ interface AppLinkProps {
   readonly className?: string | undefined;
   /** Marks the link as the view shown, for a control choosing between views. */
   readonly current?: boolean | undefined;
+  /** Names a link that has only an icon. */
+  readonly "aria-label"?: string | undefined;
+  readonly title?: string | undefined;
   readonly children: ReactNode;
 }
 
@@ -15,8 +18,21 @@ interface AppLinkProps {
  * move loads no page and the cache and the scroll survive it. Any other is a
  * plain anchor, which loads the page the way a template page needs.
  */
-export function AppLink({ href, className, current, children }: AppLinkProps) {
-  const aria = current === true ? { "aria-current": true as const } : {};
+export function AppLink({
+  href,
+  className,
+  current,
+  title,
+  children,
+  ...rest
+}: AppLinkProps) {
+  const aria = {
+    ...(current === true ? { "aria-current": true as const } : {}),
+    ...(rest["aria-label"] === undefined
+      ? {}
+      : { "aria-label": rest["aria-label"] }),
+    ...(title === undefined ? {} : { title }),
+  };
   if (draws(href)) {
     return (
       <Link

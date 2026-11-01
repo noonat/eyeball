@@ -54,6 +54,8 @@ func (s *Server) serveView(w http.ResponseWriter, r *http.Request, answer answer
 		writeJSON(w, http.StatusOK, treeFilesView(ans.page, body, count))
 	case filePage:
 		writeJSON(w, http.StatusOK, fileFilesView(ans.page, body, count))
+	case reviewPage:
+		writeJSON(w, http.StatusOK, reviewView(ans.page, body, count))
 	default:
 		return errors.Newf("no view for page body %T", ans.page.Body)
 	}

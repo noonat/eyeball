@@ -1,0 +1,123 @@
+{
+  "title": "A change in a repository that is gone",
+  "back": "/",
+  "back_label": "Queue",
+  "waiting_count": 8,
+  "id": "9",
+  "round": 1,
+  "review_title": "A change in a repository that is gone",
+  "project": "vanished",
+  "project_href": "/projects/3",
+  "agent": "fix/lost",
+  "abandoned": false,
+  "waiting": "15m",
+  "decided": null,
+  "note": [
+    "The repository moved."
+  ],
+  "files": "1 file",
+  "added": "",
+  "removed": "",
+  "against": null,
+  "cards": [
+    {
+      "path": "lost.go",
+      "id": "file-0de6af7c16a1",
+      "added": "",
+      "removed": "",
+      "unmeasured": true,
+      "whole": "/reviews/9/files/lost.go",
+      "raw_diff": "",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/9/rounds/1/cards/lost.go",
+      "skeleton_hunks": 0,
+      "skeleton_lines": 3,
+      "body": {
+        "kind": "rows",
+        "mode": "",
+        "rendered": null,
+        "passages": null,
+        "rows": [
+          {
+            "kind": "context",
+            "header": "",
+            "number": 1,
+            "sign": "",
+            "tokens": [
+              {
+                "text": "package",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " lost",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 2,
+            "sign": "",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 3,
+            "sign": "",
+            "tokens": [
+              {
+                "text": "const",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " a = ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "2",
+                "role": "number",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          }
+        ],
+        "threads": null,
+        "list_id": "comments-0de6af7c16a1",
+        "comments": null,
+        "slot": "slot-0de6af7c16a1"
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": null,
+  "replies": null,
+  "earlier": null,
+  "closed": "",
+  "all_files": "/reviews/9/files/",
+  "acting": {
+    "state": "open",
+    "against": "",
+    "list_id": "comments-review",
+    "comments": null,
+    "bar": {
+      "action": "/reviews/9/decision",
+      "count": 0
+    }
+  },
+  "stream": "/events?review=9",
+  "stamp": "5029c18f76364cb6",
+  "place": "9:1:",
+  "unmeasurable": "The project's repository is gone, so the change cannot be measured."
+}

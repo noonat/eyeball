@@ -1,0 +1,54 @@
+<div class="topbar"><a class="back" href="/"><span class="i i-chevron-left" aria-hidden="true"></span>Queue</a><h1>A change in a repository that is gone</h1><span class="eye" role="img" aria-label="8 waiting"><span class="iris">8</span></span></div>
+<div class="scroll"><div class="page" data-stream="/events?review=9" data-stamp="5029c18f76364cb6" data-place="9:1:" data-review="9" data-round="1" data-acting="open">
+<div class="note letter">
+<p>The repository moved.</p>
+<span class="sig"><span class="agent">fix/lost</span></span>
+</div>
+<div class="brief">
+<div class="where"><span class="pill waiting">Waiting 15m</span><span class="pill plain">Round 1</span><span class="who"><a class="bit" href="/projects/3"><span class="i i-folder" aria-hidden="true"></span><span class="project">vanished</span></a><span class="bit"><span class="i i-bot" aria-hidden="true"></span><span class="agent">fix/lost</span></span></span></div>
+<h2 class="title">A change in a repository that is gone</h2>
+</div>
+<div class="notice warn"><span class="glyph i i-triangle-alert" aria-hidden="true"></span><span>The project&#39;s repository is gone, so the change cannot be measured. Each file is shown as this round captured it.</span></div>
+<form class="composer" hx-post="/reviews/9/comments" hx-target="#comments-review" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1"/>
+<input type="hidden" name="level" value="review"/>
+<input type="hidden" name="submission" value=""/>
+<div class="anchor">This review</div>
+<textarea class="field" name="body" aria-label="Comment" placeholder="Comment on the whole review…"></textarea>
+<div class="foot">
+<span class="hint">Saved as you type</span>
+<span class="acts"><button type="submit" class="btn small accent">Add</button></span>
+</div>
+</form>
+<div id="comments-review">
+</div>
+<template id="unsent-card"><div class="comment unsent"><div class="anchor"><span class="where"></span></div><p></p><div class="acts"><a data-retry="" role="button" tabindex="0"><span class="i i-refresh-cw" aria-hidden="true"></span>Retry now</a><a data-discard="" role="button" tabindex="0"><span class="i i-trash-2" aria-hidden="true"></span>Delete</a></div></div></template>
+<div class="toolbar">
+<span class="counts"><b class="files">1 file</b></span>
+</div>
+<details class="file" id="file-0de6af7c16a1" data-path="lost.go" open="">
+<summary><span class="path"><bdi>lost.go</bdi></span><a aria-label="Whole file" class="fileopen" href="/reviews/9/files/lost.go" title="Whole file"><span class="i i-maximize-2" aria-hidden="true"></span></a></summary>
+<div class="code narrow">
+<table>
+<tbody><tr data-line="1"><td class="ln">1</td><td class="sign"></td><td class="src"><span class="k">package</span> lost</td></tr>
+<tr data-line="2"><td class="ln">2</td><td class="sign"></td><td class="src"></td></tr>
+<tr data-line="3"><td class="ln">3</td><td class="sign"></td><td class="src"><span class="k">const</span> a = <span class="n">2</span></td></tr>
+</tbody></table>
+</div>
+<div id="comments-0de6af7c16a1">
+</div>
+<div id="slot-0de6af7c16a1"></div>
+</details>
+<div class="tree">
+<a class="treerow" href="/reviews/9/files/"><span class="i i-folder" aria-hidden="true"></span><span class="nm">All files</span><span class="i i-chevron-right" aria-hidden="true"></span></a>
+</div>
+</div><form class="decide" id="bar" hx-post="/reviews/9/decision" hx-target="this" hx-swap="outerHTML">
+<input type="hidden" name="round" value="1"/>
+<div id="unsent" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong><span id="unsent-count">1 comment</span> did not save.</strong> Retry it, or delete it, before deciding.</span></div></div>
+<div id="unsaved" hidden=""><div class="notice danger"><span class="glyph i i-circle-alert" aria-hidden="true"></span><span><strong>A comment is still being written.</strong> Add it, or cancel it, before deciding.</span></div></div>
+<div class="tally" id="tally"><span>No comments yet</span></div>
+<textarea class="field" name="note" aria-label="Verdict note" placeholder="A note with the verdict…"></textarea>
+<div class="buttons"><button type="submit" class="btn danger" name="verdict" value="changes">Request changes</button><button type="submit" class="btn primary" name="verdict" value="approve">Approve</button></div>
+<div id="whynot" hidden=""><span class="why-not">You can’t submit a review while offline.</span></div>
+</form>
+</div>

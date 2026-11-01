@@ -1,0 +1,230 @@
+{
+  "title": "Round 1",
+  "back": "/reviews/1",
+  "back_label": "Review",
+  "waiting_count": 4,
+  "id": "1",
+  "round": 1,
+  "review_title": "Offline outbox drainer",
+  "project": "harbor",
+  "project_href": "/projects/1",
+  "agent": "fix/outbox-drain",
+  "abandoned": false,
+  "waiting": "50m",
+  "decided": {
+    "approved": false,
+    "pill": "Changes requested",
+    "sentence": "The verdict went out 40 minutes ago.",
+    "note": [
+      "Not yet."
+    ]
+  },
+  "note": [
+    "A first cut, to agree the shape."
+  ],
+  "files": "1 file",
+  "added": "4",
+  "removed": "1",
+  "against": null,
+  "cards": [
+    {
+      "path": "internal/outbox/drain.go",
+      "id": "file-e07f304a2991",
+      "added": "4",
+      "removed": "1",
+      "unmeasured": false,
+      "whole": "/reviews/1/rounds/1/files/internal/outbox/drain.go",
+      "raw_diff": "",
+      "held": "",
+      "held_hint": "",
+      "deferred": false,
+      "body_href": "/api/reviews/1/rounds/1/cards/internal/outbox/drain.go",
+      "skeleton_hunks": 1,
+      "skeleton_lines": 7,
+      "body": {
+        "kind": "rows",
+        "mode": "",
+        "rendered": null,
+        "passages": null,
+        "rows": [
+          {
+            "kind": "hunk",
+            "header": "@@ -1,3 +1,6 @@",
+            "number": 0,
+            "sign": "",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 1,
+            "sign": "",
+            "tokens": [
+              {
+                "text": "package",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " outbox",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "context",
+            "header": "",
+            "number": 2,
+            "sign": "",
+            "tokens": null,
+            "no_newline": false
+          },
+          {
+            "kind": "del",
+            "header": "",
+            "number": 3,
+            "sign": "−",
+            "tokens": [
+              {
+                "text": "func",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "Drain",
+                "role": "function",
+                "mark": false
+              },
+              {
+                "text": "() {}",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 3,
+            "sign": "+",
+            "tokens": [
+              {
+                "text": "// Drain sends what queued while offline.",
+                "role": "comment",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 4,
+            "sign": "+",
+            "tokens": [
+              {
+                "text": "func",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "Drain",
+                "role": "function",
+                "mark": false
+              },
+              {
+                "text": "() ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "error",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " {",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 5,
+            "sign": "+",
+            "tokens": [
+              {
+                "text": "\t",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "return",
+                "role": "keyword",
+                "mark": false
+              },
+              {
+                "text": " ",
+                "role": "plain",
+                "mark": false
+              },
+              {
+                "text": "nil",
+                "role": "keyword",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          },
+          {
+            "kind": "add",
+            "header": "",
+            "number": 6,
+            "sign": "+",
+            "tokens": [
+              {
+                "text": "}",
+                "role": "plain",
+                "mark": false
+              }
+            ],
+            "no_newline": false
+          }
+        ],
+        "threads": null,
+        "list_id": "",
+        "comments": null,
+        "slot": ""
+      }
+    }
+  ],
+  "listed": false,
+  "fresh": false,
+  "comments": null,
+  "replies": null,
+  "earlier": null,
+  "closed": "Closed 40 minutes ago. Round 2 is the current one.",
+  "all_files": "/reviews/1/rounds/1/files/",
+  "acting": null,
+  "stream": "/events?review=1",
+  "stamp": "8772333d52f7e57b",
+  "place": "1:1:",
+  "unmeasurable": ""
+}
