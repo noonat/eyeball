@@ -72,6 +72,11 @@ func TestServer_Surface_browserShellOffline(t *testing.T) {
 	g.Expect(b.eval(g, `!!document.querySelector(".connecting .eye.splash .iris")`)).To(BeTrue())
 	g.Expect(b.eval(g, `document.querySelectorAll(".head, .topbar, .wordmark, #offline, #update, a.row, .empty").length`)).To(BeEquivalentTo(0))
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".connecting")).display`)).To(Equal("flex"), "the shell's stylesheet came from the cache")
+	// The eye and its line are centered as a group, so the eye sits a little
+	// above the middle. On the phone the group drew at the top of the screen,
+	// because #root had no height for .app's min-height to resolve against.
+	off := b.eval(g, `(() => { const r = document.querySelector(".connecting .eye").getBoundingClientRect(); return Math.abs((r.top + r.bottom) / 2 - innerHeight / 2); })()`)
+	g.Expect(off).To(BeNumerically("<", 40), "the connecting state is not centered in the viewport")
 	b.eval(g, `window.__before = true`)
 
 	surfaceAt(g, t, addr, f.s.LoopbackSurface(browserToken))

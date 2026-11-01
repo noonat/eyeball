@@ -26,6 +26,13 @@ html {
   scroll-padding-top: var(--head-height, 0px);
 }
 
+/* The React app mounts .app inside #root. With no height on #root, .app's
+ * min-height had nothing to resolve against, and the connecting state drew at
+ * the top of the screen instead of its middle. */
+#root {
+  height: 100%;
+}
+
 .app {
   height: auto;
   min-height: 100%;

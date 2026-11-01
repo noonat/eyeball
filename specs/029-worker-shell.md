@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -230,11 +230,56 @@ worker answers a navigation from the cache after one second. With the daemon
 started again and the app left open, the queue drew on its own. The owner then
 asked for the state in Iteration 4.
 
-- [ ] With the daemon stopped, the installed app relaunched draws the connecting
+**Daemon stopped, the connecting state's build, 2026-10-31.** The relaunched app
+drew the connecting state at the top of the screen, not its middle. The React
+app mounts `.app` inside `#root`, which had no height, so `.app`'s
+`min-height: 100%` resolved against nothing. The template pages put `.app` in
+`body`, so they never showed this. `shell.css` now gives `#root` the full
+height. With that build and the daemon stopped, the relaunched app drew the
+connecting state in the middle of the screen. With the daemon started again and
+the app left open, the queue replaced it on its own.
+
+**Rebuilt while closed, 2026-10-31.** With the app closed, the daemon was
+rebuilt and restarted, and its shell token went from `4e0427f5` to `b7f2e0b5`.
+The next launch opened on the queue with no update notice.
+
+**Rebuilt while open, 2026-10-31.** With the app open on the queue, the daemon
+was rebuilt and restarted on shell token `cb594e97`. The update notice showed,
+and one tap on Refresh cleared it.
+
+**Taps over Notes, 2026-10-31.** Three taps, at 01:28, 01:31 and 11:34, with the
+app in the background on the queue, brought the app forward on the queue. The
+owner read the first two notifications, and each named its review. No beacon
+reached the daemon. A temporary log of every surface request, running for the
+11:34 tap, showed only the page coming forward: two fetches of the queue's view,
+`/api/`, and a new stream, with no `POST /taps` and no navigation. The first
+beacon is sent after the two `matchAll` calls and before any branch of
+`openReview`. So either the worker got no click, or the `matchAll` calls did not
+settle. The beacons cannot tell which.
+
+Three taps at 17:43 to 17:45 then opened the named review each time, with every
+beacon logged. With the app closed, `matchAll` found no window and `openWindow`
+opened the review. With the app in the background on a review page, and then on
+the queue, the page answered the posted address in 7 ms and 9 ms and loaded the
+review itself, and `navigate` did not run. Nothing known differs between the
+failed taps and these.
+
+**Tap over the terminal, 2026-10-31.** With the app in the background on the
+queue, a tap over the terminal opened the named review. The queue answered the
+posted address in 3 ms, and `navigate` did not run.
+
+- [x] With the daemon stopped, the installed app relaunched draws the connecting
       state from Iteration 4, and the queue once the daemon is back.
-- [ ] A daemon rebuilt while the app was closed: the next launch opens the new
+- [x] A daemon rebuilt while the app was closed: the next launch opens the new
       build with no update notice.
-- [ ] A page open across a rebuild shows the update notice, and one Refresh
+- [x] A page open across a rebuild shows the update notice, and one Refresh
       reaches the new build.
-- [ ] Taps over Notes and over the terminal open the named review, and the
+- [x] Taps over Notes and over the terminal open the named review, and the
       beacons show that the page answered.
+
+> **Completed** 2026-11-01 01:30 UTC
+>
+> - acks: phone-checked
+> - `make check` — 15.0s
+> - `go test -race ./...` — 5.1s
+> - `go test -count=1 -tags browser ./internal/server` — 65.5s
