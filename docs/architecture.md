@@ -663,6 +663,16 @@ in the browser was rejected: the word marking in "Marking a rendered document"
 works on goldmark's output, and a second renderer would mark a different
 document.
 
+**One field type carries that HTML, and one component inserts it.** The view
+sends a document passage in a named type that only `render.Document`'s result is
+converted to, and a Go test that reads the package's source fails on a
+conversion anywhere else. The app inserts it with `dangerouslySetInnerHTML` in
+one component, and oxlint's `react/no-danger` fails the prop anywhere else.
+Measured 2026-10-31: oxlint 1.87.0 failed a planted use with the rule on, and
+refused a misspelled rule name, so a typo cannot turn the check off. Each check
+covers one side, so trusted markup reaches the page only along the path that
+made it.
+
 **Every page address answers the same shell**, and the app's router reads the
 address. Links, bookmarks and a notification's deep link keep the addresses they
 have now, and a page loaded cold lands on the right screen.
@@ -714,10 +724,10 @@ describes and no spec has built yet.
 | `GET /{$}`                                                 | the shell, drawing the queue                        | 028     |
 | `GET /reviews/{review}`                                    | the shell, drawing the current round                | planned |
 | `GET /reviews/{review}/rounds/{round}`                     | the shell, drawing that round                       | planned |
-| `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | planned |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | planned |
-| `GET /projects/{project}`                                  | the shell, drawing the project view                 | planned |
-| `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | planned |
+| `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | 030     |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | 030     |
+| `GET /projects/{project}`                                  | the shell, drawing the project view                 | 030     |
+| `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | 030     |
 | `GET /api/{$}`                                             | the queue's view, as JSON, with a stamp of its rows | 028     |
 | `GET /api/...`, each other page path above                 | that page's view, as JSON                           | planned |
 | `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | planned |
@@ -775,6 +785,16 @@ link, since `app.css` stays one file through the mixed period and the React
 bundle imports no stylesheet. A row that leads to a template page is a plain
 anchor, so tapping it is a full page load. React Router intercepts only its own
 `Link`.
+
+**One client function says which addresses the app draws**, by matching an
+address against the router's routes. The link component draws a router link for
+such an address and a plain anchor for any other, and the tap listener moves the
+router for one and loads any other. Go builds every href, escaped, as the
+templates do, and the app follows it. A view is fetched from `/api` plus the
+page's raw path and query, so a query such as `?copy=` reaches the view
+unchanged. Measured 2026-10-31 with React Router 7.18.5's memory router: a link
+keeps an escaped href, `%20`, `%25`, `%23`, `%3F` and UTF-8 alike, and
+`useLocation` keeps the path escaped where the splat parameter decodes it.
 
 ## The client code
 
@@ -893,13 +913,29 @@ three rules keep the copy correct.
 
 - **The stream says when to refetch.** Each stamp from `/events` names the view
   it covers, where today one stamp covers a whole page, and the app invalidates
-  the views it names. A change no screen shows refetches nothing.
+  the views it names. A change no screen shows refetches nothing. Until a view
+  has a stamp, it is refetched when its screen opens and when the app comes back
+  to the foreground, which TanStack Query does by default. The project view, the
+  tree and the file pages have none yet.
 - **A write updates the cache from the server's answer**, never from a guess. A
   verdict shows as decided only once the server has said so. A comment shows as
   sending until its answer arrives, and as unsent with its text and a retry if
   the answer is a failure, as product.md requires.
 - **What only this device knows stays on this device.** Drafts, the reader's
   place and folded cards stay in `localStorage`, as they are today.
+
+**Each screen holds its own stream**, for the build and connection notices and
+for the stamps it follows. The queue opens `/events?queue=1`, and a screen with
+no stamps opens `/events`. A move between screens closes one and opens the next,
+and the notice's two-second delay keeps the gap from showing. One stream for the
+whole app was rejected while the queue is the only screen with stamps, since its
+address names what it follows.
+
+**Back returns to the place in a list.** A move inside the app is not a page
+load, so the browser does not restore the scroll. The router is a data router
+with React Router's `ScrollRestoration`, which does. Measured 2026-10-31 in
+headless Chromium with React Router 7.18.5 and a cached view: a list scrolled to
+4000 px, a row opened, and back returned to 4000 px. iOS is not measured.
 
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
