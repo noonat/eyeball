@@ -9,6 +9,18 @@ export function bodyKey(card: Card): readonly [string, string] {
   return viewKey(card.body_href);
 }
 
+/** Matches the query of any card body of a round. */
+export function isBodyOf(
+  review: string,
+  round: number,
+): (query: { readonly queryKey: readonly unknown[] }) => boolean {
+  const prefix = `/api/reviews/${review}/rounds/${String(round)}/cards/`;
+  return ({ queryKey }) =>
+    queryKey[0] === "view" &&
+    typeof queryKey[1] === "string" &&
+    queryKey[1].startsWith(prefix);
+}
+
 /** What a screen needs from the bodies it fetches. */
 export interface Bodies {
   /** The body held for each path, fetched now or when the review was last open. */
@@ -98,6 +110,11 @@ export function useBodies(review: Review): Bodies {
       },
       enabled: asked.has(card.path),
       retry: false,
+      // A body is read again with the round, inside the hold. A read on focus
+      // would give its comments the state of a verdict given elsewhere while
+      // the bar is still drawn.
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     })),
     combine,
   });
@@ -126,15 +143,11 @@ export function useBodies(review: Review): Bodies {
     },
     [client],
   );
-  const prefix = `/api/reviews/${review.id}/rounds/${review.round}/cards/`;
   const refreshAll = useCallback((): void => {
     void client.invalidateQueries({
-      predicate: ({ queryKey }) =>
-        queryKey[0] === "view" &&
-        typeof queryKey[1] === "string" &&
-        queryKey[1].startsWith(prefix),
+      predicate: isBodyOf(review.id, review.round),
     });
-  }, [client, prefix]);
+  }, [client, review.id, review.round]);
   const refresh = useCallback(
     (path: string): void => {
       const card = (review.cards ?? []).find((c) => c.path === path);

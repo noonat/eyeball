@@ -991,6 +991,7 @@ func TestServer_Surface_reviewWholeFileLink(t *testing.T) {
 			round := f.roundAt(g, c.page)
 			g.Expect(round.Cards).To(HaveLen(1))
 			g.Expect(round.Cards[0].Whole).To(Equal(c.want))
+			g.Expect(round.Cards[0].RawDiff).To(BeEmpty(), "a file shown as rows has no source view")
 		})
 	}
 }

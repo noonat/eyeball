@@ -65,64 +65,76 @@ func commentsAPI(review int64) string {
 // refusedComments are comments that cannot be stored, on a review of a.txt,
 // which reads "one\ntwo\n" at round 1 and "one\n" in the base.
 var refusedComments = []struct {
-	name   string
-	req    view.CommentRequest
-	status int
+	name    string
+	req     view.CommentRequest
+	status  int
+	message string
 }{
 	{
-		name:   "a line past the end of the file",
-		req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: 3},
-		status: http.StatusBadRequest,
+		name:    "a line past the end of the file",
+		req:     view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: 3},
+		status:  http.StatusBadRequest,
+		message: "a.txt has no line 3.",
 	},
 	{
-		name:   "a path the round cannot read",
-		req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "missing.txt", Start: 1},
-		status: http.StatusBadRequest,
+		name:    "a path the round cannot read",
+		req:     view.CommentRequest{Level: view.CommentLevelLine, Path: "missing.txt", Start: 1},
+		status:  http.StatusBadRequest,
+		message: "Round 1 holds no readable copy of missing.txt.",
 	},
 	{
-		name:   "a line with no line",
-		req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt"},
-		status: http.StatusBadRequest,
+		name:    "a line with no line",
+		req:     view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt"},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "a line with a range",
-		req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: 1, End: 2},
-		status: http.StatusBadRequest,
+		name:    "a line with a range",
+		req:     view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: 1, End: 2},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "a negative line",
-		req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: -1},
-		status: http.StatusBadRequest,
+		name:    "a negative line",
+		req:     view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: -1},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "a negative removed line",
-		req:    view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt", OldLine: -1},
-		status: http.StatusBadRequest,
+		name:    "a negative removed line",
+		req:     view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt", OldLine: -1},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "a review comment naming a path",
-		req:    view.CommentRequest{Level: view.CommentLevelReview, Path: "a.txt"},
-		status: http.StatusBadRequest,
+		name:    "a review comment naming a path",
+		req:     view.CommentRequest{Level: view.CommentLevelReview, Path: "a.txt"},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "a level that does not exist",
-		req:    view.CommentRequest{Level: "chapter"},
-		status: http.StatusBadRequest,
+		name:    "a level that does not exist",
+		req:     view.CommentRequest{Level: "chapter"},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "no text",
-		req:    view.CommentRequest{Level: view.CommentLevelReview, Body: "  "},
-		status: http.StatusBadRequest,
+		name:    "no text",
+		req:     view.CommentRequest{Level: view.CommentLevelReview, Body: "  "},
+		status:  http.StatusBadRequest,
+		message: emptyComment,
 	},
 	{
-		name:   "a climb out of the project",
-		req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "../x", Start: 1},
-		status: http.StatusBadRequest,
+		name:    "a climb out of the project",
+		req:     view.CommentRequest{Level: view.CommentLevelLine, Path: "../x", Start: 1},
+		status:  http.StatusBadRequest,
+		message: notThisForm,
 	},
 	{
-		name:   "a round the review does not have",
-		req:    view.CommentRequest{Level: view.CommentLevelReview, Round: 9},
-		status: http.StatusNotFound,
+		name:    "a round the review does not have",
+		req:     view.CommentRequest{Level: view.CommentLevelReview, Round: 9},
+		status:  http.StatusNotFound,
+		message: noRound,
 	},
 }
 
@@ -132,34 +144,47 @@ func TestServer_addCommentJSON(t *testing.T) {
 		req    view.CommentRequest
 		where  string
 		quoted string
+		// level, start and end are what the store holds, which the answer does not
+		// carry.
+		level      store.Level
+		start, end int
 	}{
 		{
 			name:   "a line",
 			req:    view.CommentRequest{Level: view.CommentLevelLine, Path: "a.txt", Start: 2},
 			where:  "a.txt:2",
 			quoted: "two",
+			level:  store.LevelLine,
+			start:  2,
+			end:    2,
 		},
 		{
 			name:   "a passage",
 			req:    view.CommentRequest{Level: view.CommentLevelPassage, Path: "a.txt", Start: 1, End: 2},
 			where:  "a.txt:1–2",
 			quoted: "one\ntwo",
+			level:  store.LevelPassage,
+			start:  1,
+			end:    2,
 		},
 		{
 			name:  "a file",
 			req:   view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt"},
 			where: "a.txt",
+			level: store.LevelFile,
 		},
 		{
 			name:   "a removed line, read from the base",
 			req:    view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt", OldLine: 1, Against: "base"},
 			where:  "a.txt",
 			quoted: "one",
+			level:  store.LevelFile,
 		},
 		{
 			name:  "the review",
 			req:   view.CommentRequest{Level: view.CommentLevelReview},
 			where: "This review",
+			level: store.LevelReview,
 		},
 	}
 	for _, c := range cases {
@@ -179,6 +204,12 @@ func TestServer_addCommentJSON(t *testing.T) {
 			g.Expect(got.Editable).To(BeTrue(), "an open round's comment can still change")
 			g.Expect(got.Late).To(BeFalse())
 			g.Expect(got.Href).To(Equal("/api/reviews/" + itoa(id) + "/comments/" + strconv.FormatInt(got.ID, 10)))
+
+			held := f.comments(g, t, f.latestRound(g, t, id))
+			g.Expect(held).To(HaveLen(1))
+			g.Expect(held[0].Level).To(Equal(c.level))
+			g.Expect(held[0].StartLine).To(Equal(c.start))
+			g.Expect(held[0].EndLine).To(Equal(c.end))
 
 			// The comment is the one the round's view sends for the same store.
 			round := readReview(g, f, "/api/reviews/"+itoa(id))
@@ -305,7 +336,7 @@ func TestServer_addCommentJSONRefused(t *testing.T) {
 			}
 			res := sendJSON(f.s.Surface(), http.MethodPost, commentsAPI(id), c.req)
 			g.Expect(res.Code).To(Equal(c.status))
-			g.Expect(readRefusal(g, res).Message).NotTo(BeEmpty())
+			g.Expect(readRefusal(g, res).Message).To(Equal(c.message))
 			comments, err := f.store.Comments(t.Context(), f.latestRound(g, t, id))
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(comments).To(BeEmpty())
@@ -521,20 +552,30 @@ func TestServer_editCommentJSON(t *testing.T) {
 	id := actingReview(g, t, f)
 	round := f.latestRound(g, t, id)
 	c := f.addComment(g, t, store.NewComment{RoundID: round, Level: store.LevelReview, Body: "First."})
-	f.addComment(g, t, store.NewComment{RoundID: round, Level: store.LevelReview, Body: "Second."})
+	other := f.addComment(g, t, store.NewComment{RoundID: round, Level: store.LevelReview, Body: "Second."})
 	path := "/api/reviews/" + itoa(id) + "/comments/" + itoa(c.ID)
+	// held reads each comment's body from the store, which is where an edit
+	// that reached too many rows would show.
+	held := func() map[int64]string {
+		bodies := map[int64]string{}
+		for _, got := range f.comments(g, t, round) {
+			bodies[got.ID] = got.Body
+		}
+		return bodies
+	}
 
 	stored := readStored(g, sendJSON(f.s.Surface(), http.MethodPut, path, view.CommentEdit{Body: "Edited."}))
 	g.Expect(stored.Comment.Body).To(Equal("Edited."))
 	g.Expect(stored.Comment.ID).To(Equal(c.ID))
 	g.Expect(stored.Count).To(BeEquivalentTo(2))
+	g.Expect(held()).To(Equal(map[int64]string{c.ID: "Edited.", other.ID: "Second."}), "the edit changed one comment")
 
 	res := sendJSON(f.s.Surface(), http.MethodPut, path, view.CommentEdit{Body: "  "})
 	g.Expect(res.Code).To(Equal(http.StatusBadRequest))
 	g.Expect(readRefusal(g, res).Message).To(Equal(emptyComment))
 
-	other := actingReview(g, t, f)
-	res = sendJSON(f.s.Surface(), http.MethodPut, "/api/reviews/"+itoa(other)+"/comments/"+itoa(c.ID), view.CommentEdit{Body: "Hijacked."})
+	elsewhere := actingReview(g, t, f)
+	res = sendJSON(f.s.Surface(), http.MethodPut, "/api/reviews/"+itoa(elsewhere)+"/comments/"+itoa(c.ID), view.CommentEdit{Body: "Hijacked."})
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 	g.Expect(readRefusal(g, res).Message).To(Equal(noComment))
 
@@ -542,6 +583,7 @@ func TestServer_editCommentJSON(t *testing.T) {
 	res = sendJSON(f.s.Surface(), http.MethodPut, path, view.CommentEdit{Body: "Too late."})
 	g.Expect(res.Code).To(Equal(http.StatusConflict))
 	g.Expect(readRefusal(g, res).Message).To(Equal(releasedComment))
+	g.Expect(held()).To(Equal(map[int64]string{c.ID: "Edited.", other.ID: "Second."}), "a refused edit changed a comment")
 }
 
 // A comment already gone is a 404 with a Refusal to an edit, where it was a 500,

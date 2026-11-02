@@ -41,7 +41,7 @@ test("a body fetched for a deferred card is merged into the round", () => {
   expect(merged.cards?.[0]?.body?.kind).toBe("rows");
 });
 
-test("a comment written on a fetched body is placed in that body, and survives the round being fetched again", () => {
+test("a comment written on a fetched body is placed in that body, and the merge into a newer round keeps it", () => {
   const { review, path, merged } = fetchedBody();
   const card = merged.cards?.[0];
   const old = card?.body;

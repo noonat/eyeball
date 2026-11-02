@@ -232,6 +232,72 @@ func TestServer_Surface_browserApp(t *testing.T) {
 	g.Expect(b.eval(g, `document.documentElement.dataset.theme`)).To(Equal("light"))
 }
 
+// Back to a review after its verdict was stored draws the round the verdict
+// decided, with no bar and no draft. The cached open round would draw the bar
+// again and take the note from the round's draft, which holds the fetched round
+// back, so the decided round was never taken up and a second verdict was
+// refused as stale.
+func TestServer_Surface_browserBackAfterVerdict(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	// The round is cached at both of its addresses before the verdict.
+	other := "/reviews/" + itoa(id) + "/rounds/1"
+	move := func(to string) {
+		// The worker's tap message moves the router, as a notification's tap does.
+		b.eval(g, `navigator.serviceWorker.dispatchEvent(new MessageEvent("message", { data: { url: `+strconv.Quote(to)+` }, ports: [new MessageChannel().port1] })), true`)
+		b.waitFor(g, `location.pathname === `+strconv.Quote(to)+` && !!document.querySelector("#root details.file")`)
+	}
+	move(other)
+	b.waitFor(g, `performance.getEntriesByType("resource").some((e) => e.name.endsWith("/api`+other+`"))`)
+	move("/reviews/" + itoa(id))
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+	b.eval(g, card+`.querySelector("tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "A comment")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, card+`.querySelectorAll("tr.thread .comment:not(.unsent):not([data-sending])").length === 1`)
+	b.typeInto(g, "#bar textarea", "Please fix")
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `document.querySelector("#bar button[value=changes]").click()`)
+	b.waitFor(g, `location.pathname === "/"`)
+
+	// Any frame that draws the bar, or Edit on a comment, is the open round
+	// from the cache, which is what back must not draw first.
+	b.eval(g, `(() => {
+		window.__open = false;
+		new MutationObserver(() => {
+			if (document.querySelector("#bar, .comment .acts")) {
+				window.__open = true;
+			}
+		}).observe(document, { subtree: true, childList: true });
+		return true;
+	})()`)
+	b.eval(g, `history.back(), true`)
+	b.waitFor(g, `!!document.querySelector("#root details.file") && document.querySelector(".page").dataset.acting === "late"`)
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `window.__open`)).To(BeFalse(), "the cached open round was drawn")
+	// The round's other address holds it too.
+	move(other)
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `window.__open`)).To(BeFalse(), "the round cached at its other address was drawn open")
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
+	g.Expect(b.eval(g, `Object.keys(localStorage).filter((k) => k.includes("drafts:")).length`)).To(BeEquivalentTo(0), "the stored verdict left its draft")
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page loaded")
+}
+
 // A verdict returns to the queue, and the eye blinks there once, whichever
 // verdict it was. A failed verdict leaves no mark, a mark left by a request
 // whose answer never arrived does not blink, and under reduced motion the eye
@@ -611,6 +677,55 @@ func TestServer_Surface_browserBodiesFailed(t *testing.T) {
 	broken.Store(false)
 	b.eval(g, lock+`.querySelector(".failed .retry").click()`)
 	b.waitFor(g, lock+`.querySelectorAll(".src").length === 600`)
+}
+
+// A body read again on focus would be read outside the hold: after a verdict
+// given elsewhere its comments take the decided state, and lose Edit and
+// Delete, while the bar is still drawn. The focus asks nothing of the server.
+func TestServer_Surface_browserBodiesFocus(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	seen := &requestLog{}
+	srv := httptest.NewServer(seen.wrap(f.s.LoopbackSurface(browserToken)))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+	b.eval(g, card+`.querySelector("tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Stored one")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, card+`.querySelectorAll("tr.thread .comment:not(.unsent):not([data-sending])").length === 1`)
+	b.typeInto(g, "#bar textarea", "Holding note")
+	f.decide(g, t, id, store.VerdictChanges, "elsewhere")
+	time.Sleep(700 * time.Millisecond)
+	acts := card + `.querySelectorAll("tr.thread .comment .acts").length`
+	g.Expect(b.eval(g, acts)).To(BeEquivalentTo(1))
+
+	reads := func() int {
+		n := 0
+		for _, line := range seen.lines() {
+			if strings.Contains(line, "/cards/d/00.txt") {
+				n++
+			}
+		}
+		return n
+	}
+	before := reads()
+	b.eval(g, `window.dispatchEvent(new Event("visibilitychange")), true`)
+	time.Sleep(1500 * time.Millisecond)
+	g.Expect(reads()).To(Equal(before), "a focus read the body outside the hold")
+	g.Expect(b.eval(g, acts)).To(BeEquivalentTo(1), "the comment took the decided state under a bar")
+	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeTrue())
 }
 
 // A comment written on a body the app fetched is kept with it, and a round that
@@ -1384,6 +1499,66 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 	g.Expect(subs[0].Endpoint).To(Equal(svc.url + "/device/2"))
 }
 
+// heldThroughANewRound opens a review with a note in the bar and a composer
+// with text under line two, gives the verdict elsewhere and opens a second
+// round. The round that is drawn is the first, held by the text, while the
+// server's newest is the second. It returns the browser, and the reads of the
+// round's view the server has had, which a later event must not add to.
+func heldThroughANewRound(g *WithT, t *testing.T, f *fixture) (*browser, func() int) {
+	t.Helper()
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "first"}).Review.ID
+	seen := &requestLog{}
+	srv := httptest.NewServer(seen.wrap(f.s.LoopbackSurface(browserToken)))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
+	b.typeInto(g, "#bar textarea", "A note in progress")
+	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "About line two")
+	b.eval(g, `window.__composer = document.querySelector("tr.thread form.composer textarea"), true`)
+	f.decide(g, t, id, store.VerdictChanges, "From another device.")
+	time.Sleep(700 * time.Millisecond)
+	write(g, repo, "a.txt", "one\ntwo\nthree\n")
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Note: "second", Review: id})
+	time.Sleep(700 * time.Millisecond)
+	reads := func() int {
+		n := 0
+		for _, line := range seen.lines() {
+			if strings.HasPrefix(line, "/api/reviews/"+itoa(id)) && !strings.Contains(line, "/cards/") {
+				n++
+			}
+		}
+		return n
+	}
+	return b, reads
+}
+
+// keepsHeldText checks that what was typed is still there, in the same
+// element, and that the round was not asked for again.
+func keepsHeldText(g *WithT, b *browser, reads func() int, before int) {
+	g.THelper()
+	g.Expect(reads()).To(Equal(before), "the event read the round outside the hold")
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea") === window.__composer`)).To(BeTrue(), "the screen was drawn again")
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("About line two"))
+	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("A note in progress"))
+}
+
+// The app coming back to the foreground does not read the round. A round read
+// then, after a verdict given elsewhere and a new round, would be a different
+// screen above the hold, and its text would go.
+func TestServer_Surface_browserFocusKeepsText(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	b, reads := heldThroughANewRound(g, t, f)
+	before := reads()
+	b.eval(g, `window.dispatchEvent(new Event("visibilitychange")), true`)
+	time.Sleep(1500 * time.Millisecond)
+	keepsHeldText(g, b, reads, before)
+}
+
 // A fold opens with a tap on its line, and a passage inside it takes a comment
 // like any other. A draft written there reopens with its fold open, since a
 // passage with nothing saved under it folds again on reload.
@@ -1412,6 +1587,8 @@ func TestServer_Surface_browserFold(t *testing.T) {
 	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Is C still true?")
 
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	// The page draws after its fetch, so the fold may not be there yet.
+	b.waitFor(g, `!!document.querySelector("#root details.fold")`)
 	b.waitFor(g, inside+`?.nextElementSibling?.querySelector("form.composer textarea")?.value === "Is C still true?"`)
 	g.Expect(b.eval(g, fold+`.open`)).To(BeTrue(), "the draft's passage is folded out of sight")
 }
@@ -1554,6 +1731,29 @@ func TestServer_Surface_browserHeld(t *testing.T) {
 	g.Expect(b.eval(g, card+`.open && !`+card+`.querySelector(".filefacts")`)).To(BeTrue())
 }
 
+// A tap on the line of a card that has no body yet moves no composer. The card
+// has no slot to draw one in, so the open composer would be kept, hidden and
+// holding the text.
+func TestServer_Surface_browserHeldTap(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "d/a.txt", "one\ntwo\n")
+	write(g, repo, "d/lock.json", strings.Repeat("line\n", 600))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "lock"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("details.file[data-path='d/a.txt'] tr[data-line]")`)
+	b.eval(g, `document.querySelector("details.file[data-path='d/a.txt'] tr[data-line]").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Half a thought")
+	b.eval(g, `document.querySelector("details.file[data-path='d/lock.json'] .filefacts .kind").click()`)
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `document.querySelector("details.file[data-path='d/a.txt'] tr.thread form.composer textarea")?.value ?? null`)).To(Equal("Half a thought"), "a tap on a held card took the composer")
+}
+
 // A card that changes height above the reader's place does not move what is
 // read, and a page at its top holds nothing, since what grows above the first
 // card there is what the reader is looking at.
@@ -1670,6 +1870,45 @@ func TestServer_Surface_browserJump(t *testing.T) {
 	b.waitFor(g, other+`.querySelectorAll(".hunkhead").length === 2`)
 	time.Sleep(300 * time.Millisecond)
 	g.Expect(b.eval(g, `Math.round(Math.abs(`+otherTop+`))`)).To(BeNumerically("<=", 4), "the saved place pulled the jump back")
+}
+
+// A comment on a passage reads the round again, for the folds the server
+// decides. Once a verdict was given elsewhere and a new round opened, that read
+// returns the new round, which must not be a new screen above the hold: the
+// text in the review's box stays, in the same element.
+func TestServer_Surface_browserPassageRefetchKeepsText(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := filepath.Join(t.TempDir(), "notes")
+	g.Expect(os.MkdirAll(repo, 0o700)).To(Succeed())
+	git(g, repo, "init", "--quiet", "--template=", "-b", "main")
+	write(g, repo, "doc.md", "Old paragraph.\n\nKept.\n")
+	git(g, repo, "add", "-A")
+	git(g, repo, "update-ref", "refs/heads/main", git(g, repo, "commit-tree", git(g, repo, "write-tree"), "-m", "base"))
+	write(g, repo, "doc.md", "New paragraph.\n\nKept.\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"doc.md"}, Note: "docs"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root div.blk.changed")`)
+	b.typeInto(g, ".page > form.composer textarea", "Half written")
+	b.eval(g, `window.__box = document.querySelector(".page > form.composer textarea"), true`)
+	f.decide(g, t, id, store.VerdictChanges, "From another device.")
+	time.Sleep(700 * time.Millisecond)
+	write(g, repo, "doc.md", "Newer paragraph.\n\nKept.\n")
+	f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Note: "second", Review: id})
+	time.Sleep(700 * time.Millisecond)
+
+	kept := `document.querySelector("div.blk[data-lines='3-3']")`
+	b.eval(g, kept+`.click()`)
+	b.waitFor(g, kept+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
+	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Why keep this?")
+	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
+	b.waitFor(g, kept+`.nextElementSibling?.querySelectorAll(".comment:not(.unsent):not([data-sending])").length === 1`)
+	time.Sleep(1000 * time.Millisecond)
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea") === window.__box`)).To(BeTrue(), "the screen was drawn again")
+	g.Expect(b.eval(g, `window.__box.value`)).To(Equal("Half written"))
 }
 
 // A passage takes a comment under it, in a document card and in the layout a
@@ -1847,6 +2086,19 @@ func TestServer_Surface_browserQueueArrives(t *testing.T) {
 	b.waitFor(g, `document.querySelectorAll("a.row.waiting").length === 1`)
 	g.Expect(b.eval(g, `document.querySelector("a.row[href='/reviews/`+itoa(second)+`']").closest(".section").querySelector("h2").firstChild.textContent.trim()`)).To(Equal("Settled"))
 	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded")
+}
+
+// The app reconnecting does not read the round either. The stream asks again
+// for its stamp when it returns, which is what finds a change missed while it
+// was down, and that read waits for the hold.
+func TestServer_Surface_browserReconnectKeepsText(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	b, reads := heldThroughANewRound(g, t, f)
+	before := reads()
+	b.eval(g, `window.dispatchEvent(new Event("offline")), window.dispatchEvent(new Event("online")), true`)
+	time.Sleep(1500 * time.Millisecond)
+	keepsHeldText(g, b, reads, before)
 }
 
 // A change request with nothing in it draws the bar's refused state and leaves
@@ -2875,14 +3127,6 @@ func longFileReview(g *WithT, t *testing.T, f *fixture) int64 {
 	return f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "long"}).Review.ID
 }
 
-// comments reads a round's comments.
-func (f *fixture) comments(g *WithT, t *testing.T, roundID int64) []store.Comment {
-	g.THelper()
-	out, err := f.store.Comments(t.Context(), roundID)
-	g.Expect(err).NotTo(HaveOccurred())
-	return out
-}
-
 // requestLog records every request line and Referer the server receives.
 type requestLog struct {
 	mu   sync.Mutex
@@ -3046,8 +3290,18 @@ func (b *browser) call(g *WithT, method string, params any) json.RawMessage {
 	}
 }
 
-// eval runs an expression in the page and returns its value.
+// eval runs an expression in the page and returns its value. An exception in
+// the page fails the test at once.
 func (b *browser) eval(g *WithT, expr string) any {
+	g.THelper()
+	value, thrown := b.tryEval(g, expr)
+	g.Expect(thrown).To(BeEmpty(), expr)
+	return value
+}
+
+// tryEval runs an expression and returns its value and the text of the
+// exception it threw, which is empty when it threw none.
+func (b *browser) tryEval(g *WithT, expr string) (any, string) {
 	g.THelper()
 	var out struct {
 		Result struct {
@@ -3063,16 +3317,29 @@ func (b *browser) eval(g *WithT, expr string) any {
 	raw := b.call(g, "Runtime.evaluate", map[string]any{"expression": expr, "awaitPromise": true, "returnByValue": true})
 	g.Expect(json.Unmarshal(raw, &out)).To(Succeed())
 	if out.Exception != nil {
-		g.Expect(out.Exception.Exception.Description).To(BeEmpty(), expr)
+		thrown := out.Exception.Exception.Description
+		if thrown == "" {
+			thrown = out.Exception.Text
+		}
+		return out.Result.Value, thrown
 	}
-	return out.Result.Value
+	return out.Result.Value, ""
 }
 
 // waitFor polls an expression until it is true, in real time: the page's
-// requests and the server's answers take as long as they take.
+// requests and the server's answers take as long as they take. An exception is
+// not yet: an expression that reads a property of an element the page has not
+// drawn throws until it does. The last one is in the failure message.
 func (b *browser) waitFor(g *WithT, expr string) {
 	g.THelper()
-	g.Eventually(func() any { return b.eval(g, expr) }, 5*time.Second, 50*time.Millisecond).Should(Equal(true), expr)
+	var thrown string
+	g.Eventually(func() any {
+		var value any
+		value, thrown = b.tryEval(g, expr)
+		return value
+	}, 5*time.Second, 50*time.Millisecond).Should(Equal(true), func() string {
+		return expr + "\nlast exception: " + thrown
+	})
 }
 
 // navigate opens a page and waits for it to load.

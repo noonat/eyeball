@@ -3,12 +3,11 @@ import type { CommentRequest, CommentLevel } from "../api/types";
 import { composerId, type ComposerAt } from "../components/composerAt";
 
 /**
- * What a draft keeps for one round of one review, in the shape the template
- * page saved it. A page loaded from the daemon is the template's until the
- * review moves to the app for good, and both read and write the same device's
- * storage, so a draft written by one is restored by the other. The shape is
- * the template's, key for key: a card the app saved must be one the template
- * can put back.
+ * What a draft keeps for one round of one review, in the shape the review
+ * page's templates saved it, which are gone. A draft the template build saved
+ * is in this device's storage until it ages out, so the app reads the same
+ * keys and the same five parts, and the first load after the switch restores
+ * what was typed on the last page of the old build.
  */
 export interface Drafts {
   /** The verdict's note. */
@@ -29,9 +28,10 @@ export interface Drafts {
 /**
  * An unsent card as it is saved: the form it came from, so a retry sends the
  * same comment with the same key to the same place. The action and the target
- * are the template's, the form route and the list's selector. The app sends to
- * the JSON route and finds the place from the values, and keeps the other two
- * so the template can retry what the app saved.
+ * are the removed form route and the list's selector, which a draft the
+ * template build saved holds. The app sends to the JSON route and finds the
+ * place from the values, and writes the other two in the same form so one
+ * reader reads every draft.
  */
 export interface SavedCard {
   readonly action: string;
@@ -128,9 +128,10 @@ export function storeDrafts(review: string, round: number, d: Drafts): void {
 }
 
 /**
- * The query a tap opened a composer with, as the template wrote it: the path,
- * the level and the lines, and for a removed row its number and the page's
- * comparison, which is the one place the comparison is kept.
+ * The query a tap opened a composer with, in the form the template build wrote
+ * and a saved draft still holds: the path, the level and the lines, and for a
+ * removed row its number and the page's comparison, which is the one place the
+ * comparison is kept.
  */
 export function queryOf(
   at: ComposerAt,
@@ -170,8 +171,8 @@ function line(value: string | undefined): number | undefined {
 
 /**
  * The anchor a query names, or nothing where it names none. One reading serves
- * a draft reopened and the composer answers the template routes gave, so a
- * query the template wrote is read the way the app writes one.
+ * a draft reopened and a query a draft of the template build holds, so both
+ * are read the way the app writes one.
  */
 export function anchorOf(
   query: Readonly<Record<string, string>>,
@@ -211,8 +212,8 @@ export function anchorOf(
 }
 
 /**
- * The selector of the list a comment is drawn in, which the template's cards
- * were saved with as their target. A file's comments are in its own list, the
+ * The selector of the list a comment is drawn in, which a card is saved with as
+ * its target, as the template build saved them. A file's comments are in its own list, the
  * element a comment's id names less its prefix, and every other anchor's are in
  * the element its composer opens in.
  */
@@ -226,7 +227,7 @@ export function targetOf(at: ComposerAt, cardId: string): string {
   return `#${composerId(at, cardId)}`;
 }
 
-/** The form a comment was sent as, which is what the template saved and sent. */
+/** The form values a comment is saved as, in the form the template build sent. */
 export function valuesOf(request: CommentRequest): Record<string, string> {
   const values: Record<string, string> = {
     round: String(request.round),

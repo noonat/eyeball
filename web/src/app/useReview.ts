@@ -39,7 +39,7 @@ import {
   postVerdict,
   putComment,
 } from "./reviewWrites";
-import { bodyKey, useBodies } from "./useBodies";
+import { bodyKey, isBodyOf, useBodies } from "./useBodies";
 import { useReviewScroll } from "./useReviewScroll";
 import type { ReviewStream } from "./useReviewStream";
 import type { CommentRequest } from "../api/types";
@@ -534,6 +534,9 @@ export function useReview(
     // the verdict is not stored.
     setBlinkMark({ review: review.id, count: review.waiting_count });
     setDeciding(true);
+    const roundAddress = new RegExp(
+      `^/reviews/${review.id}(/rounds/${String(review.round)})?(\\?|$)`,
+    );
     void postVerdict(action, {
       round: review.round,
       verdict,
@@ -546,6 +549,20 @@ export function useReview(
         // one would show first. Patching the cached view to look as the server
         // would is a guess, so it is dropped.
         client.removeQueries({ queryKey: queueKey });
+        // Back to this review must draw the round the verdict decided, fetched
+        // fresh. The cached open round would draw a bar and take up the note
+        // from the round's draft, which would then hold the fetched round, so a
+        // second verdict would be sent for a round already decided.
+        storeDrafts(review.id, review.round, {});
+        // The round is cached at /reviews/N and at /reviews/N/rounds/R, with
+        // each comparison, and opening either would draw it open.
+        client.removeQueries({
+          predicate: ({ queryKey }) =>
+            queryKey[0] === "view" &&
+            typeof queryKey[1] === "string" &&
+            roundAddress.test(queryKey[1]),
+        });
+        client.removeQueries({ predicate: isBodyOf(review.id, review.round) });
         void navigate("/");
         return;
       }
@@ -615,6 +632,17 @@ export function useReview(
     }
   }, [shown.stamp, refreshAll]);
 
+  // The cards that show a size and a Load control in place of their body.
+  const held = useMemo(
+    () =>
+      new Set(
+        (review.cards ?? [])
+          .filter((card) => card.body === null && card.held !== "")
+          .map((card) => card.path),
+      ),
+    [review.cards],
+  );
+
   const pending: Pending[] = outbox.map((item) => ({
     at: requestAt(item.request),
     comment: pendingComment(item),
@@ -679,6 +707,7 @@ export function useReview(
 
   return {
     review,
+    held,
     ui,
     bar: {
       note,

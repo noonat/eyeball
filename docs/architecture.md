@@ -734,7 +734,7 @@ did not move, or is outside the review's paths, answers 404. The route takes
 `?against=base`, as the page does.
 
 **A document arrives as a list of passages.** In the template page a document
-card is one piece of HTML, and the threads under its passages are written into
+card was one piece of HTML, and the threads under its passages were written into
 it through render's `After` hook. In the app a thread is a component, with a
 composer, an edit form and a delete button, so it cannot live inside HTML that
 is inserted as it is. render instead returns the document as a list. Each entry
@@ -784,29 +784,29 @@ and is answered 204 with no body once it is stored. A request the server
 refuses, such as an empty comment or a verdict on a round no longer open, is
 answered 4xx with `Refusal`, one sentence, which the app shows beside the
 control while the text stays where it was typed. A change request with no
-comments is answered 422 with the sentence, and the bar draws its own refused
-state from the status. A body that is not declared `application/json`, is larger
-than a megabyte, holds a field the type does not, or is followed by anything
-else is refused. The type check answers 415 with a `Refusal` instead of a decode
-failure. It is a second layer behind the cross-origin check every surface
-request passes, and has no reason beyond being explicit. A write that fails in
-the store is answered 500 with `Refusal`, since the error page would reach the
-app as text it cannot read. An edit of a comment already gone answers 404 with
-`Refusal`, where it answered 500, and a delete of one answers 200 with the
-count, so a delete sent twice reports no failure. The view names the `/api`
-routes for a comment's edit and delete and for the verdict in its `href` and
-`action`, and a write to the loopback listener carries the run's token, whose
-refusal under `/api` is a `Refusal` and not the page. The app builds a comment's
-request from its anchor in `composerAt.ts`, and a Vitest test compares it with
-the hidden fields of each composer answer the template routes gave, kept as they
-last came out, each anchor read from the request that wrote the answer, which
-`composers.ts` keeps. A request sent as a level the chips chose carries only the
-fields that level takes. No answer, a timeout or a 5xx leaves a comment unsent
-with a retry that sends the same submission key, so a first try that reached the
-store and lost its answer is stored once. A 4xx leaves the text in its composer
-with the server's sentence, since it would be refused again. Form bodies, which
-the template routes take, were rejected: the app would build a form from typed
-data, and nothing generated would check it.
+comments and no note is answered 422 with the sentence, and the bar draws its
+own refused state from the status. A body that is not declared
+`application/json`, is larger than a megabyte, holds a field the type does not,
+or is followed by anything else is refused. The type check answers 415 with a
+`Refusal` instead of a decode failure. It is a second layer behind the
+cross-origin check every surface request passes, and has no reason beyond being
+explicit. A write that fails in the store is answered 500 with `Refusal`, since
+the error page would reach the app as text it cannot read. An edit of a comment
+already gone answers 404 with `Refusal`, where it answered 500, and a delete of
+one answers 200 with the count, so a delete sent twice reports no failure. The
+view names the `/api` routes for a comment's edit and delete and for the verdict
+in its `href` and `action`, and a write to the loopback listener carries the
+run's token, whose refusal under `/api` is a `Refusal` and not the page. The app
+builds a comment's request from its anchor in `composerAt.ts`, and a Vitest test
+compares it with the hidden fields of each composer answer the template routes
+gave, kept as they last came out, each anchor read from the request that wrote
+the answer, which `composers.ts` keeps. A request sent as a level the chips
+chose carries only the fields that level takes. No answer, a timeout or a 5xx
+leaves a comment unsent with a retry that sends the same submission key, so a
+first try that reached the store and lost its answer is stored once. A 4xx
+leaves the text in its composer with the server's sentence, since it would be
+refused again. Form bodies, which the template routes took, were rejected: the
+app would build a form from typed data, and nothing generated would check it.
 
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
@@ -895,22 +895,23 @@ less than not having to remember what the letter meant.
 holding the store and the blob store, and each declares the narrow interface it
 needs rather than depending on a package-wide one.
 
-**Screens move one at a time.** Until the last one moves, the server answers a
-moved screen's address with the shell and every other address with its template,
-and a link from one kind to the other is a full page load. The review's round
-answers the shell at both its addresses. The order is in
-[specs/TODO.md](../specs/TODO.md). Rebuilding every screen on one branch was
-rejected: it is one review too large to read on a phone, and nothing ships until
-all of it does.
+**Screens moved one at a time.** While some were templates, the server answered
+a moved screen's address with the shell and every other address with its
+template, and a link from one kind to the other was a full page load. Every
+screen is now the app's: the queue, a project, a tree or a file and a review's
+round answer the shell. What is left of the templates is the error page and its
+notice, which the removal of htmx in [specs/TODO.md](../specs/TODO.md) takes.
+Rebuilding every screen on one branch was rejected: it is one review too large
+to read on a phone, and nothing shipped until all of it did.
 
-**While screens are mixed, two bundles have two addresses.** The templates keep
-`/static/app.js`, and the React app is served at `/static/react.js`. The cleanup
-that removes the last template makes the React bundle `/static/app.js`. The
-shell links `/static/app.css` and `/static/shell.css`, the files the templates
-link, since `app.css` stays one file through the mixed period and the React
-bundle imports no stylesheet. A row that leads to a template page is a plain
-anchor, so tapping it is a full page load. React Router intercepts only its own
-`Link`.
+**Until the last template goes, two bundles have two addresses.** The template
+bundle keeps `/static/app.js`, and the React app is served at
+`/static/react.js`. The cleanup that removes the last template makes the React
+bundle `/static/app.js`. The shell links `/static/app.css` and
+`/static/shell.css`, the files the templates link, since `app.css` stays one
+file until then and the React bundle imports no stylesheet. A link to an address
+the app does not draw is a plain anchor, so tapping it is a full page load.
+React Router intercepts only its own `Link`.
 
 **One client function says which addresses the app draws**, by matching an
 address against the router's routes. The link component draws a router link for
@@ -1049,10 +1050,15 @@ four rules keep the copy correct.
   to the foreground, which TanStack Query does by default. The project view, the
   tree and the file pages have none yet. The review page's views carry the stamp
   `/events?review=N` sends, which covers the review's state, each round's
-  verdict and the agent's replies, and a change refetches the round and the card
-  bodies the app holds. It leaves comments out, since the reader's own comments
-  reach the cache from the server's answers. A verdict given elsewhere takes the
-  bar and its note away and turns an open composer late, so the change waits for
+  verdict and the agent's replies. A review's round and its bodies are fetched
+  when the screen opens, on a stamp that differs from the round's own, and after
+  the reader's own write where the server decides what is drawn, as a passage's
+  folds. Focus and reconnect do not refetch them: a fetch there would arrive
+  outside the hold, and the stream sends the stamp again when it returns, which
+  finds what was missed. A change refetches the round and the card bodies the
+  app asked for. It leaves comments out, since the reader's own comments reach
+  the cache from the server's answers. A verdict given elsewhere takes the bar
+  and its note away and turns an open composer late, so the change waits for
   what the template's reload waited for: the round is not fetched while text in
   a composer, an edit form, the review's box or the note is held, a comment is
   on its way or one did not save, and a round that was fetched is not shown
@@ -1063,19 +1069,29 @@ four rules keep the copy correct.
   stream returns, which sends the same stamp.
 - **A refetch never takes typed text away.** The text of a composer, of each
   open edit form, of the review's box and of the verdict's note is the screen's
-  state and not the element's, so a refetch that redraws a card keeps it. A
-  browser test types into a composer, moves the stamp, and reads the text back.
-  A composer is keyed by where it opened, a line, a passage, a file or the
-  review, and a tap on another place moves it there with what was typed, as the
-  template page's did. A second composer for each tap would scatter half-written
-  comments through a long review.
+  state and not the element's, so a refetch that redraws a card keeps it. The
+  screen is keyed by the address it draws, so a newer round at the same address
+  reaches the screen as a newer view and is taken up through the hold, never by
+  drawing the screen again. A key that held the round's number would have
+  dropped the text the first time a refetch returned a new round. Browser tests
+  type into a composer, move the stamp, bring the app to the foreground, drop
+  and restore the connection, and add a comment on a passage after a verdict
+  elsewhere and a new round, and read the text back. A composer is keyed by
+  where it opened, a line, a passage, a file or the review, and a tap on another
+  place moves it there with what was typed, as the template page's did. A second
+  composer for each tap would scatter half-written comments through a long
+  review.
 - **A write updates the cache from the server's answer**, never from a guess. A
   verdict shows as decided only once the server has said so. A comment shows as
   sending until its answer arrives, and as unsent with its text and a retry if
   the answer is a failure, as product.md requires. A verdict sets the blink mark
   when it is sent and clears it if it fails. Once it is stored the router moves
   to the queue, which reads the mark when it mounts, as it does after a page
-  load.
+  load. The round's cached view and bodies and its draft are forgotten first.
+  Back to the review then fetches the decided round. The cached open round would
+  draw the bar again, and the note restored from the draft would hold the
+  fetched round back, so the decided round would never be taken up and a second
+  verdict would be refused as stale.
 - **What only this device knows stays on this device.** Drafts, the reader's
   place and folded cards stay in `localStorage`, as they are today. The app
   reads them through `web/ts/storage.ts`, which prefixes each key and wraps each
@@ -1112,7 +1128,7 @@ the move, from a cached view, is where the order shows. A review's view and its
 bodies arrive after the move otherwise, so the screen sets the reader's saved
 place in an effect, which runs after every layout effect, and again as each body
 arrives until the reader's first pointer down, click, wheel, touch move or key,
-or three seconds, as the template page does.
+or three seconds, as the template page did.
 
 Nothing is saved until that ends. The router's scroll to the top, and a place
 applied to a page that is still too short, would otherwise be saved over the
@@ -1182,14 +1198,19 @@ round's writes. A fetch of a body already in flight when a write's answer lands
 is cancelled and made again, as the round's is, since it may have read the store
 before the write. A comment on a passage of a document reads that card's body
 again, since whether a passage sits in a fold is the server's rule. A newer
-round makes every body of the review and round stale: after a verdict given
-elsewhere their comments still offer Edit and Delete. Each refetches and keeps
-its old data meanwhile, and a body of a card not on screen is only marked stale.
-A body that fails, or a held card's Load that does, fails at once with no retry
-and draws the failed line with a Retry in its card. The request carries the
-query's signal and ends when the screen goes. Measuring a skeleton's row heights
-happens once per run of the app, on the first open card, since the device
-decides them.
+round, once the screen takes it up, makes every body of that round stale: after
+a verdict given elsewhere their comments still offer Edit and Delete. Each body
+the screen has asked for is read again, on screen or not, and keeps its old data
+meanwhile. That costs a request for each card the reader scrolled past, which
+was accepted over dropping the bodies to load again near the reader, since a
+body above the reader turning back into a skeleton moves what is read. A body
+the cache holds for a card the screen has not asked for is only marked stale. A
+body is not read on focus or on reconnect, which would take the decided state
+into its comments while the bar is still drawn. A body that fails, or a held
+card's Load that does, fails at once with no retry and draws the failed line
+with a Retry in its card. The request carries the query's signal and ends when
+the screen goes. Measuring a skeleton's row heights happens once per run of the
+app, on the first open card, since the device decides them.
 
 A skeleton is only as tall as a guess, and a document's, six lines whatever its
 length, is a poor one. Safari has no scroll anchoring, so a body taller than its
@@ -1289,8 +1310,8 @@ Cache Storage from holding a response, measured the same day in both. When the
 new worker activates it deletes every other build's cache.
 
 The worker answers nothing else. The live stream, the API, every write and every
-template page go to the daemon untouched, so a template page with the daemon
-down fails as it does today.
+address the app does not draw go to the daemon untouched, so such a page with
+the daemon down fails as it does today.
 
 **A page open across a rebuild offers to reload.** The live stream sends the
 daemon's build each time it connects, and when it differs from the build that

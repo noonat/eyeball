@@ -607,6 +607,7 @@ func TestServer_Surface_reviewFilesWithNoRows(t *testing.T) {
 	}))
 	for _, card := range f.roundAt(g, "/reviews/"+itoa(id)).Cards {
 		g.Expect(card.Whole).To(Equal("/reviews/"+itoa(id)+"/files/"+card.Path), "every card opens its whole file")
+		g.Expect(card.RawDiff).To(BeEmpty(), "a card shown as rows or as a fact links the whole file, not a source view: "+card.Path)
 	}
 }
 

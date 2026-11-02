@@ -82,8 +82,8 @@ type commentInput struct {
 	malformed bool
 }
 
-// storeComment checks a comment and stores it on a round. Both kinds of route
-// call it, after each has found its review and round.
+// storeComment checks a comment and stores it on a round. The JSON route calls
+// it once it has found the review and the round.
 func (s *Server) storeComment(ctx context.Context, review store.Review, round store.Round, in commentInput) (store.Comment, *rejection, error) {
 	if strings.TrimSpace(in.body) == "" {
 		return store.Comment{}, &rejection{status: http.StatusBadRequest, text: emptyComment}, nil
@@ -334,7 +334,7 @@ func cardOf(reviewID int64, c store.Comment, open bool, decided *store.Decision)
 	late := !open && (decided == nil || c.Created.After(decided.Decided))
 	return cardView{
 		ID:       c.ID,
-		Href:     fmt.Sprintf("/reviews/%d/comments/%d", reviewID, c.ID),
+		Href:     fmt.Sprintf("/api/reviews/%d/comments/%d", reviewID, c.ID),
 		Where:    where(c),
 		Quoted:   dedent(c.Quoted),
 		Body:     c.Body,
@@ -389,7 +389,7 @@ func slotID(path string) string {
 }
 
 func decisionHref(reviewID int64) string {
-	return fmt.Sprintf("/reviews/%d/decision", reviewID)
+	return fmt.Sprintf("/api/reviews/%d/decision", reviewID)
 }
 
 // plain answers with one sentence of plain text, which the page's failure

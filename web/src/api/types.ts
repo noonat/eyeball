@@ -273,7 +273,7 @@ export type CommentLevel = "file" | "line" | "passage" | "review";
 /**
  * CommentRequest is the body of POST /api/reviews/{review}/comments: one
  * comment, with the anchor the reader tapped. The round, the anchor and the
- * comparison are the form fields the template's composer carried.
+ * comparison say what the reader was looking at.
  */
 export interface CommentRequest {
   /**

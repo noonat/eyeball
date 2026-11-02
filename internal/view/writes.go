@@ -2,7 +2,7 @@ package view
 
 // CommentRequest is the body of POST /api/reviews/{review}/comments: one
 // comment, with the anchor the reader tapped. The round, the anchor and the
-// comparison are the form fields the template's composer carried.
+// comparison say what the reader was looking at.
 type CommentRequest struct {
 	// Round is the number of the round the reader was looking at, so a comment
 	// is never stored on a round the reader did not see.

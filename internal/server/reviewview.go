@@ -79,7 +79,7 @@ func reviewView(p page, body reviewPage, waiting *int32) view.Review {
 	if a := body.Acting; a != nil {
 		acting := &view.Acting{State: a.State, Against: a.Against, ListID: a.List.ID, Comments: viewCards(a.List.Cards)}
 		if a.Bar != nil {
-			acting.Bar = &view.Bar{Action: "/api" + a.Bar.Action, Count: int32(a.Bar.Count)}
+			acting.Bar = &view.Bar{Action: a.Bar.Action, Count: int32(a.Bar.Count)}
 		}
 		out.Acting = acting
 	}
@@ -103,7 +103,7 @@ func reviewCard(f fileView) view.Card {
 		Held:          f.Held,
 		HeldHint:      f.HeldHint,
 		Deferred:      f.Deferred,
-		BodyHref:      "/api" + f.BodyHref,
+		BodyHref:      f.BodyHref,
 		SkeletonHunks: int32(f.SkeletonHunks()),
 		SkeletonLines: int32(f.SkeletonLines()),
 	}
@@ -175,7 +175,7 @@ func viewCards(cards []cardView) []view.Comment {
 	for _, c := range cards {
 		out = append(out, view.Comment{
 			ID:       c.ID,
-			Href:     "/api" + c.Href,
+			Href:     c.Href,
 			Where:    c.Where,
 			Quoted:   c.Quoted,
 			Body:     c.Body,

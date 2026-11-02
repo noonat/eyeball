@@ -94,6 +94,11 @@ export function ReviewRoute() {
   const { data, isError } = useQuery({
     queryKey: viewKey(address),
     queryFn: ({ signal }) => fetchView(address, isReview, signal),
+    // The stream says when the round moved, and says it again when it
+    // reconnects. A refetch on focus or on coming back online, outside the
+    // hold, would draw a round the held text has not been let go of.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   useDocumentTitle(
     data === undefined ? undefined : data.found ? data.body.title : "Not found",
@@ -104,11 +109,13 @@ export function ReviewRoute() {
   return (
     <>
       {data.found ? (
-        // The round's own place keys what the page keeps for the reader, so a
-        // move to another round or another comparison starts it afresh, and a
-        // draft written for either is read back.
+        // The address keys the screen, so a move to another round or another
+        // comparison starts afresh, and a draft written for either is read
+        // back. A newer round at the same address is not a new screen: it is
+        // taken up through the hold, since a remount would drop what the
+        // reader typed.
         <ReviewView
-          key={data.body.place}
+          key={address}
           latest={data.body}
           address={address}
           failed={isError}
@@ -146,7 +153,7 @@ interface ReviewViewProps {
 function ReviewView({ latest, address, failed }: ReviewViewProps) {
   const stream = useReviewStream(latest.stream);
   const state = useReview(latest, address, stream, failed);
-  useTaps(state.tapping, state.ui.onOpen ?? noOpen);
+  useTaps(state.tapping, state.ui.onOpen ?? noOpen, state.held);
   return (
     <ReviewScreen
       review={state.review}

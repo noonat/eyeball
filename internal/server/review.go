@@ -511,7 +511,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	deferred := files > maxSentFiles || added+removed > maxSentLines
 	for i := range view.Shown {
-		href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
+		href := fmt.Sprintf("/api/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
 		view.Shown[i].BodyHref = withQuery(href, against)
 		view.Shown[i].Deferred = deferred && view.Shown[i].Held == ""
 	}

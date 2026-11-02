@@ -185,12 +185,6 @@ type message struct {
 // an agent at a terminal.
 func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("surface request failed", "method", r.Method, "path", r.URL.Path, "err", err)
-	// htmx swaps no whole page and shows a plain answer beside the control
-	// that failed, so a request it sent gets the sentence alone.
-	if r.Header.Get("HX-Request") == "true" {
-		plain(w, http.StatusInternalServerError, failedWrite)
-		return
-	}
 	// A write under /api is answered by the app, which reads JSON and shows
 	// the sentence beside its control. A page would reach it as text it cannot
 	// parse, and the control would show nothing.

@@ -25,10 +25,9 @@ client code. Each item is a spec.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories. Iteration 6 of spec 032
       left these for it: the `htmx` declaration in `web/ts/globals.d.ts`, the
-      htmx branches of `refuseWithoutToken` and `failurePage` in
-      `internal/server/surface.go` with the tests that send `HX-Request`,
-      `render.Join`'s `after` hook, which only the render tests still use, and
-      the `/static/htmx.js` route.
+      htmx branch of `refuseWithoutToken` in `internal/server/surface.go` with
+      the test that sends `HX-Request`, `render.Join`'s `after` hook, which only
+      the render tests still use, and the `/static/htmx.js` route.
 - [ ] tooling: a tapped notification opens the review it names. Spec
       [026](026-tap-opens-the-review.md) is blocked. The fault was seen again on
       2026-10-31 with no beacon at all, so its next step is a beacon sent first
@@ -312,6 +311,22 @@ client code. Each item is a spec.
 - [ ] design: a comment on an earlier round, one a newer round has replaced. Its
       page is built with no acting view, so nothing on it opens a composer,
       where product.md allows a comment on any closed round. 025 left it.
+
+- [ ] product: a submission key sent for a comment on one review and sent again
+      for another answers with the first review's comment and stores nothing.
+      `AddComment` in `internal/store/comments.go` looks the key up across every
+      review, where it should look within the round it is stored on. The app
+      draws a fresh key for each comment, so the way to reach it is a client
+      that reuses one. It predates spec [032](032-react-review.md), which kept
+      the lookup as it was.
+
+- [ ] product: the review screen is keyed by the address it draws, so a move
+      between `/reviews/N` and `/reviews/N/rounds/R` for the same round draws it
+      again, and a comment still sending at that moment leaves its outbox with
+      the old screen. If the send then fails, its text is lost, since only
+      unsent comments are saved in the draft. Found by the end-of-branch review
+      of spec [032](032-react-review.md), not probed, and no known link makes
+      that move during a send.
 
 ## Open questions
 

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import type { ComposerAt } from "../components/composerAt";
 
+const none: ReadonlySet<string> = new Set();
+
 /**
  * The anchor a tap opened a composer at, or nothing where it opened none. A tap
  * on a line or a removed row of code opens a composer on it, a tap on a passage
@@ -10,9 +12,13 @@ import type { ComposerAt } from "../components/composerAt";
  *
  * It reads the page, as the template's script did, since what a tap lands on is
  * what the page drew and the click's target is all it has. A decided round
- * takes a tap too: a comment there is sent at once as a late one.
+ * takes a tap too: a comment there is sent at once as a late one. `held` names
+ * the cards whose body has not been loaded, which take none.
  */
-export function tappedAt(target: Element | null): ComposerAt | undefined {
+export function tappedAt(
+  target: Element | null,
+  held: ReadonlySet<string> = none,
+): ComposerAt | undefined {
   if (target === null) {
     return undefined;
   }
@@ -51,6 +57,11 @@ export function tappedAt(target: Element | null): ComposerAt | undefined {
     }
     return { level: "file", path, oldLine: Number(row.dataset["old"]) };
   }
+  // A card held back has no body, so no slot under it: a composer moved here
+  // would be open and never drawn, and would hold the text out of sight.
+  if (held.has(path)) {
+    return undefined;
+  }
   // A file shown as itself takes a comment on the file, as the line naming a
   // file with no rows does. A player and the Open link keep their taps.
   if (
@@ -73,6 +84,7 @@ export function tappedAt(target: Element | null): ComposerAt | undefined {
 export function useTaps(
   enabled: boolean,
   open: (at: ComposerAt) => void,
+  held: ReadonlySet<string>,
 ): void {
   useEffect(() => {
     if (!enabled) {
@@ -80,7 +92,7 @@ export function useTaps(
     }
     const listen = (event: MouseEvent): void => {
       const target = event.target instanceof Element ? event.target : null;
-      const at = tappedAt(target);
+      const at = tappedAt(target, held);
       if (at !== undefined) {
         open(at);
       }
@@ -89,5 +101,5 @@ export function useTaps(
     return () => {
       document.removeEventListener("click", listen);
     };
-  }, [enabled, open]);
+  }, [enabled, open, held]);
 }

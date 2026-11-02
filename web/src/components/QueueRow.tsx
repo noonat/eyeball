@@ -14,8 +14,6 @@ interface QueueRowProps {
 /** One review in the queue. The whole row is one link to the review. */
 export function QueueRow({ row, kind }: QueueRowProps) {
   return (
-    // A review is still a template page, so AppLink draws a plain anchor, which
-    // makes the full page load that needs.
     <AppLink className={`row ${kind}`} href={`/reviews/${row.id}`}>
       <span className="where">
         {row.project === "" ? null : (

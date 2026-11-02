@@ -192,8 +192,13 @@ sheets, since the sheets are the pages the owner approved.
 - `TestServer_Surface_reviewFilesWithNoRows`: the lines "Too large to show as a
   diff." and "Binary file, not shown as a diff." in place of rows. No committed
   page held a card of either kind, so the new `TooLarge` and `Binary` stories
-  assert each. A binary file from git is a rendered facts line in the view, as
-  the `Rendered` story's cards are.
+  assert each. A binary file from git is a rendered facts line in the view. The
+  old test never held "Binary file, not shown as a diff.": its `a.bin` and
+  `binary.md` gave "Binary file" and a size in the facts line, which is the new
+  test's `rendered` kind with the same facts. Only a body of kind `binary` draws
+  that sentence, and the server never sends one for these files. The `Rendered`
+  story draws skeletons, so it does not check the facts line, and the checks for
+  it are `RenderedFacts` and `SandboxedFrame`, added after Iteration 6.
 - `TestServer_Surface_reviewFresh`: the toolbar's "1 file, new Raw diff", the
   small button, the prose directly in the page and no card. The `Fresh` story.
   No page holds a fresh document beside the comparison control. The toolbar
@@ -220,8 +225,8 @@ sheets, since the sheets are the pages the owner approved.
   file. `Approved` holds a `slot-` id, and the view's `slot` is asserted.
 - `TestServer_Surface_reviewMarksAChangedWord`: the classes `k`, `n` and `w`
   around the keyword, the number and the changed word. The tokens' roles and
-  marks are asserted in the view, and the `Code` story holds the class each role
-  draws as.
+  marks are asserted in the view, and the `Approved` story holds the class `w`,
+  where the changed word is. The `Code` story has none.
 - `TestServer_Surface_reviewModeChange`: the mode line's markup. The view's
   `mode`, and the `File` story's `file-mode.html` for the line itself.
 - `TestServer_Surface_reviewRendered`: a rendered card in a box of its own, and
@@ -743,6 +748,100 @@ pages. Each was checked before it was marked.
   failed `TestServer_Surface_templateBundle`. architecture.md and conventions.md
   are corrected where they named the form routes or the review scripts.
 
+### After Iteration 6: the end-of-branch review
+
+A review of the whole branch found the defects below. Each has a test that fails
+without its fix.
+
+- Text typed on a screen was lost when a new round arrived through a refetch.
+  The screen was keyed by the view's `place`, which holds the round number, so
+  once a verdict was given elsewhere and a new round opened, any refetch of the
+  review returned round 2 and drew the screen again above the hold, dropping the
+  composer, the note, the edit forms and the outbox. Four paths reached it:
+  focus, reconnect, the refetch after a comment on a passage and the refetch
+  that `change` makes for a fetch in flight. The screen is now keyed by the
+  address it draws, so a newer round at that address is taken up only through
+  the hold. The review's query and every body's query have
+  `refetchOnWindowFocus` and `refetchOnReconnect` off, since the stream sends
+  the stamp again when it returns. A key that is the address keeps a move to
+  another round or another comparison a fresh screen. `browserFocusKeepsText`,
+  `browserReconnectKeepsText` and `browserPassageRefetchKeepsText` hold it. The
+  first two also count the server's reads of the round and find none.
+- Back after a stored verdict drew the cached open round, with its bar, and the
+  note came back from the round's draft, which holds the fetched round back. The
+  decided round was never taken up, and a second verdict was refused as stale. A
+  stored verdict now forgets the round's draft and removes the cached view and
+  the round's bodies before the router moves. `browserBackAfterVerdict` watches
+  every frame for the bar or an Edit control, which a fetch that arrives later
+  would hide, and each of the three removals fails it alone.
+- Fetched bodies were read again on focus, outside the hold, so their comments
+  took the decided state while the bar was drawn. The same two options are off
+  for them. `browserBodiesFocus` holds it. The architecture said a body of a
+  card not on screen is only marked stale. A body the screen has asked for is
+  read again whether or not it is on screen, and only a cached body of a card
+  not asked for is marked stale. The text now says so.
+- A tap on a held card's line moved the open composer to a card with no slot, so
+  it was never drawn. A tap on the card is now left alone. The set of held cards
+  is passed to `useTaps`, since the markup of the line is the approved markup
+  and takes no attribute. `browserHeldTap` holds it. Opening a composer on a
+  held card, with a slot drawn for it, was rejected: a comment sent from it
+  would have no body to be placed in until the reader loaded the file.
+- `reviewFilesWithNoRows`' replacement and `reviewWholeFileLink` now assert an
+  empty `RawDiff` for each card. Planting a source link on a markdown card that
+  shows as a fact, on one that shows as rows, and on every card, each fails
+  them.
+- `editCommentJSON` reads the store and finds the other comment unchanged, after
+  the edit and after each refused one. `addCommentJSON` asserts the stored level
+  and lines of each case. `addCommentJSONRefused` asserts each refusal's
+  sentence. An `OR 1=1` on the edit's update and a change to the stored level or
+  to the stored end line each fail them. `fixture.comments` moved from the
+  browser tests to `helpers_test.go` for this.
+- The HX-Request branch of the failure page is deleted. Nothing sends a write
+  with that header since the template page went, and a test of it would hold a
+  branch no caller reaches. The branch of the refusal without a token stays,
+  with its test, as the htmx item in specs/TODO.md says, and that item no longer
+  lists the failure page. The Iteration 6 text above, which says both stay, is
+  corrected by this.
+- The two stories the Departures claimed are added to `ReviewChecks`:
+  `RenderedFacts` draws a rendered card's facts line with its size, hint and
+  Load anyway link, and `SandboxedFrame` draws a page in its sandboxed frame
+  with the label and Open. The `Rendered` story draws skeletons only and checks
+  neither, which the text above now says.
+- The architecture's claims that did not hold are corrected: a view with a stamp
+  is fetched on its stamp and by the reader's own writes, not only on its stamp,
+  and a refetch never takes text away because the screen is not drawn again,
+  which the key now guarantees. A change request is refused when it has no
+  comment and no note, and not only with no comments. The text in
+  architecture.md, `routes.ts`, `acting.go`, `writes.go`, `reviewDrafts.ts` and
+  `QueueRow.tsx` that spoke of the review templates as present is in the past
+  tense or says what remains. The queue's comment that a review is a template
+  page was the same fault.
+- `decisionHref`, the comment's href and the card's body address are built with
+  `/api` in Go, and `reviewview.go` no longer prefixes them. The routes they
+  named before the prefix are gone.
+- The client's `composerId` and `targetOf` are held to the ids Go sends by
+  `reviewIds.test.ts`, which compares them with every thread, passage, slot and
+  list in the committed review views. `make api-check` keeps those equal to a
+  fresh run of Go, so a change to `threadID`, `passageID` or `slotID` fails once
+  the fixtures are written again. The id of a removed row's composer,
+  `thread-<key>-o<line>`, has no Go counterpart and no check.
+- A submission key reused across reviews answers another review's comment, since
+  the lookup in `store/comments.go` spans all reviews. It predates this spec and
+  is left as an item in specs/TODO.md under Unscheduled.
+
+- The verdict also removes the round's cached view at its other address,
+  `/reviews/N` or `/reviews/N/rounds/R`, with each comparison, since opening the
+  other would draw the open bar until its refetch. `browserBackAfterVerdict`
+  caches both before the verdict and watches the other; keeping only the current
+  address's removal fails it.
+- `browser.waitFor` polled `eval`, which fails the test on a page exception, so
+  an expression that read a property of an element the page had not drawn yet
+  failed on its first poll. That was the flake in `browserFold` and
+  `browserRemembers` under load. A `tryEval` returns the value and the exception
+  text, `waitFor` polls it and treats an exception as not yet, and the last
+  exception is in its failure message. A single `eval` still fails at once. The
+  added wait in `browserFold` stays.
+
 ## Iteration 1: The API
 
 - [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
@@ -937,3 +1036,17 @@ result is written here as it arrives.
       moves nothing on the phone.
 - [ ] The first draw and a fling on a long review are measured as the probe
       measured them, and recorded beside the probe's numbers.
+
+Results, from the owner's phone on 2026-11-01, against the build of 99c4ea4. Two
+scratch reviews were opened for the check: 225 holds code with removed and added
+rows, a 44-passage document with one changed paragraph and a changed PNG, and
+226 holds 26 files and 11,846 lines cut from this repository's largest Go files
+as the probe's were, every row an addition where the probe mixed added, removed
+and context rows. From the host, `tailscale status` showed the phone reached it
+through the relay "sea". The daemon's own node's path was not read.
+
+- Text typed on the template page carried over. On master's build, a line draft
+  and a verdict note were left on 225, and 226 was scrolled to about its fifth
+  card with one card folded. After the branch build was installed, the draft was
+  back under its line, the note in the bar, and 226 opened at its place with the
+  same card folded.
