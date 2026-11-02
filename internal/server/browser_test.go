@@ -1754,8 +1754,8 @@ func TestServer_Surface_browserPreviewSandbox(t *testing.T) {
 	write(g, repo, "evil.html", fmt.Sprintf(`<script>
 const out = {ran: true};
 try { out.token = localStorage.getItem("eyeball:token"); } catch (e) { out.token = e.name; }
-const body = new URLSearchParams({round: "2", verdict: "approve", note: ""});
-fetch("/reviews/%d/decision", {method: "POST", body, mode: "no-cors"})
+const body = JSON.stringify({round: 2, verdict: "approve", note: ""});
+fetch("/api/reviews/%d/decision", {method: "POST", body, mode: "no-cors"})
   .then(() => { out.post = "sent"; }, (e) => { out.post = String(e); })
   .finally(() => parent.postMessage(JSON.stringify(out), "*"));
 </script>`, id))
@@ -1788,7 +1788,7 @@ fetch("/reviews/%d/decision", {method: "POST", body, mode: "no-cors"})
 	b.eval(g, frame)
 	b.waitFor(g, `window.__got !== null`)
 	g.Expect(b.eval(g, `window.__got.post`)).To(Equal("sent"))
-	g.Eventually(statuses.lines).Should(ContainElement(fmt.Sprintf("POST /reviews/%d/decision 403", id)))
+	g.Eventually(statuses.lines).Should(ContainElement(fmt.Sprintf("POST /api/reviews/%d/decision 403", id)))
 	_, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).To(MatchError(store.ErrNotFound))
 }

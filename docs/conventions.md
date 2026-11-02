@@ -479,7 +479,8 @@ which is why none of them can be left to a reading.
 - `template-classes`: a class a surface template uses is defined by `app.css`
   alone. `tearout.css` is the tearouts' own chrome and is not shipped, and a
   template drifting from the tearout it was seeded from renders its text
-  unstyled.
+  unstyled. The surface keeps the layout, the error page and the notice, so the
+  check reads those. The review's classes are held by `component-classes`.
 
 The markup is tokenized, never matched with a regular expression. A pattern
 expecting `<span class="agent">` written tightly stops matching when a line

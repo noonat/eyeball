@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -64,8 +63,7 @@ func commentsAPI(review int64) string {
 }
 
 // refusedComments are comments that cannot be stored, on a review of a.txt,
-// which reads "one\ntwo\n" at round 1 and "one\n" in the base. The form route
-// and the JSON route refuse every one with the same status and sentence.
+// which reads "one\ntwo\n" at round 1 and "one\n" in the base.
 var refusedComments = []struct {
 	name   string
 	req    view.CommentRequest
@@ -126,28 +124,6 @@ var refusedComments = []struct {
 		req:    view.CommentRequest{Level: view.CommentLevelReview, Round: 9},
 		status: http.StatusNotFound,
 	},
-}
-
-// formOf is the form the template's composer sent for a request, with each
-// number blank where it is absent.
-func formOf(req view.CommentRequest) url.Values {
-	number := func(n int32) string {
-		if n == 0 {
-			return ""
-		}
-		return strconv.Itoa(int(n))
-	}
-	return url.Values{
-		"round":      {strconv.Itoa(int(req.Round))},
-		"level":      {string(req.Level)},
-		"path":       {req.Path},
-		"start":      {number(req.Start)},
-		"end":        {number(req.End)},
-		"oldline":    {number(req.OldLine)},
-		"against":    {req.Against},
-		"body":       {req.Body},
-		"submission": {req.Submission},
-	}
 }
 
 func TestServer_addCommentJSON(t *testing.T) {
@@ -346,29 +322,6 @@ func TestServer_addCommentJSONRefused(t *testing.T) {
 	})
 }
 
-// The form route and the JSON route answer each refusal with the same status
-// and the same sentence, since both call one function to decide.
-func TestServer_addCommentJSONRefusedLikeForm(t *testing.T) {
-	for _, c := range refusedComments {
-		t.Run(c.name, func(t *testing.T) {
-			g := NewWithT(t)
-			f := newFixture(g, t)
-			id := actingReview(g, t, f)
-			if c.req.Round == 0 {
-				c.req.Round = 1
-			}
-			if c.req.Body == "" {
-				c.req.Body = "A point."
-			}
-			path := "/reviews/" + itoa(id) + "/comments"
-			asForm := sendForm(f.s.Surface(), http.MethodPost, path, formOf(c.req), true)
-			asJSON := sendJSON(f.s.Surface(), http.MethodPost, commentsAPI(id), c.req)
-			g.Expect(asJSON.Code).To(Equal(asForm.Code))
-			g.Expect(readRefusal(g, asJSON).Message).To(Equal(asForm.Body.String()))
-		})
-	}
-}
-
 // A removed row is quoted from the side of the comparison it was removed from:
 // the previous round, or with against set to base the base, which can be a
 // different text.
@@ -406,9 +359,6 @@ func TestServer_addCommentJSONSubmission(t *testing.T) {
 	second := readStored(g, sendJSON(f.s.Surface(), http.MethodPost, commentsAPI(id), req))
 	g.Expect(second).To(Equal(first))
 	g.Expect(first.Count).To(BeEquivalentTo(1))
-
-	res := sendForm(f.s.Surface(), http.MethodPost, "/reviews/"+itoa(id)+"/comments", formOf(req), true)
-	g.Expect(res.Code).To(Equal(http.StatusOK))
 
 	other := req
 	other.Submission = "key-2"
@@ -608,8 +558,5 @@ func TestServer_editCommentJSONGone(t *testing.T) {
 	res := sendJSON(f.s.Surface(), http.MethodPut, path, view.CommentEdit{Body: "Too late."})
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 	g.Expect(readRefusal(g, res).Message).To(Equal(noComment))
-	res = sendForm(f.s.Surface(), http.MethodPut, "/reviews/"+itoa(id)+"/comments/"+itoa(c.ID), url.Values{"body": {"Too late."}}, true)
-	g.Expect(res.Code).To(Equal(http.StatusNotFound), "the form route answers the same")
-	g.Expect(res.Body.String()).To(Equal(noComment))
 	g.Expect(sendJSON(f.s.Surface(), http.MethodDelete, path, nil).Code).To(Equal(http.StatusOK))
 }

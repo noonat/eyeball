@@ -79,7 +79,7 @@ func reviewView(p page, body reviewPage, waiting *int32) view.Review {
 	if a := body.Acting; a != nil {
 		acting := &view.Acting{State: a.State, Against: a.Against, ListID: a.List.ID, Comments: viewCards(a.List.Cards)}
 		if a.Bar != nil {
-			acting.Bar = &view.Bar{Action: "/api" + a.Bar.Action, Count: int32(a.Bar.Tally.Count)}
+			acting.Bar = &view.Bar{Action: "/api" + a.Bar.Action, Count: int32(a.Bar.Count)}
 		}
 		out.Acting = acting
 	}

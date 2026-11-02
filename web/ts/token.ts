@@ -1,5 +1,3 @@
-import { setHeader, verbOf } from "./events";
-
 // The loopback listener's token, handed over in the printed address's fragment
 // and kept per origin. A browser sends a fragment to no server and puts it in
 // no Referer, so the token never reaches a request line or a log.
@@ -24,7 +22,7 @@ export function takeToken(): void {
   window.history.replaceState(null, "", pathname + search);
 }
 
-// tokenHeaders is the header a write made outside htmx carries, empty where
+// tokenHeaders is the header a write carries, empty where
 // no token is stored.
 export function tokenHeaders(): Record<string, string> {
   try {
@@ -33,23 +31,4 @@ export function tokenHeaders(): Record<string, string> {
   } catch {
     return {};
   }
-}
-
-// sendToken adds the stored token to every write. The tailnet's origin never
-// stores one, so nothing is added there.
-export function sendToken(): void {
-  document.addEventListener("htmx:configRequest", (event) => {
-    if (verbOf(event) === "get") {
-      return;
-    }
-    let token: string | null = null;
-    try {
-      token = window.localStorage.getItem(key);
-    } catch {
-      return;
-    }
-    if (token !== null) {
-      setHeader(event, header, token);
-    }
-  });
 }

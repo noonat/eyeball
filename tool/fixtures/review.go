@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,23 +21,6 @@ type pageState struct {
 	file, world string
 	// address is the page's path and query.
 	address func(ids map[string]int64) string
-}
-
-// writeState is one answer the template routes give to a write or a fragment
-// request: a composer, a comment card, the decision bar. It is written as it
-// was sent, with its status in the name when it is not 200.
-type writeState struct {
-	// file and world are as in pageState.
-	file, world string
-	// method is the request's method.
-	method string
-	// address is the request's path and query.
-	address func(ids map[string]int64) string
-	// form is the request's body, and nil for none.
-	form func(ids map[string]int64) url.Values
-	// keep names the comment the write stored, as review-key, so a later write
-	// can address it.
-	keep string
 }
 
 // reviewPages are the states of the review page. The frames of
@@ -64,56 +46,6 @@ var reviewPages = []pageState{
 	{file: "review-earlier", world: "week", address: pageOf("drain", "/rounds/1")},
 }
 
-// reviewWrites are the fragments and the writes, in the order they are sent.
-// A write changes what the next one sees, so each group is ordered: the reads
-// first, then the refusals that need a review with no comments, then the
-// writes that add and change comments.
-var reviewWrites = []writeState{
-	{file: "review-composer-review", world: "review", method: "GET", address: composerAt("upload", "level=review&round=1")},
-	{file: "review-composer-file", world: "review", method: "GET", address: composerAt("upload", "level=file&round=1&path=internal/upload/backoff.go")},
-	{file: "review-composer-line", world: "review", method: "GET", address: composerAt("upload", "level=line&round=1&path=internal/upload/worker.go&start=13")},
-	{file: "review-composer-line-empty", world: "review", method: "GET", address: composerAt("upload", "level=line&round=1&path=internal/upload/worker.go&start=12")},
-	{file: "review-composer-removed", world: "review", method: "GET", address: composerAt("upload", "level=file&round=1&path=internal/upload/worker.go&oldline=13")},
-	{file: "review-composer-passage", world: "review", method: "GET", address: composerAt("product", "level=passage&round=2&path=docs/product.md&start=9&end=9")},
-	{file: "review-composer-passage-commented", world: "review", method: "GET", address: composerAt("product", "level=passage&round=2&path=docs/product.md&start=7&end=7")},
-	{file: "review-composer-removed-base", world: "review", method: "GET", address: composerAt("upload", "level=file&round=1&path=internal/upload/worker.go&oldline=13&against=base")},
-	{file: "review-composer-late", world: "review", method: "GET", address: composerAt("approved", "level=file&round=1&path=internal/approved/limit.go")},
-	{file: "review-composer-late-review", world: "review", method: "GET", address: composerAt("approved", "level=review&round=1")},
-	{file: "review-composer-bad", world: "review", method: "GET", address: composerAt("upload", "level=line&round=1&path=internal/upload/worker.go")},
-	{file: "review-composer-round", world: "review", method: "GET", address: composerAt("upload", "level=review&round=9")},
-	{file: "review-comment", world: "review", method: "GET", address: commentAt("upload-line", "")},
-	{file: "review-comment-edit", world: "review", method: "GET", address: commentAt("upload-line", "?edit=1")},
-	{file: "review-comment-late", world: "review", method: "GET", address: commentAt("approved-late", "")},
-	{file: "review-comment-late-edit", world: "review", method: "GET", address: commentAt("approved-late", "?edit=1")},
-	{file: "review-comment-released", world: "review", method: "GET", address: commentAt("approved-sent", "")},
-	{file: "review-comment-released-edit", world: "review", method: "GET", address: commentAt("approved-sent", "?edit=1")},
-	{file: "review-comment-missing", world: "review", method: "GET", address: commentAt("upload-none", "")},
-
-	{file: "review-decide-refused", world: "review", method: "POST", address: decisionAt("forms"), form: verdictForm("forms", 1, "changes", "")},
-	{file: "review-decide-refused-note", world: "review", method: "POST", address: decisionAt("forms"), form: verdictForm("forms", 1, "changes", "  ")},
-	{file: "review-decide-stale", world: "review", method: "POST", address: decisionAt("approved"), form: verdictForm("approved", 1, "approve", "")},
-	{file: "review-decide-stale-round", world: "review", method: "POST", address: decisionAt("forms"), form: verdictForm("forms", 9, "approve", "")},
-	{file: "review-decide-bad", world: "review", method: "POST", address: decisionAt("forms"), form: verdictForm("forms", 1, "maybe", "")},
-
-	{file: "review-add-empty", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "review", "", 0, 0, "  ")},
-	{file: "review-add-review", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "review", "", 0, 0, "Say what the failure looks like."), keep: "forms-review"},
-	{file: "review-add-file", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "file", "internal/forms/a.go", 0, 0, "This file wants a test."), keep: "forms-file"},
-	{file: "review-add-line", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "line", "internal/forms/a.go", 6, 0, "Why not return the error?")},
-	{file: "review-add-line-second", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "line", "internal/forms/a.go", 6, 0, "A second thought on the same line.")},
-	{file: "review-add-passage", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "passage", "internal/forms/doc/forms.md", 7, 7, "This sentence needs a number.")},
-	{file: "review-add-removed", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "file", "internal/forms/a.go", 0, 0, "A removed line.", "oldline", "3")},
-	{file: "review-add-bad", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 1, "line", "internal/forms/a.go", 99, 0, "No such line.")},
-	{file: "review-add-late", world: "review", method: "POST", address: commentsAt("approved"), form: commentForm("approved", 1, "file", "internal/approved/limit.go", 0, 0, "Sent at once.")},
-	{file: "review-add-no-round", world: "review", method: "POST", address: commentsAt("forms"), form: commentForm("forms", 9, "review", "", 0, 0, "Nowhere to go.")},
-	{file: "review-edit", world: "review", method: "PUT", address: commentAt("forms-file", ""), form: bodyForm("A sharper note on the file.")},
-	{file: "review-edit-empty", world: "review", method: "PUT", address: commentAt("forms-file", ""), form: bodyForm("")},
-	{file: "review-edit-released", world: "review", method: "PUT", address: commentAt("approved-sent", ""), form: bodyForm("Too late.")},
-	{file: "review-delete", world: "review", method: "DELETE", address: commentAt("forms-review", "")},
-	{file: "review-delete-released", world: "review", method: "DELETE", address: commentAt("approved-sent", "")},
-	{file: "review-delete-again", world: "review", method: "DELETE", address: commentAt("forms-review", "")},
-	{file: "review-decide-approve", world: "review", method: "POST", address: decisionAt("forms"), form: verdictForm("forms", 1, "approve", "")},
-}
-
 // pageOf is a review's page, with a suffix for a round or a query.
 func pageOf(review, suffix string) func(ids map[string]int64) string {
 	return func(ids map[string]int64) string {
@@ -122,69 +54,6 @@ func pageOf(review, suffix string) func(ids map[string]int64) string {
 			query = "?" + query
 		}
 		return fmt.Sprintf("/reviews/%d%s%s", ids[review], path, query)
-	}
-}
-
-// composerAt is the composer route, with a query naming the anchor.
-func composerAt(review, query string) func(ids map[string]int64) string {
-	return func(ids map[string]int64) string {
-		return fmt.Sprintf("/reviews/%d/composer?%s", ids[review], query)
-	}
-}
-
-// commentAt is a comment's own address, the review being the one the comment's
-// key starts with.
-func commentAt(key, suffix string) func(ids map[string]int64) string {
-	return func(ids map[string]int64) string {
-		return fmt.Sprintf("/reviews/%d/comments/%d%s", ids[strings.SplitN(key, "-", 2)[0]], ids["comment:"+key], suffix)
-	}
-}
-
-// commentsAt is where a review's comments post.
-func commentsAt(review string) func(ids map[string]int64) string {
-	return func(ids map[string]int64) string {
-		return fmt.Sprintf("/reviews/%d/comments", ids[review])
-	}
-}
-
-// decisionAt is where a review's verdict posts.
-func decisionAt(review string) func(ids map[string]int64) string {
-	return func(ids map[string]int64) string {
-		return fmt.Sprintf("/reviews/%d/decision", ids[review])
-	}
-}
-
-// verdictForm is the form the decision bar sends.
-func verdictForm(review string, round int, verdict, note string) func(ids map[string]int64) url.Values {
-	return func(ids map[string]int64) url.Values {
-		return url.Values{"round": {fmt.Sprint(round)}, "verdict": {verdict}, "note": {note}}
-	}
-}
-
-// commentForm is the form a composer sends. Extra pairs are further fields.
-func commentForm(review string, round int, level, path string, start, end int, body string, extra ...string) func(ids map[string]int64) url.Values {
-	return func(ids map[string]int64) url.Values {
-		form := url.Values{"round": {fmt.Sprint(round)}, "level": {level}, "body": {body}}
-		if path != "" {
-			form.Set("path", path)
-		}
-		if start != 0 {
-			form.Set("start", fmt.Sprint(start))
-		}
-		if end != 0 {
-			form.Set("end", fmt.Sprint(end))
-		}
-		for i := 0; i+1 < len(extra); i += 2 {
-			form.Set(extra[i], extra[i+1])
-		}
-		return form
-	}
-}
-
-// bodyForm is the form an edit sends.
-func bodyForm(body string) func(ids map[string]int64) url.Values {
-	return func(ids map[string]int64) url.Values {
-		return url.Values{"body": {body}}
 	}
 }
 
@@ -428,7 +297,9 @@ func seedReview(w *world) error {
 		return err
 	}
 
-	// A review with nothing on it yet, which the writes are tried on.
+	// A review with nothing on it yet. No page reads it now that the form
+	// routes are gone, and it stays so the reviews opened after it keep their ids,
+	// which the fixtures hold in their addresses.
 	w.ago(20 * time.Minute)
 	if err := w.edit(harbor, map[string]string{"internal/forms/a.go": formsAfter, "internal/forms/doc/forms.md": formsDocNew}); err != nil {
 		return err

@@ -101,7 +101,7 @@ func TestServer_LoopbackSurface_apiRefusal(t *testing.T) {
 	h.ServeHTTP(stored, req)
 	g.Expect(stored.Code).To(Equal(http.StatusOK), stored.Body.String())
 
-	page := sendForm(h, http.MethodPost, "/reviews/"+itoa(id)+"/comments", url.Values{"round": {"1"}}, false)
+	page := sendForm(h, http.MethodPost, "/reviews/"+itoa(id)+"/comments", url.Values{"round": {"1"}})
 	g.Expect(page.Code).To(Equal(http.StatusForbidden))
 	g.Expect(page.Header().Get("Content-Type")).To(HavePrefix("text/html"))
 }

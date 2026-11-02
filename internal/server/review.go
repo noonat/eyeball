@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
@@ -43,7 +42,7 @@ var heldHint = fmt.Sprintf("Past the %d a card shows on its own.", maxCardLines)
 // product.md's guess.
 const maxUnlistedFiles = 10
 
-// reviewPage is what the review template prints for one round.
+// reviewPage is what the view of one round is built from.
 type reviewPage struct {
 	// ID is the review's id.
 	ID int64
@@ -119,8 +118,6 @@ type actingView struct {
 	State string
 	// Against is the page's comparison, which a removed row's quote needs.
 	Against string
-	// Composer is the review's own box under the agent's note.
-	Composer composerView
 	// List is the review-level comments, where that box's answers go.
 	List listView
 	// Bar is the decision bar, and nil once the round is decided.
@@ -169,9 +166,6 @@ type fileView struct {
 	Diff render.File
 	// IsDocument says the file is shown as a document rather than as rows.
 	IsDocument bool
-	// Document is a markdown file rendered with what moved marked, joined with
-	// its threads as the template page draws it.
-	Document template.HTML
 	// Parts are the same document as a list, which the view sends.
 	Parts []render.Part
 	// PassageCards are the comments under each passage, keyed by its range,
@@ -425,7 +419,6 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	for _, f := range stored {
 		views[f.Path] = f.View
 	}
-	var renderErr error
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
 	// lastOld is the old side of the last document shown, which decides the
@@ -491,9 +484,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		doc := at.page()
 		doc.HeadingIDs = false
 		doc.Fold = true
-		var after render.After
 		if byRange := passages[m.Path]; byRange != nil {
-			path := m.Path
 			doc.Commented = make(map[[2]int]struct{}, len(byRange))
 			file.PassageCards = make(map[[2]int][]cardView, len(byRange))
 			for key, comments := range byRange {
@@ -502,24 +493,18 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 					file.PassageCards[key] = append(file.PassageCards[key], cardOf(review.ID, c, open, decisionAt))
 				}
 			}
-			after = func(first, last int) template.HTML {
-				cards := file.PassageCards[[2]int{first, last}]
-				if len(cards) == 0 {
-					return ""
-				}
-				for _, c := range byRange[[2]int{first, last}] {
-					placed[c.ID] = true
-				}
-				out, err := s.fragment("passagethread", threadView{ID: passageID(path, first, last), Cards: cards})
-				if err != nil && renderErr == nil {
-					renderErr = err
-				}
-				return out
-			}
 		}
 		file.IsDocument = true
 		file.Parts = render.Document(old, content, doc)
-		file.Document = render.Join(file.Parts, after)
+		// A comment is placed once its passage is drawn, and a comment whose
+		// range is no passage of the document is listed with the others.
+		for _, part := range file.Parts {
+			for _, p := range append([]render.Passage{part.Passage}, part.Fold...) {
+				for _, c := range passages[m.Path][[2]int{p.First, p.Last}] {
+					placed[c.ID] = true
+				}
+			}
+		}
 		file.RawDiff = at.viewHref("source")
 		lastOld = old
 		view.Shown = append(view.Shown, file)
@@ -544,9 +529,6 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	view.Listed = len(view.Shown) > maxUnlistedFiles
 
-	if renderErr != nil {
-		return reviewPage{}, renderErr
-	}
 	if acting {
 		view.Acting = s.acting(review, round, open, against.Get("against"))
 		for i := range view.Shown {
@@ -604,7 +586,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 
 	if view.Acting != nil && view.Acting.Bar != nil {
-		view.Acting.Bar.Tally = tallyView{Count: len(comments)}
+		view.Acting.Bar.Count = len(comments)
 	}
 	view.Stream = fmt.Sprintf("/events?review=%d", review.ID)
 	view.Place = fmt.Sprintf("%d:%d:%s", review.ID, round.Number, against.Get("against"))
@@ -787,11 +769,10 @@ func thousands(n int) string {
 // acting is what the current round offers the reviewer.
 func (s *Server) acting(review store.Review, round store.Round, open bool, against string) *actingView {
 	a := &actingView{Review: review.ID, Round: round.Number, State: "late", Against: against}
-	a.Composer, _ = composer(review.ID, round.Number, store.LevelReview, "", 0, 0, 0, "", !open)
 	a.List = listView{ID: listID(store.LevelReview, "")}
 	if open {
 		a.State = "open"
-		a.Bar = &barView{Action: decisionHref(review.ID), Round: round.Number}
+		a.Bar = &barView{Action: decisionHref(review.ID)}
 	}
 	return a
 }
@@ -844,32 +825,6 @@ func shows(f render.File, line int) bool {
 		}
 	}
 	return false
-}
-
-// handleCardBody answers GET /reviews/{review}/rounds/{round}/cards/{path...}:
-// a deferred file card's body, once the card nears the screen.
-//
-// It builds the round's page and takes the one card from it, so the body is
-// the page's own markup and cannot drift from it. That costs comparing every
-// file of the round for each body asked for, which only a review past the
-// thresholds does.
-func (s *Server) handleCardBody(w http.ResponseWriter, r *http.Request) error {
-	_, view, ok, err := s.roundPage(r)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		plain(w, http.StatusNotFound, "There is no such review or round.")
-		return nil
-	}
-	for _, f := range view.Shown {
-		if f.Path == r.PathValue("path") {
-			f.Deferred = false
-			return s.fragments(w, http.StatusOK, fragment{name: "filebody", data: f})
-		}
-	}
-	plain(w, http.StatusNotFound, "This round shows no such file.")
-	return nil
 }
 
 // copyRoot is the root of the working copy a round was captured from, which is

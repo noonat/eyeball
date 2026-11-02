@@ -918,6 +918,54 @@ func TestServer_Surface_reviewNotFound(t *testing.T) {
 	}
 }
 
+// A comment on lines that span two passages of a document matches no passage,
+// so it sits under neither. It is listed once with the file's own comments, as
+// the template page's join of the passages left it, and a comment on exactly one
+// passage is under that passage and not in the list as well.
+func TestServer_Surface_reviewPassageAcrossTwo(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	commitFile(g, repo, "docs/notes.md", "# Notes\n")
+	write(g, repo, "docs/notes.md", "# Notes\n\nFirst passage.\n\nSecond passage.\n\nThird passage.\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"docs"}, Note: "notes"}).Review.ID
+	send := func(start, end int32, body string) {
+		g.THelper()
+		req := view.CommentRequest{Level: view.CommentLevelPassage, Path: "docs/notes.md", Round: 1, Start: start, End: end, Body: body}
+		g.Expect(sendJSON(f.s.Surface(), http.MethodPost, commentsAPI(id), req).Code).To(Equal(http.StatusOK), body)
+	}
+	// The first passage is line 3, the second line 5, and 3 to 5 is both.
+	send(3, 3, "On the first.")
+	send(3, 5, "Across both.")
+
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	body := f.bodiesOf(g, round)["docs/notes.md"]
+	var threaded []string
+	for _, part := range body.Passages {
+		for _, p := range append([]view.DocPassage{}, part.Fold...) {
+			if p.Thread != nil {
+				for _, c := range p.Thread.Comments {
+					threaded = append(threaded, p.Thread.ID+" "+c.Body)
+				}
+			}
+		}
+		if part.Passage != nil && part.Passage.Thread != nil {
+			for _, c := range part.Passage.Thread.Comments {
+				threaded = append(threaded, part.Passage.Thread.ID+" "+c.Body)
+			}
+		}
+	}
+	g.Expect(threaded).To(Equal([]string{passageID("docs/notes.md", 3, 3) + " On the first."}), "the one under a passage, and none under the span")
+	var listed []string
+	for _, c := range body.Comments {
+		listed = append(listed, c.Body)
+	}
+	g.Expect(listed).To(Equal([]string{"Across both."}), "the span once, with the file's comments")
+	g.Expect(round.Comments).To(BeEmpty())
+	g.Expect(round.Acting.Comments).To(BeEmpty())
+}
+
 func TestServer_Surface_reviewRendered(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

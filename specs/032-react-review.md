@@ -652,6 +652,97 @@ sheets, since the sheets are the pages the owner approved.
   from showing while its card asked again survived and was removed: a query with
   no data starts over, so it guarded nothing a reader could see.
 
+### Iteration 6
+
+Most of its first, third and last todos were done in Iteration 5, which the
+Departures there record: the review handler's template path,
+`browserShellTemplatePage` on the error page and the frozen `review-*.html`
+pages. Each was checked before it was marked.
+
+- `review.html` and `acting.html` are deleted. `file.html` keeps `notice`, which
+  `error.html` reaches, and loses `rendered` and `modeline`, which only the
+  review template used. The file keeps its name. A rename to `notice.html` was
+  not made, since it would change nothing a reader could see.
+- The routes gone are `POST`, `PUT` and `DELETE /reviews/{review}/comments`,
+  `GET /reviews/{review}/comments/{comment}`, `GET /reviews/{review}/composer`,
+  `POST /reviews/{review}/decision` and the template cards route, each with its
+  handler. What only they used went too: the composer, the fragment and the form
+  readers, the tally's out-of-band flag, the composer and chip types, and the
+  `Composer` of the acting view. `storeComment`, `newComment`, `changeComment`,
+  `removeComment`, `recordVerdict` and the checks stay, since the JSON routes
+  call them. `barView` keeps an action and a count. `tally` returns the count.
+- The document's markup is no longer joined with a thread after each passage,
+  which was the template's. Its one other effect was to mark which comments a
+  passage placed, so a comment whose range is no passage is listed with the
+  others. That is now done by walking the document's parts, and the review tests
+  for placement pass unchanged.
+- The tests of the form routes are deleted:
+  `TestServer_Surface_actingFailureIsPlain`, `addComment`, `addCommentLate`,
+  `addCommentRefused`, `addCommentRepeated`, `comment`, `composer`,
+  `composerDecided`, `decide` and `editAndDeleteComment`, and
+  `TestServer_addCommentJSONRefusedLikeForm`. Each fact they held is held by a
+  JSON test that existed before: the stored fields of each level by
+  `addCommentJSON`, the refusals by `addCommentJSONRefused`, a key sent twice by
+  `addCommentJSONSubmission`, an edit or delete of another review's comment, of
+  one already gone and of a released one by `editCommentJSON`,
+  `deleteCommentJSON` and `editCommentJSONGone`, and the verdict's refusals and
+  stale round by `decideJSON`. The sentences a composer shows on a decided round
+  are the components' own, held by the stories and by `composerText`. The form
+  block inside `addCommentJSONSubmission` and `editCommentJSONGone` is gone, and
+  the four form entries in `refusesEveryWrite` with them. The daemon's loopback
+  test sends its comment and verdict to the JSON routes.
+- `TestServer_Surface_reviewPassageAcrossTwo` sends a passage comment on lines
+  that span two passages of a document, which the JSON route accepts since it
+  checks only that the lines exist. The comment is listed once with the file's
+  comments and sits under no passage, and a comment on exactly one passage is
+  under it and not listed. Leaving out the walk that places comments, and
+  placing every comment of a document, each fail it.
+- `TestServer_Surface_removedTemplateRoutes` holds each removed address to a 404
+  that stores nothing, and `TestServer_Surface_templateBundle` holds the
+  template bundle free of the review page's scripts.
+- `tool/fixtures` no longer writes the answers of the form and fragment routes,
+  `review-*.html` and `review-*.txt` beside the pages, or `composers.ts`, which
+  was built from the queries of those requests. All are kept as they last came
+  out, and a story and the Vitest test of the composer's request still compare
+  with them. The header of `main.go` says so, as for the pages, and
+  `composers.ts` says so in its own. It is formatted again now that nothing
+  writes it, so the Makefile no longer excludes it. The `forms` review that the
+  writes were tried on is still seeded, since removing it renumbers the reviews
+  after it and every address in the fixtures that holds one.
+- `web/ts/composer.ts`, `drafts.ts`, `unsent.ts`, `bodies.ts`, `place.ts`,
+  `failures.ts`, `events.ts` and `state.ts` are deleted. Each was imported by
+  `main.ts` or by another of them and by no file of the app. What the template
+  bundle still builds is the theme, the token, the worker, the update banner,
+  the stream, the viewport fix, the tap, the head and the blink read. The
+  functions that only the deleted modules called went with them: `sendToken`,
+  `keepBlink`, the stream's reload and its stamp, `unsavedText`, `isDeciding`,
+  and `setOffline`, whose only effect was an event nothing listens to, and every
+  entry of `classes` but `sel`. In Go, the `refuser` type and the `refuse`
+  parameter of `writeReview`, `findRound` and `reviewComment` are gone, since
+  the JSON routes were the one caller left, and `sendForm` in the tests lost its
+  htmx flag. The `globals.d.ts` declaration of `htmx` stays, since the vendored
+  file it names is htmx's removal, which is the next item. So do the htmx
+  branches of the refusal and the failure page, and `render.Join`'s after hook,
+  which the render tests use, and the `/static/htmx.js` route. specs/TODO.md
+  lists them under the htmx item.
+- The class check of the templates, `template-classes`, now reads `layout.html`,
+  `error.html` and the notice. Every class the review's two templates used is
+  read by a component, a script or a remaining template, except the `i-*` names
+  of the icons, which `Icon` builds as `i-${name}` and `icons-listed` holds to
+  the stylesheet. No class of the two templates is left in `app.css` with no
+  reader, so no CSS was removed. The review's markup is held by
+  `component-classes`.
+- `browserPreviewSandbox` posts a JSON body to `/api/reviews/{review}/decision`,
+  which the sandboxed frame sends without a token and the surface answers 403.
+- Nothing reaches what was removed: a search of the source, the docs, the
+  Makefile and `internal/convention` finds no name of a removed handler, module
+  or route outside the specs and the frozen fixtures. Each route's return was
+  planted, as `handleApp` for `POST` comments, the composer, a decision and the
+  cards route, and each failed `TestServer_Surface_removedTemplateRoutes`. A
+  string of the removed scripts planted in `main.ts`, `hx-get` and `keepPlace`,
+  failed `TestServer_Surface_templateBundle`. architecture.md and conventions.md
+  are corrected where they named the form routes or the review scripts.
+
 ## Iteration 1: The API
 
 - [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
@@ -807,16 +898,22 @@ sheets, since the sheets are the pages the owner approved.
 
 ## Iteration 6: The templates go
 
-- [ ] `review.html`, `acting.html` and the parts of `file.html` only they use,
+- [x] `review.html`, `acting.html` and the parts of `file.html` only they use,
       the form and fragment routes, the template cards route and the review
       handler's template path are removed.
-- [ ] The `web/ts` modules only the review template loaded are removed, and the
+- [x] The `web/ts` modules only the review template loaded are removed, and the
       template bundle still builds for the error page.
-- [ ] Browser tests that used the review page as their example of a template
+- [x] Browser tests that used the review page as their example of a template
       page use the error page instead, and the preview sandbox test posts to the
       `/api` verdict route.
-- [ ] The template markup files are committed as they last came out, with a
+- [x] The template markup files are committed as they last came out, with a
       comment saying so, as 030 did.
+
+> **Completed** 2026-11-02 02:48 UTC
+>
+> - `make check` — 20.2s
+> - `go test -race ./...` — 53.0s
+> - `go test -count=1 -tags browser ./internal/server` — 110.8s
 
 ## Iteration 7: On the phone
 

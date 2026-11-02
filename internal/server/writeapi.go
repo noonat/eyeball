@@ -53,10 +53,10 @@ func readJSON[T any](w http.ResponseWriter, r *http.Request) (T, bool) {
 }
 
 // handleAddCommentJSON answers POST /api/reviews/{review}/comments: one comment
-// on the round the body names, checked as the form route checks it.
+// on the round the body names.
 func (s *Server) handleAddCommentJSON(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r, refuseJSON)
+	review, ok, err := s.writeReview(w, r)
 	if !ok || err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (s *Server) handleAddCommentJSON(w http.ResponseWriter, r *http.Request) er
 	if !ok {
 		return nil
 	}
-	round, ok, err := s.findRound(w, r, review, int(req.Round), refuseJSON)
+	round, ok, err := s.findRound(w, r, review, int(req.Round))
 	if !ok || err != nil {
 		return err
 	}
@@ -93,11 +93,11 @@ func (s *Server) handleAddCommentJSON(w http.ResponseWriter, r *http.Request) er
 // handleEditCommentJSON answers PUT /api/reviews/{review}/comments/{comment}.
 func (s *Server) handleEditCommentJSON(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r, refuseJSON)
+	review, ok, err := s.writeReview(w, r)
 	if !ok || err != nil {
 		return err
 	}
-	id, ok, err := s.reviewComment(w, r, review, refuseJSON)
+	id, ok, err := s.reviewComment(w, r, review)
 	if !ok || err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (s *Server) answerStored(ctx context.Context, w http.ResponseWriter, review
 		return err
 	}
 	comments := viewCards([]cardView{card})
-	writeJSON(w, http.StatusOK, view.CommentStored{Comment: comments[0], Count: int32(tally.Count)})
+	writeJSON(w, http.StatusOK, view.CommentStored{Comment: comments[0], Count: int32(tally)})
 	return nil
 }
 
@@ -136,11 +136,11 @@ func (s *Server) answerStored(ctx context.Context, w http.ResponseWriter, review
 // {comment}, which has no body: the address names everything.
 func (s *Server) handleDeleteCommentJSON(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r, refuseJSON)
+	review, ok, err := s.writeReview(w, r)
 	if !ok || err != nil {
 		return err
 	}
-	id, ok, err := s.reviewComment(w, r, review, refuseJSON)
+	id, ok, err := s.reviewComment(w, r, review)
 	if !ok || err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (s *Server) handleDeleteCommentJSON(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, view.CommentDeleted{Count: int32(tally.Count)})
+	writeJSON(w, http.StatusOK, view.CommentDeleted{Count: int32(tally)})
 	return nil
 }
 
@@ -164,7 +164,7 @@ func (s *Server) handleDeleteCommentJSON(w http.ResponseWriter, r *http.Request)
 // once the verdict is stored. A change request with nothing in it is a 422 with
 // the sentence, which the bar draws as its refused state.
 func (s *Server) handleDecideJSON(w http.ResponseWriter, r *http.Request) error {
-	review, ok, err := s.writeReview(w, r, refuseJSON)
+	review, ok, err := s.writeReview(w, r)
 	if !ok || err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (s *Server) handleDecideJSON(w http.ResponseWriter, r *http.Request) error 
 	if !ok {
 		return nil
 	}
-	round, ok, err := s.findRound(w, r, review, int(req.Round), refuseJSON)
+	round, ok, err := s.findRound(w, r, review, int(req.Round))
 	if !ok || err != nil {
 		return err
 	}
