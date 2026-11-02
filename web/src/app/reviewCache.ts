@@ -215,13 +215,55 @@ export function findComment(review: Review, id: string): Comment | undefined {
   return found;
 }
 
-/** Whether a stored comment is on a passage of a document, wherever it sits. */
-export function onPassage(review: Review, id: string): boolean {
-  return (review.cards ?? []).some((card) =>
+/**
+ * The path of the card whose document holds a stored comment on a passage, or
+ * nothing where the comment is on no passage.
+ */
+export function passagePath(review: Review, id: string): string | undefined {
+  return (review.cards ?? []).find((card) =>
     (card.body?.passages ?? []).some((part) =>
       [part.passage, ...(part.fold ?? [])].some(
         (p) => p?.thread?.comments?.some((c) => c.id === id) === true,
       ),
     ),
-  );
+  )?.path;
+}
+
+/**
+ * The round with the bodies the app fetched put in the cards that have none. A
+ * fetched body is kept apart from the round the cache holds, so a round fetched
+ * again does not take it away, and is merged here for whatever reads or draws
+ * the round.
+ */
+export function withBodies(
+  review: Review,
+  bodies: Readonly<Record<string, CardBody>>,
+): Review {
+  if (review.cards === null || Object.keys(bodies).length === 0) {
+    return review;
+  }
+  return {
+    ...review,
+    cards: review.cards.map((card) => {
+      const body = bodies[card.path];
+      return card.body === null && body !== undefined
+        ? { ...card, body }
+        : card;
+    }),
+  };
+}
+
+/**
+ * A card's body after a change to the round, taken from the body alone. The
+ * round is given the card with that body, so a change that places a comment in
+ * a card finds it, and what the change did to the card's body is read back.
+ */
+export function changeBody(
+  review: Review,
+  card: Card,
+  body: CardBody,
+  change: (round: Review) => Review,
+): CardBody {
+  const next = change({ ...review, cards: [{ ...card, body }] });
+  return next.cards?.[0]?.body ?? body;
 }

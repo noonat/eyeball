@@ -1,5 +1,6 @@
 import { tokenHeaders } from "../../ts/token";
 import type {
+  CardBody,
   CommentDeleted,
   CommentEdit,
   CommentRequest,
@@ -92,11 +93,19 @@ async function exchange<T>(
   address: string,
   body: unknown,
   read: (res: Response) => Promise<T | undefined>,
+  cancel?: AbortSignal,
 ): Promise<Outcome<T>> {
   const abort = new AbortController();
   const timer = window.setTimeout(() => {
     abort.abort();
   }, timeout);
+  // A request the caller cancels must end, and not wait on the browser's cache
+  // lock for its address, which held a second request for 20 seconds in
+  // Chromium when the first never answered.
+  const stop = (): void => {
+    abort.abort();
+  };
+  cancel?.addEventListener("abort", stop);
   try {
     const res = await fetch(address, {
       method,
@@ -104,7 +113,8 @@ async function exchange<T>(
       headers: {
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        ...tokenHeaders(),
+        // A read carries no token, as the template's htmx sent none.
+        ...(method === "GET" ? {} : tokenHeaders()),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -130,7 +140,33 @@ async function exchange<T>(
     };
   } finally {
     window.clearTimeout(timer);
+    cancel?.removeEventListener("abort", stop);
   }
+}
+
+function isCardBody(value: unknown): value is CardBody {
+  return isRecord(value) && typeof value["kind"] === "string";
+}
+
+/**
+ * Reads one card's body, at the address its card gave. A body that fails
+ * is drawn as a failed line with a retry, so a refusal and a failure to
+ * arrive both carry the sentence to show.
+ */
+export function getBody(
+  href: string,
+  cancel: AbortSignal,
+): Promise<Outcome<CardBody>> {
+  return exchange(
+    "GET",
+    href,
+    undefined,
+    async (res) => {
+      const answer: unknown = await res.json();
+      return isCardBody(answer) ? answer : undefined;
+    },
+    cancel,
+  );
 }
 
 /** Where a review's comments are written. */

@@ -14,8 +14,8 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 )
 
-// pageState is one review page, read as its template draws it. Only the markup
-// is written, as a component's story compares itself with it.
+// pageState is one review page, read through the API. Its template markup is
+// frozen, as a component's story compares itself with it.
 type pageState struct {
 	// file is the name the state's files share, and world the world it is read
 	// from.

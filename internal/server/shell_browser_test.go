@@ -157,7 +157,9 @@ func TestServer_Surface_browserShellTemplatePage(t *testing.T) {
 	b := openBrowser(g, t)
 	b.kept(g, base, f.s.buildToken())
 
-	b.navigate(g, base+"/reviews/"+itoa(id))
-	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeTrue())
+	// The error page is the template page left: a raw address with nothing at it
+	// answers with it.
+	b.navigate(g, base+"/reviews/"+itoa(id)+"/raw/1/missing.txt")
+	g.Expect(b.eval(g, `!!document.querySelector(".empty .headline")`)).To(BeTrue())
 	g.Expect(b.eval(g, `!!document.getElementById("root")`)).To(BeFalse(), "the shell answered a template page")
 }

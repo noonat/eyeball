@@ -902,14 +902,11 @@ needs rather than depending on a package-wide one.
 **Screens move one at a time.** Until the last one moves, the server answers a
 moved screen's address with the shell and every other address with its template,
 and a link from one kind to the other is a full page load. The review's round
-moves in steps, so a server field, `reviewInApp`, answers its two addresses with
-the shell where it is set and with the template page otherwise. It changes only
-what a page load answers: the app's routes include the review's, so a link from
-another screen moves the router either way, and the views are the same. The
-browser tests of each step set it. It goes when the review's screen is the only
-one. The order is in [specs/TODO.md](../specs/TODO.md). Rebuilding every screen
-on one branch was rejected: it is one review too large to read on a phone, and
-nothing ships until all of it does.
+answers the shell at both its addresses, and the template's form routes and
+fragments stay until the templates go. The order is in
+[specs/TODO.md](../specs/TODO.md). Rebuilding every screen on one branch was
+rejected: it is one review too large to read on a phone, and nothing ships until
+all of it does.
 
 **While screens are mixed, two bundles have two addresses.** The templates keep
 `/static/app.js`, and the React app is served at `/static/react.js`. The cleanup
@@ -1115,20 +1112,39 @@ headless Chromium with React Router 7.18.5 and a cached view: a list scrolled to
 `ScrollRestoration` scrolls in a layout effect at the root on every move: to the
 saved position on back and forward, to the element the hash names if it exists
 yet, and otherwise to the top. That is read from React Router 7.18.5's
-`useScrollRestoration`, not measured. A review's view and its bodies arrive
-after the move, so the screen sets the reader's saved place in an effect that
-runs after the router's, and again as each body arrives until the reader's first
-tap, scroll or key, as the template page does. A link to a comment is the same
-case: at the move the comment is not drawn, so the router scrolls to the top,
-and the screen scrolls to the comment once it is. A link to a card or a comment
+`useScrollRestoration`, not measured. The root draws the router's component
+after the screen, and layout effects run children first, so a layout effect of
+the screen would run before the router's. A screen drawn in the same commit as
+the move, from a cached view, is where the order shows. A review's view and its
+bodies arrive after the move otherwise, so the screen sets the reader's saved
+place in an effect, which runs after every layout effect, and again as each body
+arrives until the reader's first pointer down, click, wheel, touch move or key,
+or three seconds, as the template page does.
+
+Nothing is saved until that ends. The router's scroll to the top, and a place
+applied to a page that is still too short, would otherwise be saved over the
+place being restored. The scroll saved when the screen goes is the last one its
+handler saw, since by then the router may have moved the page for the screen
+that replaces it, and a page load saves it as the page is hidden. A review with
+no place saved is armed at once.
+
+A jump is an address with a hash that the reader did not come back to: a router
+move, or a page load with no place saved. The jump wins over the saved place
+there, and a reload or a move back keeps the place, since a reload after a jump
+would otherwise return to the card it named. At the move the target is not drawn
+when it is in a view fetched after the move, so the router scrolls to the top,
+and the screen scrolls to the target once it is drawn, below the page's header
+and the card's by the stylesheet's scroll margins. A link to a card or a comment
 on the same screen is a router link too, never a plain `#` anchor. A plain one
 pushes a history entry with no state, which the router files under the key
 `default`, the key of the first page the app loaded, and its scroll then
 restores that page's place. Measured 2026-11-01 with React Router 7.18.5 in
 headless Chromium: after a router move from a list scrolled to 1500 px, a plain
-anchor left the page at 1500 px, and a router link reached its target. A card's
-fold is the screen's state, seeded from the saved place, since a card drawn with
-a constant `open` opens again whenever a refetch mounts it anew.
+anchor left the page at 1500 px, and a router link reached its target. The list
+of files keeps its `#` address as markup and moves the router on a plain click,
+with the query kept, since the comparison is part of the address. A card's fold
+is the screen's state, seeded from the saved place, since a card drawn with a
+constant `open` opens again whenever a refetch mounts it anew.
 
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
@@ -1160,12 +1176,38 @@ nothing. A file that moved more than 500 lines holds its body behind a line
 naming its size and a Load control, since a lock file loaded by accident is a
 long scroll past it.
 
+A body is a cached view of its own. Its query is keyed by the address its card
+names, query included, so `?against=base` stays distinct, and is enabled for a
+path the card has asked for, through its observer or a held card's Load. A
+disabled query still returns what the cache holds, so a review the reader
+returns to, from a file page, draws its bodies at once and reads them again
+behind them. The screen merges the bodies into the round to draw and to read it,
+and a write updates the shown round and each body's entry, each from its own
+latest value, so answers handled in one tick build on one another. A round
+fetched again cannot touch a body, and a body arriving does not pass through the
+round's writes. A fetch of a body already in flight when a write's answer lands
+is cancelled and made again, as the round's is, since it may have read the store
+before the write. A comment on a passage of a document reads that card's body
+again, since whether a passage sits in a fold is the server's rule. A newer
+round makes every body of the review and round stale: after a verdict given
+elsewhere their comments still offer Edit and Delete. Each refetches and keeps
+its old data meanwhile, and a body of a card not on screen is only marked stale.
+A body that fails, or a held card's Load that does, fails at once with no retry
+and draws the failed line with a Retry in its card. The request carries the
+query's signal and ends when the screen goes. Measuring a skeleton's row heights
+happens once per run of the app, on the first open card, since the device
+decides them.
+
 A skeleton is only as tall as a guess, and a document's, six lines whatever its
 length, is a poor one. Safari has no scroll anchoring, so a body taller than its
 skeleton arriving above the reader would push what they were reading down. The
 screen keeps the card at the top of the screen where it was whenever a card
 above it changes height, as the template page's `holdPlace` does, and turns
-Chromium's own anchoring off so a browser test runs the path Safari runs.
+Chromium's own anchoring off so a browser test runs the path Safari runs. A page
+at its top holds nothing. What grows above the first card there, as the letter
+does when its font arrives, is what the reader is looking at, and scrolling past
+it would take them down the page. Browsers' own anchoring is off at the top for
+the same reason.
 
 Rows are drawn per body, not only near view. Measured 2026-11-01 with a probe
 page, not the real one: React and this stylesheet drew 26 cards of this

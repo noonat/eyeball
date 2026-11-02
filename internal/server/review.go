@@ -327,25 +327,6 @@ func (s *Server) roundAnswer(r *http.Request) (pageAnswer, error) {
 	return pageAnswer{page: page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view}}, nil
 }
 
-// handleReviewPage answers GET /reviews/{review}: the review's latest round.
-// handleRoundPage answers GET /reviews/{review}/rounds/{round}, any round, and
-// is the same page.
-func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) error {
-	if s.reviewInApp {
-		return s.handleApp(w, r)
-	}
-	ans, err := s.roundAnswer(r)
-	if err != nil {
-		return err
-	}
-	if ans.missing {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
-	}
-	s.renderPage(w, http.StatusOK, "review", ans.page)
-	return nil
-}
-
 // roundView reads one round of a review and everything its page prints.
 func (s *Server) roundView(ctx context.Context, review store.Review, number int, wholeReview bool, only string) (reviewPage, error) {
 	project, err := s.db.s.Project(ctx, review.ProjectID)

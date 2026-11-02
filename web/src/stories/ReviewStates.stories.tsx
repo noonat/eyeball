@@ -7,8 +7,10 @@ import { ScreenLoading } from "../components/ScreenLoading";
 import {
   reviewApproved,
   reviewCode,
+  reviewDeferred,
   reviewDoc,
   reviewFresh,
+  reviewHeld,
 } from "../fixtures";
 
 const meta = {
@@ -273,6 +275,56 @@ export const CommentActionsFailed: Story = {
     );
     await expect(
       within(card).getByRole("link", { name: "Delete" }),
+    ).toBeVisible();
+  },
+};
+
+/**
+ * A body that did not come says so in its card, above the skeleton that still
+ * holds its place, with a Retry that asks again.
+ */
+export const BodyFailed: Story = {
+  args: {
+    review: reviewDeferred,
+    ui: {
+      onLoad: () => undefined,
+      failures: { "card:internal/deferred/big.go": "Cannot reach eyeball." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(
+      canvasElement,
+      "details[data-path='internal/deferred/big.go']",
+    );
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "Cannot reach eyeball. Retry",
+    );
+    await expect(
+      within(card).getByRole("button", { name: "Retry" }),
+    ).toBeVisible();
+    await expect(card.querySelector(".skeleton")).not.toBeNull();
+  },
+};
+
+/** A Load that failed says so after the link, with the same Retry. */
+export const LoadFailed: Story = {
+  args: {
+    review: reviewHeld,
+    ui: {
+      onLoad: () => undefined,
+      failures: { "card:internal/held/gen.go": "eyeball could not do that." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(canvasElement, ".filefacts");
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "eyeball could not do that. Retry",
+    );
+    await expect(
+      within(card).getByRole("link", { name: "Load anyway" }),
+    ).toBeVisible();
+    await expect(
+      within(card).getByRole("button", { name: "Retry" }),
     ).toBeVisible();
   },
 };

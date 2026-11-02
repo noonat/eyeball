@@ -79,12 +79,40 @@ export function CommentCard({
 /**
  * The line a request that failed leaves beside the control that made it,
  * because that is where the reader is looking. It is an alert, so a screen
- * reader says it as it appears.
+ * reader says it as it appears. A body that failed to load carries a link that
+ * asks again, drawn at the end of the line as the template page drew it.
  */
-export function Failed({ text }: { readonly text: string }) {
+export function Failed({
+  text,
+  onRetry,
+}: {
+  readonly text: string;
+  readonly onRetry?: (() => void) | undefined;
+}) {
   return (
     <span className="failed" role="alert">
       {text}
+      {onRetry === undefined ? null : (
+        <>
+          {" "}
+          <a
+            className="retry"
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              onRetry();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onRetry();
+              }
+            }}
+          >
+            Retry
+          </a>
+        </>
+      )}
     </span>
   );
 }

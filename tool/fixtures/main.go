@@ -3,12 +3,12 @@
 //
 // A queue state is built in a store of its own. The project view, the tree and
 // the file pages are read from a few worlds of real repositories, and the files
-// their views point at are read through the raw route. The review page's
-// template pages, and the answers the template routes give for the composer, a
-// comment, the decision bar and the other writes, are written here from the
-// templates, as review-*.html and review-*.txt. The other markup files beside
-// the views, which a story compares its component with, are frozen from the
-// template pages that drew them and are not written here.
+// their views point at are read through the raw route. The answers the
+// template routes give for the composer, a comment, the decision bar and the
+// other writes are written here from the templates, as review-*.html and
+// review-*.txt. The markup files of pages, which a story compares its
+// component with, are frozen from the template pages that drew them and are not
+// written here.
 //
 // Every state is built through the server's own handlers, on a fixed clock, so
 // a review's id and a row's age are the same on every run.
@@ -246,29 +246,33 @@ func readScenes(ctx context.Context, key string, out map[string][]byte) error {
 	return nil
 }
 
-// rawAddress finds the address of a file a template page shows, which the raw
-// route answers.
-var rawAddress = regexp.MustCompile(`(?:src|href)="(/reviews/\d+/raw/[^"]+)"`)
-
-// readPage reads a review page as its template draws it and writes the markup a
-// component draws, with the raw files it points at.
+// readPage reads a review page's view and the raw files its cards point at. The
+// page's template markup, review-*.html, is frozen as the other template pages'
+// are: the review routes answer the shell, so no route draws the template page
+// any more, and the files stay as they last came out. A story still compares
+// its component with each one.
 func readPage(w *world, ps pageState, out map[string][]byte) error {
 	address := ps.address(w.ids)
-	page, err := w.get(address)
+	body, err := w.get("/api" + address)
 	if err != nil {
 		return err
 	}
-	if out[ps.file+".json"], err = w.get("/api" + address); err != nil {
-		return err
+	out[ps.file+".json"] = body
+	var review view.Review
+	if err := json.Unmarshal(body, &review); err != nil {
+		return errors.WithStack(err)
 	}
-	markup, err := pageMarkup(page)
-	if err != nil {
-		return err
-	}
-	out[ps.file+".html"] = markup
 	var addresses []string
-	for _, m := range rawAddress.FindAllSubmatch(markup, -1) {
-		addresses = append(addresses, string(m[1]))
+	for _, card := range review.Cards {
+		if card.Body == nil || card.Body.Rendered == nil {
+			continue
+		}
+		for _, side := range card.Body.Rendered.Sides {
+			addresses = append(addresses, side.Src)
+		}
+		if card.Body.Rendered.Frame != "" {
+			addresses = append(addresses, card.Body.Rendered.Frame)
+		}
 	}
 	return fetchRaw(w, addresses, out)
 }

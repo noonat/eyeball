@@ -464,6 +464,194 @@ sheets, since the sheets are the pages the owner approved.
   bar reads it as `held` for its buttons. The hook is the one place that drops a
   verdict, so a mutation of the definition or of the drop is caught by one test.
 
+### Iteration 5
+
+- The option is gone, and so is the template page's handler. The two review
+  routes are flagged `shell` and use `handleApp` directly. With the option off
+  by default nothing reached the handler's template path, so deleting it moved
+  that part of Iteration 6's first todo here. The form routes, the fragments and
+  the templates stay until Iteration 6. `TestServer_Surface_reviewInApp` is
+  `TestServer_Surface_reviewShell`, which asks both addresses and a review that
+  is not there for the shell. `TestServer_reviewViewNotFound` reads the shell at
+  the page's address, where it read the template's 404.
+- A premise of Iteration 2 was wrong for the end of this iteration. It held that
+  the template page is served, and `make api-check` compares its markup, until
+  Iteration 6. With no option no route serves the template review page, so
+  `tool/fixtures` could not read it. The markup of the review pages,
+  `review-*.html`, is frozen now where Iteration 6 would have frozen it: it
+  stays as it last came out and is neither written nor checked, as the other
+  pages' markup is, and a story still compares its component with it. The raw
+  files a page points at are read from the view's rendered cards, and the set is
+  the same. The answers of the form routes are still written and checked until
+  Iteration 6. `tool/fixtures/markup.go` went with the page reader. Iteration
+  6's last todo is done for the pages and open for what is left.
+- `browserShellTemplatePage` used the review page as its example of a template
+  page, which Iteration 6 would have changed. It reads the error page, from a
+  raw address with nothing at it. `browserPreviewSandbox` still posts to the
+  form route, which stays until Iteration 6, and loads the review page, which is
+  now the app's and needs no change.
+- `browserFonts`, `browserViewport`, `browserViewportRealign` and
+  `browserViewportTouch` load the review page and had no option. They now get
+  the app and wait for it to draw. `browserFonts` also waits for its three
+  families to load, since `document.fonts.ready` resolved before the app had
+  drawn any text and the test read one family.
+- Fetched bodies are cached views of their own, one query for each card, keyed
+  by the cards route's address with its query. The first version of this
+  iteration held them in the screen's state beside the round, on the grounds
+  that a fetch of the round replaces the cached view with one that has no body
+  and that a body arriving through `change` would cancel a round fetch in
+  flight. Review found that wrong for what it cost: server data then lived in
+  two places, and a review the reader returned to drew skeletons until its
+  bodies were fetched again. Bodies in their own queries answer both reasons,
+  since a round fetch cannot touch a body key and a body arrives through its own
+  entry. A write is an update of the shown round's own state, and of each body's
+  entry from the entry's own latest value, so two answers handled in one tick
+  each build on the one before. An earlier version built both from a ref fed by
+  an effect, which lost the first of two answers in one tick.
+  `browserBodiesTogether` and `browserWritesTogether` hold two answers let go
+  together. The todo's "in the cache" is therefore met. A Vitest test places a
+  comment in a body and reads it back after a newer round, and
+  `browserBodiesRefreshed` does it in the browser. `browserBodiesReturn` goes to
+  a file page and back with every read held, and finds the bodies drawn at once.
+- Iteration 4 left the card bodies of a stream refetch to this iteration, and
+  this closes it. When the round moves, every body of the review and round is
+  invalidated by a predicate on its key. Active ones refetch and keep their old
+  data until the new arrives, and the rest are marked stale. A verdict given
+  elsewhere would otherwise leave a held body with Edit and Delete on comments
+  that can no longer change. The cost is a request for each card the reader
+  scrolled past. Dropping the bodies far from the reader was rejected: a body
+  above the reader turning back into a skeleton moves what they are reading.
+- A body read before a write of the reader's lacks the comment that write
+  stored. The write's answer cancels a body's fetch in flight and fetches it
+  again, as it does for the round, which replaced a counter of writes and a
+  retry loop. `browserBodiesStale` holds a read across a comment. A comment on a
+  passage of a fetched document invalidates that card's key, since whether a
+  passage sits in a fold is the server's rule, and `passagePath` replaces
+  `onPassage` to name the card. `browserFoldCommentDeferred` is
+  `browserFoldComment` over a fetched document. A body's request ends when the
+  screen goes, which `browserBodiesCancelled` holds.
+- A held card's Load that fails draws the failed line with a Retry, which the
+  template did not: its line sat after the link with no retry, and the link was
+  the way to ask again. The spec asks for one on both. A deferred card's line is
+  after its summary and above the skeleton, as the template drew it, and a held
+  card's is in its row after the link. Neither card asks again by itself. The
+  failed line component takes an optional retry, and `BodyFailed` and
+  `LoadFailed` are on the large sheet for the phone in Iteration 7.
+- 031's `bodies` prop of `ReviewScreen` and `fetched` prop of `ReviewCard` are
+  gone. The screen merges bodies into the round, so nothing passes them.
+- A draft anchored in a deferred card waits for its body with no time limit and
+  does not load it. The template polled for the row for three seconds and gave
+  up, and its next save then wrote the draft out without it. Here the composer
+  is screen state, so the draft stays saved while its row is away, and the
+  composer opens when the card comes near and the body arrives. A body far below
+  the reader is not fetched for a draft. `browserDraftsDeferred` plants one on
+  the 58th of 60 files. An edit form of a comment inside a body not yet fetched
+  is still dropped when the screen opens, as the template dropped it. That is
+  open.
+- The place is saved only after the reader has acted or three seconds have
+  passed, where the template's listener saved from the start. The router's
+  scroll to the top and a restore that a page too short clamps would be saved
+  over the place being restored. `browserRemembers` holds that no place is
+  written in the first second and that the next scroll after a tap is. The
+  scroll saved as the screen goes is the last one its handler saw, since the
+  router may have moved the page by then.
+- A jump is a router move to an address with a hash, or a page load with a hash
+  and no saved place. The spec names only the router move. The template page got
+  the page load from the browser, which jumped to an element in the page's HTML,
+  and the app's HTML has none. A page load with a saved place keeps the place,
+  as a reload after a jump would otherwise return to the card the jump named. A
+  link to a comment in a card whose body is not fetched finds nothing and
+  scrolls nowhere, as the template's did. `browserCommentJump` does both, from a
+  scrolled queue by a notification's tap and by a page load.
+- The list of files keeps `#` and the card's id as its address, which the
+  stories compare, and moves the router on a plain click with the query kept.
+  The query is part of the address, and a `navigate({ hash })` alone dropped it.
+- `holdPlace` holds nothing at the top of the page. This is not in the template.
+  The first card moved 26px when the letter's font arrived after the app drew,
+  and the hold scrolled the page down by that much from the top, which
+  `browserReviewScreen` read as a scroll of 26. Browsers' own anchoring is off
+  at the top for the same reason. `browserHoldPlace` grows what is above the
+  first card with the page at the top, where nothing moves, and scrolled, where
+  the page follows.
+- The skeleton's heights are measured in a layout effect when a round has a
+  deferred card, on the first open card, and only when the root has no `--row-h`
+  yet, which is once for a run of the app. `browserBodies` reads the three
+  properties.
+- Each browser test of the long review reaches the review by a page load for
+  part of its steps, since a router move draws the app whatever the option said.
+  `browserJump` reaches it from a queue of 15 reviews scrolled down by a router
+  move and reopens it by a page load. It delays each body by 400ms: the app
+  draws a body before the jump lands, where the template page's took longer, and
+  no skeleton was left to count the hunks of. The jump test was run 20 times
+  with `-count=20` and passed 20. The entry in specs/TODO.md says the port is a
+  different test and stays open.
+- The browser tests of the long review were run with the option forced off by a
+  temporary edit of `handleReviewPage`, as in Iteration 3, and each failed at
+  the wait for the app's page: `browserBodies`, `browserBodiesFailed`,
+  `browserBodiesRefreshed`, `browserCommentJump`, `browserDocumentScrolls`,
+  `browserDraftsDeferred`, `browserHeld`, `browserJump`, `browserRemembers` and
+  `browserStickyHeader`. The option was then removed. The tests written after
+  that, `browserBodiesStale`, `browserFoldCommentDeferred`, `browserHoldPlace`,
+  `browserRemembersByMove` and `browserRemembersPastTheSkeleton`, were run with
+  the two review routes pointed at the error page for one run, and with the
+  other ten, 14 of 15 failed at the same wait. `browserRemembersByMove` passed,
+  since it entered by a move of the router, which draws the app whatever a page
+  load answers. It now starts from a page load. `browserJump` reaches the review
+  by a router move first and fails at its page load. The error page stands in
+  for the template page there, which is weaker than the page itself, since a
+  test that waits for the app's page fails on any page that is not the app's. A
+  second run did the same for `browserFonts`, `browserViewport`,
+  `browserViewportRealign` and `browserViewportTouch`, which now wait for the
+  app, and for `browserRemembersByMove` from its page load, and all five failed.
+- Mutation check. 29 violations were planted one at a time, each edit checked to
+  have landed, and each run against the long review's browser tests or the
+  Vitest tests. Caught first time: the margin of the observer
+  (`browserCommentJump`), a folded card that loads (`browserBodies`), a fold not
+  reported (`browserBodies`, `browserRemembers`), no hold (`browserHoldPlace`,
+  `browserJump`), no fold fix (`browserStickyHeader`), a hold at the top
+  (`browserHoldPlace`, `browserReviewScreen`), Chromium's anchoring left on
+  (`browserJump`, `browserStickyHeader`), no measuring (`browserBodies`,
+  `browserJump`), the place saved at once (`browserRemembers`), no save on
+  pagehide (`browserRemembers`), folds not seeded (`browserRemembers`), no jump,
+  and a page load's hash ignored (`browserCommentJump`), the plain anchor in the
+  list of files (`browserJump`), no read again on a stamp
+  (`browserBodiesRefreshed`, `browserBodiesStale`), no read again after a
+  passage comment (`browserFoldCommentDeferred`), no Retry
+  (`browserBodiesFailed`), a page's fold counting as the reader's
+  (`browserStickyHeader`), a click that does not end the restore
+  (`browserJump`), no skeleton counts (`browserJump`, `browserRemembers`,
+  `browserStickyHeader`), and four in the Vitest tests: a place with no number,
+  the key of a place, a body kept in the round and a merge that overwrites a
+  card's own body. Five survived or were missed, and each got a test. A body
+  read again after a write was caught only once `browserBodiesStale` held the
+  first card's read, where it first held whichever card asked first. No save as
+  the screen goes survived, and `browserRemembersByMove` leaves before the
+  scroll's own save is due. No set again as bodies arrive survived, and
+  `browserRemembersPastTheSkeleton` leaves the reader below what the skeletons
+  measure, in front of a document taller than its skeleton. A failure kept after
+  Retry survived, since the body replaced the line anyway, and
+  `browserBodiesFailed` holds the read so the line is seen to go while it waits.
+  A settle time of zero survived, since no scroll came after it, and
+  `browserRemembers` now scrolls inside and then outside the three seconds. The
+  restore in a layout effect, which runs before the router's scroll, was caught
+  by `browserRemembersByMove`, which returns to a cached view.
+- Mutation check of the bodies as queries. Review moved the bodies from screen
+  state to queries of their own, which replaced the code the plain-state
+  mutations of a body's read and its re-read touched, so those were planted
+  again against the new code, 11 violations one at a time. A query never
+  enabled, and one not enabled for a card the cache holds, failed
+  `browserBodies` and the others that fetch, and `browserBodiesReturn`. The
+  query's signal dropped failed `browserBodiesCancelled`. No refetch on a stamp
+  failed `browserBodiesRefreshed` and `browserBodiesStale`, a wrong round in the
+  predicate the same two, no re-read after a passage comment
+  `browserFoldCommentDeferred`, a body not written back to its entry
+  `browserBodiesRefreshed`, a fetch in flight not cancelled by a write
+  `browserBodiesStale`, and retries left on `browserBodiesFailed`. A key that
+  ignores the query survived the first tests, and `browserBodiesAgainst` holds a
+  body of the other comparison from being drawn. A guard that kept a failure
+  from showing while its card asked again survived and was removed: a query with
+  no data starts over, so it guarded nothing a reader could see.
+
 ## Iteration 1: The API
 
 - [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
@@ -579,37 +767,43 @@ sheets, since the sheets are the pages the owner approved.
 
 ## Iteration 5: The long review
 
-- [ ] A deferred card asks for its body once it is open and within a screen of
+- [x] A deferred card asks for its body once it is open and within a screen of
       view, and a folded card once it is unfolded.
-- [ ] A body or a held card's Load that fails draws the failed line with a
+- [x] A body or a held card's Load that fails draws the failed line with a
       retry, each with a story.
-- [ ] A skeleton's heights are measured once on the device, as `measureRows`
+- [x] A skeleton's heights are measured once on the device, as `measureRows`
       measures them.
-- [ ] The card at the top of the screen stays put when a card above it changes
+- [x] The card at the top of the screen stays put when a card above it changes
       height, with Chromium's scroll anchoring off, and a card folded from its
       stuck header puts its header back at the top.
-- [ ] The reader's place is read when the screen mounts and saved as it scrolls,
+- [x] The reader's place is read when the screen mounts and saved as it scrolls,
       folds and unmounts, and a scroll before the saved place is applied writes
       nothing over it.
-- [ ] The place and folds are applied after the router's scroll and again as
+- [x] The place and folds are applied after the router's scroll and again as
       bodies arrive, until a pointer down, click, wheel, touch move or key, or 3
       s, as the template's are, and a Vitest test restores a place in the
       template page's shape.
-- [ ] A draft anchored in a deferred card waits for its body, as the template's
+- [x] A draft anchored in a deferred card waits for its body, as the template's
       does.
-- [ ] The list of files and a link to a comment move to their target once it is
+- [x] The list of files and a link to a comment move to their target once it is
       drawn, below its card's stuck header, after the review was reached by a
       router move from a scrolled queue.
-- [ ] The browser tests for bodies, held cards, the jump, the comment jump, the
+- [x] The browser tests for bodies, held cards, the jump, the comment jump, the
       sticky header and the reader's place run against the app's screen, each
       fails with the option off, and the jump test reaches the review from a
       scrolled queue.
-- [ ] The jump test is run 20 times, and its entry in specs/TODO.md records the
+- [x] The jump test is run 20 times, and its entry in specs/TODO.md records the
       result.
-- [ ] The review routes answer the shell with no option, and the option is
+- [x] The review routes answer the shell with no option, and the option is
       removed.
-- [ ] A comment written on a deferred card's fetched body is placed in that body
+- [x] A comment written on a deferred card's fetched body is placed in that body
       in the cache as it is in the round's, and a test saves one there.
+
+> **Completed** 2026-11-02 02:06 UTC
+>
+> - `make check` — 20.6s
+> - `go test -race ./...` — 58.3s
+> - `go test -count=1 -tags browser ./internal/server` — 108.2s
 
 ## Iteration 6: The templates go
 
@@ -642,5 +836,7 @@ result is written here as it arrives.
       move nothing, and a jump from the list of files lands on its card.
 - [ ] The keyboard fix and the bar after a resume behave as before, and a tap on
       a row of a decided round opens its composer.
+- [ ] A review opened at the top of the page, with the letter's font arriving,
+      moves nothing on the phone.
 - [ ] The first draw and a fling on a long review are measured as the probe
       measured them, and recorded beside the probe's numbers.

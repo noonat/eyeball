@@ -66,8 +66,19 @@ export interface ReviewUi {
   readonly onCancelEdit?: ((id: string) => void) | undefined;
   readonly onDelete?: ((id: string) => void) | undefined;
   readonly onRetry?: ((id: string) => void) | undefined;
-  /** Asks for a deferred card's body, or a held card's, now. */
+  /**
+   * Asks for a deferred card's body, or a held card's, now. A deferred card
+   * asks as it comes within a screen of view, and again from its retry. The
+   * failure of the request is in `failures` under "card:" and the path.
+   */
   readonly onLoad?: ((path: string) => void) | undefined;
+  /**
+   * The paths of the cards the reader folded. A card is open unless it is here,
+   * so a card the round sends is open and a file new to the round opens with
+   * the rest.
+   */
+  readonly folded?: ReadonlySet<string> | undefined;
+  readonly onFold?: ((path: string, open: boolean) => void) | undefined;
 }
 
 /** The page's state for a round that takes no comments. */

@@ -655,9 +655,11 @@ func TestServer_reviewViewNotFound(t *testing.T) {
 			g.Expect(json.Unmarshal(res.Body.Bytes(), &missing)).To(Succeed())
 			g.Expect(missing.Notice).To(BeNil())
 			g.Expect(missing.WaitingCount).NotTo(BeNil())
-			// The template page answers the same addresses with its 404.
+			// The page's address answers the shell, since the app draws the 404 from
+			// the view.
 			page := getView(f, strings.TrimPrefix(target, "/api"), nil)
-			g.Expect(page.Code).To(Equal(http.StatusNotFound))
+			g.Expect(page.Code).To(Equal(http.StatusOK))
+			g.Expect(page.Body.String()).To(ContainSubstring(`<div id="root"></div>`))
 		})
 	}
 }

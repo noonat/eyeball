@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router";
-import type { Card, CardBody, Comment, Review } from "../api/types";
+import { useLocation, useNavigate } from "react-router";
+import type { MouseEvent } from "react";
+import type { Card, Comment, Review } from "../api/types";
 import { AppLink } from "./AppLink";
 import { CommentGroup, CommentItems } from "./CommentList";
 import { Composer } from "./Composer";
@@ -18,11 +19,6 @@ import { Screen } from "./Screen";
 interface ReviewScreenProps {
   /** The view of one round of a review. */
   readonly review: Review;
-  /**
-   * Bodies the app fetched for cards the round sent none with, by path. A card
-   * with no body in the view or here shows a skeleton.
-   */
-  readonly bodies?: Readonly<Record<string, CardBody>> | undefined;
   /** The page's own state: the open composer, a comment being edited. */
   readonly ui?: Partial<ReviewUi> | undefined;
   /** The verdict note as typed, and what stands between the reader and a verdict. */
@@ -51,7 +47,6 @@ interface ReviewScreenProps {
  */
 export function ReviewScreen({
   review,
-  bodies,
   ui,
   bar,
   onDecide,
@@ -122,13 +117,7 @@ export function ReviewScreen({
             <CardDocument card={fresh} body={fresh.body} />
           )
         ) : (
-          cards.map((card) => (
-            <ReviewCard
-              key={card.id}
-              card={card}
-              fetched={bodies?.[card.path]}
-            />
-          ))
+          cards.map((card) => <ReviewCard key={card.id} card={card} />)
         )}
         <div className="tree">
           <AppLink className="treerow" href={review.all_files}>
@@ -346,13 +335,7 @@ function CompareLink({ against, current, children }: CompareLinkProps) {
       href={search}
       aria-current={current ? true : undefined}
       onClick={(event) => {
-        if (
-          event.button !== 0 ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey
-        ) {
+        if (!plainClick(event)) {
           return;
         }
         event.preventDefault();
@@ -364,12 +347,44 @@ function CompareLink({ against, current, children }: CompareLinkProps) {
   );
 }
 
-/** A list of the files, each a link to its card, for a round past ten. */
+/** Whether a click is the plain one that follows a link in place. */
+function plainClick(event: MouseEvent): boolean {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
+/**
+ * A list of the files, each a link to its card, for a round past ten. A plain
+ * `#` anchor pushes a history entry the router files under the key of the
+ * first page the app loaded, and its scroll then restores that page's place,
+ * which is the queue's after a move from a scrolled queue. The link keeps its
+ * address as the markup the stories compare and moves the router to it, which
+ * scrolls to the card as it does to any hash. The query stays, since a
+ * comparison is part of the address.
+ */
 function FileList({ cards }: { readonly cards: readonly Card[] }) {
+  const navigate = useNavigate();
+  const { search } = useLocation();
   return (
     <nav className="tree filelist" aria-label="Files">
       {cards.map((card) => (
-        <a key={card.id} className="treerow" href={`#${card.id}`}>
+        <a
+          key={card.id}
+          className="treerow"
+          href={`#${card.id}`}
+          onClick={(event) => {
+            if (!plainClick(event)) {
+              return;
+            }
+            event.preventDefault();
+            void navigate({ search, hash: `#${card.id}` });
+          }}
+        >
           <Icon name="file-text" />
           <span className="nm">
             <bdi>{card.path}</bdi>

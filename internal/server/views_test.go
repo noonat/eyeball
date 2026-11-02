@@ -409,8 +409,6 @@ func Test_pageRoutesHaveViews(t *testing.T) {
 func Test_shellRoutesAnswerTheShell(t *testing.T) {
 	g := NewWithT(t)
 	f := newViewFixture(g, t)
-	// A review's round answers the shell while the option is set.
-	f.s.reviewInApp = true
 	fill := strings.NewReplacer("{review}", itoa(f.review), "{project}", itoa(f.project), "{round}", "1", "{path...}", "a.txt", "{$}", "")
 	var asked int
 	for _, rt := range routes {

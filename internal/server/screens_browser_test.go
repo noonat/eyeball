@@ -108,7 +108,6 @@ func TestServer_Surface_browserLinksMoveTheRouter(t *testing.T) {
 func TestServer_Surface_browserReviewScreen(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	write(g, repo, "long.txt", strings.Repeat("a line of the file\n", 150))
 	me := api.Caller{Dir: repo}

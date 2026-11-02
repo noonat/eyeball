@@ -134,27 +134,18 @@ func TestServer_Surface_otherBuild(t *testing.T) {
 	}
 }
 
-// The option answers a review's round with the shell and leaves everything
-// else as it was. Without it the template page answers.
-func TestServer_Surface_reviewInApp(t *testing.T) {
+// A review's round answers the shell at both addresses, and so does a review
+// that is not there, since the app draws the 404 from the view.
+func TestServer_Surface_reviewShell(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
 	id := actingReview(g, t, f)
-	addresses := []string{"/reviews/" + itoa(id), "/reviews/" + itoa(id) + "/rounds/1"}
-	for _, address := range addresses {
-		page := serveSurface(f.s.Surface(), http.MethodGet, address).Body.String()
-		g.Expect(page).To(ContainSubstring(` data-stamp="`), address+" is the template page")
-		g.Expect(page).NotTo(ContainSubstring(`<div id="root"></div>`), address)
-	}
-	f.s.reviewInApp = true
+	addresses := []string{"/reviews/" + itoa(id), "/reviews/" + itoa(id) + "/rounds/1", "/reviews/999"}
 	for _, address := range addresses {
 		page := serveSurface(f.s.Surface(), http.MethodGet, address).Body.String()
 		g.Expect(page).To(ContainSubstring(`<div id="root"></div>`), address+" is the shell")
 		g.Expect(page).NotTo(ContainSubstring(` data-stamp="`), address)
 	}
-	// A missing review is the shell too, since the app draws the 404 from the
-	// view, and the view is unchanged by the option.
-	g.Expect(serveSurface(f.s.Surface(), http.MethodGet, "/reviews/999").Body.String()).To(ContainSubstring(`<div id="root"></div>`))
 	g.Expect(getView(f, "/api/reviews/"+itoa(id), nil).Code).To(Equal(http.StatusOK))
 }
 

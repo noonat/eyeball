@@ -1,7 +1,8 @@
-import type { MouseEvent } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import type { Card, CardBody, CodeRow } from "../api/types";
 import { AppLink } from "./AppLink";
 import { CodeTable } from "./CodeTable";
+import { Failed } from "./CommentCard";
 import { CommentGroup, CommentItems, ThreadRow } from "./CommentList";
 import { Composer } from "./Composer";
 import { composerId, sameAnchor, type ComposerAt } from "./composerAt";
@@ -14,23 +15,69 @@ import { composerProps, pendingAt, useReviewUi } from "./reviewUi";
 
 interface ReviewCardProps {
   readonly card: Card;
-  /**
-   * The body the app fetched for a card the round did not send one with, or
-   * for a held card the reader loaded.
-   */
-  readonly fetched?: CardBody | undefined;
 }
 
 /**
- * One file of the round, open: its path, what it moved, a link to the file on
+ * One file of the round, open unless the reader folded it: its path, what it moved, a link to the file on
  * its own, and below them its body. A card the round sent no body for shows a
  * skeleton the size of the rows it will hold, and a held card shows its size
  * and a link to load it.
  */
-export function ReviewCard({ card, fetched }: ReviewCardProps) {
-  const body = card.body ?? fetched;
+export function ReviewCard({ card }: ReviewCardProps) {
+  const ui = useReviewUi();
+  const body = card.body;
+  const open = ui.folded?.has(card.path) !== true;
+  const failure = ui.failures?.[`card:${card.path}`];
+  const element = useRef<HTMLDetailsElement>(null);
+  const load = ui.onLoad;
+  const wanted =
+    load !== undefined &&
+    open &&
+    card.deferred &&
+    body === null &&
+    failure === undefined;
+  // A body is asked for once its card is open and within a screen of view. The
+  // observer's root is the viewport, since the document is what scrolls, and
+  // nothing between a card and the viewport clips, so the margin reaches a
+  // screen below it. An observer is made only while a body is wanted, so a card
+  // unfolded on screen asks at once and a folded one asks for nothing. The
+  // template page's htmx intersect trigger could do neither: it has no margin,
+  // and telling an open card from a folded one needs a trigger filter, which
+  // its allowEval: false turned off.
+  useEffect(() => {
+    if (!wanted || element.current === null) {
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          load(card.path);
+        }
+      },
+      { rootMargin: "100% 0px" },
+    );
+    observer.observe(element.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, [wanted, load, card.path]);
+  const retry =
+    load === undefined
+      ? undefined
+      : () => {
+          load(card.path);
+        };
   return (
-    <details className="file" id={card.id} data-path={card.path} open>
+    <details
+      className="file"
+      id={card.id}
+      data-path={card.path}
+      open={open}
+      ref={element}
+      onToggle={(event) => {
+        ui.onFold?.(card.path, event.currentTarget.open);
+      }}
+    >
       <summary>
         <span className="path">
           <bdi>{card.path}</bdi>
@@ -58,19 +105,31 @@ export function ReviewCard({ card, fetched }: ReviewCardProps) {
           </AppLink>
         )}
       </summary>
-      {body !== undefined && body !== null ? (
+      {body !== null ? (
         <CardBodyView card={card} body={body} />
       ) : card.held !== "" ? (
-        <Held card={card} />
+        <Held card={card} failure={failure} onRetry={retry} />
       ) : (
-        <Skeleton card={card} />
+        <>
+          {failure === undefined ? null : (
+            <Failed text={failure} onRetry={retry} />
+          )}
+          <Skeleton card={card} />
+        </>
       )}
     </details>
   );
 }
 
+interface HeldProps {
+  readonly card: Card;
+  /** What the last Load said, where it failed. */
+  readonly failure: string | undefined;
+  readonly onRetry: (() => void) | undefined;
+}
+
 /** A card past the size a card shows on its own. */
-function Held({ card }: { readonly card: Card }) {
+function Held({ card, failure, onRetry }: HeldProps) {
   const ui = useReviewUi();
   const load = (event: MouseEvent): void => {
     event.preventDefault();
@@ -83,6 +142,9 @@ function Held({ card }: { readonly card: Card }) {
       <a className="load" href={card.whole} onClick={load}>
         Load anyway
       </a>
+      {failure === undefined ? null : (
+        <Failed text={failure} onRetry={onRetry} />
+      )}
     </div>
   );
 }

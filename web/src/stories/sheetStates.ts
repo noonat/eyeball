@@ -79,6 +79,11 @@ export const largeReviewStates: readonly ScreenState[] = [
   { id: "review-screen--held", caption: "a file held back" },
   { id: "review-screen--listed", caption: "twelve files, listed" },
   { id: "review-screen--rendered", caption: "files shown as themselves" },
+  { id: "review-states--body-failed", caption: "a body that did not load" },
+  {
+    id: "review-states--load-failed",
+    caption: "a held file that did not load",
+  },
 ];
 
 /** The states on the sheet of comments and composers. */

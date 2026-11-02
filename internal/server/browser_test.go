@@ -41,7 +41,6 @@ const browserToken = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 func TestServer_Surface_browserActing(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	seen := &requestLog{}
 	wrote := &statusLog{}
@@ -150,7 +149,6 @@ func TestServer_Surface_browserActing(t *testing.T) {
 func TestServer_Surface_browserActingVerdict(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	inner := f.s.LoopbackSurface(browserToken)
 	// A comment's write waits here until the test lets it go, so the comment is
@@ -241,7 +239,6 @@ func TestServer_Surface_browserApp(t *testing.T) {
 func TestServer_Surface_browserBlink(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	write(g, repo, "b.txt", "b\n")
 	write(g, repo, "c.txt", "c\n")
@@ -415,6 +412,7 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
 
 	rows := func(path string) string {
 		return `document.querySelector("details.file[data-path='` + path + `']").querySelectorAll(".src").length`
@@ -423,6 +421,9 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	b.eval(g, `document.querySelector("details.file").scrollIntoView()`)
 	b.waitFor(g, rows("d/00.txt")+` === 40`)
 	g.Expect(b.eval(g, `[...document.querySelectorAll("details.file")].every((d) => d.open)`)).To(BeTrue())
+	// The skeleton's heights were measured on this device, once, and each is a
+	// row's height and not the stylesheet's fallback left in place.
+	g.Expect(b.eval(g, `["--row-h", "--hunk-h", "--code-pad"].map((p) => document.documentElement.style.getPropertyValue(p)).every((v) => v.endsWith("px"))`)).To(BeTrue(), "the skeleton's heights were not measured")
 	time.Sleep(300 * time.Millisecond)
 	g.Expect(b.eval(g, rows("d/59.txt"))).To(BeEquivalentTo(0), "a card far below the screen loaded its body")
 	g.Expect(b.eval(g, rows("d/58.txt"))).To(BeEquivalentTo(0))
@@ -445,12 +446,390 @@ func TestServer_Surface_browserBodies(t *testing.T) {
 	b.waitFor(g, rows("d/58.txt")+` === 40`)
 }
 
-// A jump to a comment inside a card lands below the card's stuck header, not
-// under it.
+// The two comparisons of a long review have bodies of their own: a body read for
+// what the round changed is not drawn for the whole review, and the whole
+// review's is read at its own address.
+func TestServer_Surface_browserBodiesAgainst(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	me := api.Caller{Dir: repo}
+	body := strings.Repeat("line\n", 40)
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), body)
+	}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"d"}, Note: "first"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Replace(body, "line", "edited", 1))
+	}
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "second"})
+	var gated atomic.Bool
+	release := make(chan struct{})
+	var released sync.Once
+	letGo := func() { released.Do(func() { close(release) }) }
+	surface := f.s.LoopbackSurface(browserToken)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/cards/") && gated.Load() {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(letGo)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length > 0`)
+	changed := b.eval(g, card+`.querySelectorAll(".src").length`)
+	g.Expect(changed).To(BeNumerically("<", 40))
+
+	gated.Store(true)
+	b.eval(g, `document.querySelectorAll(".segmented a")[1].click()`)
+	b.waitFor(g, `location.search === "?against=base" && !!`+card)
+	b.eval(g, card+`.scrollIntoView()`)
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, card+`.querySelectorAll(".src").length`)).To(BeEquivalentTo(0), "a body read for the other comparison was drawn")
+	letGo()
+	b.waitFor(g, card+`.querySelectorAll(".src").length >= 40`)
+}
+
+// A body's request ends when the screen goes, so a body asked for and not yet
+// answered does not hold the connection once the reader has left.
+func TestServer_Surface_browserBodiesCancelled(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	var asked, cancelled atomic.Bool
+	surface := f.s.LoopbackSurface(browserToken)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/cards/d/00.txt") {
+			asked.Store(true)
+			select {
+			case <-r.Context().Done():
+				cancelled.Store(true)
+			case <-time.After(20 * time.Second):
+			}
+			return
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	b.eval(g, `document.querySelector("details.file[data-path='d/00.txt']").scrollIntoView()`)
+	g.Eventually(asked.Load, 5*time.Second, 50*time.Millisecond).Should(BeTrue())
+	b.eval(g, `document.querySelector(".topbar .back").click()`)
+	b.waitFor(g, `location.pathname === "/"`)
+	g.Eventually(cancelled.Load, 5*time.Second, 50*time.Millisecond).Should(BeTrue(), "the request outlived the screen")
+}
+
+// A body that fails to load says so in its card, with a retry that asks again,
+// and the card does not ask again by itself. A held card whose Load fails says
+// so beside the link, with the same retry.
+func TestServer_Surface_browserBodiesFailed(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	write(g, repo, "d/lock.json", strings.Repeat("line\n", 600))
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	var broken, gated atomic.Bool
+	var asked atomic.Int32
+	release := make(chan struct{})
+	var released sync.Once
+	letGo := func() { released.Do(func() { close(release) }) }
+	surface := f.s.LoopbackSurface(browserToken)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/cards/") {
+			asked.Add(1)
+			if gated.Load() {
+				<-release
+			}
+			if broken.Load() {
+				http.Error(w, "the store is gone", http.StatusInternalServerError)
+				return
+			}
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	// Registered after the server's, so it runs first: a read still held would
+	// hold the server's close.
+	t.Cleanup(letGo)
+	b := openBrowser(g, t)
+	broken.Store(true)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+
+	// The first card is on screen, so it asks, is refused, and says so beside
+	// the skeleton. It asks once: a card does not retry by itself.
+	first := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, first+`.scrollIntoView()`)
+	b.waitFor(g, `!!`+first+`.querySelector(":scope > .failed")`)
+	g.Expect(b.eval(g, first+`.querySelector(":scope > .failed").textContent`)).To(Equal("eyeball could not do that. Retry"))
+	g.Expect(b.eval(g, `!!`+first+`.querySelector(":scope > .skeleton")`)).To(BeTrue(), "the skeleton went with the failure")
+	g.Expect(b.eval(g, first+`.querySelector(":scope > .failed .retry").getAttribute("role")`)).To(Equal("button"))
+	settled := asked.Load()
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(asked.Load()).To(Equal(settled), "a card that failed asked again by itself")
+
+	// Retry asks again, and the line goes as soon as it does, not when the answer
+	// comes.
+	broken.Store(false)
+	gated.Store(true)
+	b.eval(g, first+`.querySelector(":scope > .failed .retry").click()`)
+	b.waitFor(g, `!`+first+`.querySelector(".failed")`)
+	g.Expect(b.eval(g, first+`.querySelectorAll(".src").length`)).To(BeEquivalentTo(0))
+	letGo()
+	b.waitFor(g, first+`.querySelectorAll(".src").length === 40`)
+
+	// A held card's Load that fails says so after the link.
+	gated.Store(false)
+	lock := `document.querySelector("details.file[data-path='d/lock.json']")`
+	b.eval(g, lock+`.scrollIntoView()`)
+	broken.Store(true)
+	b.eval(g, lock+`.querySelector("a.load").click()`)
+	b.waitFor(g, `!!`+lock+`.querySelector(".filefacts .failed")`)
+	g.Expect(b.eval(g, lock+`.querySelector(".filefacts .failed").textContent`)).To(Equal("eyeball could not do that. Retry"))
+	g.Expect(b.eval(g, lock+`.querySelectorAll(".src").length`)).To(BeEquivalentTo(0))
+	broken.Store(false)
+	b.eval(g, lock+`.querySelector(".failed .retry").click()`)
+	b.waitFor(g, lock+`.querySelectorAll(".src").length === 600`)
+}
+
+// A comment written on a body the app fetched is kept with it, and a round that
+// moves reads the body again: after a verdict elsewhere the comment is still
+// there and no longer offers Edit or Delete.
+func TestServer_Surface_browserBodiesRefreshed(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+	b.eval(g, card+`.querySelector("tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	comment := card + `.querySelector("tr.thread .comment:not(.unsent):not([data-sending])")`
+	b.waitFor(g, `!!`+comment)
+	g.Expect(b.eval(g, comment+`.querySelector(".acts") !== null`)).To(BeTrue())
+	g.Expect(b.eval(g, `document.getElementById("tally").textContent`)).To(Equal("1 commentReady to send"))
+
+	// A verdict given elsewhere moves the round's stamp. The body is read again
+	// and holds the comment, now past editing.
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	b.waitFor(g, `!document.querySelector("#bar")`)
+	b.waitFor(g, `!!`+comment+` && `+comment+`.querySelector(".acts") === null`)
+	g.Expect(b.eval(g, comment+`.querySelector("p").textContent`)).To(Equal("Why two?"))
+}
+
+// A review the reader returns to draws its bodies at once, from the cache, with
+// no skeleton, and reads them again behind them: the read is held here, so only
+// a body drawn from the cache can be on screen.
+func TestServer_Surface_browserBodiesReturn(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	var gated atomic.Bool
+	var reads atomic.Int32
+	release := make(chan struct{})
+	var released sync.Once
+	letGo := func() { released.Do(func() { close(release) }) }
+	surface := f.s.LoopbackSurface(browserToken)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/cards/") && gated.Load() {
+			reads.Add(1)
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(letGo)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+
+	// To the file's own page and back, which move the router and load no page.
+	gated.Store(true)
+	b.eval(g, `window.__before = true`)
+	b.eval(g, card+`.querySelector(".fileopen").click()`)
+	b.waitFor(g, `!!document.querySelector("#root .crumb .name")`)
+	b.eval(g, `history.back()`)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40 && !`+card+`.querySelector(".skeleton")`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page loaded")
+	// Behind them the bodies are read again.
+	g.Eventually(reads.Load, 5*time.Second, 50*time.Millisecond).Should(BeNumerically(">", 0))
+}
+
+// A body read before a write of the reader's lacks the comment that write
+// stored, so it is read again, and the comment is not taken off the screen when
+// the first read arrives.
+func TestServer_Surface_browserBodiesStale(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	// The next read of the first card's body is answered from the store as it is
+	// and then held, so what arrives is older than a write made while it waits.
+	var hold atomic.Bool
+	var held atomic.Bool
+	release := make(chan struct{})
+	var released sync.Once
+	letGo := func() { released.Do(func() { close(release) }) }
+	surface := f.s.LoopbackSurface(browserToken)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/cards/d/00.txt") && hold.CompareAndSwap(true, false) {
+			rec := httptest.NewRecorder()
+			surface.ServeHTTP(rec, r)
+			held.Store(true)
+			<-release
+			for k, v := range rec.Header() {
+				w.Header()[k] = v
+			}
+			w.WriteHeader(rec.Code)
+			_, _ = w.Write(rec.Body.Bytes())
+			return
+		}
+		surface.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	// Registered after the server's, so it runs first: a read still held would
+	// hold the server's close.
+	t.Cleanup(letGo)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+
+	// A verdict given elsewhere makes the body stale, and the read for it is held.
+	hold.Store(true)
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	g.Eventually(held.Load, 10*time.Second, 50*time.Millisecond).Should(BeTrue())
+	b.waitFor(g, `!document.querySelector("#bar")`)
+
+	// A comment is written while it waits, on a decided round where it is sent at
+	// once.
+	b.eval(g, card+`.querySelector("tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Written meanwhile")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	comment := card + `.querySelector("tr.thread .comment:not(.unsent):not([data-sending])")`
+	b.waitFor(g, `!!`+comment)
+
+	letGo()
+	time.Sleep(1500 * time.Millisecond)
+	g.Expect(b.eval(g, `!!`+comment)).To(BeTrue(), "a body read before the write took the comment off the screen")
+	g.Expect(b.eval(g, comment+`.querySelector("p").textContent`)).To(Equal("Written meanwhile"))
+}
+
+// Two answers to writes that land in one tick are both kept: each is built on
+// the one before it, not on what was last drawn. The two requests are held and
+// let go together, so their answers are handled before the screen has drawn
+// either, and both comments are on a body the app fetched.
+func TestServer_Surface_browserBodiesTogether(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 12 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	card := `document.querySelector("details.file[data-path='d/00.txt']")`
+	b.eval(g, card+`.scrollIntoView()`)
+	b.waitFor(g, card+`.querySelectorAll(".src").length === 40`)
+
+	// Every answer to a comment waits until the test lets them all go at once.
+	b.eval(g, `(() => {
+		const real = window.fetch.bind(window);
+		window.__held = [];
+		window.fetch = (url, init) => {
+			if (init && init.method === "POST" && String(url).endsWith("/comments")) {
+				return new Promise((resolve, reject) => {
+					real(url, init).then((res) => window.__held.push(() => resolve(res)), reject);
+				});
+			}
+			return real(url, init);
+		};
+		window.__flush = () => window.__held.splice(0).forEach((go) => go());
+		return true;
+	})()`)
+	lines := []string{"2", "3"}
+	for _, line := range lines {
+		b.eval(g, card+`.querySelector("tr[data-line='`+line+`']").click()`)
+		b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+		b.typeInto(g, "tr.thread form.composer textarea", "About line "+line)
+		b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+		b.waitFor(g, `!document.querySelector("tr.thread form.composer")`)
+	}
+	b.waitFor(g, `window.__held.length === 2`)
+	b.eval(g, `window.__flush()`)
+	b.waitFor(g, card+`.querySelectorAll("tr.thread .comment:not(.unsent):not([data-sending])").length >= 1`)
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, card+`.querySelectorAll("tr.thread .comment:not(.unsent):not([data-sending])").length`)).To(BeEquivalentTo(2), "an answer built on a stale round dropped the other")
+}
+
+// A link to a comment inside a card lands below the card's stuck header, not
+// under it, once the comment is drawn. A notification's tap reaches the review
+// by a router move from a scrolled queue, where the comment is not drawn yet and
+// the router scrolls to the top, and a page load names it too.
 func TestServer_Surface_browserCommentJump(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
 	id := longFileReview(g, t, f)
+	fillQueue(g, t, f, 14)
 	review, err := f.store.Review(t.Context(), id)
 	g.Expect(err).NotTo(HaveOccurred())
 	round, err := f.store.Round(t.Context(), id, review.LatestRound)
@@ -460,20 +839,42 @@ func TestServer_Surface_browserCommentJump(t *testing.T) {
 	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
-	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
-
 	comment := `document.getElementById("comment-` + itoa(c.ID) + `")`
 	summary := `document.querySelector("details.file[data-path='d/long.txt'] > summary")`
-	b.waitFor(g, `!!`+comment)
-	b.eval(g, `location.hash = "comment-`+itoa(c.ID)+`"`)
-	b.waitFor(g, `window.scrollY > 0`)
-	time.Sleep(100 * time.Millisecond)
-	g.Expect(b.eval(g, `Math.round(Math.abs(`+summary+`.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom))`)).To(BeEquivalentTo(0), "the card's header is not stuck")
-	// Adding zero turns the -0 a small negative rounds to into 0, which the
-	// DevTools protocol sends as a number.
-	below := `Math.round(` + comment + `.getBoundingClientRect().top - ` + summary + `.getBoundingClientRect().bottom) + 0`
-	g.Expect(b.eval(g, below)).To(BeNumerically(">=", 0), "the comment landed under the card's header")
-	g.Expect(b.eval(g, below)).To(BeNumerically("<", 40), "the comment landed far below the card's header")
+	landed := func() {
+		g.THelper()
+		b.waitFor(g, `!!`+comment)
+		b.waitFor(g, `window.scrollY > 0`)
+		time.Sleep(100 * time.Millisecond)
+		g.Expect(b.eval(g, `Math.round(Math.abs(`+summary+`.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom))`)).To(BeEquivalentTo(0), "the card's header is not stuck")
+		// Adding zero turns the -0 a small negative rounds to into 0, which the
+		// DevTools protocol sends as a number.
+		below := `Math.round(` + comment + `.getBoundingClientRect().top - ` + summary + `.getBoundingClientRect().bottom) + 0`
+		g.Expect(b.eval(g, below)).To(BeNumerically(">=", 0), "the comment landed under the card's header")
+		g.Expect(b.eval(g, below)).To(BeNumerically("<", 40), "the comment landed far below the card's header")
+	}
+
+	// A page load with the address, where no place is saved for the review that
+	// the jump would give way to.
+	b.navigate(g, srv.URL+"/#token="+browserToken)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#comment-"+itoa(c.ID))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	landed()
+
+	// The tap arrives while the queue is scrolled, which the router leaves for
+	// the top of the new screen before the view has come. The place the first
+	// visit saved is not what the link asked for.
+	b.navigate(g, srv.URL+"/")
+	b.waitFor(g, `document.querySelectorAll("#root a.row").length > 10`)
+	b.loadWorkerInPage(g)
+	b.eval(g, `window.fake.postMessage = (message, ports) => navigator.serviceWorker.dispatchEvent(new MessageEvent("message", { data: message, ports }))`)
+	b.eval(g, `window.scrollTo(0, 800)`)
+	b.waitFor(g, `window.scrollY > 500`)
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `(() => { window.tap("/reviews/`+itoa(id)+`#comment-`+itoa(c.ID)+`"); return true; })()`)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	landed()
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the tap loaded a page")
 }
 
 // A tap on a line of a decided round opens a composer that sends at once, the
@@ -482,7 +883,6 @@ func TestServer_Surface_browserCommentJump(t *testing.T) {
 func TestServer_Surface_browserDecidedTap(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	me := api.Caller{Dir: repo}
 	write(g, repo, "b.txt", "b\n")
@@ -591,6 +991,7 @@ func TestServer_Surface_browserDocumentScrolls(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
 
 	scroller := `document.querySelector(".scroll")`
 	g.Expect(b.eval(g, `document.scrollingElement.scrollHeight > window.innerHeight * 2`)).To(BeTrue(), "the review is not long enough to scroll")
@@ -609,7 +1010,6 @@ func TestServer_Surface_browserDocumentScrolls(t *testing.T) {
 func TestServer_Surface_browserDrafts(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	round := f.latestRound(g, t, id)
 	existing := f.addComment(g, t, store.NewComment{RoundID: round, Level: store.LevelReview, Body: "Existing."})
@@ -680,6 +1080,39 @@ func TestServer_Surface_browserDrafts(t *testing.T) {
 	g.Expect(b.eval(g, `localStorage.getItem("eyeball:drafts:78:1") !== null`)).To(BeTrue())
 }
 
+// A draft whose composer sits on a row of a card that has no body yet waits for
+// the body. The draft is kept while it waits, and the composer opens with its
+// text once the card comes near and its body arrives.
+func TestServer_Surface_browserDraftsDeferred(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 60 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	key := `localStorage.getItem("eyeball:drafts:` + itoa(id) + `:1")`
+	b.eval(g, `localStorage.setItem("eyeball:drafts:`+itoa(id)+`:1", JSON.stringify({ at: Date.now(), value: { anchored: { query: { level: "line", path: "d/58.txt", start: "2" }, text: "Waiting for its body" } } }))`)
+
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	late := `document.querySelector("details.file[data-path='d/58.txt']")`
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, `!!document.querySelector("form.composer[data-query], tr.thread")`)).To(BeFalse(), "a composer opened where no row was drawn")
+	g.Expect(b.eval(g, `JSON.parse(`+key+`).value.anchored.text`)).To(Equal("Waiting for its body"), "the draft was lost while its body was away")
+
+	b.eval(g, late+`.scrollIntoView()`)
+	b.waitFor(g, `document.querySelector("tr.thread form.composer textarea")?.value === "Waiting for its body"`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread").previousElementSibling.dataset.line`)).To(Equal("2"))
+	g.Expect(b.eval(g, late+`.contains(document.querySelector("tr.thread"))`)).To(BeTrue())
+}
+
 // A comment that cannot be saved becomes an unsent card in its list, Retry
 // stores it once the server is back and says why when it fails again, and
 // Delete drops it. A comment the server refuses stays in its composer with the
@@ -689,7 +1122,6 @@ func TestServer_Surface_browserDrafts(t *testing.T) {
 func TestServer_Surface_browserFailedSave(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	round := f.latestRound(g, t, id)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -825,7 +1257,6 @@ func TestServer_Surface_browserFailedSave(t *testing.T) {
 func TestServer_Surface_browserFailedVerdict(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	round := f.latestRound(g, t, id)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -959,7 +1390,6 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 func TestServer_Surface_browserFold(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "notes"))
 	write(g, repo, "a.txt", "one\n")
 	commitFile(g, repo, "doc.md", "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n")
@@ -993,7 +1423,6 @@ func TestServer_Surface_browserFold(t *testing.T) {
 func TestServer_Surface_browserFoldComment(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "notes"))
 	write(g, repo, "a.txt", "one\n")
 	commitFile(g, repo, "doc.md", "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n")
@@ -1030,6 +1459,45 @@ func TestServer_Surface_browserFoldComment(t *testing.T) {
 	g.Expect(f.comments(g, t, f.latestRound(g, t, id))).To(BeEmpty())
 }
 
+// A comment saved on a passage of a document whose body the app fetched moves it
+// out of its fold, as the round's own does: the body is read again, since
+// whether a passage sits in a fold is the server's rule.
+func TestServer_Surface_browserFoldCommentDeferred(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "notes"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 11 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), "line\n")
+	}
+	commitFile(g, repo, "doc.md", "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n")
+	write(g, repo, "doc.md", "New.\n\nA.\n\nB.\n\nC.\n\nD.\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d", "doc.md"}, Note: "docs"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	b.eval(g, `document.querySelector("details.file[data-path='doc.md']").scrollIntoView()`)
+	b.waitFor(g, `!!document.querySelector("details.fold")`)
+	g.Expect(b.eval(g, `!!document.querySelector("details.file[data-path='doc.md']").dataset.path`)).To(BeTrue())
+
+	inFold := `document.querySelector("details.fold .blk[data-lines='7-7']")`
+	b.eval(g, `document.querySelector("details.fold summary").click()`)
+	b.waitFor(g, `document.querySelector("details.fold").open`)
+	b.eval(g, inFold+`.click()`)
+	b.waitFor(g, `!!document.querySelector("div[id^='thread-'] form.composer textarea")`)
+	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Is C still true?")
+	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
+	b.waitFor(g, `!`+inFold+` && !!document.querySelector(".prose > .blk[data-lines='7-7']")`)
+	b.waitFor(g, `document.querySelector(".prose > .blk[data-lines='7-7']").nextElementSibling?.querySelectorAll(".comment:not(.unsent):not([data-sending])").length === 1`)
+
+	// A delete puts it back in its fold.
+	b.eval(g, `document.querySelector(".prose > .blk[data-lines='7-7']").nextElementSibling.querySelectorAll(".acts a")[1].click()`)
+	b.waitFor(g, `!!`+inFold)
+	g.Expect(f.comments(g, t, f.latestRound(g, t, id))).To(BeEmpty())
+}
+
 // The stylesheet's three faces and the eye load under the surface's own
 // policy. A font the policy blocks falls back to the system face and a mask it
 // blocks draws nothing, and both look close enough to right that nobody
@@ -1049,6 +1517,10 @@ func TestServer_Surface_browserFonts(t *testing.T) {
 		"source": `window.__blocked = []; addEventListener("securitypolicyviolation", (e) => window.__blocked.push(e.violatedDirective + " " + e.blockedURI));`,
 	})
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	// The app draws the letter after its view arrives, and only then does the
+	// page use the faces.
+	b.waitFor(g, `!!document.querySelector("#root .letter")`)
+	b.waitFor(g, `new Set([...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family)).size === 3`)
 	b.waitFor(g, `document.fonts.ready.then(() => true)`)
 	loaded := b.eval(g, `document.fonts.ready.then(() => [...new Set([...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replaceAll('"', "")))].sort().join(", "))`)
 	g.Expect(loaded).To(Equal("Atkinson Hyperlegible Mono, Atkinson Hyperlegible Next, Literata"), "the chrome, the agent's name and the letter each drew its own face")
@@ -1072,6 +1544,7 @@ func TestServer_Surface_browserHeld(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
 
 	card := `document.querySelector("details.file[data-path='d/lock.json']")`
 	time.Sleep(300 * time.Millisecond)
@@ -1079,6 +1552,37 @@ func TestServer_Surface_browserHeld(t *testing.T) {
 	b.eval(g, card+`.querySelector("a.load").click()`)
 	b.waitFor(g, card+`.querySelectorAll(".src").length === 600`)
 	g.Expect(b.eval(g, card+`.open && !`+card+`.querySelector(".filefacts")`)).To(BeTrue())
+}
+
+// A card that changes height above the reader's place does not move what is
+// read, and a page at its top holds nothing, since what grows above the first
+// card there is what the reader is looking at.
+func TestServer_Surface_browserHoldPlace(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := longFileReview(g, t, f)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+
+	// Something above the first card grows by 40px as the card changes size,
+	// which is when a hold looks at where the card is.
+	grow := func(above, height int) {
+		g.THelper()
+		b.eval(g, fmt.Sprintf(`document.querySelector(".brief").style.paddingTop = "%dpx"; document.querySelector("details.file").style.minHeight = "%dpx"; true`, above, height))
+		time.Sleep(200 * time.Millisecond)
+	}
+	grow(40, 7000)
+	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(BeEquivalentTo(0), "a page at its top was scrolled")
+
+	// Scrolled down, the same growth is held: the card stays where it was
+	// under the header, so the page scrolls by what it grew.
+	b.eval(g, `window.scrollTo(0, 300)`)
+	time.Sleep(200 * time.Millisecond)
+	grow(80, 7100)
+	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(BeEquivalentTo(340))
 }
 
 // A tap in the list of files jumps to that file's card, and the bodies that
@@ -1114,19 +1618,38 @@ func TestServer_Surface_browserJump(t *testing.T) {
 	}
 	write(g, repo, "d/39z.md", strings.Join(paragraphs, "\n\n")+"\n")
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
-	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	fillQueue(g, t, f, 14)
+	// A body takes a moment to come, as it does over the tailnet, so the
+	// skeletons are on screen when the jump lands and the bodies arrive around
+	// the target afterward.
+	surface := f.s.LoopbackSurface(browserToken)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/cards/") {
+			time.Sleep(400 * time.Millisecond)
+		}
+		surface.ServeHTTP(w, r)
+	}))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
-	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
 
-	// The page turns Chromium's scroll anchoring off for its own, which
-	// Safari needs. It is turned off here too, so a page that stopped doing so
-	// could not pass on Chromium's alone.
-	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
+	// The review is reached from a queue scrolled well down, by a move of the
+	// router. A link to a card is then a router link too, since a plain anchor
+	// would restore the queue's place.
+	b.navigate(g, srv.URL+"/#token="+browserToken)
+	b.waitFor(g, `document.querySelectorAll("#root a.row").length > 10`)
+	b.eval(g, `window.scrollTo(0, 800)`)
+	b.waitFor(g, `window.scrollY > 500`)
+	b.eval(g, `window.__before = true`)
+	b.eval(g, `document.querySelector("#root a.row[href='/reviews/`+itoa(id)+`']").click()`)
+	b.waitFor(g, `!!document.querySelector("#root .filelist a")`)
+	// The screen turns Chromium's scroll anchoring off for itself, which Safari
+	// needs, so a browser test runs the path Safari runs.
+	g.Expect(b.eval(g, `document.documentElement.style.overflowAnchor`)).To(Equal("none"))
 	target := `document.querySelector("details.file[data-path='d/40.txt']")`
 	top := target + `.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom`
 	b.eval(g, `document.querySelector(".filelist a[href='#" + `+target+`.id + "']").click()`)
 	b.waitFor(g, `Math.abs(`+top+`) < 2`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the jump loaded a page")
 	// The document above the target is within a screen of view, so its body
 	// loads above the target, and so does the target's own.
 	g.Expect(b.eval(g, `document.querySelector("details.file[data-path='d/40.txt'] .skeleton").dataset.hunks`)).To(Equal("2"))
@@ -1140,7 +1663,7 @@ func TestServer_Surface_browserJump(t *testing.T) {
 	// again as bodies arrive. A tap in the list straight away is not pulled
 	// back by it.
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
-	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
+	b.waitFor(g, `!!document.querySelector("#root .filelist a")`)
 	other := `document.querySelector("details.file[data-path='d/10.txt']")`
 	otherTop := other + `.getBoundingClientRect().top - document.querySelector(".head").getBoundingClientRect().bottom`
 	b.eval(g, `document.querySelector(".filelist a[href='#" + `+other+`.id + "']").click()`)
@@ -1155,7 +1678,6 @@ func TestServer_Surface_browserJump(t *testing.T) {
 func TestServer_Surface_browserPassages(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := filepath.Join(t.TempDir(), "notes")
 	g.Expect(os.MkdirAll(repo, 0o700)).To(Succeed())
 	git(g, repo, "init", "--quiet", "--template=", "-b", "main")
@@ -1333,7 +1855,6 @@ func TestServer_Surface_browserQueueArrives(t *testing.T) {
 func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
 	t.Cleanup(srv.Close)
@@ -1386,7 +1907,19 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
+	// Every write of a review's place, so a place written before the one saved
+	// is applied is seen.
+	b.call(g, "Page.enable", map[string]any{})
+	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": `(() => {
+		window.__placeWrites = [];
+		const set = Storage.prototype.setItem;
+		Storage.prototype.setItem = function (key, value) {
+			if (key.startsWith("eyeball:place:")) window.__placeWrites.push(value);
+			return set.call(this, key, value);
+		};
+	})()`})
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
 
 	card := `document.querySelector("details.file[data-path='d/05.txt']")`
 	folded := `document.querySelector("details.file[data-path='d/07.txt']")`
@@ -1412,6 +1945,9 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
 	b.waitFor(g, card+`.open && `+card+`.querySelectorAll(".src").length === 40`)
 	g.Expect(b.eval(g, folded+`.open`)).To(BeFalse(), "a folded card opened again after a reload")
+	// The place is stored as the template page stored it, under its key.
+	key := itoa(id) + ":1:"
+	g.Expect(b.eval(g, `JSON.parse(localStorage.getItem("eyeball:place:`+key+`")).value.folded.join()`)).To(Equal("d/07.txt"))
 	b.waitFor(g, fmt.Sprintf(`Math.abs(window.scrollY - %v) < 2`, scroll))
 	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal("Half a review comment"))
 	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("A note in progress"))
@@ -1428,12 +1964,99 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 	// is kept and its list ignored, so every card opens rather than all but
 	// the one it named folding. Leaving a review page saves its place, so the
 	// entry is planted from a page that keeps none.
-	key := b.eval(g, `document.querySelector(".page[data-place]").dataset.place`)
 	b.navigate(g, srv.URL+"/reviews/999")
+	b.waitFor(g, `!!document.querySelector("#root .empty")`)
 	b.eval(g, fmt.Sprintf(`localStorage.setItem("eyeball:place:%v", JSON.stringify({ at: Date.now(), value: { scroll: 300, open: ["d/05.txt"] } }))`, key))
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
 	b.waitFor(g, `Math.abs(window.scrollY - 300) < 2`)
 	g.Expect(b.eval(g, `[...document.querySelectorAll("details.file")].every((d) => d.open)`)).To(BeTrue())
+
+	// Nothing is saved while the place is being applied: the router's scroll to
+	// the top and a page that is still too short would write over it. The
+	// reader's first tap lets the next scroll save.
+	time.Sleep(1 * time.Second)
+	g.Expect(b.eval(g, `window.__placeWrites.length`)).To(BeEquivalentTo(0), "a place was written before the reader acted")
+	b.eval(g, `document.dispatchEvent(new Event("pointerdown"))`)
+	b.eval(g, `window.scrollTo(0, 700)`)
+	b.waitFor(g, `window.__placeWrites.length > 0`)
+	g.Expect(b.eval(g, `JSON.parse(window.__placeWrites.at(-1)).value.scroll`)).To(BeEquivalentTo(700))
+
+	// A reader who does nothing is given three seconds, and the place is saved
+	// as it moves after them. A scroll the page makes in the first of them is
+	// not the reader's.
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `Math.abs(window.scrollY - 700) < 2`)
+	b.eval(g, `window.scrollTo(0, 500)`)
+	time.Sleep(600 * time.Millisecond)
+	g.Expect(b.eval(g, `window.__placeWrites.length`)).To(BeEquivalentTo(0), "a place was written before the reader acted or the time ran out")
+	time.Sleep(3 * time.Second)
+	b.eval(g, `window.scrollTo(0, 600)`)
+	b.waitFor(g, `window.__placeWrites.length > 0`)
+	g.Expect(b.eval(g, `JSON.parse(window.__placeWrites.at(-1)).value.scroll`)).To(BeEquivalentTo(600))
+}
+
+// A review left by a move of the router saves its place as it goes, and the
+// review opened again from the queue is put back there, from the cached view, in
+// the same commit as the router's own scroll to the top.
+func TestServer_Surface_browserRemembersByMove(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 11 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	b.eval(g, `window.__before = true`)
+
+	// The way back is taken as soon as the scroll has been seen, before the
+	// scroll's own save is due, so only the save made as the screen goes keeps it.
+	g.Expect(b.eval(g, `(async () => {
+		window.scrollTo(0, 900);
+		await new Promise((seen) => addEventListener("scroll", seen, { once: true }));
+		document.querySelector(".topbar .back").click();
+		return true;
+	})()`)).To(BeTrue())
+	b.waitFor(g, `location.pathname === "/" && !!document.querySelector("#root a.row")`)
+	b.eval(g, `document.querySelector("#root a.row[href='/reviews/`+itoa(id)+`']").click()`)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	b.waitFor(g, `Math.abs(window.scrollY - 900) < 2`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page loaded")
+}
+
+// A saved place beyond what the review measures before its bodies come is
+// reached as they arrive: a document is taller than its skeleton, so the page
+// grows under the reader who was left far below.
+func TestServer_Surface_browserRemembersPastTheSkeleton(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "a.txt", "one\n")
+	for i := range 11 {
+		write(g, repo, fmt.Sprintf("d/%02d.txt", i), strings.Repeat("line\n", 40))
+	}
+	var paragraphs []string
+	for n := range 200 {
+		paragraphs = append(paragraphs, fmt.Sprintf("Paragraph %d of the manual.", n))
+	}
+	write(g, repo, "d/zz.md", strings.Join(paragraphs, "\n\n")+"\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"d"}, Note: "many"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	// The entry is planted from a page that keeps none.
+	b.navigate(g, srv.URL+"/reviews/999#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root .empty")`)
+	b.eval(g, fmt.Sprintf(`localStorage.setItem("eyeball:place:%d:1:", JSON.stringify({ at: Date.now(), value: { scroll: 14000, folded: [] } }))`, id))
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	b.waitFor(g, `Math.abs(window.scrollY - 14000) < 2`)
+	g.Expect(b.eval(g, `!!document.querySelector("details.file[data-path='d/zz.md'] .blk")`)).To(BeTrue(), "the document's body had not arrived")
 }
 
 // A tap on an image in a card, or on the line naming a file with no
@@ -1441,7 +2064,6 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 func TestServer_Surface_browserRenderedCard(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	write(g, repo, "icon.png", pngOf(g, 2, 2))
 	write(g, repo, "data.zip", "PK\x03\x04")
@@ -1473,7 +2095,6 @@ func TestServer_Surface_browserRenderedCard(t *testing.T) {
 func TestServer_Surface_browserStaleFetch(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	inner := f.s.LoopbackSurface(browserToken)
 	// The next fetch of the round answers with what it read, late.
@@ -1527,7 +2148,10 @@ func TestServer_Surface_browserStickyHeader(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
-	b.eval(g, `document.documentElement.style.overflowAnchor = "none"`)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	// The screen turns Chromium's scroll anchoring off for itself, which Safari
+	// needs, and puts it back when it goes.
+	g.Expect(b.eval(g, `document.documentElement.style.overflowAnchor`)).To(Equal("none"))
 
 	long := `document.querySelector("details.file[data-path='d/long.txt']")`
 	next := `document.querySelector("details.file[data-path='d/next.txt']")`
@@ -1547,8 +2171,8 @@ func TestServer_Surface_browserStickyHeader(t *testing.T) {
 	g.Expect(b.eval(g, fromHead(long))).To(BeNumerically("<=", 1), "the folded header left the top of the screen")
 	g.Expect(b.eval(g, next+`.getBoundingClientRect().top < window.innerHeight / 2`)).To(BeTrue(), "the next file is not under the folded header")
 
-	// A fold the page makes, as keepPlace does on load, is not one the reader
-	// made, and leaves the scroll where it is.
+	// A fold the page makes, as a draft does around its composer, is not one the
+	// reader made, and leaves the scroll where it is.
 	b.eval(g, long+`.open = true`)
 	b.waitFor(g, long+`.open`)
 	b.eval(g, `window.scrollTo(0, window.scrollY + `+long+`.getBoundingClientRect().top - `+head+` + 2000)`)
@@ -1567,7 +2191,6 @@ func TestServer_Surface_browserStickyHeader(t *testing.T) {
 func TestServer_Surface_browserStream(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	other := actingReview(g, t, f)
 	third := actingReview(g, t, f)
@@ -1668,7 +2291,6 @@ func TestServer_Surface_browserStream(t *testing.T) {
 func TestServer_Surface_browserStreamFailedFetch(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	inner := f.s.LoopbackSurface(browserToken)
 	// The fetch and its three retries fail, and the fetches after them do not.
@@ -1694,7 +2316,6 @@ func TestServer_Surface_browserStreamFailedFetch(t *testing.T) {
 func TestServer_Surface_browserStreamReconnect(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	inner := f.s.LoopbackSurface(browserToken)
 	// A blip takes the open streams, refuses new ones, and leaves the next fetch
@@ -2057,7 +2678,6 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 func TestServer_Surface_browserVerdictInFlight(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	inner := f.s.LoopbackSurface(browserToken)
 	// The verdict's answer is held back until the stream has had time to say it
@@ -2103,6 +2723,7 @@ func TestServer_Surface_browserViewport(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root .page")`)
 
 	// Counted as the hidden field arrives. A headless page without focus
 	// fires no focus events.
@@ -2145,6 +2766,7 @@ func TestServer_Surface_browserViewportRealign(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root .page")`)
 
 	b.eval(g, `window.scrollTo(0, 2000)`)
 	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(BeEquivalentTo(2000))
@@ -2173,6 +2795,7 @@ func TestServer_Surface_browserViewportTouch(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root .page")`)
 
 	b.eval(g, `window.flicks = 0; new MutationObserver((records) => { for (const r of records) for (const n of r.addedNodes) if (n.dataset && "flick" in n.dataset) window.flicks++ }).observe(document.body, {childList: true})`)
 	touch := `document.dispatchEvent(new Event("touchstart"))`
@@ -2196,6 +2819,45 @@ func TestServer_Surface_browserWorker(t *testing.T) {
 	b.navigate(g, srv.URL+"/")
 	b.waitFor(g, `navigator.serviceWorker.getRegistration().then(r => !!r && !!r.active)`)
 	g.Expect(b.eval(g, `navigator.serviceWorker.getRegistration().then(r => r.scope)`)).To(Equal(srv.URL + "/"))
+}
+
+// Two answers to comments on the review that land in one tick are both kept even
+// while the round on screen is held, by a note being typed, from taking up the
+// cached round that has both.
+func TestServer_Surface_browserWritesTogether(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
+	b.typeInto(g, "#bar textarea", "A note in progress")
+	b.eval(g, `(() => {
+		const real = window.fetch.bind(window);
+		window.__held = [];
+		window.fetch = (url, init) => {
+			if (init && init.method === "POST" && String(url).endsWith("/comments")) {
+				return new Promise((resolve, reject) => {
+					real(url, init).then((res) => window.__held.push(() => resolve(res)), reject);
+				});
+			}
+			return real(url, init);
+		};
+		window.__flush = () => window.__held.splice(0).forEach((go) => go());
+		return true;
+	})()`)
+	words := []string{"First.", "Second."}
+	for _, word := range words {
+		b.typeInto(g, ".page > form.composer textarea", word)
+		b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
+		b.waitFor(g, `document.querySelector(".page > form.composer textarea").value === ""`)
+	}
+	b.waitFor(g, `window.__held.length === 2`)
+	b.eval(g, `window.__flush()`)
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `document.querySelectorAll("#comments-review .comment:not(.unsent):not([data-sending])").length`)).To(BeEquivalentTo(2), "an answer built on a stale round dropped the other")
 }
 
 // longFileReview opens a review of two files of 300 changed lines each,
@@ -2428,4 +3090,17 @@ func (b *browser) typeInto(g *WithT, selector, text string) {
 	// The element's own setter, since React keeps the value it last saw and a
 	// field set the plain way reads as unchanged, so its input event is dropped.
 	b.eval(g, fmt.Sprintf(`(() => { const f = document.querySelector(%q); Object.getOwnPropertyDescriptor(f.constructor.prototype, "value").set.call(f, %s); f.dispatchEvent(new Event("input", { bubbles: true })); })()`, selector, quoted))
+}
+
+// fillQueue opens count reviews of one-line files in a repository of their
+// own, so the queue is taller than a screen.
+func fillQueue(g *WithT, t *testing.T, f *fixture, count int) {
+	t.Helper()
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "crowd"))
+	me := api.Caller{Dir: repo}
+	for i := range count {
+		name := fmt.Sprintf("q%02d.txt", i)
+		write(g, repo, name, "q\n")
+		f.request(g, t, api.RequestBody{Caller: me, Paths: []string{name}, Note: fmt.Sprintf("review %d", i)})
+	}
 }

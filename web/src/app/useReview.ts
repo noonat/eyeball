@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { clearBlinkMark, setBlinkMark } from "../../ts/blink";
 import { queueKey } from "../api/queue";
-import type { Comment, Review } from "../api/types";
+import type { CardBody, Comment, Review } from "../api/types";
 import { viewKey, type ViewAnswer } from "../api/views";
 import {
   commentRequest,
@@ -26,10 +26,12 @@ import {
 } from "./reviewDrafts";
 import {
   findComment,
-  onPassage,
+  passagePath,
   placeComment,
   removeComment,
   replaceComment,
+  changeBody,
+  withBodies,
 } from "./reviewCache";
 import {
   deleteComment,
@@ -37,6 +39,8 @@ import {
   postVerdict,
   putComment,
 } from "./reviewWrites";
+import { bodyKey, useBodies } from "./useBodies";
+import { useReviewScroll } from "./useReviewScroll";
 import type { ReviewStream } from "./useReviewStream";
 import type { CommentRequest } from "../api/types";
 
@@ -175,7 +179,14 @@ export function useReview(
   // stored, sent or cleared, as the template page's reload did. The reader's
   // own writes are put in what is shown at once.
   const [shown, setShown] = useState(latest);
-  const review = shown;
+  // The bodies of a long review's cards, which the round sends without, are
+  // queries of their own and merged into the round for everything that reads or
+  // draws it. A round fetched again cannot take one away.
+  const bodies = useBodies(shown);
+  const review = useMemo(
+    () => withBodies(shown, bodies.data),
+    [shown, bodies.data],
+  );
   const acting = review.acting;
   const open = acting?.state === "open";
   const late = acting?.state === "late";
@@ -216,9 +227,23 @@ export function useReview(
   );
 
   // The newest of every piece of state, for an answer that arrives later.
-  const now = useRef({ composer, composerTyped, reviewText, review, outbox });
+  const now = useRef({
+    composer,
+    composerTyped,
+    reviewText,
+    review,
+    shown,
+    outbox,
+  });
   useEffect(() => {
-    now.current = { composer, composerTyped, reviewText, review, outbox };
+    now.current = {
+      composer,
+      composerTyped,
+      reviewText,
+      review,
+      shown,
+      outbox,
+    };
   });
 
   const fail = (key: string, message: string | undefined): void => {
@@ -228,17 +253,35 @@ export function useReview(
     });
   };
 
-  const change = (fn: (round: Review) => Review): void => {
+  const change = (fn: (view: Review) => Review): void => {
     client.setQueryData<ViewAnswer<Review>>(viewKey(address), (old) =>
       old?.found === true ? { found: true, body: fn(old.body) } : old,
     );
+    // The round as shown takes the change as an update of its own state, so two
+    // answers handled before a render each build on the one before, and a round
+    // taken up in between is built on too. A card with no body is left alone by
+    // the change. Each body in its entry takes it from the entry's own latest
+    // value, with the round's other parts beside it.
     setShown(fn);
-    // A fetch of the round already in flight may have read the store before this
-    // write, and its answer would take the comment off the screen once the round
-    // is taken up. It is cancelled and the round fetched again, so the fetch that
-    // is shown starts after the store.
-    if (client.isFetching({ queryKey: viewKey(address) }) > 0) {
-      void client.invalidateQueries({ queryKey: viewKey(address) });
+    const base = now.current.shown;
+    for (const card of base.cards ?? []) {
+      if (card.body === null) {
+        client.setQueryData<CardBody>(bodyKey(card), (old) =>
+          old === undefined ? old : changeBody(base, card, old, fn),
+        );
+      }
+    }
+    // A fetch already in flight may have read the store before this write, and
+    // its answer would take the comment off the screen once it arrives. It is
+    // cancelled and fetched again, so the fetch that is shown starts after the
+    // store. That holds for the round and for each body.
+    for (const key of [
+      viewKey(address),
+      ...(base.cards ?? []).map((card) => bodyKey(card)),
+    ]) {
+      if (client.isFetching({ queryKey: key, exact: true }) > 0) {
+        void client.invalidateQueries({ queryKey: key, exact: true });
+      }
     }
   };
 
@@ -247,9 +290,13 @@ export function useReview(
   // at once, but whether a document's passage sits in a fold depends on whether
   // it has a comment, and that rule is the server's: a copy of it here would
   // have nothing checking that the two agree. The fetch draws the folds as the
-  // server decides them.
-  const refetch = (): void => {
-    void client.invalidateQueries({ queryKey: viewKey(address) });
+  // server decides them, and a card's body is read again for the same reason,
+  // since the round's fetch does not carry it.
+  const refetch = (path: string | undefined): void => {
+    void client.invalidateQueries({ queryKey: viewKey(address), exact: true });
+    if (path !== undefined) {
+      bodies.refresh(path);
+    }
   };
 
   const settle = (item: Outbox): void => {
@@ -280,11 +327,11 @@ export function useReview(
       settle(item);
       fail(`comment:${item.id}`, undefined);
       const { comment, count } = outcome.value;
-      change((round) =>
-        placeComment(round, requestAt(item.request), comment, count),
+      change((view) =>
+        placeComment(view, requestAt(item.request), comment, count),
       );
       if (item.request.level === "passage") {
-        refetch();
+        refetch(item.request.path);
       }
       return;
     }
@@ -386,7 +433,7 @@ export function useReview(
     void putComment(comment.href, { body }).then((outcome) => {
       if (outcome.kind === "ok") {
         const { comment: stored, count } = outcome.value;
-        change((round) => replaceComment(round, stored, count));
+        change((view) => replaceComment(view, stored, count));
         closeEdit(id);
       } else {
         fail(`edit:${id}`, outcome.message);
@@ -406,13 +453,13 @@ export function useReview(
       return;
     }
     fail(`comment:${id}`, undefined);
-    const passage = onPassage(now.current.review, id);
+    const passage = passagePath(now.current.review, id);
     void deleteComment(comment.href).then((outcome) => {
       if (outcome.kind === "ok") {
-        change((round) => removeComment(round, id, outcome.value.count));
+        change((view) => removeComment(view, id, outcome.value.count));
         closeEdit(id);
-        if (passage) {
-          refetch();
+        if (passage !== undefined) {
+          refetch(passage);
         }
       } else {
         fail(`comment:${id}`, outcome.message);
@@ -553,14 +600,39 @@ export function useReview(
     setShown(latest);
   }
 
+  // A round that moved makes the bodies held stale: after a verdict given
+  // elsewhere their comments still show Edit and Delete. They are read again,
+  // each kept as it is until the new one arrives. A body far from the reader is
+  // read too, which costs a request each for the cards the reader scrolled
+  // past. Dropping them to load again when they come near was rejected, since a
+  // body above the reader changing back to a skeleton moves what is read.
+  const stamp = useRef(shown.stamp);
+  const refreshAll = bodies.refreshAll;
+  useEffect(() => {
+    if (stamp.current !== shown.stamp) {
+      stamp.current = shown.stamp;
+      refreshAll();
+    }
+  }, [shown.stamp, refreshAll]);
+
   const pending: Pending[] = outbox.map((item) => ({
     at: requestAt(item.request),
     comment: pendingComment(item),
     state: item.state,
   }));
 
+  const scroll = useReviewScroll(review, bodies.data);
+  // What every round has, written or not: the bodies its cards ask for and the
+  // folds the reader makes.
+  const base: Partial<ReviewUi> = {
+    late: false,
+    onLoad: bodies.load,
+    folded: scroll.folded,
+    onFold: scroll.onFold,
+  };
   const ui: Partial<ReviewUi> = writing
     ? {
+        ...base,
         late,
         composer,
         composerText: composerTyped,
@@ -574,7 +646,7 @@ export function useReview(
         onEditText: (id, text) => {
           setEdits((all) => ({ ...all, [id]: text }));
         },
-        failures,
+        failures: { ...failures, ...bodies.failures },
         pending,
         composerFocus: focusTick,
         onOpen: (at) => {
@@ -603,10 +675,10 @@ export function useReview(
         onDelete: remove,
         onRetry: retry,
       }
-    : { late: false };
+    : { ...base, failures: bodies.failures };
 
   return {
-    review: shown,
+    review,
     ui,
     bar: {
       note,

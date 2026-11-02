@@ -63,7 +63,11 @@ client code. Each item is a spec.
       failure was at exactly 3482px, so the fault predates the branch. The cause
       is not found. An identical offset each time is a guess that points at a
       scroll that did not happen, or at a layout that comes out the same way
-      every time it fails, more than at a timing race.
+      every time it fails, more than at a timing race. The test was ported to
+      the React screen on 2026-11-02 and run 20 times with `-count=20`: 20
+      passed, 0 failed. The port is a different test. It reaches the review from
+      a scrolled queue by a router move and delays each body by 400ms. The pass
+      does not show the old cause fixed, so the entry stays open.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active
