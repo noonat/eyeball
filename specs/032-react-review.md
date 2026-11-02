@@ -392,6 +392,78 @@ sheets, since the sheets are the pages the owner approved.
   text stays. The first version of the app ignored that tap. On iOS it is how a
   reader gets the keyboard back after dismissing it.
 
+### Iteration 4
+
+- The review's screen holds its own stream, `/events?review=N` from the view's
+  `stream`, and the build stream is held only while the view arrives or is
+  missing. Each stamp is compared with the cached round's, once for each stamp,
+  as the queue's is.
+- A refetch can change a round under the reader: a verdict given elsewhere takes
+  the bar and its note away and turns an open composer late. The template's
+  reload waited until nothing typed was unsaved, so nothing typed went with the
+  page. The app waits twice. The round is not fetched while text in a composer,
+  an edit form, the review's box or the note is held, a comment is on its way or
+  one did not save, and a round that was fetched is not shown until none is,
+  since text may be typed while the fetch is under way. What is shown is state
+  of the screen, and the reader's own writes go into it at once. `browserStream`
+  records a verdict elsewhere with the review's box holding text, then the note
+  alone, then the note and a composer, and finds each text and the open bar kept
+  until it is cleared or sent. The composer sends its comment as the late one it
+  is.
+- The verdict guard counts what the template's did. Text in a composer, an edit
+  form or the review's box, a comment on its way, a comment that did not save,
+  and the stream being down hold a verdict back. The note does not, as the
+  template's did not: it holds a refetch but not a verdict. A comment on its way
+  counts because its text stayed in the template's form until the answer came,
+  which `browserActingVerdict` tries with a write held in flight. The buttons
+  are `aria-disabled` while held, and the handler drops the verdict as well,
+  since `aria-disabled` does not stop a click.
+- The verdict is sent to the address the view's `bar.action` names and
+  answers 204. A 422 is the bar's refused state, and any other refusal or a
+  failure to arrive is a failed line at the foot of the bar with the note kept
+  and the blink mark cleared. A stale verdict's sentence is shown, and the
+  stream's next stamp fetches the round.
+- `blink.ts` exports `setBlinkMark` and `clearBlinkMark`, which the template's
+  own handlers call too, so one module writes the key. The mark's count is the
+  view's `waiting_count`, which is the number the template read from the page's
+  eye. A verdict stored moves the router to the queue, which draws from its
+  cache and again when the stream's fetch arrives, and the blink waits for the
+  row to leave Waiting as it always did.
+- The `deciding` flag the template's stream kept in `state.ts` is state of the
+  screen here. While a verdict is in flight no refetch is made and none is
+  shown.
+- The round's bodies are not refetched with it: no card holds a fetched body
+  until Iteration 5.
+- The failed line in the bar is the one new state, `BarFailed` in `ReviewStates`
+  and on the bar sheet, for the owner's phone check in Iteration 7.
+- The five template verdict tests are the app's: `browserActingVerdict`,
+  `browserFailedVerdict`, `browserBlink`, `browserRefusedChangeRequest` and
+  `browserStream`. The template page's verdict has no browser test now and ships
+  until Iteration 6. `browserBlink` reaches each review from the queue by a
+  click that moves the router.
+- A verdict stored drops the cached queue before the router moves, so the queue
+  is fetched fresh. Drawn from the view cached before the verdict, it showed the
+  old count and the row under Waiting first, and under reduced motion, where the
+  new count shows at once, the old one showed before it. Patching the cached
+  view to look as the server would is a guess. `browserBlink` holds that nothing
+  the eye shows after the verdict is the old count under reduced motion, and
+  that the blink starts with the old count from the mark otherwise.
+- A write's answer cancels a fetch of the round already in flight and fetches
+  again. A fetch that read the store before the write would otherwise take the
+  comment off the screen when it arrived and the round was taken up. `fetchView`
+  passes the query's signal on, so the cancelled request ends: measured in
+  Chromium, a second request for an address waited 20 seconds behind a first
+  that never answered, on the browser's cache lock. `browserStaleFetch` holds a
+  fetch back across a write.
+- A stamp whose fetch did not arrive is asked for again. The stamp asked for is
+  forgotten when the connection goes offline and when the fetch fails, since the
+  stream that reconnects sends the same stamp. `browserStreamFailedFetch` fails
+  the fetch and its three retries, and `browserStreamReconnect` leaves a fetch
+  unanswered while the stream drops and returns.
+- The verdict guard is defined once, as `blocked` in the screen's hook, and the
+  bar reads it as `held` for its buttons. The hook is the one place that drops a
+  verdict, so a mutation of the definition or of the drop is caught by one test.
+
 ## Iteration 1: The API
 
 - [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
@@ -482,22 +554,28 @@ sheets, since the sheets are the pages the owner approved.
 
 ## Iteration 4: The verdict and the stream
 
-- [ ] The bar holds the verdict back while text is unsaved, a comment is unsent
+- [x] The bar holds the verdict back while text is unsaved, a comment is unsent
       or the device is offline, as the template's guard does.
-- [ ] A verdict sets the blink mark through functions `blink.ts` exports, clears
+- [x] A verdict sets the blink mark through functions `blink.ts` exports, clears
       it if the verdict fails, and moves the router to the queue once stored.
-- [ ] A change request with no comments draws the refused bar, and a failed
+- [x] A change request with no comments draws the refused bar, and a failed
       verdict draws the failed line in the bar with its note kept, with a story.
-- [ ] The screen follows `/events?review=N` and refetches the round and the
+- [x] The screen follows `/events?review=N` and refetches the round and the
       bodies on screen when its stamp moves, once nothing typed is unsaved, as
       the template's reload waits.
-- [ ] The browser tests for the verdict, the blink, the refused change request,
+- [x] The browser tests for the verdict, the blink, the refused change request,
       the stream and a failed verdict run against the app's screen, and each
       fails with the option off. The blink test reaches the review from the
       queue by a router move.
-- [ ] The verdict guard counts a comment that is sending, as the template's did,
+- [x] The verdict guard counts a comment that is sending, as the template's did,
       since its text stayed in the form during the request, and a browser test
       sends a verdict while a comment is in flight.
+
+> **Completed** 2026-11-02 00:54 UTC
+>
+> - `make check` — 35.7s
+> - `go test -race ./...` — 59.1s
+> - `go test -count=1 -tags browser ./internal/server` — 79.3s
 
 ## Iteration 5: The long review
 

@@ -116,6 +116,7 @@ export const reviewBarStates: readonly ScreenState[] = [
     caption: "a comment being written",
   },
   { id: "review-states--bar-offline", caption: "offline" },
+  { id: "review-states--bar-failed", caption: "a verdict that failed" },
   {
     id: "review-states--bar-refused",
     caption: "changes requested with nothing",

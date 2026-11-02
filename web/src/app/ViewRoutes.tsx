@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router";
 import { blinkOnLoad } from "../../ts/blink";
 import { fetchView, isFiles, isProject, isReview, viewKey } from "../api/views";
-import type { Review } from "../api/types";
+import type { NotFound, Review } from "../api/types";
 import { FilesScreen } from "../components/FilesScreen";
 import { NotFoundScreen } from "../components/NotFoundScreen";
 import { ProjectScreen } from "../components/ProjectScreen";
@@ -13,8 +13,8 @@ import { HeadTracker } from "./HeadTracker";
 import { notices } from "./notices";
 import { useBuildStream } from "./useBuildStream";
 import { useReview } from "./useReview";
+import { useReviewStream } from "./useReviewStream";
 import { useTaps } from "./useTaps";
-import type { Connection } from "./useQueueStream";
 
 /** Names the document, as the template pages' titles did. */
 function useDocumentTitle(title: string | undefined): void {
@@ -39,7 +39,7 @@ export function ProjectRoute() {
   const address = useAddress();
   const { data } = useQuery({
     queryKey: viewKey(address),
-    queryFn: () => fetchView(address, isProject),
+    queryFn: ({ signal }) => fetchView(address, isProject, signal),
   });
   const connection = useBuildStream();
   useEffect(blinkOnLoad, []);
@@ -66,7 +66,7 @@ export function FilesRoute() {
   const address = useAddress();
   const { data } = useQuery({
     queryKey: viewKey(address),
-    queryFn: () => fetchView(address, isFiles),
+    queryFn: ({ signal }) => fetchView(address, isFiles, signal),
   });
   const connection = useBuildStream();
   useEffect(blinkOnLoad, []);
@@ -91,16 +91,15 @@ export function FilesRoute() {
 /** One round of a review, drawn from the view of its address. */
 export function ReviewRoute() {
   const address = useAddress();
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: viewKey(address),
-    queryFn: () => fetchView(address, isReview),
+    queryFn: ({ signal }) => fetchView(address, isReview, signal),
   });
-  const connection = useBuildStream();
   useDocumentTitle(
     data === undefined ? undefined : data.found ? data.body.title : "Not found",
   );
   if (data === undefined) {
-    return <ScreenLoading {...notices(connection)} />;
+    return <ReviewArriving />;
   }
   return (
     <>
@@ -110,34 +109,51 @@ export function ReviewRoute() {
         // draft written for either is read back.
         <ReviewView
           key={data.body.place}
-          review={data.body}
+          latest={data.body}
           address={address}
-          connection={connection}
+          failed={isError}
         />
       ) : (
-        <NotFoundScreen missing={data.body} {...notices(connection)} />
+        <ReviewMissing missing={data.body} />
       )}
       <HeadTracker />
     </>
   );
 }
 
+/**
+ * The screen before the view arrives. It holds the build stream, which is all
+ * there is to follow until the view names a review's own.
+ */
+function ReviewArriving() {
+  return <ScreenLoading {...notices(useBuildStream())} />;
+}
+
+/** The 404 of a review that is not there, which has no stamp to follow. */
+function ReviewMissing({ missing }: { readonly missing: NotFound }) {
+  return <NotFoundScreen missing={missing} {...notices(useBuildStream())} />;
+}
+
 interface ReviewViewProps {
-  readonly review: Review;
+  /** The newest round the cache holds, which the screen takes up when it can. */
+  readonly latest: Review;
   readonly address: string;
-  readonly connection: Connection;
+  /** The last fetch of the round failed, so the round held is not the newest. */
+  readonly failed: boolean;
 }
 
 /** The screen of a round, with what the reader has typed and sent. */
-function ReviewView({ review, address, connection }: ReviewViewProps) {
-  const state = useReview(review, address);
+function ReviewView({ latest, address, failed }: ReviewViewProps) {
+  const stream = useReviewStream(latest.stream);
+  const state = useReview(latest, address, stream, failed);
   useTaps(state.tapping, state.ui.onOpen ?? noOpen);
   return (
     <ReviewScreen
-      review={review}
+      review={state.review}
       ui={state.ui}
-      bar={{ ...state.bar, offline: connection.offline }}
-      {...notices(connection)}
+      bar={state.bar}
+      onDecide={state.onDecide}
+      {...notices(stream.connection)}
     />
   );
 }

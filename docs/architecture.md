@@ -1059,7 +1059,17 @@ four rules keep the copy correct.
   `/events?review=N` sends, which covers the review's state, each round's
   verdict and the agent's replies, and a change refetches the round and the card
   bodies on screen. It leaves comments out, as it does for the template page,
-  since the reader's own comments reach the cache from the server's answers.
+  since the reader's own comments reach the cache from the server's answers. A
+  verdict given elsewhere takes the bar and its note away and turns an open
+  composer late, so the change waits for what the template's reload waited for:
+  the round is not fetched while text in a composer, an edit form, the review's
+  box or the note is held, a comment is on its way or one did not save, and a
+  round that was fetched is not shown until none is. The reader's own writes are
+  put in what is shown at once, and a write's answer cancels a fetch of the
+  round already in flight and fetches again, since that fetch may have read the
+  store before the write. A stamp whose fetch failed or was lost with the
+  connection is asked for again when the stream returns, which sends the same
+  stamp.
 - **A refetch never takes typed text away.** The text of a composer, of each
   open edit form, of the review's box and of the verdict's note is the screen's
   state and not the element's, so a refetch that redraws a card keeps it. A

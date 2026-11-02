@@ -30,7 +30,9 @@ interface ReviewScreenProps {
     | (BarGuard & {
         note?: string;
         onNote?: (note: string) => void;
+        held?: boolean;
         refused?: boolean;
+        failure?: string;
       })
     | undefined;
   readonly onDecide?:

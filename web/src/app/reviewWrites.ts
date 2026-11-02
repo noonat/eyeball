@@ -4,6 +4,7 @@ import type {
   CommentEdit,
   CommentRequest,
   CommentStored,
+  DecisionRequest,
   Refusal,
 } from "../api/types";
 
@@ -26,7 +27,12 @@ const timeout = 10_000;
  */
 export type Outcome<T> =
   | { readonly kind: "ok"; readonly value: T }
-  | { readonly kind: "refused"; readonly message: string }
+  | {
+      readonly kind: "refused";
+      readonly message: string;
+      /** The status, which tells a change request with nothing in it, 422. */
+      readonly status: number;
+    }
   | { readonly kind: "lost"; readonly message: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -75,6 +81,18 @@ async function send<T>(
   body: unknown,
   isAnswer: (value: unknown) => value is T,
 ): Promise<Outcome<T>> {
+  return exchange(method, address, body, async (res) => {
+    const answer: unknown = await res.json();
+    return isAnswer(answer) ? answer : undefined;
+  });
+}
+
+async function exchange<T>(
+  method: string,
+  address: string,
+  body: unknown,
+  read: (res: Response) => Promise<T | undefined>,
+): Promise<Outcome<T>> {
   const abort = new AbortController();
   const timer = window.setTimeout(() => {
     abort.abort();
@@ -94,10 +112,14 @@ async function send<T>(
       return { kind: "lost", message: await sentence(res) };
     }
     if (res.status >= 400) {
-      return { kind: "refused", message: await sentence(res) };
+      return {
+        kind: "refused",
+        message: await sentence(res),
+        status: res.status,
+      };
     }
-    const answer: unknown = await res.json();
-    if (!isAnswer(answer)) {
+    const answer = await read(res);
+    if (answer === undefined) {
       return { kind: "lost", message: anError };
     }
     return { kind: "ok", value: answer };
@@ -135,4 +157,19 @@ export function putComment(
 /** Deletes a comment, at the address its view gave it. */
 export function deleteComment(href: string): Promise<Outcome<CommentDeleted>> {
   return send("DELETE", href, undefined, isDeleted);
+}
+
+/**
+ * Sends the verdict, to the address the bar's view names. A stored verdict
+ * answers with no body. A change request with nothing in it is refused with
+ * 422, which the bar draws as its refused state, and any other refusal is a
+ * sentence for the failed line.
+ */
+export function postVerdict(
+  action: string,
+  request: DecisionRequest,
+): Promise<Outcome<true>> {
+  return exchange("POST", action, request, (res) =>
+    Promise.resolve(res.status === 204 ? true : undefined),
+  );
 }

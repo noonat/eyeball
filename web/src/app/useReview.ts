@@ -1,5 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { useEffect, useRef, useState } from "react";
+import { clearBlinkMark, setBlinkMark } from "../../ts/blink";
+import { queueKey } from "../api/queue";
 import type { Comment, Review } from "../api/types";
 import { viewKey, type ViewAnswer } from "../api/views";
 import {
@@ -28,7 +31,13 @@ import {
   removeComment,
   replaceComment,
 } from "./reviewCache";
-import { deleteComment, postComment, putComment } from "./reviewWrites";
+import {
+  deleteComment,
+  postComment,
+  postVerdict,
+  putComment,
+} from "./reviewWrites";
+import type { ReviewStream } from "./useReviewStream";
 import type { CommentRequest } from "../api/types";
 
 type Level = ComposerAt["level"];
@@ -152,8 +161,21 @@ function hasCard(review: Review, at: ComposerAt): boolean {
  * of it. The state is held here and not in the cached view, so a round fetched
  * again, as the stream asks, keeps what was typed.
  */
-export function useReview(review: Review, address: string) {
+export function useReview(
+  latest: Review,
+  address: string,
+  stream: ReviewStream,
+  failed: boolean,
+) {
   const client = useQueryClient();
+  const navigate = useNavigate();
+  // What the screen shows is the cached round once nothing typed would be lost
+  // by it. A round fetched after a verdict is given elsewhere has no bar, and
+  // draws a composer as a late one, so it waits for the text on the page to be
+  // stored, sent or cleared, as the template page's reload did. The reader's
+  // own writes are put in what is shown at once.
+  const [shown, setShown] = useState(latest);
+  const review = shown;
   const acting = review.acting;
   const open = acting?.state === "open";
   const late = acting?.state === "late";
@@ -210,6 +232,14 @@ export function useReview(review: Review, address: string) {
     client.setQueryData<ViewAnswer<Review>>(viewKey(address), (old) =>
       old?.found === true ? { found: true, body: fn(old.body) } : old,
     );
+    setShown(fn);
+    // A fetch of the round already in flight may have read the store before this
+    // write, and its answer would take the comment off the screen once the round
+    // is taken up. It is cancelled and the round fetched again, so the fetch that
+    // is shown starts after the store.
+    if (client.isFetching({ queryKey: viewKey(address) }) > 0) {
+      void client.invalidateQueries({ queryKey: viewKey(address) });
+    }
   };
 
   // The round is fetched again after a comment on a passage is added or
@@ -424,11 +454,104 @@ export function useReview(review: Review, address: string) {
     outbox,
   ]);
 
-  const unsaved =
+  const typed =
     reviewText.trim() !== "" ||
     composerTyped.trim() !== "" ||
     Object.values(edits).some((text) => text.trim() !== "");
+  // A comment on its way counts as text not yet stored, as it did on the
+  // template page, where its text stayed in the form until the answer came.
+  const sending = outbox.some((o) => o.state === "sending");
+  const unsaved = typed || sending;
   const unsent = outbox.filter((o) => o.state === "unsent").length;
+  const offline = stream.connection.offline;
+  // What holds a verdict back: text not stored, a comment that did not save, or
+  // no way to reach the daemon.
+  const blocked = unsaved || unsent > 0 || offline;
+  // What holds a refetch back, and the screen's change to what it fetched: all
+  // of that and the note too, which is no comment but is typed text.
+  const holding = unsaved || outbox.length > 0 || note.trim() !== "";
+
+  const [barRefused, setBarRefused] = useState(false);
+  const [barFailure, setBarFailure] = useState<string | undefined>();
+  const [deciding, setDeciding] = useState(false);
+
+  const decide = (verdict: "changes" | "approve", text: string): void => {
+    const action = review.acting?.bar?.action;
+    if (blocked || deciding || action === undefined) {
+      return;
+    }
+    setBarRefused(false);
+    setBarFailure(undefined);
+    // Both verdicts lower the waiting count, so both blink. The mark is set as
+    // the verdict is sent, for the queue the router moves to, and cleared when
+    // the verdict is not stored.
+    setBlinkMark({ review: review.id, count: review.waiting_count });
+    setDeciding(true);
+    void postVerdict(action, {
+      round: review.round,
+      verdict,
+      note: text,
+    }).then((outcome) => {
+      if (outcome.kind === "ok") {
+        // The queue the router moves to is fetched fresh. Drawn from the view cached
+        // before the verdict, it would show the count and the row as they were,
+        // and under reduced motion, where the new count shows at once, the old
+        // one would show first. Patching the cached view to look as the server
+        // would is a guess, so it is dropped.
+        client.removeQueries({ queryKey: queueKey });
+        void navigate("/");
+        return;
+      }
+      clearBlinkMark();
+      setDeciding(false);
+      if (outcome.kind === "refused" && outcome.status === 422) {
+        setBarRefused(true);
+      } else {
+        setBarFailure(outcome.message);
+      }
+    });
+  };
+
+  // The screen follows the stream. A stamp that differs from the round's own
+  // says something moved, and the round is fetched once nothing typed would be
+  // lost, and once for each stamp, so a view that never reaches the stream's
+  // stamp is not fetched for ever.
+  const asked = useRef("");
+  // A stamp whose fetch did not arrive is asked for again. The connection that
+  // dropped may have taken the fetch with it, and the stream that reconnects
+  // sends the same stamp, so a stamp remembered as asked would never be fetched.
+  // A fetch that failed clears it the same way.
+  useEffect(() => {
+    if (offline || failed) {
+      asked.current = "";
+    }
+    if (
+      stream.stamp !== "" &&
+      stream.stamp !== latest.stamp &&
+      stream.stamp !== asked.current &&
+      !holding &&
+      !deciding &&
+      !offline
+    ) {
+      asked.current = stream.stamp;
+      void client.invalidateQueries({ queryKey: viewKey(address) });
+    }
+  }, [
+    stream.stamp,
+    latest.stamp,
+    holding,
+    deciding,
+    offline,
+    failed,
+    client,
+    address,
+  ]);
+  // Taking up the newer round is state set while drawing, which React allows
+  // for the component's own state, so no frame draws the old round once
+  // nothing holds it.
+  if (latest !== shown && !holding && !deciding) {
+    setShown(latest);
+  }
 
   const pending: Pending[] = outbox.map((item) => ({
     at: requestAt(item.request),
@@ -483,8 +606,19 @@ export function useReview(review: Review, address: string) {
     : { late: false };
 
   return {
+    review: shown,
     ui,
-    bar: { note, onNote: setNote, unsaved, unsent },
+    bar: {
+      note,
+      onNote: setNote,
+      unsaved,
+      unsent,
+      offline,
+      held: blocked,
+      refused: barRefused,
+      ...(barFailure === undefined ? {} : { failure: barFailure }),
+    },
+    onDecide: decide,
     tapping: writing,
   };
 }

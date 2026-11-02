@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -143,36 +144,71 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	b.waitFor(g, `!document.getElementById("unsaved")`)
 }
 
-// A verdict on the template page: text still being written holds it back, and
-// once the text is gone Approve records it and the page returns to the queue.
-// The review page's verdict is the template's until it moves to the app.
+// A verdict on the app's page: text still being written holds it back, a comment
+// on its way does too, and once nothing is held Approve records it and the
+// router moves to the queue.
 func TestServer_Surface_browserActingVerdict(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
-	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	inner := f.s.LoopbackSurface(browserToken)
+	// A comment's write waits here until the test lets it go, so the comment is
+	// on its way while a verdict is tried.
+	release := make(chan struct{})
+	var released sync.Once
+	letGo := func() { released.Do(func() { close(release) }) }
+	var hold atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/comments") && hold.Load() {
+			<-release
+		}
+		inner.ServeHTTP(w, r)
+	}))
 	t.Cleanup(srv.Close)
+	// Registered after the server's, so it runs first: a write still waiting
+	// would hold the server's close.
+	t.Cleanup(letGo)
 	b := openBrowser(g, t)
 	round := f.latestRound(g, t, id)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
+	approve := `document.querySelector("#bar button[value=approve]")`
+	waitNoVerdict := func(why string) {
+		g.THelper()
+		time.Sleep(300 * time.Millisecond)
+		_, err := f.store.Decision(t.Context(), round)
+		g.Expect(err).To(MatchError(store.ErrNotFound), why)
+	}
 
 	// Text still being written holds the verdict back.
 	b.typeInto(g, ".page > form.composer textarea", "Half a thought")
-	g.Expect(b.eval(g, `document.getElementById("unsaved").hidden`)).To(BeFalse())
-	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(Equal("true"))
-	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
-	time.Sleep(300 * time.Millisecond)
-	_, err := f.store.Decision(t.Context(), round)
-	g.Expect(err).To(MatchError(store.ErrNotFound), "a verdict went out while a comment was being written")
+	b.waitFor(g, `!!document.getElementById("unsaved")`)
+	g.Expect(b.eval(g, approve+`.getAttribute("aria-disabled")`)).To(Equal("true"))
+	b.eval(g, approve+`.click()`)
+	waitNoVerdict("a verdict went out while a comment was being written")
+	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/reviews/" + itoa(id)))
 
-	// Once the text is gone, Approve records the verdict and the page returns to
-	// the queue.
-	b.typeInto(g, ".page > form.composer textarea", "")
-	g.Expect(b.eval(g, `document.getElementById("unsaved").hidden`)).To(BeTrue())
+	// A comment on its way holds it back as well, since its text was in the form
+	// until the answer came.
+	hold.Store(true)
+	b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
+	b.waitFor(g, `!!document.querySelector("#comments-review .comment[data-sending]")`)
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal(""))
+	g.Expect(b.eval(g, `!!document.getElementById("unsaved")`)).To(BeTrue(), "a comment on its way was not counted")
+	b.eval(g, approve+`.click()`)
+	waitNoVerdict("a verdict went out while a comment was on its way")
+	letGo()
+	hold.Store(false)
+	b.waitFor(g, `document.querySelectorAll("#comments-review .comment:not([data-sending])").length === 1`)
+	b.waitFor(g, `!document.getElementById("unsaved")`)
+
+	// Once nothing is held, Approve records the verdict and the router moves to
+	// the queue with no page load.
 	b.eval(g, `window.__before = true`)
-	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
-	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
-	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
+	b.eval(g, approve+`.click()`)
+	b.waitFor(g, `location.pathname === "/" && !!document.querySelector("#root .page .section, #root .empty")`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the verdict loaded a page")
 	d, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
@@ -205,6 +241,7 @@ func TestServer_Surface_browserApp(t *testing.T) {
 func TestServer_Surface_browserBlink(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	write(g, repo, "b.txt", "b\n")
 	write(g, repo, "c.txt", "c\n")
@@ -235,6 +272,9 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	b.call(g, "Page.enable", map[string]any{})
 	b.call(g, "Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": `(() => {
 		window.__eye = [];
+		// Every label the eye shows while the queue is on screen, whether or not
+		// it changed, so a count drawn again from a stale view is seen.
+		window.__all = [];
 		const note = () => {
 			const eye = document.querySelector(".topbar .eye");
 			if (eye === null) return;
@@ -242,22 +282,42 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 			if (window.__eye.at(-1)?.label === label) return;
 			window.__eye.push({ label, lid: new DOMMatrix(getComputedStyle(eye).transform).d });
 		};
-		new MutationObserver(note).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-label"] });
+		// The label the eye shows when it first takes the blink class, which is the
+		// count the queue starts the blink with.
+		const everyLabel = () => {
+			const eye = document.querySelector(".topbar .eye");
+			if (eye !== null && location.pathname === "/") window.__all.push(eye.getAttribute("aria-label"));
+		};
+		const blinkStart = () => {
+			const eye = document.querySelector(".topbar .eye");
+			if (eye !== null && eye.classList.contains("blink") && window.__blinkSeen === undefined) {
+				window.__blinkSeen = eye.getAttribute("aria-label");
+			}
+		};
+		new MutationObserver(() => { note(); blinkStart(); everyLabel(); }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-label", "class"] });
 	})()`})
 	labels := `JSON.stringify(window.__eye.map((e) => e.label))`
 	blinking := `document.querySelector(".topbar .eye").classList.contains("blink")`
 	// drawn is true once the app has drawn the queue from its view.
 	drawn := `!!document.querySelector(".scroll .page .section")`
-	// decide sends a verdict from a review's page and waits for the queue.
+	// decide opens a review from the queue by a click, which moves the router, and
+	// sends a verdict from it. The queue's view is cached when the verdict returns
+	// to it, so the queue draws from the cache first and again once the fetch the
+	// stream asks for arrives.
 	decide := func(id int64, verdict string) {
-		b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+		b.navigate(g, srv.URL+"/")
+		b.waitFor(g, drawn)
+		b.eval(g, `window.__before = true`)
+		b.eval(g, `document.querySelector("a.row[href='/reviews/`+itoa(id)+`']").click()`)
+		b.waitFor(g, `!!document.querySelector("#root #bar")`)
 		if verdict == "changes" {
 			b.typeInto(g, "#bar textarea", "Rework this.")
 		}
-		b.eval(g, `window.__before = true`)
+		b.eval(g, `window.__blinkSeen = undefined; window.__all = []`)
 		b.eval(g, `document.querySelector("#bar button[value=`+verdict+`]").click()`)
-		b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+		b.waitFor(g, `location.pathname === "/"`)
 		b.waitFor(g, drawn)
+		g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page loaded between the queue and the review")
 	}
 	section := func(id int64) string {
 		return `document.querySelector("a.row[href='/reviews/` + itoa(id) + `']").closest(".section").querySelector("h2").firstChild.textContent.trim()`
@@ -267,12 +327,15 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	// and the eye blinks once.
 	decide(first, "approve")
 	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
-	g.Expect(b.eval(g, `document.querySelectorAll("script[src^='/static/react.js']").length`)).To(BeEquivalentTo(1), "the queue is the React app, which is the only page that draws the eye from its view")
 	// The eye is drawn with the count from before the verdict, and changes to the
 	// new one while the lid is shut.
 	b.waitFor(g, `window.__eye.length === 2`)
 	g.Expect(b.eval(g, labels)).To(Equal(`["4 waiting","3 waiting"]`))
 	g.Expect(b.eval(g, `window.__eye[1].lid < 0.5`)).To(BeTrue(), "the count changed with the lid open")
+	// The blink starts with the count from before the verdict, which only the
+	// mark holds: the queue drawn from the cache would be stale, and the one
+	// fetched fresh already has the new count.
+	g.Expect(b.eval(g, `window.__blinkSeen`)).To(Equal("4 waiting"))
 	g.Expect(b.eval(g, `document.querySelector(".topbar .eye").getAttribute("aria-label")`)).To(Equal("3 waiting"))
 	g.Expect(b.eval(g, section(first))).To(Equal("Settled"))
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
@@ -296,8 +359,9 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	fail = true
 	failing.Unlock()
 	b.navigate(g, srv.URL+"/reviews/"+itoa(second))
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
 	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
-	b.waitFor(g, `!!document.querySelector("#bar .failed, .failed")`)
+	b.waitFor(g, `!!document.querySelector("#bar .failed")`)
 	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 	failing.Lock()
 	fail = false
@@ -328,9 +392,11 @@ func TestServer_Surface_browserBlink(t *testing.T) {
 	g.Expect(b.eval(g, blinking)).To(BeTrue())
 	g.Expect(b.eval(g, `getComputedStyle(document.querySelector(".topbar .eye")).animationName`)).To(Equal("none"))
 	// There is no lid to change the count behind, so the queue shows the new
-	// count from its first paint and never the old one.
+	// count from its first paint and never the old one: nothing the eye showed
+	// after the verdict was the count from before it.
 	time.Sleep(700 * time.Millisecond)
-	g.Expect(b.eval(g, labels)).To(Equal(`["1 waiting"]`))
+	g.Expect(b.eval(g, `JSON.stringify([...new Set(window.__all)])`)).To(Equal(`["1 waiting"]`), "the queue drew the count from before the verdict")
+	g.Expect(b.eval(g, `window.__blinkSeen`)).To(Equal("1 waiting"))
 }
 
 // A large review's cards all open with empty bodies, and each asks for its
@@ -754,14 +820,12 @@ func TestServer_Surface_browserFailedSave(t *testing.T) {
 	g.Expect(f.comments(g, t, round)).To(HaveLen(2), "the retry stored the comment again")
 }
 
-// On the template page, a comment that cannot be saved becomes an unsent card
-// in its list, Retry stores it once the server is back, Delete drops it, and the
-// verdict waits while any card remains. A verdict that cannot be sent says so in
-// the bar and keeps its note. The app's half of this is browserFailedSave, and
-// the verdict's moves to the app with the verdict.
+// A verdict that cannot be sent says so in the bar and keeps its note and leaves
+// no mark, and the verdict waits while a comment that did not save remains.
 func TestServer_Surface_browserFailedVerdict(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	round := f.latestRound(g, t, id)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -784,53 +848,44 @@ func TestServer_Surface_browserFailedVerdict(t *testing.T) {
 	}
 	b := openBrowser(g, t)
 	b.navigate(g, "http://"+addr+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
+	approve := `document.querySelector("#bar button[value=approve]")`
 
 	// A verdict sent while the server is gone says so in the bar and keeps
-	// its note.
+	// its note. It leaves no mark for a later load.
 	b.typeInto(g, "#bar textarea", "Close.")
 	g.Expect(hs.Close()).To(Succeed())
-	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	b.eval(g, approve+`.click()`)
 	b.waitFor(g, `!!document.querySelector("#bar .failed")`)
 	g.Expect(b.eval(g, `document.querySelector("#bar .failed").textContent`)).To(Equal("Cannot reach eyeball."))
 	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("Close."))
+	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 	b.typeInto(g, "#bar textarea", "")
 	restart()
 	b.waitFor(g, `document.getElementById("offline").hidden === true`)
 
-	// Two saves made while the server is gone become two cards.
-	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
-	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
-	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
+	// A comment made while the server is gone is an unsent card, and the verdict
+	// waits for it.
 	b.typeInto(g, ".page > form.composer textarea", "Overall fine.")
 	g.Expect(hs.Close()).To(Succeed())
-	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
-	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 1`)
 	b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
-	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 2`)
-	g.Expect(b.eval(g, `!!document.querySelector("tr.thread form.composer")`)).To(BeFalse(), "the line's composer closed")
-	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal(""))
-	g.Expect(b.eval(g, `document.getElementById("unsent").hidden`)).To(BeFalse())
-	g.Expect(b.eval(g, `document.getElementById("unsent-count").textContent`)).To(Equal("2 comments"))
-
-	// Back online, Retry stores the line's comment once.
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 1`)
 	restart()
 	b.waitFor(g, `document.getElementById("offline").hidden === true`)
-	b.eval(g, `document.querySelector("tr.thread .comment.unsent [data-retry]").click()`)
-	b.waitFor(g, `document.querySelectorAll("tr.thread .comment:not(.unsent)").length === 1`)
-	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
-	g.Expect(b.eval(g, `document.querySelectorAll(".comment.unsent").length`)).To(BeEquivalentTo(1))
-
-	// The verdict waits while a card remains.
-	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	g.Expect(b.eval(g, `!!document.getElementById("unsent")`)).To(BeTrue())
+	b.eval(g, approve+`.click()`)
 	time.Sleep(300 * time.Millisecond)
 	_, err = f.store.Decision(t.Context(), round)
 	g.Expect(err).To(MatchError(store.ErrNotFound), "a verdict went out with a comment unsent")
 
-	// Delete drops the other card and sends nothing.
-	b.eval(g, `document.querySelector(".comment.unsent [data-discard]").click()`)
-	g.Expect(b.eval(g, `document.querySelectorAll(".comment.unsent").length`)).To(BeEquivalentTo(0))
-	g.Expect(b.eval(g, `document.getElementById("unsent").hidden`)).To(BeTrue())
-	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
+	// Delete drops the card, and the verdict goes out.
+	b.eval(g, `document.querySelector(".comment.unsent .acts a[role=button]:last-of-type").click()`)
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 0`)
+	b.eval(g, approve+`.click()`)
+	b.waitFor(g, `location.pathname === "/"`)
+	d, err := f.store.Decision(t.Context(), round)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(d.Verdict).To(Equal(store.VerdictApprove))
 }
 
 // First run on the queue, with the browser's push manager stubbed so nothing
@@ -1272,12 +1327,13 @@ func TestServer_Surface_browserQueueArrives(t *testing.T) {
 	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded")
 }
 
-// A change request with nothing in it is refused on the bar, which leaves the
-// page free to reload for a verdict recorded elsewhere. Sent again with a note
-// it goes out, and lands on the queue.
+// A change request with nothing in it draws the bar's refused state and leaves
+// no mark, and a verdict given elsewhere takes the bar away with no reload. Sent
+// again with a note on a review of its own, it goes out.
 func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
 	t.Cleanup(srv.Close)
@@ -1285,33 +1341,34 @@ func TestServer_Surface_browserRefusedChangeRequest(t *testing.T) {
 	round := f.latestRound(g, t, id)
 
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
 	b.eval(g, `document.querySelector("#bar button[value=changes]").click()`)
 	b.waitFor(g, `!!document.querySelector("#bar .notice.warn")`)
 	_, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).To(MatchError(store.ErrNotFound))
-	// The refusal is swapped in as an answer, so it must clear the mark a
-	// verdict leaves, and the flag that holds the stream's reload back.
+	// The refusal is an answer, so it clears the mark a verdict leaves.
 	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 	b.eval(g, `window.__before = true`)
 	f.decide(g, t, id, store.VerdictApprove, "")
-	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
-	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse(), "the page did not reload for the decided review")
+	b.waitFor(g, `!document.querySelector("#bar")`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded for the decided review")
 
 	// Sent again with a note, on a review of its own, it goes out.
 	id = actingReview(g, t, f)
 	round = f.latestRound(g, t, id)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
 	b.eval(g, `document.querySelector("#bar button[value=changes]").click()`)
 	b.waitFor(g, `!!document.querySelector("#bar .notice.warn")`)
 	b.typeInto(g, "#bar textarea", "Name the control.")
 	b.eval(g, `window.__before = true`)
 	b.eval(g, `document.querySelector("#bar button[value=changes]").click()`)
-	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
+	b.waitFor(g, `location.pathname === "/"`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue())
 	d, err := f.store.Decision(t.Context(), round)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(d.Verdict).To(Equal(store.VerdictChanges))
 	g.Expect(d.Note).To(Equal("Name the control."))
-	g.Expect(b.eval(g, `location.pathname`)).To(Equal("/"))
 }
 
 // A large review reopens where it was left: the same card folded, the others
@@ -1410,6 +1467,55 @@ func TestServer_Surface_browserRenderedCard(t *testing.T) {
 	b.waitFor(g, `!!document.querySelector("details.file[data-path='data.zip'] form.composer textarea")`)
 }
 
+// A fetch of the round that read the store before a write must not take the
+// written comment off the screen when it arrives. The write's answer cancels the
+// fetch in flight and fetches again, so the fetch shown starts after the store.
+func TestServer_Surface_browserStaleFetch(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	id := actingReview(g, t, f)
+	inner := f.s.LoopbackSurface(browserToken)
+	// The next fetch of the round answers with what it read, late.
+	var slow atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/reviews/"+itoa(id) && slow.CompareAndSwap(true, false) {
+			rec := httptest.NewRecorder()
+			inner.ServeHTTP(rec, r)
+			time.Sleep(1500 * time.Millisecond)
+			for k, v := range rec.Header() {
+				w.Header()[k] = v
+			}
+			w.WriteHeader(rec.Code)
+			_, _ = w.Write(rec.Body.Bytes())
+			return
+		}
+		inner.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file") && document.getElementById("offline").hidden === true`)
+
+	// A verdict given elsewhere moves the stamp, and the screen fetches the round,
+	// which answers late with what the store held before the write below.
+	slow.Store(true)
+	f.decide(g, t, id, store.VerdictApprove, "")
+	time.Sleep(500 * time.Millisecond)
+	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, `document.querySelectorAll("tr.thread .comment:not([data-sending]):not(.unsent)").length === 1`)
+
+	// The late answer arrives, and the comment is still there, with the verdict
+	// the fetch that followed the write brought.
+	time.Sleep(2 * time.Second)
+	g.Expect(b.eval(g, `document.querySelectorAll("tr.thread .comment").length`)).To(BeEquivalentTo(1), "a stale fetch took the comment off the screen")
+	b.waitFor(g, `!document.querySelector("#bar")`)
+	g.Expect(f.comments(g, t, f.latestRound(g, t, id))).To(HaveLen(1))
+}
+
 // A card's header stays under the page header while its file scrolls, and a
 // fold from there keeps it at the top of the screen with the next file under
 // it, rather than leaving the reader deep inside the next file.
@@ -1453,14 +1559,18 @@ func TestServer_Surface_browserStickyHeader(t *testing.T) {
 	g.Expect(b.eval(g, `Math.round(window.scrollY)`)).To(Equal(at), "a fold the page made moved the page")
 }
 
-// The live stream: a verdict recorded elsewhere reloads an open review page,
-// but not while something typed is unsaved; and a dropped connection shows the notice, holds the verdicts back, and
-// clears once the server is back.
+// The review follows its stream. A verdict given elsewhere takes the bar away
+// and makes a composer late, but only once nothing typed would go with it: text
+// in the review's box, in a composer, in the note or in an edit form holds the
+// round as it is, whatever the change, until it is stored, sent or cleared.
+// The server going away shows the notice and holds the verdict.
 func TestServer_Surface_browserStream(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	other := actingReview(g, t, f)
+	third := actingReview(g, t, f)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	g.Expect(err).NotTo(HaveOccurred())
 	addr := ln.Addr().String()
@@ -1473,39 +1583,172 @@ func TestServer_Surface_browserStream(t *testing.T) {
 	t.Cleanup(func() { _ = hs.Close() })
 	base := "http://" + addr
 	b := openBrowser(g, t)
+	bar := `!!document.querySelector("#bar")`
 
-	// Text being written holds the reload back until it is gone.
-	b.navigate(g, base+"/reviews/"+itoa(other)+"#token="+browserToken)
-	b.typeInto(g, ".page > form.composer textarea", "Half written")
-	b.eval(g, `window.__before = true`)
-	f.decide(g, t, other, store.VerdictApprove, "")
-	time.Sleep(500 * time.Millisecond)
-	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded over unsaved text")
-	b.typeInto(g, ".page > form.composer textarea", "")
-	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
-	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
-
-	// A verdict given elsewhere reloads the open review page.
-	b.navigate(g, base+"/reviews/"+itoa(id))
-	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	// A verdict given elsewhere takes the bar away with no reload.
+	b.navigate(g, base+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, bar+` && document.getElementById("offline").hidden === true`)
 	b.eval(g, `window.__before = true`)
 	f.decide(g, t, id, store.VerdictChanges, "From another device.")
-	b.waitFor(g, `window.__before === undefined && document.readyState === "complete"`)
-	g.Expect(b.eval(g, `!!document.querySelector("#bar")`)).To(BeFalse())
+	b.waitFor(g, `!document.querySelector("#bar") && document.querySelector(".page").dataset.acting === "late"`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "the page reloaded")
 
-	// The server going away shows the notice, and its return clears it.
-	third := actingReview(g, t, f)
+	// Text in the review's box holds the change back until it is gone.
+	b.navigate(g, base+"/reviews/"+itoa(other))
+	b.waitFor(g, bar)
+	b.typeInto(g, ".page > form.composer textarea", "Half written")
+	f.decide(g, t, other, store.VerdictApprove, "")
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, bar)).To(BeTrue(), "the bar went with text in the review's box")
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal("Half written"))
+	b.typeInto(g, ".page > form.composer textarea", "")
+	b.waitFor(g, `!document.querySelector("#bar")`)
+
+	// The note alone holds it, and is back to nothing once it is cleared.
+	fifth := actingReview(g, t, f)
+	b.navigate(g, base+"/reviews/"+itoa(fifth))
+	b.waitFor(g, bar)
+	b.typeInto(g, "#bar textarea", "Only a note")
+	f.decide(g, t, fifth, store.VerdictApprove, "")
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `document.querySelector("#bar textarea")?.value`)).To(Equal("Only a note"), "the note went with the bar")
+	b.typeInto(g, "#bar textarea", "")
+	b.waitFor(g, `!document.querySelector("#bar")`)
+
+	// A composer holds it as well. Neither loses its text, and the composer turns
+	// late when the change comes.
 	b.navigate(g, base+"/reviews/"+itoa(third))
+	b.waitFor(g, bar)
+	b.typeInto(g, "#bar textarea", "A note in progress")
+	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "About line two")
+	f.decide(g, t, third, store.VerdictApprove, "")
+	time.Sleep(500 * time.Millisecond)
+	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("A note in progress"), "the note went with the bar")
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("About line two"))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer").textContent.includes("Sends immediately")`)).To(BeFalse(), "the composer turned late under the reader")
+	// Clearing the note is not enough while the composer holds text.
+	b.typeInto(g, "#bar textarea", "")
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, bar)).To(BeTrue())
+	// Sent, the comment is stored as the late one it is, and the round changes
+	// once nothing is held.
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, `!document.querySelector("#bar") && document.querySelector(".page").dataset.acting === "late"`)
+	b.waitFor(g, `document.querySelectorAll("tr.thread .comment:not([data-sending]):not(.unsent)").length === 1`)
+	comments := f.comments(g, t, f.latestRound(g, t, third))
+	g.Expect(comments).To(HaveLen(1))
+	g.Expect(comments[0].Body).To(Equal("About line two"))
+
+	// The server going away shows the notice and holds the verdict, and its
+	// return clears both.
+	fourth := actingReview(g, t, f)
+	b.navigate(g, base+"/reviews/"+itoa(fourth))
+	b.waitFor(g, bar)
 	g.Expect(hs.Close()).To(Succeed())
 	b.waitFor(g, `document.getElementById("offline").hidden === false`)
-	g.Expect(b.eval(g, `document.getElementById("whynot").hidden`)).To(BeFalse())
+	b.waitFor(g, `!!document.getElementById("whynot")`)
 	g.Expect(b.eval(g, `document.querySelector("#whynot .why-not").textContent`)).To(Equal("You can\u2019t submit a review while offline."))
 	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(Equal("true"))
+	// A verdict tried now is held back, not sent into a daemon that is not there.
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, `!!document.querySelector("#bar .failed")`)).To(BeFalse(), "a verdict was sent while offline")
 	ln, err = net.Listen("tcp", addr)
 	g.Expect(err).NotTo(HaveOccurred())
 	hs = serve(ln)
 	b.waitFor(g, `document.getElementById("offline").hidden === true`)
-	g.Expect(b.eval(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled")`)).To(BeNil())
+	b.waitFor(g, `document.querySelector("#bar button[value=approve]").getAttribute("aria-disabled") === null`)
+}
+
+// A fetch of the round that fails, even after the query's own retries, is asked
+// for again, since the stream sends the stamp once and the stamp already asked
+// for is not asked for twice.
+func TestServer_Surface_browserStreamFailedFetch(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	id := actingReview(g, t, f)
+	inner := f.s.LoopbackSurface(browserToken)
+	// The fetch and its three retries fail, and the fetches after them do not.
+	var failing atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/reviews/"+itoa(id) && failing.Add(-1) >= 0 {
+			http.Error(w, "the store is gone", http.StatusServiceUnavailable)
+			return
+		}
+		inner.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file") && document.getElementById("offline").hidden === true`)
+	failing.Store(4)
+	f.decide(g, t, id, store.VerdictApprove, "")
+	g.Eventually(func() any { return b.eval(g, `!document.querySelector("#bar")`) }, 30*time.Second, 200*time.Millisecond).Should(Equal(true), "a fetch that failed was never asked for again")
+}
+
+// A fetch that is lost with the connection is asked for again when the stream
+// comes back and sends the stamp it sent before.
+func TestServer_Surface_browserStreamReconnect(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	id := actingReview(g, t, f)
+	inner := f.s.LoopbackSurface(browserToken)
+	// A blip takes the open streams, refuses new ones, and leaves the next fetch
+	// of the round unanswered until the test ends.
+	var mu sync.Mutex
+	var cancels []context.CancelFunc
+	blip := false
+	hang := make(chan struct{})
+	var hung atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/events") {
+			mu.Lock()
+			if blip {
+				mu.Unlock()
+				// The connection is dropped. An answer with a status would end the
+				// stream for good, where a lost connection is retried.
+				panic(http.ErrAbortHandler)
+			}
+			ctx, cancel := context.WithCancel(r.Context())
+			cancels = append(cancels, cancel)
+			mu.Unlock()
+			inner.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/api/reviews/"+itoa(id) && hung.CompareAndSwap(true, false) {
+			select {
+			case <-hang:
+			case <-r.Context().Done():
+			}
+			return
+		}
+		inner.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { close(hang) })
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file") && document.getElementById("offline").hidden === true`)
+
+	hung.Store(true)
+	f.decide(g, t, id, store.VerdictApprove, "")
+	time.Sleep(500 * time.Millisecond)
+	mu.Lock()
+	blip = true
+	for _, cancel := range cancels {
+		cancel()
+	}
+	mu.Unlock()
+	b.waitFor(g, `document.getElementById("offline").hidden === false`)
+	mu.Lock()
+	blip = false
+	mu.Unlock()
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	g.Eventually(func() any { return b.eval(g, `!document.querySelector("#bar")`) }, 10*time.Second, 200*time.Millisecond).Should(Equal(true), "a fetch lost with the connection was never asked for again, or was asked for behind the one that never answered")
 }
 
 // loadWorkerInPage runs the real worker script in the page's own scope, with
@@ -1805,6 +2048,44 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	b.waitFor(g, `!!document.getElementById("update")`)
 	g.Expect(b.eval(g, `document.querySelector("meta[name='eyeball-build']").content`)).To(Equal("newer"))
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue())
+}
+
+// The stream announces a verdict as soon as it is stored, which can be before
+// the answer to the request that gave it. The screen does not take up the
+// decided round in that gap, since the router is about to leave it, and does not
+// refetch it either.
+func TestServer_Surface_browserVerdictInFlight(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	id := actingReview(g, t, f)
+	inner := f.s.LoopbackSurface(browserToken)
+	// The verdict's answer is held back until the stream has had time to say it
+	// was stored.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/decision") {
+			rec := httptest.NewRecorder()
+			inner.ServeHTTP(rec, r)
+			time.Sleep(900 * time.Millisecond)
+			for k, v := range rec.Header() {
+				w.Header()[k] = v
+			}
+			w.WriteHeader(rec.Code)
+			_, _ = w.Write(rec.Body.Bytes())
+			return
+		}
+		inner.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root #bar")`)
+	b.eval(g, `document.querySelector("#bar button[value=approve]").click()`)
+	time.Sleep(500 * time.Millisecond)
+	_, err := f.store.Decision(t.Context(), f.latestRound(g, t, id))
+	g.Expect(err).NotTo(HaveOccurred(), "the verdict was not stored yet")
+	g.Expect(b.eval(g, `!!document.querySelector("#bar") && document.querySelector(".page").dataset.acting === "open"`)).To(BeTrue(), "the screen took up the decided round before the verdict was answered")
+	b.waitFor(g, `location.pathname === "/"`)
 }
 
 // A visual viewport a keyboard's height short of the window, with nothing

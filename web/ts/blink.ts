@@ -54,6 +54,18 @@ function eyeCount(): number | null {
   return Number.isInteger(n) ? n : null;
 }
 
+// setBlinkMark leaves the mark a verdict returns to the queue with. The app
+// calls it as the verdict is sent and clears it with clearBlinkMark if it
+// fails, so this module is the one place that writes the key.
+export function setBlinkMark(mark: BlinkMark): void {
+  write(mark);
+}
+
+// clearBlinkMark drops the mark, for a verdict that was not stored.
+export function clearBlinkMark(): void {
+  write(null);
+}
+
 let verdict = "";
 
 // keepBlink records a verdict as it is sent, for the queue it returns to.
@@ -80,7 +92,7 @@ export function keepBlink(): void {
     const review = document.querySelector(".page")?.getAttribute("data-review");
     // Both verdicts lower the waiting count, so both blink.
     if ((verdict === "approve" || verdict === "changes") && review) {
-      write({ review, count: eyeCount() });
+      setBlinkMark({ review, count: eyeCount() });
       setDeciding(true);
     }
   });
@@ -101,7 +113,7 @@ export function keepBlink(): void {
 // something other than the redirect.
 function clear(event: Event): void {
   if (eltOf(event)?.id === "bar") {
-    write(null);
+    clearBlinkMark();
     setDeciding(false);
   }
 }
@@ -111,7 +123,7 @@ function clear(event: Event): void {
 export function takeBlinkMark(): BlinkMark | null {
   const marked = read();
   if (marked !== null) {
-    write(null);
+    clearBlinkMark();
   }
   return marked;
 }

@@ -96,7 +96,7 @@ export const Unsent: Story = {
         },
       ],
     },
-    bar: { unsent: 1 },
+    bar: { unsent: 1, held: true },
   },
   play: async ({ canvasElement }) => {
     const card = pick(canvasElement, ".comment.unsent");
@@ -295,7 +295,7 @@ export const UnsentFailed: Story = {
       ],
       failures: { "comment:pending-3": "Cannot reach eyeball." },
     },
-    bar: { unsent: 1 },
+    bar: { unsent: 1, held: true },
   },
   play: async ({ canvasElement }) => {
     const card = pick(canvasElement, ".comment.unsent");
@@ -310,7 +310,7 @@ export const UnsentFailed: Story = {
 
 /** A comment is still being written, so the verdict waits. */
 export const BarWhileWriting: Story = {
-  args: { review: reviewCode, bar: { unsaved: true } },
+  args: { review: reviewCode, bar: { unsaved: true, held: true } },
   play: async ({ canvasElement }) => {
     await expect(
       within(pick(canvasElement, ".decide")).getByText(
@@ -322,7 +322,7 @@ export const BarWhileWriting: Story = {
 
 /** The stream is down, so a verdict could not be sent. */
 export const BarOffline: Story = {
-  args: { review: reviewCode, bar: { offline: true } },
+  args: { review: reviewCode, bar: { offline: true, held: true } },
   play: async ({ canvasElement }) => {
     await expect(
       within(pick(canvasElement, ".decide")).getByText(
@@ -344,6 +344,21 @@ export const BarRefused: Story = {
         "Requesting changes needs something to act on.",
       ),
     ).toBeVisible();
+  },
+};
+
+/** A verdict that could not be sent says so at the foot of the bar, note kept. */
+export const BarFailed: Story = {
+  args: {
+    review: reviewCode,
+    bar: { failure: "Cannot reach eyeball.", note: "Close it out." },
+  },
+  play: async ({ canvasElement }) => {
+    const bar = pick(canvasElement, ".decide");
+    await expect(within(bar).getByRole("alert")).toHaveTextContent(
+      "Cannot reach eyeball.",
+    );
+    await expect(bar.querySelector("textarea")).toHaveValue("Close it out.");
   },
 };
 
