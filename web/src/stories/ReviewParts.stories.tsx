@@ -5,7 +5,7 @@ import { CommentCard } from "../components/CommentCard";
 import { CommentGroup, ThreadRow } from "../components/CommentList";
 import { CommentEdit } from "../components/CommentEdit";
 import { Composer } from "../components/Composer";
-import { composerId, type ComposerAt } from "../components/composer";
+import { composerId, type ComposerAt } from "../components/composerAt";
 import { DecisionBar, Tally } from "../components/DecisionBar";
 import { reviewApproved, reviewCode, reviewDoc } from "../fixtures";
 import addFile from "../fixtures/review-add-file.html?raw";
@@ -26,8 +26,8 @@ import composerLineEmpty from "../fixtures/review-composer-line-empty.html?raw";
 import composerPassage from "../fixtures/review-composer-passage.html?raw";
 import composerPassageCommented from "../fixtures/review-composer-passage-commented.html?raw";
 import composerRemoved from "../fixtures/review-composer-removed.html?raw";
+import composerRemovedBase from "../fixtures/review-composer-removed-base.html?raw";
 import composerReview from "../fixtures/review-composer-review.html?raw";
-import composerWhole from "../fixtures/review-composer-whole.html?raw";
 import decideRefused from "../fixtures/review-decide-refused-422.html?raw";
 import decideRefusedNote from "../fixtures/review-decide-refused-note-422.html?raw";
 import deleteTally from "../fixtures/review-delete.html?raw";
@@ -204,18 +204,22 @@ export const ComposerPassageCommented: Story = {
   play: sameFragment(composerPassageCommented),
 };
 
-/** A file's composer on the whole-review comparison. */
-export const ComposerWholeReview: Story = {
+/**
+ * A removed row's composer on the whole-review comparison. The comparison is in
+ * a hidden field, which the markup comparison leaves out, and the request test
+ * holds it.
+ */
+export const ComposerRemovedWhole: Story = {
   render: () => (
-    <Fragment>
+    <Row>
       <Composer
-        at={at.product}
-        id={composerId(at.product, product)}
+        at={at.removed}
+        id={composerId(at.removed, worker)}
         late={false}
       />
-    </Fragment>
+    </Row>
   ),
-  play: sameFragment(composerWhole),
+  play: sameFragment(composerRemovedBase),
 };
 
 /** On a decided round the hint says a comment is sent at once. */

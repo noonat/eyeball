@@ -100,6 +100,13 @@ export const reviewCommentStates: readonly ScreenState[] = [
   { id: "review-states--editing-a-comment", caption: "a comment being edited" },
   { id: "review-states--sending", caption: "a comment sending" },
   { id: "review-states--unsent", caption: "a comment not saved" },
+  { id: "review-states--composer-failed", caption: "a comment refused" },
+  { id: "review-states--edit-failed", caption: "a save that failed" },
+  {
+    id: "review-states--comment-actions-failed",
+    caption: "a delete that failed",
+  },
+  { id: "review-states--unsent-failed", caption: "a retry that failed" },
 ];
 
 /** The states on the sheet of the decision bar and the screen before its view. */

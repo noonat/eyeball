@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
 import type { Comment } from "../api/types";
 import type { CommentState } from "./CommentCard";
-import { sameAnchor, type ComposerAt } from "./composer";
+import { sameAnchor, type ComposerAt } from "./composerAt";
 
 /**
  * A comment the reader wrote that the server has not stored: on its way, or
@@ -24,10 +24,38 @@ export interface Pending {
 export interface ReviewUi {
   /** The round was decided, so a comment is sent at once. */
   readonly late: boolean;
-  /** The composer open under a line, a passage, a file or the review. */
+  /** The composer open under a line, a passage or a file. */
   readonly composer?: ComposerAt | undefined;
-  /** The id of the comment shown as its edit form. */
-  readonly editing?: string | undefined;
+  /**
+   * What the open composer holds, and the level its chips chose to send it as.
+   * They are the page's state and not the composer's, so the text moves with
+   * the composer to another anchor.
+   */
+  readonly composerText?: string | undefined;
+  readonly composerLevel?: ComposerAt["level"] | undefined;
+  /**
+   * Counts the taps on the place the composer is open at, each of which brings
+   * the field back into view with the focus.
+   */
+  readonly composerFocus?: number | undefined;
+  readonly onComposerText?: ((text: string) => void) | undefined;
+  readonly onLevel?: ((level: ComposerAt["level"]) => void) | undefined;
+  /** What the review's own box holds. */
+  readonly reviewText?: string | undefined;
+  readonly onReviewText?: ((text: string) => void) | undefined;
+  /**
+   * The comments shown as their edit forms, any number at once, with what each
+   * holds.
+   */
+  readonly editing?: readonly string[] | undefined;
+  readonly editText?: Readonly<Record<string, string>> | undefined;
+  readonly onEditText?: ((id: string, text: string) => void) | undefined;
+  /**
+   * The line a request that failed leaves beside its control, by the control:
+   * "composer", "review", "edit:" and a comment's id, or "comment:" and a
+   * comment's id for its actions.
+   */
+  readonly failures?: Readonly<Record<string, string>> | undefined;
   /** The comments not yet stored, in the order they were written. */
   readonly pending?: readonly Pending[] | undefined;
   readonly onOpen?: ((at: ComposerAt) => void) | undefined;
@@ -35,7 +63,7 @@ export interface ReviewUi {
   readonly onSubmit?: ((at: ComposerAt, body: string) => void) | undefined;
   readonly onEdit?: ((id: string) => void) | undefined;
   readonly onSave?: ((id: string, body: string) => void) | undefined;
-  readonly onCancelEdit?: (() => void) | undefined;
+  readonly onCancelEdit?: ((id: string) => void) | undefined;
   readonly onDelete?: ((id: string) => void) | undefined;
   readonly onRetry?: ((id: string) => void) | undefined;
   /** Asks for a deferred card's body, or a held card's, now. */
@@ -56,4 +84,22 @@ export function useReviewUi(): ReviewUi {
 /** The pending comments written at one anchor. */
 export function pendingAt(ui: ReviewUi, at: ComposerAt): readonly Pending[] {
   return (ui.pending ?? []).filter((p) => sameAnchor(p.at, at));
+}
+
+/** What the open composer is given, from the page's state. */
+export function composerProps(ui: ReviewUi, at: ComposerAt) {
+  return {
+    at,
+    late: ui.late,
+    text: ui.composerText,
+    onText: ui.onComposerText,
+    level: ui.composerLevel,
+    failure: ui.failures?.["composer"],
+    focus: ui.composerFocus,
+    onLevel: ui.onLevel,
+    onSubmit: (text: string) => {
+      ui.onSubmit?.(at, text);
+    },
+    onCancel: ui.onClose,
+  };
 }

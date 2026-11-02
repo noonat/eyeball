@@ -1,4 +1,4 @@
-import type { Files, NotFound, Project } from "./types";
+import type { Files, NotFound, Project, Review } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -26,6 +26,20 @@ export function isProject(value: unknown): value is Project {
     typeof value["root"] === "string" &&
     typeof value["open"] === "number" &&
     (value["copies"] === null || Array.isArray(value["copies"]))
+  );
+}
+
+/** Whether a decoded body is the view of one round of a review. */
+export function isReview(value: unknown): value is Review {
+  return (
+    isRecord(value) &&
+    isTopBar(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["round"] === "number" &&
+    typeof value["review_title"] === "string" &&
+    typeof value["place"] === "string" &&
+    (value["cards"] === null || Array.isArray(value["cards"])) &&
+    (value["acting"] === null || isRecord(value["acting"]))
   );
 }
 

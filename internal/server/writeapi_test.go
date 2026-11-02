@@ -202,7 +202,7 @@ func TestServer_addCommentJSON(t *testing.T) {
 			g.Expect(got.Body).To(Equal("A point."))
 			g.Expect(got.Editable).To(BeTrue(), "an open round's comment can still change")
 			g.Expect(got.Late).To(BeFalse())
-			g.Expect(got.Href).To(Equal("/reviews/" + itoa(id) + "/comments/" + strconv.FormatInt(got.ID, 10)))
+			g.Expect(got.Href).To(Equal("/api/reviews/" + itoa(id) + "/comments/" + strconv.FormatInt(got.ID, 10)))
 
 			// The comment is the one the round's view sends for the same store.
 			round := readReview(g, f, "/api/reviews/"+itoa(id))
@@ -419,6 +419,71 @@ func TestServer_addCommentJSONSubmission(t *testing.T) {
 	g.Expect(comments).To(HaveLen(2))
 }
 
+// A level the chips chose sends the fields that level takes and no others. The
+// requests are the ones the app builds for a line, a passage and a removed row
+// switched to the file and to the review, which composerAt.test.ts holds the
+// app to, and each is stored as the level it was sent as.
+func TestServer_addCommentJSONSwitched(t *testing.T) {
+	cases := []struct {
+		name   string
+		req    view.CommentRequest
+		level  store.Level
+		path   string
+		quoted string
+	}{
+		{
+			name:  "a line sent as the file",
+			req:   view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt"},
+			level: store.LevelFile,
+			path:  "a.txt",
+		},
+		{
+			name:  "a line sent as the review",
+			req:   view.CommentRequest{Level: view.CommentLevelReview},
+			level: store.LevelReview,
+		},
+		{
+			name:  "a passage sent as the file",
+			req:   view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt"},
+			level: store.LevelFile,
+			path:  "a.txt",
+		},
+		{
+			name:  "a passage sent as the review",
+			req:   view.CommentRequest{Level: view.CommentLevelReview},
+			level: store.LevelReview,
+		},
+		{
+			name:   "a removed row sent as the file, which it is",
+			req:    view.CommentRequest{Level: view.CommentLevelFile, Path: "a.txt", OldLine: 1, Against: "base"},
+			level:  store.LevelFile,
+			path:   "a.txt",
+			quoted: "one",
+		},
+		{
+			name:  "a removed row sent as the review",
+			req:   view.CommentRequest{Level: view.CommentLevelReview},
+			level: store.LevelReview,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g := NewWithT(t)
+			f := newFixture(g, t)
+			id := actingReview(g, t, f)
+			c.req.Round = 1
+			c.req.Body = "Switched."
+			stored := readStored(g, sendJSON(f.s.Surface(), http.MethodPost, commentsAPI(id), c.req))
+			g.Expect(stored.Count).To(BeEquivalentTo(1))
+			comments, err := f.store.Comments(t.Context(), f.latestRound(g, t, id))
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(comments).To(HaveLen(1))
+			got := comments[0]
+			g.Expect([]any{got.Level, got.Path, got.StartLine, got.EndLine, got.Quoted}).To(Equal([]any{c.level, c.path, 0, 0, c.quoted}))
+		})
+	}
+}
+
 func TestServer_decideJSON(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -527,4 +592,24 @@ func TestServer_editCommentJSON(t *testing.T) {
 	res = sendJSON(f.s.Surface(), http.MethodPut, path, view.CommentEdit{Body: "Too late."})
 	g.Expect(res.Code).To(Equal(http.StatusConflict))
 	g.Expect(readRefusal(g, res).Message).To(Equal(releasedComment))
+}
+
+// A comment already gone is a 404 with a Refusal to an edit, where it was a 500,
+// and a delete of one stays a success: the reader wanted it gone, and a delete
+// sent twice must not report a failure.
+func TestServer_editCommentJSONGone(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	c := f.addComment(g, t, store.NewComment{RoundID: f.latestRound(g, t, id), Level: store.LevelReview, Body: "First."})
+	path := "/api/reviews/" + itoa(id) + "/comments/" + itoa(c.ID)
+	g.Expect(sendJSON(f.s.Surface(), http.MethodDelete, path, nil).Code).To(Equal(http.StatusOK))
+
+	res := sendJSON(f.s.Surface(), http.MethodPut, path, view.CommentEdit{Body: "Too late."})
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+	g.Expect(readRefusal(g, res).Message).To(Equal(noComment))
+	res = sendForm(f.s.Surface(), http.MethodPut, "/reviews/"+itoa(id)+"/comments/"+itoa(c.ID), url.Values{"body": {"Too late."}}, true)
+	g.Expect(res.Code).To(Equal(http.StatusNotFound), "the form route answers the same")
+	g.Expect(res.Body.String()).To(Equal(noComment))
+	g.Expect(sendJSON(f.s.Surface(), http.MethodDelete, path, nil).Code).To(Equal(http.StatusOK))
 }

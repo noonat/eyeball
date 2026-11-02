@@ -53,6 +53,14 @@ type Server struct {
 	log     *slog.Logger
 	stop    func()
 	now     func() time.Time
+	// reviewInApp answers a review's round with the shell, so the app draws it,
+	// where the template page answers otherwise. The review's screen moves to
+	// the app over several iterations, with the browser tests of each setting
+	// it, and the option goes when the last of them makes the app's screen the
+	// only one: it is removed at the close of the iteration that deletes the
+	// template page's handler. It changes only what a page load answers. The
+	// app's routes and the views are the same either way.
+	reviewInApp bool
 	// waiting counts the reviews waiting on the reviewer. A test replaces it to
 	// make the count unreadable while every other read works.
 	waiting func(context.Context) (int, error)
@@ -142,7 +150,8 @@ type route struct {
 	handle  func(s *Server, w http.ResponseWriter, r *http.Request) error
 	// shell says the route answers the shell, so the React app draws the
 	// address. A test holds these to the addresses the app's client function
-	// says it draws.
+	// says it draws. A review's round is flagged too and answers the shell only
+	// while the server's reviewInApp is set.
 	shell bool
 	// gzip says the response is sent compressed when the request accepts it.
 	// It is set for the views, the bundle and the stylesheets, which are large
@@ -293,11 +302,13 @@ var routes = []route{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}",
 		handle:  (*Server).handleReviewPage,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,
 		pattern: "GET /reviews/{review}/rounds/{round}",
 		handle:  (*Server).handleReviewPage,
+		shell:   true,
 	},
 	{
 		side:    sideSurface,

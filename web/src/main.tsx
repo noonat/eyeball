@@ -3,6 +3,7 @@ import { followTheme } from "../ts/theme";
 import { takeToken } from "../ts/token";
 import { refreshOnTap } from "../ts/update";
 import { registerWorker } from "../ts/worker";
+import { prune } from "../ts/storage";
 import { restoreViewport } from "../ts/viewport";
 import { App } from "./App";
 
@@ -17,6 +18,9 @@ function mount(): void {
   if (root === null) {
     return;
   }
+  // An entry the page's own memory kept past its age is dropped as the app
+  // opens, as the template bundle did.
+  prune();
   registerWorker();
   refreshOnTap();
   restoreViewport();

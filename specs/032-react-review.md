@@ -284,6 +284,114 @@ sheets, since the sheets are the pages the owner approved.
   line dropped. Three component changes failed the new `TooLarge`,
   `ChangesRequested` and `RenderedBox` stories. None survived.
 
+### Iteration 3
+
+- The spec says an edit or a delete of a comment already gone answers 500 now.
+  Only the edit did. A delete of a comment already gone answers 200 with the
+  count, and `TestServer_deleteCommentJSON` and the template's own handler hold
+  that as deliberate: a delete sent twice must not report a failure. The edit
+  now answers 404 with `Refusal`, from the one function the form route shares,
+  and the delete is unchanged.
+- The server option is the unexported field `reviewInApp`, which a test sets.
+  The two review GET routes are flagged `shell`, so the test that holds the
+  route table to the app's patterns passes with the review's two added, and the
+  test that asks each shell route for the shell sets the field first. The field
+  goes with the template page's handler, at the close of Iteration 5.
+- The view's comment `href` and the bar's `action` name the `/api` routes, added
+  in the view's conversion and nowhere else, so the template's `hx-put`,
+  `hx-post` and the committed `review-*.html` answers are byte for byte as they
+  were. Only the `review-*.json` views and `scenes.ts` moved.
+- `components/composer.ts` is `composerAt.ts`. Once the app's bundle reached it,
+  esbuild refused `./composer` beside `Composer.tsx`, since it resolved the
+  import to the capital file and a case-insensitive file system would have
+  agreed. The cases the file holds are an anchor and what it sends.
+- The route, the taps, the sends and the drafts are `app/ViewRoutes.tsx`,
+  `useReview.ts`, `useTaps.ts`, `reviewWrites.ts`, `reviewCache.ts` and
+  `reviewDrafts.ts`. The components stay controlled and send nothing. A
+  composer's text, a chosen level, each open edit form's text, the review's box
+  and the verdict's note are the route's state, which the components read
+  through `ReviewUi`.
+- A tap is one document listener that reads the click's target, as the
+  template's did, and the selection is a `sel` class drawn from the open
+  composer. The template's `preventDefault` for a passage that is a `<details>`
+  is not ported: the app draws a passage as a `div`. A tap on a link or the hint
+  inside a passage is still left alone, and a passage reads its path from the
+  nearest element that carries one, so the round's one new document, which no
+  card holds, takes comments too. It drew none before: the fresh layout was a
+  bare document with no threads and no composer.
+- The composer is scrolled into view with `block: "nearest"` and the field
+  focused with `preventScroll`, once as it opens and not as text is typed. A
+  composer that opens in a fold opens the fold, where the template did that only
+  for a draft reopened there. The reasons are the template's: the call order and
+  the two options were settled with the keyboard fix, and the template recorded
+  no more, so none is invented here.
+- The comparison's links keep `?against=` as their address and call
+  `navigate({ search })` on a plain click. A router link would write the
+  resolved address into the markup, which the stories compare. Moving between
+  the two draws the arrival screen until the other view comes.
+- A comment sent from a composer closes the composer at once and shows the
+  comment as sending. The template kept the form open until the answer. A
+  refusal puts the text back in the composer with the server's sentence. If
+  something was typed elsewhere meanwhile, the refused comment waits as an
+  unsent card with the sentence beside its actions, so nothing is lost for
+  putting it back.
+- A chosen level is state beside the anchor. A line, a passage or a removed row
+  sent as the file or the review sends only the fields that level takes, and a
+  removed row sent as the file is still a removed row, as the template's form
+  was. The comparison goes with a removed row alone. The template's
+  `review-composer-whole` answer, a file composer with a comparison, is not
+  something a tap opens on either page, so `tool/fixtures` writes
+  `review-composer-removed-base` in its place, the `ComposerWholeReview` story
+  is `ComposerRemovedWhole`, and `composers.ts` holds the query of each composer
+  answer for the Vitest test to build its anchor from. The file is generated and
+  left out of the format check as `scenes.ts` is.
+- An answer is placed from the anchor it was sent to, since the comment carries
+  no level or path. The template's answer to a comment on a file replaced the
+  file's list with every comment at the path, line comments included. The app
+  puts a line comment under its line, where a reload does, so
+  `browserDecidedTap` finds one comment in the file's list, not two.
+- A comment that is sending carries `data-sending`, so a test can tell it from
+  the stored one that replaces it. It has no counterpart in a template page.
+- The failed line is drawn by the one `Failed` component, after a form's foot or
+  after a card's actions. Its sentence is the server's `Refusal` where there is
+  one, and one of the template's three otherwise. A request that failed to
+  arrive, timed out at ten seconds or was failed by the server leaves an unsent
+  card with no line beside it, as the template's did, and a retry that fails
+  again leaves the line. The four new states are in `ReviewStates` and on the
+  comments sheet: a composer refused, an edit that failed, a delete that failed,
+  and a retry that failed. The owner judges them on the phone in Iteration 7.
+- A draft is saved as the state changes, where the template saved after an
+  input, a click or a swap. A decided round saves none and restores none. The
+  edit forms restored are those of comments the round still has. Deferred and
+  held cards show their skeleton or their size in the app until Iteration 5, and
+  a review reached from another screen is the app's whatever the option says, so
+  the browser tests of a long review are not in this iteration.
+- Verdicts stay on the template page. `browserActing` is split, and its verdict
+  half is `browserActingVerdict`. The card half of the template's failed-save
+  test is the app's `browserFailedSave`, and the template's whole test stays as
+  `browserFailedVerdict` for the verdict's failure and the guard that waits on
+  an unsent card. `typeInto` sets a field through the element's own setter,
+  since React drops an input event after a value set the plain way.
+- Each ported test was run with the option forced off by a temporary edit of
+  `handleReviewPage`, and each failed: `browserActing`, `browserDecidedTap`,
+  `browserDrafts`, `browserFailedSave`, `browserFold`, `browserPassages`,
+  `browserRenderedCard` and `browserReviewScreen`, by 5 seconds waiting for the
+  review the shell did not draw. The two template tests, `browserActingVerdict`
+  and `browserFailedVerdict`, passed unchanged.
+- A comment on a passage of a document is placed from the answer so it shows at
+  once, and the round is fetched again after one is added or deleted. Whether a
+  passage sits in a fold depends on whether it has a comment, which is
+  `render`'s rule. Copying it into TypeScript would leave two copies with
+  nothing checking that they agree, and without the fetch a commented passage
+  stays in its fold with a summary count that is wrong, until the next load.
+  `browserFoldComment` saves a comment on a passage inside a fold and deletes
+  it, and fails with the fetch removed.
+- A tap on the place the composer is already open at opens it again, as the
+  template's script did: the field is focused and scrolled into view, and the
+  level the chips chose and the line a failed send left are cleared. The typed
+  text stays. The first version of the app ignored that tap. On iOS it is how a
+  reader gets the keyboard back after dismissing it.
+
 ## Iteration 1: The API
 
 - [x] `POST`, `PUT` and `DELETE /api/reviews/{review}/comments` and
@@ -328,43 +436,49 @@ sheets, since the sheets are the pages the owner approved.
 
 ## Iteration 3: The screen and its comments
 
-- [ ] A server option answers `/reviews/{review}` and
+- [x] A server option answers `/reviews/{review}` and
       `/reviews/{review}/rounds/{round}` with the shell, and the app draws the
       review from its view, with the view's title. The browser tests ported here
       and in the next two iterations set it, and the rest still read the
       template until Iteration 5 makes it the default.
-- [ ] The review's patterns are in the app's routes, so a link to a review from
+- [x] The review's patterns are in the app's routes, so a link to a review from
       another screen moves the router, and the link test's last block says so.
-- [ ] The toolbar's comparison links and the back link are router links.
-- [ ] The view's comment and bar addresses name the `/api` routes, and a write
+- [x] The toolbar's comparison links and the back link are router links.
+- [x] The view's comment and bar addresses name the `/api` routes, and a write
       sends the loopback token, whose refusal answers a write under `/api` with
       `Refusal`.
-- [ ] A tap opens the composer on a row, a removed row, a passage, a file's
+- [x] A tap opens the composer on a row, a removed row, a passage, a file's
       image or its line saying why there is no body, as the template's script
       does, with the selection drawn and the composer scrolled into view.
-- [ ] A composer moved to another anchor keeps its typed text, as the template's
+- [x] A composer moved to another anchor keeps its typed text, as the template's
       does, and the comment in `composer.ts` that says otherwise is corrected.
-- [ ] A composer's level chips switch what it sends, and a test sends a line, a
+- [x] A composer's level chips switch what it sends, and a test sends a line, a
       passage and a removed row switched to file and to review through the JSON
       route and finds each stored.
-- [ ] `tool/fixtures` writes a removed row's composer under `?against=base`, and
+- [x] `tool/fixtures` writes a removed row's composer under `?against=base`, and
       the composer test takes each anchor from the scene that wrote the fixture.
-- [ ] A comment is added, edited, deleted and retried through the JSON routes,
+- [x] A comment is added, edited, deleted and retried through the JSON routes,
       shown as sending and then as stored, and the tally follows each answer. A
       retry sends the first try's submission key, and an edit or delete of a
       comment already gone answers 404 with `Refusal` where it answers 500 now.
-- [ ] A failed request draws the failed line beside its control in the composer,
+- [x] A failed request draws the failed line beside its control in the composer,
       the edit form and a comment's actions, each with a story.
-- [ ] Drafts are saved as typed through `web/ts/storage.ts` and restored on
+- [x] Drafts are saved as typed through `web/ts/storage.ts` and restored on
       reload, and none is kept on a decided round. A draft inside a folded run
       of passages opens the fold.
-- [ ] A Vitest test stores a draft with all five of the template page's parts
+- [x] A Vitest test stores a draft with all five of the template page's parts
       through `remember` and finds each restored, and the unsent card's retry
       reusing its stored key.
-- [ ] The app prunes expired stored entries, as the template bundle does.
-- [ ] The browser tests for comments, passages, folds, rendered cards, a decided
+- [x] The app prunes expired stored entries, as the template bundle does.
+- [x] The browser tests for comments, passages, folds, rendered cards, a decided
       round's tap, a failed save and a draft surviving a reload run against the
       app's screen, and each fails with the option off.
+
+> **Completed** 2026-11-02 00:16 UTC
+>
+> - `make check` — 41.8s
+> - `go test -race ./...` — 58.9s
+> - `go test -count=1 -tags browser ./internal/server` — 75.0s
 
 ## Iteration 4: The verdict and the stream
 
@@ -381,6 +495,9 @@ sheets, since the sheets are the pages the owner approved.
       the stream and a failed verdict run against the app's screen, and each
       fails with the option off. The blink test reaches the review from the
       queue by a router move.
+- [ ] The verdict guard counts a comment that is sending, as the template's did,
+      since its text stayed in the form during the request, and a browser test
+      sends a verdict while a comment is in flight.
 
 ## Iteration 5: The long review
 
@@ -413,6 +530,8 @@ sheets, since the sheets are the pages the owner approved.
       result.
 - [ ] The review routes answer the shell with no option, and the option is
       removed.
+- [ ] A comment written on a deferred card's fetched body is placed in that body
+      in the cache as it is in the round's, and a test saves one there.
 
 ## Iteration 6: The templates go
 

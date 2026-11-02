@@ -112,7 +112,7 @@
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/9/decision",
+      "action": "/api/reviews/9/decision",
       "count": 0
     }
   },

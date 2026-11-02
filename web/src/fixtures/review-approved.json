@@ -136,7 +136,7 @@
         "comments": [
           {
             "id": "8",
-            "href": "/reviews/3/comments/8",
+            "href": "/api/reviews/3/comments/8",
             "where": "internal/approved/limit.go",
             "quoted": "",
             "body": "Fine, if the backoff caps at thirty seconds.",
@@ -162,7 +162,7 @@
     "comments": [
       {
         "id": "9",
-        "href": "/reviews/3/comments/9",
+        "href": "/api/reviews/3/comments/9",
         "where": "This review",
         "quoted": "",
         "body": "One more thing: log the limit at startup.",

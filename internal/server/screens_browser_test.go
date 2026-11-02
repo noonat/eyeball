@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
 
 	"github.com/noonat/eyeball/internal/api"
+	"github.com/noonat/eyeball/internal/store"
 )
 
 // screenReview opens a review of a.txt and a directory of many files, so a tree
@@ -60,7 +62,8 @@ func TestServer_Surface_browserFilePageOffline(t *testing.T) {
 }
 
 // A link to a screen the app draws moves the router, so no page loads and a
-// value on the window survives. A link to a template page is a full load.
+// value on the window survives. A review's round is one of them, whatever the
+// server answers a page load with.
 func TestServer_Surface_browserLinksMoveTheRouter(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -76,8 +79,7 @@ func TestServer_Surface_browserLinksMoveTheRouter(t *testing.T) {
 	b.eval(g, `window.__loads = performance.getEntriesByType("navigation").length`)
 
 	// A directory, the way back to the root, a file the review leaves alone,
-	// and the way back from it. A file the review changes goes back to its
-	// round, which is a template page.
+	// and the way back from it.
 	b.eval(g, `[...document.querySelectorAll(".treerow")].find((a) => a.textContent === "d").click()`)
 	b.waitFor(g, `location.pathname === "`+base+`/files/d/" && !!document.querySelector(".crumb .name") && document.querySelector(".crumb .name").textContent === "d"`)
 	b.eval(g, `document.querySelector(".topbar .back").click()`)
@@ -89,14 +91,97 @@ func TestServer_Surface_browserLinksMoveTheRouter(t *testing.T) {
 	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a page loaded between two screens the app draws")
 	g.Expect(b.eval(g, `performance.getEntriesByType("navigation").length`)).To(Equal(b.eval(g, `window.__loads`)))
 
-	// The project's row for an open review leads to a template page, which
-	// loads.
+	// The project's row for an open review leads to the review's round, which
+	// the app draws with no page load.
 	b.navigate(g, srv.URL+"/projects/"+itoa(project))
 	b.waitFor(g, `!!document.querySelector("#root a.row")`)
 	b.eval(g, `window.__before = true`)
 	b.eval(g, `document.querySelector("a.row").click()`)
-	b.waitFor(g, `location.pathname === "`+base+`" && !!document.querySelector("#bar")`)
-	g.Expect(b.eval(g, `window.__before`)).To(BeNil(), "a link to a template page did not load it")
+	b.waitFor(g, `location.pathname === "`+base+`" && !!document.querySelector("#root .page .brief") && !!document.querySelector("#bar")`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a link to a review loaded a page")
+}
+
+// A review's round is drawn by the app from its view, with the view's title.
+// The comparison's links and the way back move the router, so no page loads. A
+// tap far down a long file brings the composer into view, and the composer
+// moves to the next tap with what was typed in it.
+func TestServer_Surface_browserReviewScreen(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
+	write(g, repo, "long.txt", strings.Repeat("a line of the file\n", 150))
+	me := api.Caller{Dir: repo}
+	id := f.request(g, t, api.RequestBody{Caller: me, Paths: []string{"a.txt", "long.txt"}, Note: "The long file"}).Review.ID
+	f.decide(g, t, id, store.VerdictChanges, "more")
+	write(g, repo, "a.txt", "one\ntwo\nthree\n")
+	f.request(g, t, api.RequestBody{Caller: me, Review: id, Note: "Second."})
+	srv := httptest.NewServer(f.s.Surface())
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	base := "/reviews/" + itoa(id)
+	title := f.roundAt(g, base).Title
+
+	b.navigate(g, srv.URL+base)
+	b.waitFor(g, `!!document.querySelector("#root .page .brief")`)
+	g.Expect(b.eval(g, `document.title`)).To(Equal(title + " · Eyeball"))
+	g.Expect(b.eval(g, `document.querySelector("#root .topbar h1").textContent`)).To(Equal(title))
+
+	// The comparison's links keep their address as the page wrote it, and a
+	// click moves the router to it.
+	b.eval(g, `window.__before = true`)
+	g.Expect(b.eval(g, `[...document.querySelectorAll(".segmented a")].map((a) => a.getAttribute("href")).join()`)).To(Equal("?against=previous,?against=base"))
+	b.eval(g, `document.querySelectorAll(".segmented a")[1].click()`)
+	b.waitFor(g, `location.search === "?against=base" && document.querySelectorAll(".segmented a")[1]?.getAttribute("aria-current") === "true"`)
+	g.Expect(b.eval(g, `document.querySelector(".toolbar .counts").textContent`)).To(ContainSubstring("2 files"))
+	b.eval(g, `document.querySelectorAll(".segmented a")[0].click()`)
+	b.waitFor(g, `location.search === "?against=previous" && document.querySelectorAll(".segmented a")[0]?.getAttribute("aria-current") === "true"`)
+	g.Expect(b.eval(g, `document.querySelector(".toolbar .counts").textContent`)).To(ContainSubstring("1 file"))
+	b.eval(g, `document.querySelector(".topbar .back").click()`)
+	b.waitFor(g, `location.pathname === "/" && !!document.querySelector("#root .empty, #root .section")`)
+	g.Expect(b.eval(g, `window.__before`)).To(BeTrue(), "a move between the review and the queue loaded a page")
+
+	// The first round's own address is a page of its own.
+	b.navigate(g, srv.URL+base+"/rounds/1")
+	b.waitFor(g, `!!document.querySelector("#root .page .brief")`)
+	g.Expect(b.eval(g, `document.title`)).To(Equal("Round 1 · Eyeball"))
+	g.Expect(b.eval(g, `document.querySelector(".topbar .back").getAttribute("href")`)).To(Equal(base))
+
+	// A tap far down a long file brings its composer into view.
+	b.navigate(g, srv.URL+base+"?against=base")
+	b.waitFor(g, `!!document.querySelector("#root details.file[data-path='long.txt'] tr[data-line='140']")`)
+	g.Expect(b.eval(g, `window.scrollY`)).To(BeEquivalentTo(0))
+	b.eval(g, `document.querySelector("details.file[data-path='long.txt'] tr[data-line='140']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.waitFor(g, `window.scrollY > 500`)
+	g.Expect(b.eval(g, `(() => { const r = document.querySelector("tr.thread").getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight + 1; })()`)).To(BeTrue(), "the composer is out of sight")
+	g.Expect(b.eval(g, `document.activeElement === document.querySelector("tr.thread form.composer textarea")`)).To(BeTrue())
+
+	// A tap on the place the composer is open at brings the field back, as it
+	// does on iOS where it is how the keyboard returns, and clears the level the
+	// chips chose and the line a failed send left. The text stays.
+	row := `document.querySelector("details.file[data-path='long.txt'] tr[data-line='140']")`
+	b.typeInto(g, "tr.thread form.composer textarea", "   ")
+	b.eval(g, `[...document.querySelectorAll("tr.thread form.composer .chip")].find((c) => c.textContent === "File").click()`)
+	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer .failed")`)
+	g.Expect(b.eval(g, `[...document.querySelectorAll("tr.thread form.composer .chip")].map((c) => c.getAttribute("aria-pressed")).join()`)).To(Equal("false,true,false"))
+	b.eval(g, `document.activeElement.blur(); window.scrollTo(0, 0)`)
+	b.waitFor(g, `window.scrollY === 0`)
+	b.eval(g, row+`.click()`)
+	b.waitFor(g, `window.scrollY > 500 && document.activeElement === document.querySelector("tr.thread form.composer textarea")`)
+	g.Expect(b.eval(g, `!!document.querySelector("tr.thread form.composer .failed")`)).To(BeFalse(), "the failed line stayed")
+	g.Expect(b.eval(g, `[...document.querySelectorAll("tr.thread form.composer .chip")].map((c) => c.getAttribute("aria-pressed")).join()`)).To(Equal("true,false,false"))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("   "))
+
+	// A tap on another line moves the composer, and keeps what was typed.
+	b.typeInto(g, "tr.thread form.composer textarea", "Carried along")
+	b.eval(g, `document.querySelector("details.file[data-path='long.txt'] tr[data-line='142']").click()`)
+	b.waitFor(g, `document.querySelector("tr.thread")?.previousElementSibling?.dataset.line === "142"`)
+	g.Expect(b.eval(g, `document.querySelectorAll("form.composer").length`)).To(BeEquivalentTo(2), "one anchored composer and the review's own box")
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("Carried along"))
+	g.Expect(b.eval(g, `document.querySelectorAll("tr.sel").length`)).To(BeEquivalentTo(1))
+	g.Expect(b.eval(g, `document.querySelector("tr.sel").dataset.line`)).To(Equal("142"))
 }
 
 // Each address the app draws answers the shell, and the app draws its screen

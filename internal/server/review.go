@@ -331,6 +331,9 @@ func (s *Server) roundAnswer(r *http.Request) (pageAnswer, error) {
 // handleRoundPage answers GET /reviews/{review}/rounds/{round}, any round, and
 // is the same page.
 func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) error {
+	if s.reviewInApp {
+		return s.handleApp(w, r)
+	}
 	ans, err := s.roundAnswer(r)
 	if err != nil {
 		return err

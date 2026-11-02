@@ -20,6 +20,8 @@ export const Addresses: Story = {
   play: async () => {
     const drawn = [
       "/",
+      "/reviews/4",
+      "/reviews/4/rounds/2",
       "/projects/3",
       "/projects/3/files/internal/a.go?copy=2",
       "/reviews/4/files/",
@@ -30,8 +32,6 @@ export const Addresses: Story = {
       await expect(draws(address)).toBe(true);
     }
     const loaded = [
-      "/reviews/4",
-      "/reviews/4/rounds/2",
       "/reviews/4/raw/1/a.png",
       "/api/",
       "/api/projects/3",

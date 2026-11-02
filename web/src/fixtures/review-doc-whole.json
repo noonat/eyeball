@@ -84,7 +84,7 @@
                 "comments": [
                   {
                     "id": "3",
-                    "href": "/reviews/1/comments/3",
+                    "href": "/api/reviews/1/comments/3",
                     "where": "docs/product.md:7",
                     "quoted": "**From a hunk to the whole file**, with the change still marked in place.",
                     "body": "Name the control here.",
@@ -195,7 +195,7 @@
     "comments": [
       {
         "id": "4",
-        "href": "/reviews/1/comments/4",
+        "href": "/api/reviews/1/comments/4",
         "where": "This review",
         "quoted": "",
         "body": "Good. Check the links in See also.",
@@ -204,7 +204,7 @@
       }
     ],
     "bar": {
-      "action": "/reviews/1/decision",
+      "action": "/api/reviews/1/decision",
       "count": 2
     }
   },

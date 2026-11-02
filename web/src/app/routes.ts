@@ -8,6 +8,8 @@ import { matchPath } from "react-router";
  */
 export const drawnPatterns = [
   "/",
+  "/reviews/:review",
+  "/reviews/:review/rounds/:round",
   "/projects/:project",
   "/projects/:project/files/*",
   "/reviews/:review/files/*",

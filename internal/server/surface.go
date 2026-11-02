@@ -72,6 +72,12 @@ const noToken = "This page cannot write to this eyeball. Open the address eyebal
 // which shows it beside the control, and a page to anything else.
 func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 	setSurfaceHeaders(w.Header())
+	// A write under /api is the app's, which reads JSON and shows the sentence
+	// beside its control.
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		refuseJSON(w, http.StatusForbidden, noToken)
+		return
+	}
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusForbidden)

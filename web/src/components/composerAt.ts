@@ -1,9 +1,11 @@
 import type { CommentRequest } from "../api/types";
 
 /**
- * Where a composer opens. A composer is keyed by its anchor, so moving to
- * another line or another file is a new composer with an empty field, and the
- * text typed under the old one is not carried over by accident.
+ * Where a composer opens. A composer is keyed by its anchor, which names the
+ * element it opens in. The text typed in it is not part of the anchor: a tap
+ * on another line moves the composer there and keeps what was typed, as the
+ * template page's did. A second composer for each tap would scatter
+ * half-written comments through a long review.
  */
 export type ComposerAt =
   | { readonly level: "review" }
@@ -86,20 +88,44 @@ export interface ComposerText {
   readonly button: string;
 }
 
-/** The words of a composer. A decided round sends a comment at once. */
-export function composerText(at: ComposerAt, late: boolean): ComposerText {
+/**
+ * The words of a composer. A decided round sends a comment at once. The chips
+ * switch what the text is sent as without moving the composer, so the words
+ * above them stay those of the anchor and only the pressed chip follows the
+ * level chosen.
+ */
+export function composerText(
+  at: ComposerAt,
+  late: boolean,
+  chosen: ComposerAt["level"] = at.level,
+): ComposerText {
   const hint = late ? "Sends immediately" : "Saved as you type";
   const button = late ? "Send" : "Add";
-  const file: Chip = { level: "file", label: "File", pressed: false };
-  const review: Chip = { level: "review", label: "Review", pressed: false };
+  const text = anchorText(at);
+  return {
+    ...text,
+    chips: text.chips.map((chip) => ({
+      ...chip,
+      pressed: chip.level === chosen,
+    })),
+    hint,
+    button,
+  };
+}
+
+const fileChip: Chip = { level: "file", label: "File", pressed: false };
+const reviewChip: Chip = { level: "review", label: "Review", pressed: false };
+
+/** What an anchor says, before the round and the chosen level are known. */
+function anchorText(
+  at: ComposerAt,
+): Pick<ComposerText, "anchor" | "placeholder" | "chips"> {
   switch (at.level) {
     case "review":
       return {
         anchor: "This review",
         placeholder: "Comment on the whole review…",
         chips: [],
-        hint,
-        button,
       };
     case "file":
       return {
@@ -108,37 +134,27 @@ export function composerText(at: ComposerAt, late: boolean): ComposerText {
             ? at.path
             : `${at.path}, removed line ${at.oldLine}`,
         placeholder: "Comment on this file…",
-        chips: [{ ...file, pressed: true }, review],
-        hint,
-        button,
+        chips: [fileChip, reviewChip],
       };
     case "line":
       return {
         anchor: `${at.path}:${at.line}`,
         placeholder: `Comment on line ${at.line}…`,
         chips: [
-          {
-            level: "line",
-            label: `Line ${at.line}`,
-            pressed: true,
-          },
-          file,
-          review,
+          { level: "line", label: `Line ${at.line}`, pressed: false },
+          fileChip,
+          reviewChip,
         ],
-        hint,
-        button,
       };
     default:
       return {
         anchor: `${at.path}:${at.first}–${at.last}`,
         placeholder: "Comment on this passage…",
         chips: [
-          { level: "passage", label: "Passage", pressed: true },
-          file,
-          review,
+          { level: "passage", label: "Passage", pressed: false },
+          fileChip,
+          reviewChip,
         ],
-        hint,
-        button,
       };
   }
 }
@@ -155,33 +171,47 @@ export interface CommentSend {
 }
 
 /**
- * The request a composer sends for its anchor. A line sends its own number as
- * the end of its range, as the template's hidden fields did, and a field that
- * does not apply is zero or empty, which the server reads as absent.
+ * The request a composer sends for its anchor, sent as a level the chips chose.
+ * It carries what the template's hidden fields did and no more: a level takes
+ * only the fields its form left enabled, so a line switched to the file sends
+ * the path alone, and the comparison goes with a removed row's old line, which
+ * is the one place a quote reads from the page's comparison. A line sends its
+ * own number as the end of its range.
  */
 export function commentRequest(
   at: ComposerAt,
   send: CommentSend,
+  level: ComposerAt["level"] = at.level,
 ): CommentRequest {
   const request: CommentRequest = {
     round: send.round,
-    level: at.level,
+    level,
     path: "",
     start: 0,
     end: 0,
     old_line: 0,
-    against: send.against,
+    against: "",
     body: send.body,
     submission: send.submission,
   };
-  switch (at.level) {
-    case "review":
-      return request;
-    case "file":
-      return { ...request, path: at.path, old_line: at.oldLine ?? 0 };
-    case "line":
-      return { ...request, path: at.path, start: at.line, end: at.line };
-    default:
-      return { ...request, path: at.path, start: at.first, end: at.last };
+  if (level === "review" || at.level === "review") {
+    return { ...request, level: "review" };
   }
+  if (level === "file") {
+    const removed = at.level === "file" ? at.oldLine : undefined;
+    return {
+      ...request,
+      path: at.path,
+      ...(removed === undefined
+        ? {}
+        : { old_line: removed, against: send.against }),
+    };
+  }
+  if (at.level === "line") {
+    return { ...request, path: at.path, start: at.line, end: at.line };
+  }
+  if (at.level === "passage") {
+    return { ...request, path: at.path, start: at.first, end: at.last };
+  }
+  return request;
 }

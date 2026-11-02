@@ -41,6 +41,11 @@ interface DecisionBarProps extends BarGuard {
   readonly count: number;
   /** The verdict note as typed. */
   readonly note?: string | undefined;
+  /**
+   * Called as the note is typed. A bar given it holds the note as the page
+   * keeps it, which a draft saves, and a bar given none keeps its own.
+   */
+  readonly onNote?: ((note: string) => void) | undefined;
   /** A change request with nothing in it was refused. */
   readonly refused?: boolean | undefined;
   readonly onDecide?:
@@ -57,6 +62,7 @@ interface DecisionBarProps extends BarGuard {
 export function DecisionBar({
   count,
   note,
+  onNote,
   refused,
   unsent,
   unsaved,
@@ -112,7 +118,14 @@ export function DecisionBar({
         name="note"
         aria-label="Verdict note"
         placeholder="A note with the verdict…"
-        defaultValue={note}
+        {...(onNote === undefined
+          ? { defaultValue: note }
+          : {
+              value: note ?? "",
+              onChange: (event) => {
+                onNote(event.currentTarget.value);
+              },
+            })}
       />
       <div className="buttons">
         <button

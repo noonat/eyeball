@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router";
 import type { Card, CardBody, Comment, Review } from "../api/types";
 import { AppLink } from "./AppLink";
 import { CommentGroup, CommentItems } from "./CommentList";
 import { Composer } from "./Composer";
-import type { ComposerAt } from "./composer";
+import type { ComposerAt } from "./composerAt";
 import { Counts } from "./Counts";
 import { DecisionBar, type BarGuard } from "./DecisionBar";
 import { DocumentBody } from "./DocumentBody";
 import { Icon } from "./Icon";
 import { Notice } from "./Notice";
 import { Pill } from "./Pill";
-import { ReviewCard } from "./ReviewCard";
+import { CardDocument, ReviewCard } from "./ReviewCard";
 import { ReviewUiContext, readOnly, type ReviewUi } from "./reviewUi";
 import { Screen } from "./Screen";
 
@@ -25,7 +26,13 @@ interface ReviewScreenProps {
   /** The page's own state: the open composer, a comment being edited. */
   readonly ui?: Partial<ReviewUi> | undefined;
   /** The verdict note as typed, and what stands between the reader and a verdict. */
-  readonly bar?: (BarGuard & { note?: string; refused?: boolean }) | undefined;
+  readonly bar?:
+    | (BarGuard & {
+        note?: string;
+        onNote?: (note: string) => void;
+        refused?: boolean;
+      })
+    | undefined;
   readonly onDecide?:
     | ((verdict: "changes" | "approve", note: string) => void)
     | undefined;
@@ -90,6 +97,9 @@ export function ReviewScreen({
               at={reviewAt}
               id="comments-review"
               late={state.late}
+              text={state.reviewText}
+              onText={state.onReviewText}
+              failure={state.failures?.["review"]}
               onSubmit={(text) => {
                 state.onSubmit?.(reviewAt, text);
               }}
@@ -104,7 +114,11 @@ export function ReviewScreen({
         <Toolbar review={review} fresh={fresh} />
         {review.listed ? <FileList cards={cards} /> : null}
         {fresh !== undefined ? (
-          <DocumentBody passages={fresh.body?.passages ?? []} />
+          fresh.body === null ? (
+            <DocumentBody passages={[]} />
+          ) : (
+            <CardDocument card={fresh} body={fresh.body} />
+          )
         ) : (
           cards.map((card) => (
             <ReviewCard
@@ -297,23 +311,54 @@ function Toolbar({ review, fresh }: ToolbarProps) {
       )}
       {review.against === null ? null : (
         <span className="segmented">
-          {/* A query alone is relative to the page it is on, which only the
-              browser knows until the review has a route of its own. */}
-          <a
-            href="?against=previous"
-            aria-current={review.against.base ? undefined : true}
-          >
+          <CompareLink against="previous" current={!review.against.base}>
             {review.against.previous}
-          </a>
-          <a
-            href="?against=base"
-            aria-current={review.against.base ? true : undefined}
-          >
+          </CompareLink>
+          <CompareLink against="base" current={review.against.base}>
             Whole review
-          </a>
+          </CompareLink>
         </span>
       )}
     </div>
+  );
+}
+
+interface CompareLinkProps {
+  readonly against: "previous" | "base";
+  readonly current: boolean;
+  readonly children: string;
+}
+
+/**
+ * One setting of the comparison. The link keeps the query alone as its address,
+ * which the browser resolves against the page it is on, and a plain click moves
+ * the router to the same address, so the round is fetched and drawn with no
+ * page load. A router link here would write the resolved address into the
+ * markup, which differs from the approved page's.
+ */
+function CompareLink({ against, current, children }: CompareLinkProps) {
+  const navigate = useNavigate();
+  const search = `?against=${against}`;
+  return (
+    <a
+      href={search}
+      aria-current={current ? true : undefined}
+      onClick={(event) => {
+        if (
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        event.preventDefault();
+        void navigate({ search });
+      }}
+    >
+      {children}
+    </a>
   );
 }
 

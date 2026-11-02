@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -32,25 +33,31 @@ import (
 // rand.Text draws, which is the only form the bundle reads.
 const browserToken = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-// The page a reviewer sees, driven in headless Chromium: the token handed
-// over, a line comment added, edited and deleted, a review comment, an
-// approval held back while text is unsaved, and an approval reloading the
-// page.
+// The review page the app draws, driven in headless Chromium: the token handed
+// over, a line comment added, edited and deleted through the JSON routes, a
+// review comment, and text still being written held in the bar's notice. The
+// verdict's half is the template page's until it moves.
 func TestServer_Surface_browserActing(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	id := actingReview(g, t, f)
 	seen := &requestLog{}
-	srv := httptest.NewServer(seen.wrap(f.s.LoopbackSurface(browserToken)))
+	wrote := &statusLog{}
+	srv := httptest.NewServer(seen.wrap(wrote.wrap(f.s.LoopbackSurface(browserToken))))
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	round := f.latestRound(g, t, id)
 
 	// The printed address hands the token over and leaves no trace of it.
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
 	g.Expect(b.eval(g, `location.hash`)).To(Equal(""))
 	g.Expect(b.eval(g, `localStorage.getItem("eyeball:token")`)).To(Equal(browserToken))
 	g.Expect(seen.lines()).NotTo(ContainElement(ContainSubstring(browserToken)), "the token reached a request line or a Referer")
+	// The page is the app's, which the shell's root holds, and its writes are
+	// JSON under /api. None goes to a form route.
+	g.Expect(b.eval(g, `!!document.querySelector("#root .page")`)).To(BeTrue())
 
 	// A tap on a line opens the composer in a row under it, and Add stores
 	// the comment there.
@@ -62,26 +69,29 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	g.Expect(b.eval(g, `document.querySelector("tr.sel").dataset.line`)).To(Equal("2"))
 	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
 	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
-	b.waitFor(g, thread+`?.querySelectorAll(".comment").length === 1`)
 	b.waitFor(g, `!document.querySelector("tr.thread form.composer")`)
+	b.waitFor(g, `document.getElementById("tally").textContent === "1 commentReady to send"`)
+	b.waitFor(g, thread+`?.querySelectorAll(".comment").length === 1`)
 	g.Expect(b.eval(g, `document.querySelectorAll("tr.sel").length`)).To(BeEquivalentTo(0))
-	g.Expect(b.eval(g, `document.getElementById("tally").textContent`)).To(Equal("1 commentReady to send"))
 	comments := f.comments(g, t, round)
 	g.Expect(comments).To(HaveLen(1))
 	g.Expect(comments[0].Quoted).To(Equal("two"))
+	g.Expect(wrote.lines()).To(ContainElement("POST /api/reviews/" + itoa(id) + "/comments 200"))
+	g.Expect(wrote.lines()).NotTo(ContainElement(HavePrefix("POST /reviews/")), "a write went to the form route")
 
 	// The comment is still under its line after a reload.
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
-	g.Expect(b.eval(g, thread+`.querySelector(".comment p").textContent`)).To(Equal("Why two?"))
+	b.waitFor(g, thread+`?.querySelector(".comment p")?.textContent === "Why two?"`)
 
 	// Edit swaps the card for its form in the row, and Save stores the new
 	// body.
 	b.eval(g, thread+`.querySelector(".acts a").click()`)
 	b.waitFor(g, thread+`.querySelector("form.composer textarea") !== null`)
-	b.eval(g, `(() => { const f = `+thread+`.querySelector("form.composer textarea"); f.value = "Why two lines?"; f.dispatchEvent(new Event("input", { bubbles: true })); })()`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two lines?")
 	b.eval(g, thread+`.querySelector("form.composer button[type=submit]").click()`)
 	b.waitFor(g, thread+`.querySelector(".comment p")?.textContent === "Why two lines?"`)
 	g.Expect(f.comments(g, t, round)[0].Body).To(Equal("Why two lines?"))
+	g.Expect(wrote.lines()).To(ContainElement(HavePrefix("PUT /api/reviews/" + itoa(id) + "/comments/")))
 
 	// Delete removes it, the row goes with its last comment, and the tally
 	// follows.
@@ -89,24 +99,26 @@ func TestServer_Surface_browserActing(t *testing.T) {
 	b.waitFor(g, `!`+thread+`?.matches("tr.thread")`)
 	b.waitFor(g, `document.getElementById("tally").textContent === "No comments yet"`)
 	g.Expect(f.comments(g, t, round)).To(BeEmpty())
+	g.Expect(wrote.lines()).To(ContainElement(HavePrefix("DELETE /api/reviews/" + itoa(id) + "/comments/")))
 
 	// Cancel closes the composer and keeps nothing it held.
 	b.eval(g, line2+`.click()`)
 	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
 	b.typeInto(g, "tr.thread form.composer textarea", "Never mind")
-	b.eval(g, `document.querySelector("tr.thread form.composer [data-cancel]").click()`)
-	g.Expect(b.eval(g, `document.querySelectorAll("tr.thread").length`)).To(BeEquivalentTo(0))
+	b.waitFor(g, `!!document.getElementById("unsaved")`)
+	b.eval(g, `document.querySelector("tr.thread form.composer .btn.ghost").click()`)
+	b.waitFor(g, `document.querySelectorAll("tr.thread").length === 0`)
 	g.Expect(b.eval(g, `document.querySelectorAll("tr.sel").length`)).To(BeEquivalentTo(0))
-	g.Expect(b.eval(g, `document.getElementById("unsaved").hidden`)).To(BeTrue())
+	g.Expect(b.eval(g, `document.getElementById("unsaved")`)).To(BeNil())
 
 	// The chips move the same text to the file without a request, and the
-	// form then sends only what a file-level comment takes.
+	// comment is sent as a file's.
 	list := listID(store.LevelFile, "a.txt")
 	b.eval(g, `document.querySelector("details.file tr[data-line='1']").click()`)
 	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
 	b.typeInto(g, "tr.thread form.composer textarea", "About the whole file.")
-	b.eval(g, `document.querySelector("tr.thread form.composer .chip[data-level=file]").click()`)
-	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer input[name=start]").disabled`)).To(BeTrue())
+	b.eval(g, `[...document.querySelectorAll("tr.thread form.composer .chip")].find((c) => c.textContent === "File").click()`)
+	g.Expect(b.eval(g, `[...document.querySelectorAll("tr.thread form.composer .chip")].map((c) => c.getAttribute("aria-pressed")).join()`)).To(Equal("false,true,false"))
 	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
 	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment").length === 1`, list))
 	b.waitFor(g, `document.querySelectorAll("tr.thread").length === 0`)
@@ -114,14 +126,35 @@ func TestServer_Surface_browserActing(t *testing.T) {
 
 	// The header's link opens the file's own page without toggling the card.
 	b.eval(g, `document.querySelector("details.file .fileopen").click()`)
-	b.waitFor(g, `location.pathname === "/reviews/`+itoa(id)+`/files/a.txt" && document.readyState === "complete"`)
+	b.waitFor(g, `location.pathname === "/reviews/`+itoa(id)+`/files/a.txt"`)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
 
 	// The review's own box is always on an open round.
 	b.typeInto(g, ".page > form.composer textarea", "Overall fine.")
 	b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
 	b.waitFor(g, `document.querySelectorAll("#comments-review .comment").length === 1`)
 	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal(""))
+
+	// Text still being written is said in the bar.
+	b.typeInto(g, ".page > form.composer textarea", "Half a thought")
+	b.waitFor(g, `!!document.getElementById("unsaved")`)
+	b.typeInto(g, ".page > form.composer textarea", "")
+	b.waitFor(g, `!document.getElementById("unsaved")`)
+}
+
+// A verdict on the template page: text still being written holds it back, and
+// once the text is gone Approve records it and the page returns to the queue.
+// The review page's verdict is the template's until it moves to the app.
+func TestServer_Surface_browserActingVerdict(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	round := f.latestRound(g, t, id)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
 
 	// Text still being written holds the verdict back.
 	b.typeInto(g, ".page > form.composer textarea", "Half a thought")
@@ -383,6 +416,7 @@ func TestServer_Surface_browserCommentJump(t *testing.T) {
 func TestServer_Surface_browserDecidedTap(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	me := api.Caller{Dir: repo}
 	write(g, repo, "b.txt", "b\n")
@@ -401,6 +435,7 @@ func TestServer_Surface_browserDecidedTap(t *testing.T) {
 	// On an open round typing is kept, which is what the check below is
 	// measured against.
 	b.navigate(g, srv.URL+"/reviews/"+itoa(open)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file tr[data-line='1']")`)
 	b.eval(g, `document.querySelector("details.file tr[data-line='1']").click()`)
 	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
 	b.typeInto(g, "tr.thread form.composer textarea", "Kept")
@@ -409,7 +444,7 @@ func TestServer_Surface_browserDecidedTap(t *testing.T) {
 	f.decide(g, t, id, store.VerdictApprove, "")
 	nextMillisecond()
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
-	g.Expect(b.eval(g, `document.querySelector(".page").dataset.acting`)).To(Equal("late"))
+	b.waitFor(g, `document.querySelector("#root .page")?.dataset.acting === "late"`)
 	b.eval(g, line2+`.click()`)
 	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
 	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer").textContent`)).To(ContainSubstring("Sends immediately"))
@@ -420,7 +455,7 @@ func TestServer_Surface_browserDecidedTap(t *testing.T) {
 
 	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
 	thread := `document.getElementById("` + threadID("a.txt", 2) + `")`
-	b.waitFor(g, thread+`?.querySelectorAll(".comment").length === 1`)
+	b.waitFor(g, thread+`?.querySelectorAll(".comment:not(.unsent):not([data-sending])").length === 1`)
 	g.Expect(b.eval(g, thread+`.querySelector(".comment .anchor").textContent`)).To(ContainSubstring("after the verdict"))
 	g.Expect(b.eval(g, thread+`.querySelector(".comment .acts")`)).To(BeNil())
 	g.Expect(b.eval(g, drafts(id))).To(BeNil())
@@ -440,11 +475,13 @@ func TestServer_Surface_browserDecidedTap(t *testing.T) {
 	list := listID(store.LevelFile, "a.txt")
 	b.eval(g, `document.querySelector("details.file tr[data-line='1']").click()`)
 	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
-	b.eval(g, `document.querySelector("tr.thread form.composer .chip[data-level=file]").click()`)
+	b.eval(g, `[...document.querySelectorAll("tr.thread form.composer .chip")].find((c) => c.textContent === "File").click()`)
 	b.typeInto(g, "tr.thread form.composer textarea", "About the file.")
 	b.eval(g, `document.querySelector("tr.thread form.composer button[type=submit]").click()`)
-	// The file's list holds every comment on it, the line comment as well.
-	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment").length === 2`, list))
+	// The file's list holds the comments on the file. The line comment sits
+	// under its line, where a reload puts it, and not in the list as the
+	// template's answer left it.
+	b.waitFor(g, fmt.Sprintf(`document.querySelectorAll("#%s .comment:not(.unsent):not([data-sending])").length === 1`, list))
 	card := fmt.Sprintf(`[...document.querySelectorAll("#%s .comment")].find((c) => c.querySelector("p").textContent === "About the file.")`, list)
 	g.Expect(b.eval(g, card+`.querySelector(".anchor").textContent`)).To(ContainSubstring("after the verdict"))
 	g.Expect(b.eval(g, card+`.querySelector(".acts")`)).To(BeNil())
@@ -455,7 +492,7 @@ func TestServer_Surface_browserDecidedTap(t *testing.T) {
 	g.Expect(b.eval(g, binary+`.querySelector("form.composer").textContent`)).To(ContainSubstring("Sends immediately"))
 	b.typeInto(g, `details.file[data-path='blob.bin'] form.composer textarea`, "About the binary.")
 	b.eval(g, binary+`.querySelector("form.composer button[type=submit]").click()`)
-	b.waitFor(g, `document.querySelectorAll("#`+listID(store.LevelFile, "blob.bin")+` .comment").length === 1`)
+	b.waitFor(g, `document.querySelectorAll("#`+listID(store.LevelFile, "blob.bin")+` .comment:not(.unsent):not([data-sending])").length === 1`)
 	g.Expect(b.eval(g, `document.querySelector("#`+listID(store.LevelFile, "blob.bin")+` .comment .anchor").textContent`)).To(ContainSubstring("after the verdict"))
 
 	var onFile store.Comment
@@ -499,11 +536,230 @@ func TestServer_Surface_browserDocumentScrolls(t *testing.T) {
 	g.Expect(b.eval(g, `document.documentElement.style.getPropertyValue("--head-height") === document.querySelector(".head").getBoundingClientRect().height + "px"`)).To(BeTrue())
 }
 
+// What is typed is saved as it is typed, in the shape the template page saved
+// it, and is back after a reload: the review's box, the verdict's note, the open
+// composer where it was, and a comment's edit form. A draft the template page
+// saved is read, and one is cleared once its text is stored.
+func TestServer_Surface_browserDrafts(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	id := actingReview(g, t, f)
+	round := f.latestRound(g, t, id)
+	existing := f.addComment(g, t, store.NewComment{RoundID: round, Level: store.LevelReview, Body: "Existing."})
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	key := `localStorage.getItem("eyeball:drafts:` + itoa(id) + `:1")`
+
+	b.typeInto(g, ".page > form.composer textarea", "Half a review comment")
+	b.typeInto(g, "#bar textarea", "A note in progress")
+	b.eval(g, `document.querySelector("details.file tr[data-line='2']").click()`)
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "About line two")
+	b.eval(g, `document.querySelector("#comments-review .comment .acts a").click()`)
+	b.waitFor(g, `!!document.querySelector("#comments-review form.composer textarea")`)
+	b.typeInto(g, "#comments-review form.composer textarea", "Existing, edited.")
+
+	// The draft is the template's, key for key.
+	b.waitFor(g, `JSON.parse(`+key+`).value.edits !== undefined`)
+	g.Expect(b.eval(g, `JSON.stringify(JSON.parse(`+key+`).value)`)).To(MatchJSON(fmt.Sprintf(
+		`{"note": "A note in progress", "review": "Half a review comment", "anchored": {"query": {"level": "line", "path": "a.txt", "start": "2"}, "text": "About line two"}, "edits": {"%d": "Existing, edited."}}`,
+		existing.ID,
+	)))
+
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal("Half a review comment"))
+	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("A note in progress"))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("About line two"))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread").previousElementSibling.dataset.line`)).To(Equal("2"))
+	g.Expect(b.eval(g, `document.querySelector("#comments-review form.composer textarea").value`)).To(Equal("Existing, edited."))
+	g.Expect(b.eval(g, `!!document.getElementById("unsaved")`)).To(BeTrue(), "text kept is text not yet stored")
+
+	// A draft clears once its text is stored.
+	b.eval(g, `document.querySelector(".page > form.composer button[type=submit]").click()`)
+	b.waitFor(g, `document.querySelectorAll("#comments-review .comment:not([data-sending])").length === 1`)
+	b.eval(g, `document.querySelector("tr.thread form.composer .btn.ghost").click()`)
+	b.eval(g, `document.querySelector("#comments-review form.composer .btn.ghost").click()`)
+	b.typeInto(g, "#bar textarea", "")
+	b.waitFor(g, key+` === null`)
+
+	// A draft the template page saved is restored: the review's box, a card it
+	// could not send, and the composer on a line.
+	planted := fmt.Sprintf(`{"at": Date.now(), "value": {"review": "From the template page", "anchored": {"query": {"level": "line", "path": "a.txt", "start": "1"}, "text": "On line one"}, "unsent": [{"action": "/reviews/%d/comments", "target": "#comments-review", "where": "This review", "values": {"round": "1", "level": "review", "body": "Never sent", "submission": "kept-key"}}]}}`, id)
+	b.eval(g, `localStorage.setItem("eyeball:drafts:`+itoa(id)+`:1", JSON.stringify(`+planted+`))`)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal("From the template page"))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("On line one"))
+	g.Expect(b.eval(g, `document.querySelector("#comments-review .comment.unsent p").textContent`)).To(Equal("Never sent"))
+	b.eval(g, `document.querySelector("#comments-review .comment.unsent .acts a").click()`)
+	b.waitFor(g, `document.querySelectorAll("#comments-review .comment:not(.unsent):not([data-sending])").length === 3`)
+	var bodies []string
+	for _, c := range f.comments(g, t, round) {
+		bodies = append(bodies, c.Body)
+	}
+	g.Expect(bodies).To(ContainElement("Never sent"))
+
+	// An entry older than the memory's age is dropped as the app opens, and a
+	// recent one is kept.
+	b.eval(g, `localStorage.setItem("eyeball:drafts:77:1", JSON.stringify({ at: 1, value: { review: "Long ago" } }))`)
+	b.eval(g, `localStorage.setItem("eyeball:drafts:78:1", JSON.stringify({ at: Date.now(), value: { review: "Today" } }))`)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	g.Expect(b.eval(g, `localStorage.getItem("eyeball:drafts:77:1")`)).To(BeNil())
+	g.Expect(b.eval(g, `localStorage.getItem("eyeball:drafts:78:1") !== null`)).To(BeTrue())
+}
+
 // A comment that cannot be saved becomes an unsent card in its list, Retry
-// stores it once the server is back, Delete drops it, and the verdict waits
-// while any card remains. A verdict that cannot be sent says so in the bar and
-// keeps its note.
+// stores it once the server is back and says why when it fails again, and
+// Delete drops it. A comment the server refuses stays in its composer with the
+// server's sentence. An edit and a delete that fail say so beside their
+// control. A save made while the server is gone is kept in the draft, and a
+// retry after a reload sends the key it first had.
 func TestServer_Surface_browserFailedSave(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	id := actingReview(g, t, f)
+	round := f.latestRound(g, t, id)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	g.Expect(err).NotTo(HaveOccurred())
+	addr := ln.Addr().String()
+	inner := f.s.LoopbackSurface(browserToken)
+	// lose makes the next write reach the store and its answer never leave: the
+	// connection is closed with no response, as a lost signal would.
+	var lose atomic.Bool
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/") && lose.CompareAndSwap(true, false) {
+			inner.ServeHTTP(httptest.NewRecorder(), r)
+			panic(http.ErrAbortHandler)
+		}
+		inner.ServeHTTP(w, r)
+	})
+	serve := func(l net.Listener) *http.Server {
+		hs := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+		go func() { _ = hs.Serve(l) }()
+		return hs
+	}
+	hs := serve(ln)
+	t.Cleanup(func() { _ = hs.Close() })
+	restart := func() {
+		g.THelper()
+		ln, err := net.Listen("tcp", addr)
+		g.Expect(err).NotTo(HaveOccurred())
+		hs = serve(ln)
+		b := hs
+		t.Cleanup(func() { _ = b.Close() })
+	}
+	b := openBrowser(g, t)
+	b.navigate(g, "http://"+addr+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file")`)
+	tap := func(selector string) {
+		g.THelper()
+		b.eval(g, `document.querySelector(`+strconv.Quote(selector)+`).click()`)
+	}
+
+	// A comment the server refuses stays where it was typed, with its reason.
+	tap("details.file tr[data-line='2']")
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "   ")
+	tap("tr.thread form.composer button[type=submit]")
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer .failed")`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer .failed").textContent`)).To(Equal(emptyComment))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("   "))
+	g.Expect(b.eval(g, `document.querySelectorAll(".comment").length`)).To(BeEquivalentTo(0), "a refusal made no card")
+	g.Expect(f.comments(g, t, round)).To(BeEmpty())
+
+	// Two saves made while the server is gone become two cards.
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two?")
+	b.typeInto(g, ".page > form.composer textarea", "Overall fine.")
+	g.Expect(hs.Close()).To(Succeed())
+	tap("tr.thread form.composer button[type=submit]")
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 1`)
+	tap(".page > form.composer button[type=submit]")
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 2`)
+	g.Expect(b.eval(g, `!!document.querySelector("tr.thread form.composer")`)).To(BeFalse(), "the line's composer closed")
+	g.Expect(b.eval(g, `document.querySelector(".page > form.composer textarea").value`)).To(Equal(""))
+	g.Expect(b.eval(g, `!!document.getElementById("unsent")`)).To(BeTrue())
+	g.Expect(b.eval(g, `document.getElementById("unsent-count").textContent`)).To(Equal("2 comments"))
+	g.Expect(b.eval(g, `!!document.querySelector(".comment.unsent .failed")`)).To(BeFalse(), "a first failure leaves no line beside the card")
+
+	// The cards are kept as a draft, with the key they were first sent under.
+	key := `JSON.parse(localStorage.getItem("eyeball:drafts:` + itoa(id) + `:1")).value`
+	g.Expect(b.eval(g, key+`.unsent.length`)).To(BeEquivalentTo(2))
+	g.Expect(b.eval(g, key+`.unsent[0].action`)).To(Equal("/reviews/" + itoa(id) + "/comments"))
+	submission := b.eval(g, key+`.unsent[0].values.submission`)
+	g.Expect(submission).NotTo(BeEmpty())
+
+	// Retry while the server is still gone says so beside the card's actions.
+	tap("tr.thread .comment.unsent .acts a")
+	b.waitFor(g, `!!document.querySelector("tr.thread .comment.unsent .failed")`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread .comment.unsent .failed").textContent`)).To(Equal("Cannot reach eyeball."))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread .comment.unsent .acts").nextElementSibling.className`)).To(Equal("failed"))
+
+	// Back online, a reload keeps the cards and Retry stores the line's comment
+	// once, under the key it first had.
+	restart()
+	b.navigate(g, "http://"+addr+"/reviews/"+itoa(id))
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 2`)
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	tap("tr.thread .comment.unsent .acts a")
+	b.waitFor(g, `document.querySelectorAll("tr.thread .comment:not(.unsent):not([data-sending])").length === 1`)
+	stored := f.comments(g, t, round)
+	g.Expect(stored).To(HaveLen(1))
+	g.Expect(b.eval(g, `document.querySelectorAll(".comment.unsent").length`)).To(BeEquivalentTo(1))
+	g.Expect(b.eval(g, key+`.unsent.length`)).To(BeEquivalentTo(1), "a stored card leaves the draft")
+
+	// Delete drops the other card and sends nothing.
+	tap(".comment.unsent .acts a[role=button]:last-of-type")
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 0`)
+	g.Expect(b.eval(g, `!!document.getElementById("unsent")`)).To(BeFalse())
+	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
+
+	// An edit that fails says so in its form, and keeps its text.
+	tap("tr.thread .comment .acts a")
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer textarea")`)
+	b.typeInto(g, "tr.thread form.composer textarea", "Why two lines?")
+	g.Expect(hs.Close()).To(Succeed())
+	tap("tr.thread form.composer button[type=submit]")
+	b.waitFor(g, `!!document.querySelector("tr.thread form.composer .failed")`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer .failed").textContent`)).To(Equal("Cannot reach eyeball."))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("Why two lines?"))
+	g.Expect(f.comments(g, t, round)[0].Body).To(Equal("Why two?"))
+
+	// A delete that fails says so beside the comment's actions.
+	tap("tr.thread form.composer .btn.ghost")
+	b.waitFor(g, `!document.querySelector("tr.thread form.composer")`)
+	tap("tr.thread .comment .acts a:last-of-type")
+	b.waitFor(g, `!!document.querySelector("tr.thread .comment .failed")`)
+	g.Expect(b.eval(g, `document.querySelector("tr.thread .comment .acts").nextElementSibling.className`)).To(Equal("failed"))
+	g.Expect(f.comments(g, t, round)).To(HaveLen(1))
+
+	// A first try that reached the store and lost its answer is stored once: the
+	// card's retry sends the key the first try had.
+	restart()
+	b.waitFor(g, `document.getElementById("offline").hidden === true`)
+	b.typeInto(g, ".page > form.composer textarea", "Stored, never answered.")
+	lose.Store(true)
+	tap(".page > form.composer button[type=submit]")
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 1`)
+	g.Expect(f.comments(g, t, round)).To(HaveLen(2), "the first try reached the store")
+	tap(".comment.unsent .acts a")
+	b.waitFor(g, `document.querySelectorAll(".comment.unsent").length === 0`)
+	b.waitFor(g, `document.querySelectorAll("#comments-review .comment:not(.unsent):not([data-sending])").length === 1`)
+	g.Expect(f.comments(g, t, round)).To(HaveLen(2), "the retry stored the comment again")
+}
+
+// On the template page, a comment that cannot be saved becomes an unsent card
+// in its list, Retry stores it once the server is back, Delete drops it, and the
+// verdict waits while any card remains. A verdict that cannot be sent says so in
+// the bar and keeps its note. The app's half of this is browserFailedSave, and
+// the verdict's moves to the app with the verdict.
+func TestServer_Surface_browserFailedVerdict(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
 	id := actingReview(g, t, f)
@@ -648,6 +904,7 @@ func TestServer_Surface_browserFirstRun(t *testing.T) {
 func TestServer_Surface_browserFold(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "notes"))
 	write(g, repo, "a.txt", "one\n")
 	commitFile(g, repo, "doc.md", "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n")
@@ -657,6 +914,7 @@ func TestServer_Surface_browserFold(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.fold")`)
 
 	fold := `document.querySelector("details.fold")`
 	inside := fold + `.querySelector(".blk[data-lines='7-7']")`
@@ -671,6 +929,50 @@ func TestServer_Surface_browserFold(t *testing.T) {
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
 	b.waitFor(g, inside+`?.nextElementSibling?.querySelector("form.composer textarea")?.value === "Is C still true?"`)
 	g.Expect(b.eval(g, fold+`.open`)).To(BeTrue(), "the draft's passage is folded out of sight")
+}
+
+// A passage with a comment is kept out of every fold, which is the server's
+// rule, so a comment saved on a passage inside a fold moves it out once the
+// round is fetched again, with each fold's count right, and a delete puts it
+// back.
+func TestServer_Surface_browserFoldComment(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	f.s.reviewInApp = true
+	repo := gitRepo(g, filepath.Join(t.TempDir(), "notes"))
+	write(g, repo, "a.txt", "one\n")
+	commitFile(g, repo, "doc.md", "Old.\n\nA.\n\nB.\n\nC.\n\nD.\n")
+	write(g, repo, "doc.md", "New.\n\nA.\n\nB.\n\nC.\n\nD.\n")
+	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"doc.md"}, Note: "docs"}).Review.ID
+	srv := httptest.NewServer(f.s.LoopbackSurface(browserToken))
+	t.Cleanup(srv.Close)
+	b := openBrowser(g, t)
+	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.fold")`)
+
+	inFold := `document.querySelector("details.fold .blk[data-lines='7-7']")`
+	counted := `[...document.querySelectorAll("details.fold")].every((d) => d.querySelector("summary").textContent === d.querySelectorAll(":scope > .blk").length + " unchanged passages")`
+	g.Expect(b.eval(g, `!!`+inFold)).To(BeTrue())
+	g.Expect(b.eval(g, counted)).To(BeTrue())
+
+	b.eval(g, `document.querySelector("details.fold summary").click()`)
+	b.waitFor(g, `document.querySelector("details.fold").open`)
+	b.eval(g, inFold+`.click()`)
+	b.waitFor(g, `!!document.querySelector("div[id^='thread-'] form.composer textarea")`)
+	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Is C still true?")
+	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
+
+	// The passage is out of the fold with its comment, and no fold counts one it
+	// does not hold.
+	b.waitFor(g, `!`+inFold+` && !!document.querySelector(".prose > .blk[data-lines='7-7']")`)
+	b.waitFor(g, `document.querySelector(".prose > .blk[data-lines='7-7']").nextElementSibling?.querySelectorAll(".comment:not(.unsent):not([data-sending])").length === 1`)
+	g.Expect(b.eval(g, counted)).To(BeTrue(), "a fold counts passages it does not hold")
+
+	// A delete puts it back in its fold.
+	b.eval(g, `document.querySelector(".prose > .blk[data-lines='7-7']").nextElementSibling.querySelectorAll(".acts a")[1].click()`)
+	b.waitFor(g, `!!`+inFold)
+	g.Expect(b.eval(g, counted)).To(BeTrue())
+	g.Expect(f.comments(g, t, f.latestRound(g, t, id))).To(BeEmpty())
 }
 
 // The stylesheet's three faces and the eye load under the surface's own
@@ -798,13 +1100,14 @@ func TestServer_Surface_browserJump(t *testing.T) {
 func TestServer_Surface_browserPassages(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	repo := filepath.Join(t.TempDir(), "notes")
 	g.Expect(os.MkdirAll(repo, 0o700)).To(Succeed())
 	git(g, repo, "init", "--quiet", "--template=", "-b", "main")
 	write(g, repo, "doc.md", "Old paragraph.\n\nKept.\n")
 	git(g, repo, "add", "-A")
 	git(g, repo, "update-ref", "refs/heads/main", git(g, repo, "commit-tree", git(g, repo, "write-tree"), "-m", "base"))
-	write(g, repo, "doc.md", "New paragraph.\n\nKept.\n")
+	write(g, repo, "doc.md", "New paragraph.\n\nKept.\n\nSee [the top](#top).\n")
 	write(g, repo, "new.md", "# Fresh\n\nA new document.\n")
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"doc.md"}, Note: "docs"}).Review.ID
 	fresh := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"new.md"}, Note: "new"}).Review.ID
@@ -812,6 +1115,7 @@ func TestServer_Surface_browserPassages(t *testing.T) {
 	t.Cleanup(srv.Close)
 	b := openBrowser(g, t)
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root div.blk.changed")`)
 
 	// A tap on a changed passage selects it, a tap on one of its marked
 	// words included.
@@ -820,7 +1124,17 @@ func TestServer_Surface_browserPassages(t *testing.T) {
 	b.eval(g, changed+`.querySelector("ins").click()`)
 	b.waitFor(g, changed+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
 	g.Expect(b.eval(g, changed+`.classList.contains("sel")`)).To(BeTrue())
-	b.eval(g, changed+`.nextElementSibling.querySelector("[data-cancel]").click()`)
+	b.eval(g, changed+`.nextElementSibling.querySelector(".btn.ghost").click()`)
+	b.waitFor(g, `!document.querySelector("div[id^='thread-'] form.composer") && !`+changed+`.classList.contains("sel")`)
+
+	// A tap on a link in a passage opens no composer. The click is kept from
+	// following so the page stays to be read.
+	link := `document.querySelector("div.blk[data-lines='5-5'] a")`
+	b.eval(g, link+`.addEventListener("click", (e) => e.preventDefault())`)
+	b.eval(g, link+`.click()`)
+	time.Sleep(300 * time.Millisecond)
+	g.Expect(b.eval(g, `document.querySelectorAll("tr.thread, div[id^='thread-']").length`)).To(BeEquivalentTo(0), "a tap on a link opened a composer")
+	g.Expect(b.eval(g, link+`.getAttribute("href")`)).To(Equal("/reviews/"+itoa(id)+"/files/doc.md#top"), "the link goes to the document's own page")
 
 	// A comment on a kept passage lands under it, and stays there.
 	kept := `document.querySelector("div.blk[data-lines='3-3']")`
@@ -828,24 +1142,25 @@ func TestServer_Surface_browserPassages(t *testing.T) {
 	b.waitFor(g, kept+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
 	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Why keep this?")
 	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
-	b.waitFor(g, kept+`.nextElementSibling?.querySelectorAll(".comment").length === 1`)
 	b.waitFor(g, `!document.querySelector("div[id^='thread-'] form.composer")`)
+	b.waitFor(g, kept+`.nextElementSibling?.querySelectorAll(".comment:not(.unsent):not([data-sending])").length === 1`)
 	comments := f.comments(g, t, f.latestRound(g, t, id))
 	g.Expect(comments).To(HaveLen(1))
 	g.Expect(comments[0].Level).To(Equal(store.LevelPassage))
 	g.Expect([]int{comments[0].StartLine, comments[0].EndLine}).To(Equal([]int{3, 3}))
 	g.Expect(comments[0].Quoted).To(Equal("Kept."))
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id))
-	g.Expect(b.eval(g, kept+`.nextElementSibling.querySelector(".comment p").textContent`)).To(Equal("Why keep this?"))
+	b.waitFor(g, kept+`?.nextElementSibling?.querySelector(".comment p")?.textContent === "Why keep this?"`)
 
 	// The single new document takes one the same way.
 	b.navigate(g, srv.URL+"/reviews/"+itoa(fresh))
+	b.waitFor(g, `!!document.querySelector("#root .page > .prose")`)
 	block := `document.querySelector(".page > .prose .blk[data-lines='3-3']")`
 	b.eval(g, block+`.click()`)
 	b.waitFor(g, block+`.nextElementSibling?.querySelector("form.composer textarea") != null`)
 	b.typeInto(g, "div[id^='thread-'] form.composer textarea", "Say more.")
 	b.eval(g, `document.querySelector("div[id^='thread-'] form.composer button[type=submit]").click()`)
-	b.waitFor(g, block+`.nextElementSibling?.querySelectorAll(".comment").length === 1`)
+	b.waitFor(g, block+`.nextElementSibling?.querySelectorAll(".comment:not(.unsent):not([data-sending])").length === 1`)
 	g.Expect(f.comments(g, t, f.latestRound(g, t, fresh))[0].Quoted).To(Equal("A new document."))
 }
 
@@ -1069,6 +1384,7 @@ func TestServer_Surface_browserRemembers(t *testing.T) {
 func TestServer_Surface_browserRenderedCard(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
+	f.s.reviewInApp = true
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	write(g, repo, "icon.png", pngOf(g, 2, 2))
 	write(g, repo, "data.zip", "PK\x03\x04")
@@ -1079,6 +1395,7 @@ func TestServer_Surface_browserRenderedCard(t *testing.T) {
 	round := f.latestRound(g, t, id)
 
 	b.navigate(g, srv.URL+"/reviews/"+itoa(id)+"#token="+browserToken)
+	b.waitFor(g, `!!document.querySelector("#root details.file[data-path='icon.png'] .rendered img")`)
 	b.eval(g, `document.querySelector("details.file[data-path='icon.png'] .rendered img").click()`)
 	b.waitFor(g, `!!document.querySelector("details.file[data-path='icon.png'] form.composer textarea")`)
 	b.typeInto(g, "details.file[data-path='icon.png'] form.composer textarea", "Too dark.")
@@ -1827,5 +2144,7 @@ func (b *browser) typeInto(g *WithT, selector, text string) {
 	g.THelper()
 	quoted, err := json.Marshal(text)
 	g.Expect(err).NotTo(HaveOccurred())
-	b.eval(g, fmt.Sprintf(`(() => { const f = document.querySelector(%q); f.value = %s; f.dispatchEvent(new Event("input", { bubbles: true })); })()`, selector, quoted))
+	// The element's own setter, since React keeps the value it last saw and a
+	// field set the plain way reads as unchanged, so its input event is dropped.
+	b.eval(g, fmt.Sprintf(`(() => { const f = document.querySelector(%q); Object.getOwnPropertyDescriptor(f.constructor.prototype, "value").set.call(f, %s); f.dispatchEvent(new Event("input", { bubbles: true })); })()`, selector, quoted))
 }

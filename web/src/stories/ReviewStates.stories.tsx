@@ -203,7 +203,7 @@ export const ComposerOnDecidedRound: Story = {
 export const EditingAComment: Story = {
   args: {
     review: reviewCode,
-    ui: { editing: "5" },
+    ui: { editing: ["5"] },
   },
   play: async ({ canvasElement }) => {
     await expect(
@@ -211,6 +211,100 @@ export const EditingAComment: Story = {
         "tr.thread form.composer #comment-5, tr.thread form#comment-5",
       ),
     ).not.toBeNull();
+  },
+};
+
+/**
+ * A comment the server refused stays in its composer with the server's
+ * sentence at the foot of the form, and what was typed is still there.
+ */
+export const ComposerFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      composer: { level: "line", path: "internal/upload/worker.go", line: 12 },
+      composerText: "   ",
+      failures: { composer: "A comment needs some text." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const composer = pick(canvasElement, "tr.thread .composer");
+    await expect(within(composer).getByRole("alert")).toHaveTextContent(
+      "A comment needs some text.",
+    );
+    await expect(composer.querySelector("textarea")).toHaveValue("   ");
+  },
+};
+
+/** A save that reached no server says so in the edit form, which keeps its text. */
+export const EditFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      editing: ["5"],
+      editText: { "5": "A sharper note." },
+      failures: { "edit:5": "Cannot reach eyeball." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const form = pick(canvasElement, "form#comment-5");
+    await expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Cannot reach eyeball.",
+    );
+    await expect(form.querySelector("textarea")).toHaveValue("A sharper note.");
+  },
+};
+
+/** A delete that got no answer in time says so after the comment's actions. */
+export const CommentActionsFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      failures: {
+        "comment:5":
+          "eyeball did not answer in time. Nothing is known to have been sent.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(canvasElement, "#comment-5");
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "eyeball did not answer in time. Nothing is known to have been sent.",
+    );
+    await expect(
+      within(card).getByRole("link", { name: "Delete" }),
+    ).toBeVisible();
+  },
+};
+
+/** A retry that failed again says so beside the card's Retry and Delete. */
+export const UnsentFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      pending: [
+        {
+          at: { level: "line", path: "internal/upload/worker.go", line: 22 },
+          comment: pending(
+            3,
+            "internal/upload/worker.go:22",
+            "This second send ignores the context.",
+          ),
+          state: "unsent",
+        },
+      ],
+      failures: { "comment:pending-3": "Cannot reach eyeball." },
+    },
+    bar: { unsent: 1 },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(canvasElement, ".comment.unsent");
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "Cannot reach eyeball.",
+    );
+    await expect(
+      within(card).getByRole("button", { name: "Retry now" }),
+    ).toBeVisible();
   },
 };
 

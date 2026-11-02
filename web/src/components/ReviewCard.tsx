@@ -4,13 +4,13 @@ import { AppLink } from "./AppLink";
 import { CodeTable } from "./CodeTable";
 import { CommentGroup, CommentItems, ThreadRow } from "./CommentList";
 import { Composer } from "./Composer";
-import { composerId, sameAnchor, type ComposerAt } from "./composer";
+import { composerId, sameAnchor, type ComposerAt } from "./composerAt";
 import { Counts } from "./Counts";
 import { DocumentBody } from "./DocumentBody";
 import { Icon } from "./Icon";
 import { ModeLine } from "./ModeLine";
 import { RenderedFile } from "./RenderedFile";
-import { pendingAt, useReviewUi } from "./reviewUi";
+import { composerProps, pendingAt, useReviewUi } from "./reviewUi";
 
 interface ReviewCardProps {
   readonly card: Card;
@@ -30,7 +30,7 @@ interface ReviewCardProps {
 export function ReviewCard({ card, fetched }: ReviewCardProps) {
   const body = card.body ?? fetched;
   return (
-    <details className="file" id={card.id} open>
+    <details className="file" id={card.id} data-path={card.path} open>
       <summary>
         <span className="path">
           <bdi>{card.path}</bdi>
@@ -134,15 +134,7 @@ export function CardBodyView({ card, body }: BodyProps) {
         <CommentGroup id={body.list_id} comments={body.comments} at={fileAt} />
       )}
       {body.slot === "" ? null : slotOpen ? (
-        <Composer
-          at={fileAt}
-          id={body.slot}
-          late={ui.late}
-          onSubmit={(text) => {
-            ui.onSubmit?.(fileAt, text);
-          }}
-          onCancel={ui.onClose}
-        />
+        <Composer {...composerProps(ui, fileAt)} id={body.slot} />
       ) : (
         <div id={body.slot} />
       )}
@@ -176,9 +168,21 @@ function FileBody({ card, body }: BodyProps) {
 /** A card's document, with the comments on a passage under it. */
 export function CardDocument({ card, body }: BodyProps) {
   const ui = useReviewUi();
+  const open = ui.composer;
   return (
     <DocumentBody
       passages={body.passages ?? []}
+      path={card.path}
+      selected={(passage) =>
+        open !== undefined &&
+        passage.first > 0 &&
+        sameAnchor(open, {
+          level: "passage",
+          path: card.path,
+          first: passage.first,
+          last: passage.last,
+        })
+      }
       renderAfter={(passage) => {
         if (passage.first === 0 || body.list_id === "") {
           return null;
@@ -194,20 +198,9 @@ export function CardDocument({ card, body }: BodyProps) {
           <CommentItems comments={passage.thread?.comments ?? null} at={at} />
         );
         if (ui.composer !== undefined && sameAnchor(ui.composer, at)) {
-          return (
-            <Composer
-              at={at}
-              id={id}
-              late={ui.late}
-              cards={cards}
-              onSubmit={(text) => {
-                ui.onSubmit?.(at, text);
-              }}
-              onCancel={ui.onClose}
-            />
-          );
+          return <Composer {...composerProps(ui, at)} id={id} cards={cards} />;
         }
-        return passage.thread === null &&
+        return (passage.thread?.comments?.length ?? 0) === 0 &&
           pendingAt(ui, at).length === 0 ? null : (
           <CommentGroup
             id={id}
@@ -218,6 +211,13 @@ export function CardDocument({ card, body }: BodyProps) {
       }}
     />
   );
+}
+
+/** The anchor a tap on a row of code opens a composer at. */
+function rowAt(path: string, row: CodeRow): ComposerAt {
+  return row.kind === "del"
+    ? { level: "file", path, oldLine: row.number }
+    : { level: "line", path, line: row.number };
 }
 
 /** A card's rows of code, with a thread under a line that has comments. */
@@ -239,15 +239,7 @@ function CardRows({ card, body }: BodyProps) {
         oldLine: row.number,
       };
       return open !== undefined && sameAnchor(open, at) ? (
-        <Composer
-          at={at}
-          id={composerId(at, card.id)}
-          late={ui.late}
-          onSubmit={(text) => {
-            ui.onSubmit?.(at, text);
-          }}
-          onCancel={ui.onClose}
-        />
+        <Composer {...composerProps(ui, at)} id={composerId(at, card.id)} />
       ) : null;
     }
     const at: ComposerAt = { level: "line", path: card.path, line: row.number };
@@ -256,18 +248,18 @@ function CardRows({ card, body }: BodyProps) {
     if (open !== undefined && sameAnchor(open, at)) {
       return (
         <Composer
-          at={at}
+          {...composerProps(ui, at)}
           id={thread?.id ?? composerId(at, card.id)}
-          late={ui.late}
           cards={cards}
-          onSubmit={(text) => {
-            ui.onSubmit?.(at, text);
-          }}
-          onCancel={ui.onClose}
         />
       );
     }
-    if (thread === undefined && pendingAt(ui, at).length === 0) {
+    // A line left with no comment carries no row, as the template's script
+    // dropped the empty one.
+    if (
+      (thread?.comments?.length ?? 0) === 0 &&
+      pendingAt(ui, at).length === 0
+    ) {
       return null;
     }
     return (
@@ -278,5 +270,12 @@ function CardRows({ card, body }: BodyProps) {
       />
     );
   };
-  return <CodeTable rows={body.rows ?? []} under={under} />;
+  const selected = (row: CodeRow): boolean => {
+    const open = ui.composer;
+    if (open === undefined || !acting || row.kind === "hunk") {
+      return false;
+    }
+    return sameAnchor(open, rowAt(card.path, row));
+  };
+  return <CodeTable rows={body.rows ?? []} under={under} selected={selected} />;
 }

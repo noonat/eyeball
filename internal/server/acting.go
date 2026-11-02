@@ -345,6 +345,9 @@ func (s *Server) handleEditComment(w http.ResponseWriter, r *http.Request) error
 // changeComment replaces a comment's body. A comment that is gone is the
 // store's not-found, which the caller already ruled out by resolving the id.
 func (s *Server) changeComment(ctx context.Context, id int64, body string) (*rejection, error) {
+	if id == 0 {
+		return &rejection{status: http.StatusNotFound, text: noComment}, nil
+	}
 	if strings.TrimSpace(body) == "" {
 		return &rejection{status: http.StatusBadRequest, text: emptyComment}, nil
 	}

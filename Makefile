@@ -9,13 +9,13 @@ GOFILES = $(shell git ls-files --cached --others --exclude-standard '*.go' \
 
 # The same, for what oxfmt formats. HTML is excluded, and so are web/vendor/ and
 # web/deps/, whose files must stay byte for byte the release they name, and
-# web/src/fixtures/scenes.ts, web/src/fixtures/_raw/ and the review views,
+# web/src/fixtures/scenes.ts, web/src/fixtures/composers.ts, web/src/fixtures/_raw/ and the review views,
 # which tool/fixtures writes and make api-check compares byte for byte. A view
 # with a short array, a note of one paragraph, is written as the server sends
 # it and oxfmt would put that array on one line. See docs/conventions.md.
 FMTFILES = $(shell git ls-files --cached --others --exclude-standard \
 	'*.md' '*.css' '*.json' '*.ts' '*.tsx' | grep -v -e '^web/vendor/' -e '^web/deps/' \
-	| grep -v -e '^web/package-lock.json$$' -e '^web/src/fixtures/scenes.ts$$' -e '^web/src/fixtures/_raw/' \
+	| grep -v -e '^web/package-lock.json$$' -e '^web/src/fixtures/scenes.ts$$' -e '^web/src/fixtures/composers.ts$$' -e '^web/src/fixtures/_raw/' \
 	| grep -v -e '^web/src/fixtures/review-.*\.json$$')
 
 # The JavaScript tools are pinned once, in web/package.json and its lockfile,

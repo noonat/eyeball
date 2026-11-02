@@ -1,26 +1,34 @@
 import type { Comment } from "../api/types";
 import { CommentCard } from "./CommentCard";
 import { CommentEdit } from "./CommentEdit";
-import type { ComposerAt } from "./composer";
+import type { ComposerAt } from "./composerAt";
 import { pendingAt, useReviewUi } from "./reviewUi";
 
 /** One stored comment, as a card or as its edit form, by what the page is doing. */
 export function CommentItem({ comment }: { readonly comment: Comment }) {
   const ui = useReviewUi();
-  if (ui.editing === comment.id) {
+  if (ui.editing?.includes(comment.id) === true) {
     return (
       <CommentEdit
         comment={comment}
+        text={ui.editText?.[comment.id]}
+        failure={ui.failures?.[`edit:${comment.id}`]}
+        onText={(text) => {
+          ui.onEditText?.(comment.id, text);
+        }}
         onSave={(body) => {
           ui.onSave?.(comment.id, body);
         }}
-        onCancel={ui.onCancelEdit}
+        onCancel={() => {
+          ui.onCancelEdit?.(comment.id);
+        }}
       />
     );
   }
   return (
     <CommentCard
       comment={comment}
+      failure={ui.failures?.[`comment:${comment.id}`]}
       onEdit={() => {
         ui.onEdit?.(comment.id);
       }}
@@ -56,6 +64,7 @@ export function CommentItems({ comments, at }: CommentItemsProps) {
           key={p.comment.id}
           comment={p.comment}
           state={p.state}
+          failure={ui.failures?.[`comment:${p.comment.id}`]}
           onRetry={() => {
             ui.onRetry?.(p.comment.id);
           }}

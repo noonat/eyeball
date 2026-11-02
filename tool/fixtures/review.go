@@ -76,7 +76,7 @@ var reviewWrites = []writeState{
 	{file: "review-composer-removed", world: "review", method: "GET", address: composerAt("upload", "level=file&round=1&path=internal/upload/worker.go&oldline=13")},
 	{file: "review-composer-passage", world: "review", method: "GET", address: composerAt("product", "level=passage&round=2&path=docs/product.md&start=9&end=9")},
 	{file: "review-composer-passage-commented", world: "review", method: "GET", address: composerAt("product", "level=passage&round=2&path=docs/product.md&start=7&end=7")},
-	{file: "review-composer-whole", world: "review", method: "GET", address: composerAt("product", "level=file&round=2&path=docs/product.md&against=base")},
+	{file: "review-composer-removed-base", world: "review", method: "GET", address: composerAt("upload", "level=file&round=1&path=internal/upload/worker.go&oldline=13&against=base")},
 	{file: "review-composer-late", world: "review", method: "GET", address: composerAt("approved", "level=file&round=1&path=internal/approved/limit.go")},
 	{file: "review-composer-late-review", world: "review", method: "GET", address: composerAt("approved", "level=review&round=1")},
 	{file: "review-composer-bad", world: "review", method: "GET", address: composerAt("upload", "level=line&round=1&path=internal/upload/worker.go")},
