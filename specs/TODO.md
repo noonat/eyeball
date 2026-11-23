@@ -18,18 +18,24 @@ The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec. [032](done/032-react-review.md).
 
-- [ ] tooling: removing htmx, the templates and any static tearouts left, and
-      moving the tearout checks to the rendered stories. Iteration 6 of spec 032
-      left these for it: the `htmx` declaration in `web/ts/globals.d.ts`, the
-      htmx branch of `refuseWithoutToken` in `internal/server/surface.go` with
-      the test that sends `HX-Request`, `render.Join`'s `after` hook, which only
-      the render tests still use, and the `/static/htmx.js` route.
+- [ ] tooling: htmx, the error page and the template bundle go, and a failure
+      answers a page load with the app's error screen. Spec
+      [033](033-htmx-goes.md).
+- [ ] tooling: the markup checks in `internal/convention` move from the static
+      sheets to the rendered stories, then the sheets in `docs/design/` are
+      deleted, `shell.css` joins the bundled stylesheet, and the frozen
+      `web/src/fixtures/review-*.html` markup is kept or dropped with its
+      comparisons. `foundations.html` waits for an ack, since no spec records
+      its stories judged on the phone against it.
 - [ ] tooling: a tapped notification opens the review it names. Spec
       [026](026-tap-opens-the-review.md) is blocked. The fault was seen again on
       2026-10-31 with no beacon at all, so its next step is a beacon sent first
       thing in the click handler.
 
 ## Unscheduled
+
+- [ ] tooling: a built binary, `seed`, is committed at the repository's root,
+      added by 20b2e68. Nothing reads it, and `git grep` matches inside it.
 
 - [ ] daemon: a next round whose first round's base commit no longer exists
       answers 500, and the agent reads "the daemon failed to answer". Seen on
