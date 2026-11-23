@@ -16,12 +16,8 @@ requirement in either document that none of them names is a gap in this list.
 
 The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
-client code. Each item is a spec.
+client code. Each item is a spec. [032](done/032-react-review.md).
 
-- [ ] product: the review page in React: the route, the writes, the deferred
-      bodies, the reader's place, the stream and the browser tests, removing the
-      review templates, and a long review measured on the phone. Spec
-      [032](032-react-review.md).
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
       moving the tearout checks to the rendered stories. Iteration 6 of spec 032
       left these for it: the `htmx` declaration in `web/ts/globals.d.ts`, the
@@ -321,16 +317,16 @@ client code. Each item is a spec.
       `AddComment` in `internal/store/comments.go` looks the key up across every
       review, where it should look within the round it is stored on. The app
       draws a fresh key for each comment, so the way to reach it is a client
-      that reuses one. It predates spec [032](032-react-review.md), which kept
-      the lookup as it was.
+      that reuses one. It predates spec [032](done/032-react-review.md), which
+      kept the lookup as it was.
 
 - [ ] product: the review screen is keyed by the address it draws, so a move
       between `/reviews/N` and `/reviews/N/rounds/R` for the same round draws it
       again, and a comment still sending at that moment leaves its outbox with
       the old screen. If the send then fails, its text is lost, since only
       unsent comments are saved in the draft. Found by the end-of-branch review
-      of spec [032](032-react-review.md), not probed, and no known link makes
-      that move during a send.
+      of spec [032](done/032-react-review.md), not probed, and no known link
+      makes that move during a send.
 
 ## Open questions
 

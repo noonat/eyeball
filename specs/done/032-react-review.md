@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -9,11 +9,11 @@ required_commands:
 # 032 The review page in React
 
 The review page becomes a screen the React app draws, from the views and
-components spec [031](done/031-react-review-views.md) built and the owner
-approved. Its writes move under `/api` as JSON, a long review's bodies arrive as
-their cards near view, the reader's place and drafts carry over, the stream
-refetches what it names, and the review templates go. The design is in
-[docs/architecture.md](../docs/architecture.md) under The surface, The client
+components spec [031](031-react-review-views.md) built and the owner approved.
+Its writes move under `/api` as JSON, a long review's bodies arrive as their
+cards near view, the reader's place and drafts carry over, the stream refetches
+what it names, and the review templates go. The design is in
+[docs/architecture.md](../../docs/architecture.md) under The surface, The client
 code and Client state, which this spec's first commit extends. The screens are
 the approved sheets, so nothing here is redesigned.
 
@@ -1024,17 +1024,17 @@ required_acks:
 Worked by the orchestrator, with the daemon running this branch's build. Each
 result is written here as it arrives.
 
-- [ ] A review of each kind matches the approved sheets, and the failed line in
+- [x] A review of each kind matches the approved sheets, and the failed line in
       each control looks right.
-- [ ] A comment on a line, a passage, a file and the review is added, edited and
+- [x] A comment on a line, a passage, a file and the review is added, edited and
       deleted, a draft survives closing the app, and a verdict blinks the queue.
-- [ ] A long review opens where it was left, bodies arriving above the reader
+- [x] A long review opens where it was left, bodies arriving above the reader
       move nothing, and a jump from the list of files lands on its card.
-- [ ] The keyboard fix and the bar after a resume behave as before, and a tap on
+- [x] The keyboard fix and the bar after a resume behave as before, and a tap on
       a row of a decided round opens its composer.
-- [ ] A review opened at the top of the page, with the letter's font arriving,
+- [x] A review opened at the top of the page, with the letter's font arriving,
       moves nothing on the phone.
-- [ ] The first draw and a fling on a long review are measured as the probe
+- [x] The first draw and a fling on a long review are measured as the probe
       measured them, and recorded beside the probe's numbers.
 
 Results, from the owner's phone on 2026-11-01, against the build of 99c4ea4. Two
@@ -1099,3 +1099,10 @@ reviews were opened in a rebuilt repository in its place, 232 and 233.
   already in the page, and the meter's figure includes the time after the view's
   bytes arrive, which covers parsing it and laying out the first screen as well.
   How the 1.3 s and 0.9 s divide between those was not measured.
+
+> **Completed** 2026-11-23 02:10 UTC
+>
+> - acks: phone-checked
+> - `make check` — 21.5s
+> - `go test -race ./...` — 93.1s
+> - `go test -count=1 -tags browser ./internal/server` — 125.7s
