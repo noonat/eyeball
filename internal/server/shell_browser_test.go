@@ -50,7 +50,7 @@ func (b *browser) kept(g *WithT, base, token string) {
 	b.waitFor(g, `caches.keys().then(k => k.join() === "shell-`+token+`")`)
 }
 
-// A launch with the daemon stopped draws the connecting state, from the
+// A launch with the daemon stopped draws the loading state, from the
 // worker's cache: an eye and one line, with no bar and no notices. Once the
 // daemon is back the page draws the queue with no reload: the stream's stamp
 // differs from the empty one the page holds, so the view is fetched.
@@ -67,7 +67,7 @@ func TestServer_Surface_browserShellOffline(t *testing.T) {
 	g.Expect(hs.Close()).To(Succeed())
 	b.navigate(g, base+"/")
 	b.waitFor(g, `!!document.querySelector("#root .connecting")`)
-	g.Expect(b.eval(g, `document.querySelector(".connecting p").textContent`)).To(Equal("Eyeball is connecting\u2026"))
+	g.Expect(b.eval(g, `document.querySelector(".connecting p").textContent`)).To(Equal("Eyeball is loading\u2026"))
 	g.Expect(b.eval(g, `document.querySelector(".connecting .iris").textContent`)).To(Equal("0"))
 	g.Expect(b.eval(g, `!!document.querySelector(".connecting .eye.splash .iris")`)).To(BeTrue())
 	g.Expect(b.eval(g, `document.querySelectorAll(".head, .topbar, .wordmark, #offline, #update, a.row, .empty").length`)).To(BeEquivalentTo(0))

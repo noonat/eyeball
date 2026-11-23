@@ -20,7 +20,7 @@ function between(low: number, high: number): number {
  * the screen, blinking now and then, and one line saying what is happening. It
  * has no bar and no notices. A phone cannot tell a daemon that is down from one
  * that is slow, since a tailnet node that is offline drops packets and nothing
- * refuses the connection, so "connecting" is the one thing true of both.
+ * refuses the connection, so the line says "loading", which is true of both.
  *
  * With the device asking for no motion the eye stays open.
  */
@@ -67,7 +67,7 @@ export function QueueLoading() {
   return (
     <div className="connecting" role="status">
       <Eye waiting={0} splash lid={lid} onBlinkEnd={settle} />
-      <p>Eyeball is connecting…</p>
+      <p>Eyeball is loading…</p>
     </div>
   );
 }

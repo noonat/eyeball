@@ -18,7 +18,7 @@ import (
 // The sentences a write answers with. Each is shown beside the control that
 // made the request, so it says what happened in the reviewer's terms.
 const (
-	failedWrite     = "eyeball could not do that. The daemon's log says why."
+	failedWrite     = "Eyeball could not do that. The daemon's log says why."
 	noRound         = "That round is not part of this review."
 	noComment       = "That comment is not part of this review."
 	noReview        = "There is no such review."

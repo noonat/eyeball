@@ -57,7 +57,7 @@ func (s *Server) refuseOtherBuild(w http.ResponseWriter, r *http.Request) bool {
 	if want == "" || want == s.buildToken() {
 		return false
 	}
-	plain(w, http.StatusConflict, "This eyeball is another build than the one asked for.")
+	plain(w, http.StatusConflict, "This Eyeball is another build than the one asked for.")
 	return true
 }
 

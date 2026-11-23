@@ -11,10 +11,10 @@ import type {
 
 // The three sentences for an answer that carries none of its own, which are the
 // template page's.
-const noAnswer = "Cannot reach eyeball.";
-const anError = "eyeball could not do that.";
+const noAnswer = "Cannot reach Eyeball.";
+const anError = "Eyeball could not do that.";
 const tooSlow =
-  "eyeball did not answer in time. Nothing is known to have been sent.";
+  "Eyeball did not answer in time. Nothing is known to have been sent.";
 
 // How long a write has to answer. The template page's htmx waited ten seconds.
 const timeout = 10_000;

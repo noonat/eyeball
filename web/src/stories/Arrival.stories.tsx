@@ -40,7 +40,7 @@ export const Loading: Story = {
     await expect(canvasElement.querySelector(".topbar .eye")).toBeNull();
     await expect(canvasElement.querySelector(".topbar .back")).toBeNull();
     await expect(canvas.getByRole("status")).toHaveTextContent(
-      "Eyeball is connecting",
+      "Eyeball is loading",
     );
   },
 };

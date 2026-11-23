@@ -245,13 +245,13 @@ export const EditFailed: Story = {
     ui: {
       editing: ["5"],
       editText: { "5": "A sharper note." },
-      failures: { "edit:5": "Cannot reach eyeball." },
+      failures: { "edit:5": "Cannot reach Eyeball." },
     },
   },
   play: async ({ canvasElement }) => {
     const form = pick(canvasElement, "form#comment-5");
     await expect(within(form).getByRole("alert")).toHaveTextContent(
-      "Cannot reach eyeball.",
+      "Cannot reach Eyeball.",
     );
     await expect(form.querySelector("textarea")).toHaveValue("A sharper note.");
   },
@@ -264,14 +264,14 @@ export const CommentActionsFailed: Story = {
     ui: {
       failures: {
         "comment:5":
-          "eyeball did not answer in time. Nothing is known to have been sent.",
+          "Eyeball did not answer in time. Nothing is known to have been sent.",
       },
     },
   },
   play: async ({ canvasElement }) => {
     const card = pick(canvasElement, "#comment-5");
     await expect(within(card).getByRole("alert")).toHaveTextContent(
-      "eyeball did not answer in time. Nothing is known to have been sent.",
+      "Eyeball did not answer in time. Nothing is known to have been sent.",
     );
     await expect(
       within(card).getByRole("link", { name: "Delete" }),
@@ -288,7 +288,7 @@ export const BodyFailed: Story = {
     review: reviewDeferred,
     ui: {
       onLoad: () => undefined,
-      failures: { "card:internal/deferred/big.go": "Cannot reach eyeball." },
+      failures: { "card:internal/deferred/big.go": "Cannot reach Eyeball." },
     },
   },
   play: async ({ canvasElement }) => {
@@ -297,7 +297,7 @@ export const BodyFailed: Story = {
       "details[data-path='internal/deferred/big.go']",
     );
     await expect(within(card).getByRole("alert")).toHaveTextContent(
-      "Cannot reach eyeball. Retry",
+      "Cannot reach Eyeball. Retry",
     );
     await expect(
       within(card).getByRole("button", { name: "Retry" }),
@@ -312,13 +312,13 @@ export const LoadFailed: Story = {
     review: reviewHeld,
     ui: {
       onLoad: () => undefined,
-      failures: { "card:internal/held/gen.go": "eyeball could not do that." },
+      failures: { "card:internal/held/gen.go": "Eyeball could not do that." },
     },
   },
   play: async ({ canvasElement }) => {
     const card = pick(canvasElement, ".filefacts");
     await expect(within(card).getByRole("alert")).toHaveTextContent(
-      "eyeball could not do that. Retry",
+      "Eyeball could not do that. Retry",
     );
     await expect(
       within(card).getByRole("link", { name: "Load anyway" }),
@@ -345,14 +345,14 @@ export const UnsentFailed: Story = {
           state: "unsent",
         },
       ],
-      failures: { "comment:pending-3": "Cannot reach eyeball." },
+      failures: { "comment:pending-3": "Cannot reach Eyeball." },
     },
     bar: { unsent: 1, held: true },
   },
   play: async ({ canvasElement }) => {
     const card = pick(canvasElement, ".comment.unsent");
     await expect(within(card).getByRole("alert")).toHaveTextContent(
-      "Cannot reach eyeball.",
+      "Cannot reach Eyeball.",
     );
     await expect(
       within(card).getByRole("button", { name: "Retry now" }),
@@ -403,12 +403,12 @@ export const BarRefused: Story = {
 export const BarFailed: Story = {
   args: {
     review: reviewCode,
-    bar: { failure: "Cannot reach eyeball.", note: "Close it out." },
+    bar: { failure: "Cannot reach Eyeball.", note: "Close it out." },
   },
   play: async ({ canvasElement }) => {
     const bar = pick(canvasElement, ".decide");
     await expect(within(bar).getByRole("alert")).toHaveTextContent(
-      "Cannot reach eyeball.",
+      "Cannot reach Eyeball.",
     );
     await expect(bar.querySelector("textarea")).toHaveValue("Close it out.");
   },

@@ -648,7 +648,7 @@ func TestServer_Surface_browserBodiesFailed(t *testing.T) {
 	first := `document.querySelector("details.file[data-path='d/00.txt']")`
 	b.eval(g, first+`.scrollIntoView()`)
 	b.waitFor(g, `!!`+first+`.querySelector(":scope > .failed")`)
-	g.Expect(b.eval(g, first+`.querySelector(":scope > .failed").textContent`)).To(Equal("eyeball could not do that. Retry"))
+	g.Expect(b.eval(g, first+`.querySelector(":scope > .failed").textContent`)).To(Equal("Eyeball could not do that. Retry"))
 	g.Expect(b.eval(g, `!!`+first+`.querySelector(":scope > .skeleton")`)).To(BeTrue(), "the skeleton went with the failure")
 	g.Expect(b.eval(g, first+`.querySelector(":scope > .failed .retry").getAttribute("role")`)).To(Equal("button"))
 	settled := asked.Load()
@@ -672,7 +672,7 @@ func TestServer_Surface_browserBodiesFailed(t *testing.T) {
 	broken.Store(true)
 	b.eval(g, lock+`.querySelector("a.load").click()`)
 	b.waitFor(g, `!!`+lock+`.querySelector(".filefacts .failed")`)
-	g.Expect(b.eval(g, lock+`.querySelector(".filefacts .failed").textContent`)).To(Equal("eyeball could not do that. Retry"))
+	g.Expect(b.eval(g, lock+`.querySelector(".filefacts .failed").textContent`)).To(Equal("Eyeball could not do that. Retry"))
 	g.Expect(b.eval(g, lock+`.querySelectorAll(".src").length`)).To(BeEquivalentTo(0))
 	broken.Store(false)
 	b.eval(g, lock+`.querySelector(".failed .retry").click()`)
@@ -1311,7 +1311,7 @@ func TestServer_Surface_browserFailedSave(t *testing.T) {
 	// Retry while the server is still gone says so beside the card's actions.
 	tap("tr.thread .comment.unsent .acts a")
 	b.waitFor(g, `!!document.querySelector("tr.thread .comment.unsent .failed")`)
-	g.Expect(b.eval(g, `document.querySelector("tr.thread .comment.unsent .failed").textContent`)).To(Equal("Cannot reach eyeball."))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread .comment.unsent .failed").textContent`)).To(Equal("Cannot reach Eyeball."))
 	g.Expect(b.eval(g, `document.querySelector("tr.thread .comment.unsent .acts").nextElementSibling.className`)).To(Equal("failed"))
 
 	// Back online, a reload keeps the cards and Retry stores the line's comment
@@ -1340,7 +1340,7 @@ func TestServer_Surface_browserFailedSave(t *testing.T) {
 	g.Expect(hs.Close()).To(Succeed())
 	tap("tr.thread form.composer button[type=submit]")
 	b.waitFor(g, `!!document.querySelector("tr.thread form.composer .failed")`)
-	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer .failed").textContent`)).To(Equal("Cannot reach eyeball."))
+	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer .failed").textContent`)).To(Equal("Cannot reach Eyeball."))
 	g.Expect(b.eval(g, `document.querySelector("tr.thread form.composer textarea").value`)).To(Equal("Why two lines?"))
 	g.Expect(f.comments(g, t, round)[0].Body).To(Equal("Why two?"))
 
@@ -1403,7 +1403,7 @@ func TestServer_Surface_browserFailedVerdict(t *testing.T) {
 	g.Expect(hs.Close()).To(Succeed())
 	b.eval(g, approve+`.click()`)
 	b.waitFor(g, `!!document.querySelector("#bar .failed")`)
-	g.Expect(b.eval(g, `document.querySelector("#bar .failed").textContent`)).To(Equal("Cannot reach eyeball."))
+	g.Expect(b.eval(g, `document.querySelector("#bar .failed").textContent`)).To(Equal("Cannot reach Eyeball."))
 	g.Expect(b.eval(g, `document.querySelector("#bar textarea").value`)).To(Equal("Close."))
 	g.Expect(b.eval(g, `sessionStorage.getItem("eyeball:blink")`)).To(BeNil())
 	b.typeInto(g, "#bar textarea", "")

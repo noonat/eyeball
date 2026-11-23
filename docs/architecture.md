@@ -1241,8 +1241,11 @@ its cost: row heights would have to be known before rows are drawn, and the
 reader's place and a line's anchor would point at rows that may not exist.
 React's `style` prop set the skeleton heights with no violation of the policy,
 whose `default-src 'self'` refuses a style attribute, because React writes a
-style through the CSSOM rather than as an attribute. The next review-page spec
-measures the real page.
+style through the CSSOM rather than as an attribute. The real page, measured
+2026-11-22 on the same phone and the same 26 files, had no frame over 50 ms in a
+fling of 362 frames, the worst 33 ms. Its first card was drawn 1.3 s after the
+view's response ended on a cold load and 0.9 s with the service worker warm,
+time not yet divided between parsing the view and laying out the page.
 
 ## Notification
 

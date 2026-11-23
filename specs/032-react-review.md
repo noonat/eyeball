@@ -1050,3 +1050,52 @@ through the relay "sea". The daemon's own node's path was not read.
   card with one card folded. After the branch build was installed, the draft was
   back under its line, the note in the bar, and 226 opened at its place with the
   same card folded.
+
+The rest, from the owner's phone on 2026-11-22, against the build of c7fdeb7
+with an uncommitted timing meter added, which draws nothing unless the address
+holds `?meter`. The scratch repositories behind 225 and 226 had been cleared
+from `/tmp` in the three weeks between, so 225 could take no second round: the
+daemon answered 500, since `git diff` could not find its base commit. Two
+reviews were opened in a rebuilt repository in its place, 232 and 233.
+
+- The sheets' failed lines looked right. The owner asked for the product's name
+  capitalized in every message that shows it, and the lines now read "Cannot
+  reach Eyeball.", "Eyeball could not do that." and "Eyeball did not answer in
+  time.", in the app, the error page, the tearouts and the daemon's refusal.
+- A comment on a line, a passage, a file and the review was added, edited and
+  deleted on 225, and a draft survived closing the app.
+- 226 opened where it was left, a jump from the list of files landed on its
+  card, bodies arriving above the reader moved nothing, and a page opened at the
+  top moved nothing as the font arrived. The owner asked for the loading screen
+  to say "Eyeball is loading…" where it said "Eyeball is connecting…". The line
+  was chosen because a phone cannot tell a daemon that is down from a slow one,
+  and "loading" is as true of both.
+- Request changes on 225 moved to the queue and the eye blinked.
+- The keyboard fix held: round 2 of 232 was opened while another app's keyboard
+  was up, and after its notification was tapped the bar and taps behaved.
+- A tap on a row of 225's decided round opened a late composer, and the late
+  comment was stored. A tap on round 1 of 232 while round 2 waited opened
+  nothing, as master's code also decides: only the latest round takes comments.
+- With the app in the background, 233 was opened, and on return it was in the
+  queue with no reload.
+- The first draw and a fling on 226 were measured in Safari, outside the
+  installed app, with the meter. It reads the view's fetch from the browser's
+  resource timing, takes the first draw as two animation frames after the first
+  card is in the page, measured from when the view's response ended, and counts
+  frames during a fling until 1.5 s pass with no scroll. A cold load, with no
+  service worker yet: the view, 284 KB, took 1,189 ms and ended 1,996 ms after
+  the page started, the first draw came 1,303 ms after it, 3,299 ms from the
+  start, and a fling from the top drew 362 frames, the worst 33 ms, none over 50
+  ms. A reload with the worker warm: the view took 726 ms and ended at 1,013 ms,
+  the first draw came 893 ms after it, 1,906 ms from the start, and the fling
+  drew 422 frames, the worst 25 ms, none over 50 ms. The reload opened at the
+  reader's place rather than the top, as it should, so the second fling started
+  part way down. Both runs counted no body fetched during the fling. Whether
+  every body visited came inline in the view or the meter's match on the cards
+  route missed them was not checked.
+- Beside the probe: the probe's fling had 10 frames over 50 ms in 340, the worst
+  63 ms, and the real page's had none, the worst 33 ms. The probe's first draw
+  of 76 ms is not comparable. It timed React mounting the cards from data
+  already in the page, and the meter's figure includes the time after the view's
+  bytes arrive, which covers parsing it and laying out the first screen as well.
+  How the 1.3 s and 0.9 s divide between those was not measured.

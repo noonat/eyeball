@@ -35,6 +35,10 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] daemon: a next round whose first round's base commit no longer exists
+      answers 500, and the agent reads "the daemon failed to answer". Seen on
+      2026-11-22, when a scratch repository under `/tmp` was cleared and
+      rebuilt. A refusal naming the missing commit would say what to do.
 - [ ] tests: rewrite the Go tests that read the project, tree and file screens
       through `internal/viewdoc` as assertions over the views' fields, then
       delete the package. They were left reading the old class names because
