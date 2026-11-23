@@ -34,7 +34,8 @@
 {{define "shell"}}<!doctype html>
 <html lang="en" data-theme="light">
 <head>
-{{template "headmeta" .}}<script src="/static/react.js?b={{.Token}}"></script>
+{{template "headmeta" .}}{{with .Failure}}<meta name="eyeball-error" content="{{.}}">
+{{end}}<script src="/static/react.js?b={{.Token}}"></script>
 </head>
 <body>
 <div id="root"></div>

@@ -16,7 +16,6 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
-	"golang.org/x/net/html"
 )
 
 func Test_policyAllowsEveryURLInTheStylesheet(t *testing.T) {
@@ -100,8 +99,8 @@ func TestServer_LoopbackSurface(t *testing.T) {
 				g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/plain"))
 				g.Expect(res.Body.String()).To(Equal(c.text))
 			case c.text != "":
-				g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
-				g.Expect(pageText(g, res.Body.String())).To(ContainSubstring(c.text))
+				g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/plain"))
+				g.Expect(res.Body.String()).To(Equal(c.text + "\n"))
 			}
 			res = httptest.NewRecorder()
 			f.s.Surface().ServeHTTP(res, req())
@@ -264,25 +263,25 @@ func TestServer_Surface_errorPages(t *testing.T) {
 	f := newFixture(g, t)
 	surface := f.s.Surface()
 
-	// The mux's own fallback answers in plain text. The surface answers with
-	// a page, and keeps the headers every response carries.
-	res := serveSurface(surface, http.MethodGet, "/no/such/page")
+	// The mux's own fallback answers in plain text. The surface answers a page
+	// load with the shell, and keeps the headers every response carries.
+	res := loadPage(surface, http.MethodGet, "/no/such/page")
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
 	g.Expect(res.Header().Get("Content-Security-Policy")).To(Equal(contentSecurityPolicy))
 	g.Expect(res.Header().Get("Referrer-Policy")).To(Equal("no-referrer"))
-	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("There is no page at this address."))
-	// The layout carries the topbar, the light theme and the stylesheet.
+	g.Expect(failureTag(g, res.Body.String()).Text).To(Equal("There is no page at this address."))
+	// The shell carries the theme, the stylesheets and the bundle the failure
+	// is drawn by.
 	g.Expect(res.Body.String()).To(ContainSubstring(`<html lang="en" data-theme="light">`))
 	g.Expect(res.Body.String()).To(ContainSubstring(`<link rel="stylesheet" href="/static/app.css?b=` + f.s.buildToken() + `">`))
 	g.Expect(res.Body.String()).To(ContainSubstring(`<link rel="stylesheet" href="/static/shell.css?b=` + f.s.buildToken() + `">`))
-	g.Expect(res.Body.String()).To(ContainSubstring(`<div class="topbar"><a class="back" href="/">`))
-	g.Expect(res.Body.String()).To(ContainSubstring(`<h1>Not found</h1>`))
+	g.Expect(res.Body.String()).To(ContainSubstring(`<div id="root"></div>`))
 
-	res = serveSurface(surface, http.MethodPost, "/healthz")
+	res = loadPage(surface, http.MethodPost, "/healthz")
 	g.Expect(res.Code).To(Equal(http.StatusMethodNotAllowed))
 	g.Expect(res.Header().Get("Allow")).To(ContainSubstring(http.MethodGet), "a 405 keeps its Allow header")
-	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("does not answer that kind of request"))
+	g.Expect(failureTag(g, res.Body.String()).Text).To(ContainSubstring("does not answer that kind of request"))
 
 	// The agent API is not on the surface, so its routes are the surface's
 	// 404 page rather than anything an agent route would answer.
@@ -302,10 +301,8 @@ func TestServer_Surface_eye(t *testing.T) {
 	// The review's view carries the count its top bar's eye draws.
 	round := f.roundAt(g, "/reviews/"+itoa(id))
 	g.Expect(round.WaitingCount).To(HaveValue(BeEquivalentTo(1)))
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
-	eye := find(parse(g, res.Body.String()), "eye")
-	g.Expect(attr(eye, "class")).To(Equal("eye"))
-	g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"))
+	res := loadPage(f.s.Surface(), http.MethodGet, "/nope")
+	g.Expect(failureTag(g, res.Body.String()).WaitingCount).To(HaveValue(BeEquivalentTo(1)))
 
 	g.Expect(f.store.Close()).To(Succeed())
 	res = getView(f, "/api/reviews/abc", nil)
@@ -313,11 +310,9 @@ func TestServer_Surface_eye(t *testing.T) {
 	var missing view.NotFound
 	g.Expect(json.Unmarshal(res.Body.Bytes(), &missing)).To(Succeed())
 	g.Expect(missing.WaitingCount).To(BeNil(), "no count, so no eye")
-	res = serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	res = loadPage(f.s.Surface(), http.MethodGet, "/nope")
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
-	doc := parse(g, res.Body.String())
-	g.Expect(find(doc, "topbar")).NotTo(BeNil(), "the page still renders")
-	g.Expect(find(doc, "eye")).To(BeNil(), "no count, so no eye")
+	g.Expect(failureTag(g, res.Body.String()).WaitingCount).To(BeNil(), "no count, so no eye")
 }
 
 func TestServer_Surface_failureIsAPage(t *testing.T) {
@@ -333,10 +328,10 @@ func TestServer_Surface_failureIsAPage(t *testing.T) {
 	t.Cleanup(func() { routes = saved })
 	f := newFixture(g, t)
 
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/test/fails")
+	res := loadPage(f.s.Surface(), http.MethodGet, "/test/fails")
 	g.Expect(res.Code).To(Equal(http.StatusInternalServerError))
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/html"))
-	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring("This page could not be read"))
+	g.Expect(failureTag(g, res.Body.String()).Heading).To(Equal("This page could not be read"))
 	g.Expect(res.Body.String()).NotTo(ContainSubstring("base commit is gone"), "the error itself goes to the log")
 }
 
@@ -387,54 +382,6 @@ func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {
 	g.Expect(f.store.Close()).To(Succeed())
 	res := serveSurface(f.s.Surface(), http.MethodGet, "/healthz")
 	g.Expect(res.Code).To(Equal(http.StatusInternalServerError))
-}
-
-// The htmx configuration decides what the page can report, so each key is held
-// here. The 422 must swap without counting as an error, or the refusal would
-// be reported twice; every other 4xx and 5xx must count as one, or a failure
-// would pass in silence.
-func TestServer_Surface_htmxConfig(t *testing.T) {
-	g := NewWithT(t)
-	f := newFixture(g, t)
-	// The error page is the one template page left that loads htmx, since the
-	// queue is the React app.
-	doc := f.page(g, "/nope", http.StatusNotFound)
-	meta := findAll(doc, func(n *html.Node) bool {
-		return n.Type == html.ElementNode && n.Data == "meta" && attr(n, "name") == "htmx-config"
-	})
-	g.Expect(meta).To(HaveLen(1))
-	var config struct {
-		IncludeIndicatorStyles *bool `json:"includeIndicatorStyles"`
-		AllowEval              *bool `json:"allowEval"`
-		HistoryEnabled         *bool `json:"historyEnabled"`
-		Timeout                int   `json:"timeout"`
-		DefaultSettleDelay     *int  `json:"defaultSettleDelay"`
-		ResponseHandling       []struct {
-			Code  string `json:"code"`
-			Swap  bool   `json:"swap"`
-			Error *bool  `json:"error"`
-		} `json:"responseHandling"`
-	}
-	g.Expect(json.Unmarshal([]byte(attr(meta[0], "content")), &config)).To(Succeed())
-	g.Expect(config.IncludeIndicatorStyles).To(HaveValue(BeFalse()))
-	g.Expect(config.AllowEval).To(HaveValue(BeFalse()))
-	g.Expect(config.HistoryEnabled).To(HaveValue(BeFalse()))
-	g.Expect(config.Timeout).To(Equal(10000))
-	// htmx binds swapped content only once it settles. A form tapped inside
-	// that window submits natively and loses its text, and nothing here uses
-	// the transitions the delay exists for.
-	g.Expect(config.DefaultSettleDelay).To(HaveValue(BeZero()))
-	g.Expect(config.ResponseHandling).To(HaveLen(4))
-	codes := []string{"204", "[23]..", "422", "[45].."}
-	swaps := []bool{false, true, true, false}
-	for i, h := range config.ResponseHandling {
-		g.Expect(h.Code).To(Equal(codes[i]))
-		g.Expect(h.Swap).To(Equal(swaps[i]), h.Code)
-	}
-	g.Expect(config.ResponseHandling[0].Error).To(BeNil())
-	g.Expect(config.ResponseHandling[1].Error).To(BeNil())
-	g.Expect(config.ResponseHandling[2].Error).To(HaveValue(BeFalse()))
-	g.Expect(config.ResponseHandling[3].Error).To(HaveValue(BeTrue()))
 }
 
 // The page is installable: the layout links a manifest naming icons that are
@@ -552,23 +499,4 @@ func serveSurface(h http.Handler, method, path string) *httptest.ResponseRecorde
 	res := httptest.NewRecorder()
 	h.ServeHTTP(res, httptest.NewRequest(method, "http://eyeball"+path, nil))
 	return res
-}
-
-// pageText is the text a parsed page shows, so an assertion reads what a person
-// reads rather than matching markup.
-func pageText(g *WithT, body string) string {
-	g.THelper()
-	doc := parse(g, body)
-	var b strings.Builder
-	var walk func(n *html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.TextNode {
-			b.WriteString(n.Data)
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(doc)
-	return strings.Join(strings.Fields(b.String()), " ")
 }

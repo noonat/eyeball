@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useInRouterContext } from "react-router";
 import { draws } from "../app/routes";
 
 interface AppLinkProps {
@@ -16,7 +16,9 @@ interface AppLinkProps {
 /**
  * A link the server wrote. An address the app draws moves the router, so the
  * move loads no page and the cache and the scroll survive it. Any other is a
- * plain anchor, which loads the page the way a template page needs.
+ * plain anchor, which loads the page the way a template page needs. So is every
+ * link outside a router, such as the error screen's way back, where a router
+ * link would have nothing to move.
  */
 export function AppLink({
   href,
@@ -26,6 +28,7 @@ export function AppLink({
   children,
   ...rest
 }: AppLinkProps) {
+  const inRouter = useInRouterContext();
   const aria = {
     ...(current === true ? { "aria-current": true as const } : {}),
     ...(rest["aria-label"] === undefined
@@ -33,7 +36,7 @@ export function AppLink({
       : { "aria-label": rest["aria-label"] }),
     ...(title === undefined ? {} : { title }),
   };
-  if (draws(href)) {
+  if (inRouter && draws(href)) {
     return (
       <Link
         to={href}

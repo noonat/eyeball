@@ -1189,7 +1189,7 @@ func (f *fixture) page(g *WithT, path string, status int) *html.Node {
 	if scopedPage(path) {
 		return f.viewPage(g, path, status)
 	}
-	res := serveSurface(f.s.Surface(), http.MethodGet, path)
+	res := loadPage(f.s.Surface(), http.MethodGet, path)
 	g.Expect(res.Code).To(Equal(status), res.Body.String())
 	return parse(g, res.Body.String())
 }

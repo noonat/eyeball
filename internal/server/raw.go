@@ -44,16 +44,16 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Content-Security-Policy", sandboxPolicy)
 	number, err := strconv.Atoi(r.PathValue("round"))
 	if err != nil || number < 0 {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	review, ok, err := s.reviewFromPath(r)
 	if err != nil || !ok {
-		return s.missing(w, err)
+		return s.missing(w, r, err)
 	}
 	reader, err := s.rawReader(r.Context(), review, number)
 	if errors.Is(err, store.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	if err != nil {
@@ -63,19 +63,19 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) error {
 	p := r.PathValue("path")
 	size, err := reader.Size(r.Context(), p)
 	if errors.Is(err, capture.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	if err != nil {
 		return err
 	}
 	if size > kind.MaxSend && r.URL.Query().Get("load") != "1" {
-		s.renderPage(w, http.StatusRequestEntityTooLarge, "error", page{Title: "Too large", Back: "/", BackLabel: "Queue", Body: message{Heading: "Too large", Text: pastSendLimit}})
+		s.fail(w, r, http.StatusRequestEntityTooLarge, failTooLarge)
 		return nil
 	}
 	rc, _, err := reader.Frozen(r.Context(), p)
 	if errors.Is(err, capture.ErrNotFound) {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	if err != nil {
@@ -97,7 +97,7 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) error {
 	}
 	f := kind.Of(p, head[:n])
 	if f.Kind == kind.Other {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	if f.Kind == kind.PDF {

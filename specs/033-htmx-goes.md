@@ -16,12 +16,12 @@ as [architecture.md](../docs/architecture.md) says under "Until the last
 template goes". The shell stays a template, and is the only one left.
 
 **A failure answers the person with the app and anything else with text.** The
-error page is drawn for four failures: an address the mux has no route for (404
-and 405), a raw file past the send limit (413), a handler's 500, and a write
-outside `/api` without the token (403). A person sees it only when the browser
-loads the address as a page: a reload, a typed address, or a raw file opened in
-a tab of its own. The same failures also reach an `<img>`, a frame, a `fetch`
-and curl, where a page is the wrong answer.
+error page is drawn for five failures: an address the mux has no route for
+(404), a method an address does not answer (405), a raw file past the send limit
+(413), a handler's 500, and a write outside `/api` without the token (403). A
+person sees it only when the browser loads the address as a page: a reload, a
+typed address, or a raw file opened in a tab of its own. The same failures also
+reach an `<img>`, a frame, a `fetch` and curl, where a page is the wrong answer.
 
 The browser says which it is. A page load sends `Sec-Fetch-Dest: document`, and
 an image, a frame and a fetch send `image`, `iframe` and `empty`. Measured in
@@ -77,6 +77,37 @@ describes a removed route.
 - The phrase "server-rendered `html/template` with htmx" in architecture.md's
   record of the rejected alternative, which records a decision and stays.
 
+## Departures
+
+Where the work went differently from the paragraphs above.
+
+- `AppLink` renders a plain anchor outside a router. The failure branch mounts
+  no router, and the error screen's "Queue" link, as a router `Link`, threw
+  because it had no router context to read. A plain anchor is also right there,
+  since the link has to load the queue and there is no router to move.
+- `TestServer_Surface_htmxConfig` was deleted in Iteration 2, not 3. It read the
+  htmx configuration meta through the error page, which no longer renders the
+  layout, so it could not pass.
+- `renderPage` and the `message` type were deleted in Iteration 2. Once `fail`
+  replaced every caller, staticcheck flagged both as unused. Iteration 3's todo
+  about `renderPage` is partly done. `error.html`, `file.html` and the `layout`
+  template remain for it.
+- `pageText` was removed, as nothing reads an error page as HTML any more.
+  `TestServer_Surface_browserShellTemplatePage` became
+  `TestServer_Surface_browserShellFailurePage`, which asserts the shell carrying
+  the failure with the worker in control. The surface tests that read an error
+  page use `loadPage` to send `Sec-Fetch-Dest: document` and `failureTag` to
+  read the tag back.
+- The `/../` cases of `TestServer_Surface_fileNotFound` check the shell's tag
+  through `loadPage`. They no longer assert that no notice banner is drawn,
+  which does not apply to a failure.
+- `TestServer_LoopbackSurface` and its `apiRefusal` test expect `text/plain` for
+  a refused write that sends no `Sec-Fetch-Dest`. A native form post sends
+  `document` and gets the shell.
+- The Iteration 2 todo for the Go tests says four failures. The tests cover the
+  five paths, the 404 and the 405 separately, each as a page, an image, a fetch,
+  a frame and with no header.
+
 ## Iteration 1: The error screen
 
 - [x] An `ErrorScreen` component draws a heading and a sentence in the top bar's
@@ -95,19 +126,25 @@ describes a removed route.
 
 ## Iteration 2: A failure answers by who asked
 
-- [ ] One function answers every failure the error page answered today: the
+- [x] One function answers every failure the error page answered today: the
       shell with an `eyeball-error` meta tag when `Sec-Fetch-Dest` is
       `document`, and `text/plain` with the status otherwise.
-- [ ] The tag holds JSON of a type in `internal/view`, so `make api` generates
+- [x] The tag holds JSON of a type in `internal/view`, so `make api` generates
       its TypeScript type and the app reads it with no hand-written shape.
-- [ ] Go tests cover each of the four failures with `document`, with `image`,
+- [x] Go tests cover each of the four failures with `document`, with `image`,
       with `empty` and with no header, asserting the status, content type and
       body.
-- [ ] The app draws `ErrorScreen` when the tag is present, before the router,
+- [x] The app draws `ErrorScreen` when the tag is present, before the router,
       and the router is untouched when it is absent. A Vitest test covers both.
-- [ ] A browser test loads an unknown path in Chromium and finds the error
+- [x] A browser test loads an unknown path in Chromium and finds the error
       screen with a 404 status, and loads a too-large raw file in an `<img>` and
       finds a 413 with a plain body.
+
+> **Completed** 2026-11-23 02:59 UTC
+>
+> - `make check` — 37.1s
+> - `go test -race ./...` — 53.6s
+> - `go test -count=1 -tags browser ./internal/server` — 126.6s
 
 ## Iteration 3: htmx and the template bundle go
 

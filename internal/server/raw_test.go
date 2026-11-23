@@ -183,9 +183,9 @@ func TestServer_Surface_rawTooLarge(t *testing.T) {
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"big.png", "fits.png"}, Note: "first"}).Review.ID
 	raw := "/reviews/" + itoa(id) + "/raw/"
 
-	res := serveSurface(f.s.Surface(), http.MethodGet, raw+"1/big.png")
+	res := loadPage(f.s.Surface(), http.MethodGet, raw+"1/big.png")
 	g.Expect(res.Code).To(Equal(http.StatusRequestEntityTooLarge))
-	g.Expect(pageText(g, res.Body.String())).To(ContainSubstring(pastSendLimit))
+	g.Expect(failureTag(g, res.Body.String()).Text).To(Equal(pastSendLimit))
 
 	res = serveSurface(f.s.Surface(), http.MethodGet, raw+"1/fits.png")
 	g.Expect(res.Code).To(Equal(http.StatusOK))

@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
-
 	"github.com/noonat/eyeball"
 )
 
@@ -84,8 +82,7 @@ func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(noToken))
 		return
 	}
-	p := page{Title: "Not allowed", Back: "/", BackLabel: "Queue", Body: message{Heading: "Not allowed", Text: noToken}}
-	s.renderPage(w, http.StatusForbidden, "error", p)
+	s.fail(w, r, http.StatusForbidden, failNoToken)
 }
 
 // surfaceMux is the mux with the headers every response carries and a page in
@@ -104,7 +101,7 @@ func (s *Server) surfaceMux() http.Handler {
 		}
 		caught := &statusCatcher{header: h}
 		mux.ServeHTTP(caught, r)
-		s.errorPage(w, caught.status)
+		s.errorPage(w, r, caught.status)
 	})
 }
 
@@ -156,6 +153,10 @@ type page struct {
 	// Build is the daemon's build, which the stream compares with the build
 	// running when it connects, so a page served by an older daemon says so.
 	Build string
+	// Failure is the failure the shell carries to the app as JSON, and empty
+	// for every shell that carries none. The template escapes it as an
+	// attribute.
+	Failure string
 	// Token is the build's short hash, which the head writes into the address
 	// of each script and stylesheet it links.
 	Token string
@@ -172,14 +173,6 @@ type eye struct {
 // on the store a second time.
 const eyeTimeout = time.Second
 
-// message is a page that says one thing.
-type message struct {
-	// Heading is what happened, and Text says more.
-	Heading, Text string
-	// Notice is a banner above it saying why, and nil for none.
-	Notice *notice
-}
-
 // failurePage answers a surface request whose handler failed, as a page. The
 // agent API's JSON refusal would reach a phone as text, and its fix speaks to
 // an agent at a terminal.
@@ -192,20 +185,17 @@ func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) 
 		refuseJSON(w, http.StatusInternalServerError, failedWrite)
 		return
 	}
-	p := page{Title: "Something went wrong", Back: "/", BackLabel: "Queue", Body: message{Heading: "This page could not be read", Text: "The daemon's log says why."}}
-	s.renderPage(w, http.StatusInternalServerError, "error", p)
+	s.fail(w, r, http.StatusInternalServerError, failFailed)
 }
 
-// errorPage writes a page for a status the surface answers with on its own.
-func (s *Server) errorPage(w http.ResponseWriter, status int) {
-	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address."}}
+// errorPage answers a status the surface answers with on its own: a 405, and
+// a 404 for anything else.
+func (s *Server) errorPage(w http.ResponseWriter, r *http.Request, status int) {
 	if status == http.StatusMethodNotAllowed {
-		p.Title = "Not allowed"
-		p.Body = message{Heading: "Not allowed", Text: "This address does not answer that kind of request."}
-	} else {
-		status = http.StatusNotFound
+		s.fail(w, r, status, failNotAllowed)
+		return
 	}
-	s.renderPage(w, status, "error", p)
+	s.fail(w, r, http.StatusNotFound, failNotFound)
 }
 
 // waitingCount is the number of reviews waiting, for the top bar's eye, and nil
@@ -225,38 +215,6 @@ func (s *Server) waitingCount(what string) *int32 {
 	return &count
 }
 
-// renderPage executes a page template inside the layout and writes it.
-func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
-	data.VAPID = s.vapidPublic()
-	data.Build = s.daemon.Build
-	data.Token = s.buildToken()
-	if data.Eye == nil {
-		if n := s.waitingCount(name); n != nil {
-			data.Eye = &eye{Count: int(*n)}
-		}
-	}
-	// The clone's own copy of the page's tree, never s.pages's: executing a
-	// template escapes its tree in place, so adding the shared tree let every
-	// request write to it while others cloned it, which the race detector
-	// reported for two pages rendered at once.
-	t, err := s.pages.Clone()
-	if err == nil {
-		_, err = t.AddParseTree("page", t.Lookup(name).Tree)
-	}
-	var buf bytes.Buffer
-	if err == nil {
-		err = t.ExecuteTemplate(&buf, "layout", data)
-	}
-	if err != nil {
-		s.log.Error("render page", "page", name, "err", err)
-		http.Error(w, "the page could not be rendered", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = w.Write(buf.Bytes())
-}
-
 // handleApp answers every address the React app draws with the shell: the head
 // every page writes, the React bundle and the element it draws into. The app
 // fetches the address's view from /api and opens its own stream, so the shell
@@ -269,20 +227,7 @@ func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) error {
 	if r.URL.Path == "/" {
 		title = "Queue"
 	}
-	data := page{Title: title, VAPID: s.vapidPublic(), Build: s.daemon.Build, Token: s.buildToken()}
-	// A clone, since executing a template escapes its tree in place and the
-	// shared one is read by every request.
-	t, err := s.pages.Clone()
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "shell", data); err != nil {
-		return errors.WithStack(err)
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(buf.Bytes())
-	return nil
+	return s.writeShell(w, http.StatusOK, page{Title: title})
 }
 
 // handleReact serves the React app's bundle, which loads beside the template
@@ -355,7 +300,7 @@ func setSurfaceHeaders(h http.Header) {
 func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) error {
 	data, err := fs.ReadFile(eyeball.Icons, "web/static/icons/"+path.Base(r.PathValue("name")))
 	if err != nil {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	w.Header().Set("Content-Type", "image/png")
@@ -397,7 +342,7 @@ func (s *Server) handleFont(w http.ResponseWriter, r *http.Request) error {
 	name := r.PathValue("path")
 	tag, ok := fontTags()[name]
 	if !ok {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	data, err := fs.ReadFile(eyeball.Fonts, fontRoot+"/"+name)

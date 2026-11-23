@@ -115,11 +115,11 @@ func (s *Server) reviewFromPath(r *http.Request) (store.Review, bool, error) {
 
 // missing answers with the 404 page where err is nil, and passes err on
 // otherwise.
-func (s *Server) missing(w http.ResponseWriter, err error) error {
+func (s *Server) missing(w http.ResponseWriter, r *http.Request, err error) error {
 	if err != nil {
 		return err
 	}
-	s.errorPage(w, http.StatusNotFound)
+	s.errorPage(w, r, http.StatusNotFound)
 	return nil
 }
 

@@ -490,6 +490,31 @@ export interface Facts {
 }
 
 /**
+ * Failure is what the surface says of a request it could not answer. A page
+ * load gets it in the shell's eyeball-error tag, which the app draws as an
+ * error screen. Anything else gets Text as plain text with the status.
+ */
+export interface Failure {
+  /**
+   * Title is the document's title and the top bar's heading.
+   */
+  title: string;
+  /**
+   * Heading is what happened, in the box's headline.
+   */
+  heading: string;
+  /**
+   * Text is the sentence under it. It is the whole body of the plain answer.
+   */
+  text: string;
+  /**
+   * WaitingCount is how many reviews wait, which the top bar's eye shows. It
+   * is null where the count could not be read, and the eye is then not drawn.
+   */
+  waiting_count: number | null;
+}
+
+/**
  * File is one file at one round, or one file of a working copy on disk.
  */
 export interface File {

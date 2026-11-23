@@ -6,6 +6,7 @@ import { registerWorker } from "../ts/worker";
 import { prune } from "../ts/storage";
 import { restoreViewport } from "../ts/viewport";
 import { App } from "./App";
+import { readFailure } from "./app/failure";
 
 // The bundle is loaded without defer so the theme is set before the first
 // paint, as the template pages' bundle does. The token is taken at once too,
@@ -24,7 +25,7 @@ function mount(): void {
   registerWorker();
   refreshOnTap();
   restoreViewport();
-  createRoot(root).render(<App />);
+  createRoot(root).render(<App failure={readFailure(document)} />);
 }
 
 // The script runs in the head, before the root element is parsed.

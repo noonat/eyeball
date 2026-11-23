@@ -15,8 +15,9 @@ interface ErrorScreenProps {
 /**
  * A failure the server answered a page load with: the bar the template's error
  * page had, with its way back to the queue, over a box saying what failed. The
- * server decides the words, so the same sentence reaches a person here and a
- * script as plain text.
+ * server decides the words and sends the same sentence as plain text to an
+ * image, a fetch or a script. The way back is a plain anchor, since the app
+ * mounts no router for a failure.
  */
 export function ErrorScreen({
   title,
