@@ -1,5 +1,5 @@
 ---
-status: ready
+status: active
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -50,16 +50,16 @@ when the daemon cannot answer, so the cached copy never carries an error tag.
 
 **The rename relies on the worker's exact-match cache.** An installed phone's
 old shell asks for `/static/react.js?b=<old token>`, which its old worker holds
-by that exact address until the new worker takes over. No alias for
-`react.js` is kept. Reasoned from `shellFiles` and the worker, not measured, so
-the phone iteration checks it.
+by that exact address until the new worker takes over. No alias for `react.js`
+is kept. Reasoned from `shellFiles` and the worker, not measured, so the phone
+iteration checks it.
 
 ## Review
 
 Spec review pass: declined, because the design is one header test and a meta
 tag, and the probes above settled its one premise that can be checked here.
-End-of-branch review pass: requested, because the branch deletes code across
-the server, the bundles and the docs, and a pass is what finds prose that still
+End-of-branch review pass: requested, because the branch deletes code across the
+server, the bundles and the docs, and a pass is what finds prose that still
 describes a removed route.
 
 ## Out of scope
@@ -79,13 +79,19 @@ describes a removed route.
 
 ## Iteration 1: The error screen
 
-- [ ] An `ErrorScreen` component draws a heading and a sentence in the top bar's
+- [x] An `ErrorScreen` component draws a heading and a sentence in the top bar's
       "Queue" back link layout that `NotFoundScreen` uses, with the eye from a
       waiting count that may be null.
-- [ ] A sheet story shows it light beside dark for the 404, 405, 413 and 500
+- [x] A sheet story shows it light beside dark for the 404, 405, 413 and 500
       sentences the server sends, with a story per state.
-- [ ] The story run fails when the heading or sentence is not drawn, checked by
+- [x] The story run fails when the heading or sentence is not drawn, checked by
       breaking the component once and reverting.
+
+> **Completed** 2026-11-23 02:34 UTC
+>
+> - `make check` — 21.0s
+> - `go test -race ./...` — 54.6s
+> - `go test -count=1 -tags browser ./internal/server` — 126.3s
 
 ## Iteration 2: A failure answers by who asked
 
@@ -100,8 +106,8 @@ describes a removed route.
 - [ ] The app draws `ErrorScreen` when the tag is present, before the router,
       and the router is untouched when it is absent. A Vitest test covers both.
 - [ ] A browser test loads an unknown path in Chromium and finds the error
-      screen with a 404 status, and loads a too-large raw file in an `<img>`
-      and finds a 413 with a plain body.
+      screen with a 404 status, and loads a too-large raw file in an `<img>` and
+      finds a 413 with a plain body.
 
 ## Iteration 3: htmx and the template bundle go
 
@@ -133,8 +139,8 @@ required_acks:
   - phone-checked
 ```
 
-- [ ] The owner opens an unknown address in the installed app and in Safari,
-      and sees the error screen in the device's theme. If it shows plain text
+- [ ] The owner opens an unknown address in the installed app and in Safari, and
+      sees the error screen in the device's theme. If it shows plain text
       instead, iOS sends no `Sec-Fetch-Dest`, and the spec records that here.
 - [ ] The owner opens the installed app first after the deploy that renames the
       bundle, and the app loads, then loads again after the update banner's

@@ -14,6 +14,8 @@ const modules = import.meta.glob<Record<string, unknown>>(
     "!./Tree.stories.tsx",
     "!./File.stories.tsx",
     "!./Arrival.stories.tsx",
+    "!./Error.stories.tsx",
+    "!./ErrorSheet.stories.tsx",
     "!./Routes.stories.tsx",
     "!./ScreenCoverage.stories.tsx",
     "!./ProjectSheet.stories.tsx",
