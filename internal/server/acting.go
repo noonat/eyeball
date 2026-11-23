@@ -1,12 +1,10 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,13 +18,18 @@ import (
 // The sentences a write answers with. Each is shown beside the control that
 // made the request, so it says what happened in the reviewer's terms.
 const (
-	failedWrite     = "eyeball could not do that. The daemon's log says why."
+	failedWrite     = "Eyeball could not do that. The daemon's log says why."
 	noRound         = "That round is not part of this review."
 	noComment       = "That comment is not part of this review."
+	noReview        = "There is no such review."
 	notThisForm     = "This page could not have sent that. Reload it and try again."
 	emptyComment    = "A comment needs some text."
 	staleVerdict    = "This round was decided or withdrawn since the page loaded. The page reloads once nothing on it is unsaved."
 	releasedComment = "This comment went out with the verdict, so it can no longer change."
+	// emptyChangeRequest is the sentence beside a change request with no comment
+	// or note. The bar draws its own wording for this state, so the sentence is
+	// what a client that draws nothing of its own can show.
+	emptyChangeRequest = "Requesting changes needs something to act on. Add a comment, or write a note with the verdict."
 )
 
 // cardView is one comment's card, with Edit and Delete while it can change.
@@ -44,18 +47,9 @@ type cardView struct {
 	Editable bool
 }
 
-// tallyView is the bar's count of what the round holds.
-type tallyView struct {
-	// Count is the comments on the round.
-	Count int
-	// OOB marks the tally for htmx to swap by its id, beside a write's main
-	// answer.
-	OOB bool
-}
-
 // listView is the comments on one anchor: a file, or the review.
 type listView struct {
-	// ID is the list's element id, which a composer targets.
+	// ID is the list's element id.
 	ID string
 	// Cards are the comments, in the order the store reads them.
 	Cards []cardView
@@ -65,126 +59,63 @@ type listView struct {
 type barView struct {
 	// Action is the address the verdict posts to.
 	Action string
-	// Round is the round the page showed, which the verdict names.
-	Round int
-	// Tally is the count shown above the buttons.
-	Tally tallyView
-	// Note is the verdict note as sent, kept when the bar is answered again.
-	Note string
-	// Refused says a change request with nothing in it was refused.
-	Refused bool
+	// Count is the comments on the round, shown above the buttons.
+	Count int
 }
 
-// composerView is a composer anchored to a line, a passage, a file or the
-// review.
-type composerView struct {
-	// Action is the address a comment posts to, and Target the list its answer
-	// replaces.
-	Action, Target string
-	// Round is the round the page showed.
-	Round int
-	// Level and Path say what the comment attaches to.
-	Level, Path string
-	// Start and End are a line's or a passage's range, and OldLine a removed
-	// row's number on the side it was removed from.
-	Start, End, OldLine int
-	// Against is the page's comparison, which says which side a removed row
-	// was read from.
-	Against string
-	// Anchor is the line the composer names above its field.
-	Anchor string
-	// Chips switch the level without a request.
-	Chips []chipView
-	// Placeholder is the field's hint.
-	Placeholder string
-	// Hint is the line beside the button, and Button what the button reads.
-	Hint, Button string
-	// Late says the round is decided, so a comment is sent at once. A composer
-	// with level chips then shows its hint on a line of its own above them.
-	Late bool
-	// Slot is the element id of the slot a composer fills for an anchor with
-	// no row, such as a binary file's line, and empty otherwise.
-	Slot string
-	// ThreadID is the id of the row under a line the composer opens in, and
-	// Cards the comments already on that line, which the row keeps showing.
-	ThreadID string
-	Cards    []cardView
-	// PassageID is the id of the group under a passage the composer opens
-	// in, which holds that passage's comments as ThreadID's row does.
-	PassageID string
+// rejection is a write the server will not do, with the sentence saying why.
+// The routes get one from the functions that check a write, so a refusal is the
+// same wherever it is made.
+type rejection struct {
+	status int
+	text   string
 }
 
-// chipView is one level a composer's text can be sent to.
-type chipView struct {
-	// Level is the level it sets, Label what it reads, and Target the list
-	// a comment at that level goes in.
-	Level, Label, Target string
-	// Pressed marks the level the composer is on.
-	Pressed bool
+// commentInput is a comment as a route read it from its body.
+type commentInput struct {
+	level            store.Level
+	path             string
+	start, end, old  int
+	againstBase      bool
+	body, submission string
+	// malformed says a field could not be read as a line number.
+	malformed bool
 }
 
-// handleAddComment answers POST /reviews/{review}/comments: one comment on the
-// round the form names, whatever has happened to that round since.
-//
-// A round decided, withdrawn or followed by another takes the comment as late,
-// and it goes out on its own. Refusing it would discard what somebody typed.
-func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
-	if !ok || err != nil {
-		return err
+// storeComment checks a comment and stores it on a round. The JSON route calls
+// it once it has found the review and the round.
+func (s *Server) storeComment(ctx context.Context, review store.Review, round store.Round, in commentInput) (store.Comment, *rejection, error) {
+	if strings.TrimSpace(in.body) == "" {
+		return store.Comment{}, &rejection{status: http.StatusBadRequest, text: emptyComment}, nil
 	}
-	round, ok, err := s.formRound(w, r, review)
-	if !ok || err != nil {
-		return err
-	}
-	if strings.TrimSpace(r.PostFormValue("body")) == "" {
-		plain(w, http.StatusBadRequest, emptyComment)
-		return nil
-	}
-	nc, problem, err := s.newComment(ctx, r, review, round)
+	nc, problem, err := s.newComment(ctx, review, round, in)
 	if err != nil {
-		return err
+		return store.Comment{}, nil, err
 	}
 	if problem != "" {
-		plain(w, http.StatusBadRequest, problem)
-		return nil
+		return store.Comment{}, &rejection{status: http.StatusBadRequest, text: problem}, nil
 	}
 	stored, err := s.db.AddComment(ctx, nc)
-	if err != nil {
-		return err
-	}
-	if stored.Level == store.LevelLine {
-		return s.answerThread(ctx, w, review, round, stored.Path, stored.StartLine)
-	}
-	if stored.Level == store.LevelPassage {
-		return s.answerPassage(ctx, w, review, round, stored.Path, stored.StartLine, stored.EndLine)
-	}
-	return s.answerList(ctx, w, review, round, listID(stored.Level, stored.Path))
+	return stored, nil, err
 }
 
-// newComment reads a comment form into what the store takes. The quote is read
+// newComment reads a comment into what the store takes. The quote is read
 // from the round's frozen content, never taken from the page: a second copy of
 // text the server holds would have nothing checking that the two agree. A
-// non-empty problem is the sentence a form that cannot be stored is refused
+// non-empty problem is the sentence a comment that cannot be stored is refused
 // with.
-func (s *Server) newComment(ctx context.Context, r *http.Request, review store.Review, round store.Round) (store.NewComment, string, error) {
-	form := r.PostForm
-	level := store.Level(form.Get("level"))
-	path := form.Get("path")
-	start, startErr := optionalLine(form.Get("start"))
-	end, endErr := optionalLine(form.Get("end"))
-	old, oldErr := optionalLine(form.Get("oldline"))
-	if startErr != nil || endErr != nil || oldErr != nil {
-		return store.NewComment{}, notThisForm, nil
-	}
+func (s *Server) newComment(ctx context.Context, review store.Review, round store.Round, in commentInput) (store.NewComment, string, error) {
 	nc := store.NewComment{
 		RoundID:    round.ID,
-		Level:      level,
-		Path:       path,
-		Body:       form.Get("body"),
-		Submission: form.Get("submission"),
+		Level:      in.level,
+		Path:       in.path,
+		Body:       in.body,
+		Submission: in.submission,
 	}
+	if in.malformed {
+		return nc, notThisForm, nil
+	}
+	level, path, start, end, old := in.level, in.path, in.start, in.end, in.old
 	switch level {
 	case store.LevelReview:
 		if path != "" || start != 0 || end != 0 || old != 0 {
@@ -198,7 +129,7 @@ func (s *Server) newComment(ctx context.Context, r *http.Request, review store.R
 		if old == 0 {
 			return nc, "", nil
 		}
-		quoted, problem, err := s.quote(ctx, review, round, path, old, old, true, form.Get("against") == "base")
+		quoted, problem, err := s.quote(ctx, review, round, path, old, old, true, in.againstBase)
 		nc.Quoted = quoted
 		return nc, problem, err
 	case store.LevelLine, store.LevelPassage:
@@ -250,7 +181,7 @@ func (s *Server) quote(ctx context.Context, review store.Review, round store.Rou
 	}
 	content, tooLarge, err := st.Reader(s.blobs, files).Side(ctx, clean)
 	if err != nil || tooLarge || content == nil {
-		// A path the round cannot read is the form's mistake, since every
+		// A path the round cannot read is the client's mistake, since every
 		// line the page offers is one it read.
 		return "", fmt.Sprintf("Round %d holds no readable copy of %s.", round.Number, clean), nil
 	}
@@ -261,259 +192,54 @@ func (s *Server) quote(ctx context.Context, review store.Review, round store.Rou
 	return strings.Join(lines[first-1:last], "\n"), "", nil
 }
 
-// handleEditComment answers PUT /reviews/{review}/comments/{comment}: a
-// comment's new body, before the verdict releases it.
-func (s *Server) handleEditComment(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
-	if !ok || err != nil {
-		return err
+// changeComment replaces a comment's body. A comment that is gone is the
+// store's not-found, which the caller already ruled out by resolving the id.
+func (s *Server) changeComment(ctx context.Context, id int64, body string) (*rejection, error) {
+	if id == 0 {
+		return &rejection{status: http.StatusNotFound, text: noComment}, nil
 	}
-	id, ok, err := s.reviewComment(w, r, review)
-	if !ok || err != nil {
-		return err
+	if strings.TrimSpace(body) == "" {
+		return &rejection{status: http.StatusBadRequest, text: emptyComment}, nil
 	}
-	if strings.TrimSpace(r.PostFormValue("body")) == "" {
-		plain(w, http.StatusBadRequest, emptyComment)
-		return nil
-	}
-	err = s.db.EditComment(ctx, id, r.PostFormValue("body"))
+	err := s.db.EditComment(ctx, id, body)
 	if errors.Is(err, store.ErrRoundClosed) {
-		plain(w, http.StatusConflict, releasedComment)
-		return nil
+		return &rejection{status: http.StatusConflict, text: releasedComment}, nil
 	}
-	if err != nil {
-		return err
-	}
-	card, err := s.card(ctx, review, id)
-	if err != nil {
-		return err
-	}
-	return s.fragments(w, http.StatusOK, fragment{name: "card", data: card})
+	return nil, err
 }
 
-// handleDeleteComment answers DELETE /reviews/{review}/comments/{comment}. A
-// comment already gone is a success: the reviewer wanted it gone, and a delete
-// sent twice must not report a failure.
-func (s *Server) handleDeleteComment(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
-	if !ok || err != nil {
-		return err
+// removeComment deletes a comment. An id of 0 is a comment already gone.
+func (s *Server) removeComment(ctx context.Context, id int64) (*rejection, error) {
+	if id == 0 {
+		return nil, nil
 	}
-	id, ok, err := s.reviewComment(w, r, review)
-	if !ok || err != nil {
-		return err
+	err := s.db.DeleteComment(ctx, id)
+	if errors.Is(err, store.ErrRoundClosed) {
+		return &rejection{status: http.StatusConflict, text: releasedComment}, nil
 	}
-	if id != 0 {
-		err = s.db.DeleteComment(ctx, id)
-		if errors.Is(err, store.ErrRoundClosed) {
-			plain(w, http.StatusConflict, releasedComment)
-			return nil
-		}
-		if err != nil && !errors.Is(err, store.ErrNotFound) {
-			return err
-		}
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, err
 	}
-	tally, err := s.tally(ctx, review)
-	if err != nil {
-		return err
-	}
-	return s.fragments(w, http.StatusOK, fragment{name: "tally", data: tally})
+	return nil, nil
 }
 
-// handleDecide answers POST /reviews/{review}/decision: the verdict on the
-// round the form names, which must still be the open review's latest and
-// undecided. A recorded verdict reloads the page, since the decided page is a
-// different page.
-func (s *Server) handleDecide(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	review, ok, err := s.writeReview(w, r)
-	if !ok || err != nil {
-		return err
-	}
-	round, ok, err := s.formRound(w, r, review)
-	if !ok || err != nil {
-		return err
-	}
-	verdict := store.Verdict(r.PostFormValue("verdict"))
+// recordVerdict stores a verdict on a round. A change request with nothing in
+// it is a 422, which the route answers with the sentence.
+func (s *Server) recordVerdict(ctx context.Context, review store.Review, round store.Round, verdict store.Verdict, note string) (*rejection, error) {
 	if verdict != store.VerdictApprove && verdict != store.VerdictChanges {
-		plain(w, http.StatusBadRequest, notThisForm)
-		return nil
+		return &rejection{status: http.StatusBadRequest, text: notThisForm}, nil
 	}
-	note := r.PostFormValue("note")
 	if review.State != store.StateOpen || round.Number != review.LatestRound {
-		plain(w, http.StatusConflict, staleVerdict)
-		return nil
+		return &rejection{status: http.StatusConflict, text: staleVerdict}, nil
 	}
-	err = s.db.Decide(ctx, round.ID, verdict, note)
+	err := s.db.Decide(ctx, round.ID, verdict, note)
 	switch {
 	case errors.Is(err, store.ErrEmptyChangeRequest):
-		tally, err := s.tally(ctx, review)
-		if err != nil {
-			return err
-		}
-		bar := barView{Action: decisionHref(review.ID), Round: round.Number, Tally: tally, Note: note, Refused: true}
-		return s.fragments(w, http.StatusUnprocessableEntity, fragment{name: "bar", data: bar})
+		return &rejection{status: http.StatusUnprocessableEntity, text: emptyChangeRequest}, nil
 	case errors.Is(err, store.ErrAlreadyDecided), errors.Is(err, store.ErrNotOpen):
-		plain(w, http.StatusConflict, staleVerdict)
-		return nil
-	case err != nil:
-		return err
+		return &rejection{status: http.StatusConflict, text: staleVerdict}, nil
 	}
-	// A redirect rather than HX-Location, which swaps the queue in without a page
-	// load, so blinkOnLoad would never run on it.
-	w.Header().Set("HX-Redirect", "/")
-	w.WriteHeader(http.StatusOK)
-	return nil
-}
-
-// handleComposer answers GET /reviews/{review}/composer: a composer anchored
-// where the query says.
-func (s *Server) handleComposer(w http.ResponseWriter, r *http.Request) error {
-	review, ok, err := s.writeReview(w, r)
-	if !ok || err != nil {
-		return err
-	}
-	q := r.URL.Query()
-	number, err := strconv.Atoi(q.Get("round"))
-	if err != nil {
-		plain(w, http.StatusNotFound, noRound)
-		return nil
-	}
-	round, err := s.db.s.Round(r.Context(), review.ID, number)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			plain(w, http.StatusNotFound, noRound)
-			return nil
-		}
-		return err
-	}
-	// A decided round sends a comment at once, so its composer says so.
-	_, err = s.db.s.Decision(r.Context(), round.ID)
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		return err
-	}
-	late := err == nil
-	start, startErr := optionalLine(q.Get("start"))
-	end, endErr := optionalLine(q.Get("end"))
-	old, oldErr := optionalLine(q.Get("oldline"))
-	if startErr != nil || endErr != nil || oldErr != nil {
-		plain(w, http.StatusBadRequest, notThisForm)
-		return nil
-	}
-	c, ok := composer(review.ID, number, store.Level(q.Get("level")), q.Get("path"), start, end, old, q.Get("against"), late)
-	if !ok {
-		plain(w, http.StatusBadRequest, notThisForm)
-		return nil
-	}
-	if c.Level == string(store.LevelLine) || c.Level == string(store.LevelPassage) {
-		if c.Cards, err = s.rangeCards(r.Context(), review, round, store.Level(c.Level), c.Path, c.Start, c.End); err != nil {
-			return err
-		}
-	}
-	return s.fragments(w, http.StatusOK, fragment{name: "composer", data: c})
-}
-
-// composer builds a composer for one anchor, and reports a level and fields
-// that do not go together.
-func composer(reviewID int64, round int, level store.Level, path string, start, end, old int, against string, late bool) (composerView, bool) {
-	c := composerView{
-		Action:  commentsHref(reviewID),
-		Round:   round,
-		Level:   string(level),
-		Path:    path,
-		Start:   start,
-		End:     end,
-		OldLine: old,
-		Against: against,
-		Hint:    "Saved as you type",
-		Button:  "Add",
-		Late:    late,
-	}
-	if late {
-		c.Hint, c.Button = "Sends immediately", "Send"
-	}
-	switch {
-	case level == store.LevelLine:
-		c.ThreadID = threadID(path, start)
-	case level == store.LevelPassage:
-		c.PassageID = passageID(path, start, end)
-	case level == store.LevelFile && old != 0:
-		c.ThreadID = fmt.Sprintf("thread-%s-o%d", pathKey(path), old)
-	case level != store.LevelReview:
-		c.Slot = slotID(path)
-	}
-	fileList := "#" + listID(store.LevelFile, path)
-	review := chipView{Level: string(store.LevelReview), Label: "Review", Target: "#" + listID(store.LevelReview, "")}
-	file := chipView{Level: string(store.LevelFile), Label: "File", Target: fileList}
-	switch level {
-	case store.LevelReview:
-		if path != "" || start != 0 || old != 0 {
-			return c, false
-		}
-		c.Anchor, c.Placeholder = "This review", "Comment on the whole review…"
-		review.Pressed = true
-		c.Chips = nil
-	case store.LevelFile:
-		if path == "" || start != 0 {
-			return c, false
-		}
-		c.Anchor, c.Placeholder = path, "Comment on this file…"
-		if old != 0 {
-			c.Anchor = fmt.Sprintf("%s, removed line %d", path, old)
-		}
-		file.Pressed = true
-		c.Chips = []chipView{file, review}
-	case store.LevelLine:
-		if path == "" || start == 0 || old != 0 {
-			return c, false
-		}
-		c.End = start
-		c.Anchor, c.Placeholder = fmt.Sprintf("%s:%d", path, start), fmt.Sprintf("Comment on line %d…", start)
-		c.Chips = []chipView{{Level: string(store.LevelLine), Label: fmt.Sprintf("Line %d", start), Target: "#" + c.ThreadID, Pressed: true}, file, review}
-	case store.LevelPassage:
-		if path == "" || start == 0 || end < start || old != 0 {
-			return c, false
-		}
-		c.Anchor, c.Placeholder = fmt.Sprintf("%s:%d–%d", path, start, end), "Comment on this passage…"
-		c.Chips = []chipView{{Level: string(store.LevelPassage), Label: "Passage", Target: "#" + c.PassageID, Pressed: true}, file, review}
-	default:
-		return c, false
-	}
-	c.Target = "#" + listID(level, path)
-	if level == store.LevelLine {
-		c.Target = "#" + c.ThreadID
-	}
-	if level == store.LevelPassage {
-		c.Target = "#" + c.PassageID
-	}
-	return c, true
-}
-
-// handleComment answers GET /reviews/{review}/comments/{comment}: its card,
-// or with ?edit=1 its edit form while it can still change.
-func (s *Server) handleComment(w http.ResponseWriter, r *http.Request) error {
-	review, ok, err := s.writeReview(w, r)
-	if !ok || err != nil {
-		return err
-	}
-	id, ok, err := s.reviewComment(w, r, review)
-	if !ok || err != nil {
-		return err
-	}
-	if id == 0 {
-		plain(w, http.StatusNotFound, noComment)
-		return nil
-	}
-	card, err := s.card(r.Context(), review, id)
-	if err != nil {
-		return err
-	}
-	if r.URL.Query().Get("edit") == "1" && card.Editable {
-		return s.fragments(w, http.StatusOK, fragment{name: "editform", data: card})
-	}
-	return s.fragments(w, http.StatusOK, fragment{name: "card", data: card})
+	return nil, err
 }
 
 // writeReview resolves the review a write's address names. A review that does
@@ -521,12 +247,12 @@ func (s *Server) handleComment(w http.ResponseWriter, r *http.Request) error {
 func (s *Server) writeReview(w http.ResponseWriter, r *http.Request) (store.Review, bool, error) {
 	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
 	if err != nil {
-		plain(w, http.StatusNotFound, "There is no such review.")
+		refuseJSON(w, http.StatusNotFound, noReview)
 		return store.Review{}, false, nil
 	}
 	review, err := s.db.s.Review(r.Context(), id)
 	if errors.Is(err, store.ErrNotFound) {
-		plain(w, http.StatusNotFound, "There is no such review.")
+		refuseJSON(w, http.StatusNotFound, noReview)
 		return store.Review{}, false, nil
 	}
 	if err != nil {
@@ -535,18 +261,11 @@ func (s *Server) writeReview(w http.ResponseWriter, r *http.Request) (store.Revi
 	return review, true, nil
 }
 
-// formRound resolves the round a write's form names within its review. The
-// page sends the number of the round it showed, so a write is never applied to
-// a round the reviewer did not see.
-func (s *Server) formRound(w http.ResponseWriter, r *http.Request, review store.Review) (store.Round, bool, error) {
-	number, err := strconv.Atoi(r.PostFormValue("round"))
-	if err != nil {
-		plain(w, http.StatusNotFound, noRound)
-		return store.Round{}, false, nil
-	}
+// findRound resolves a round by its number within its review.
+func (s *Server) findRound(w http.ResponseWriter, r *http.Request, review store.Review, number int) (store.Round, bool, error) {
 	round, err := s.db.s.Round(r.Context(), review.ID, number)
 	if errors.Is(err, store.ErrNotFound) {
-		plain(w, http.StatusNotFound, noRound)
+		refuseJSON(w, http.StatusNotFound, noRound)
 		return store.Round{}, false, nil
 	}
 	if err != nil {
@@ -561,7 +280,7 @@ func (s *Server) formRound(w http.ResponseWriter, r *http.Request, review store.
 func (s *Server) reviewComment(w http.ResponseWriter, r *http.Request, review store.Review) (int64, bool, error) {
 	id, err := strconv.ParseInt(r.PathValue("comment"), 10, 64)
 	if err != nil {
-		plain(w, http.StatusNotFound, noComment)
+		refuseJSON(w, http.StatusNotFound, noComment)
 		return 0, false, nil
 	}
 	owner, err := s.db.CommentReview(r.Context(), id)
@@ -572,92 +291,10 @@ func (s *Server) reviewComment(w http.ResponseWriter, r *http.Request, review st
 		return 0, false, err
 	}
 	if owner != review.ID {
-		plain(w, http.StatusNotFound, noComment)
+		refuseJSON(w, http.StatusNotFound, noComment)
 		return 0, false, nil
 	}
 	return id, true, nil
-}
-
-// answerList answers a stored comment: the anchor's list, and the tally beside
-// it while the round still has a bar to count for.
-func (s *Server) answerList(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, id string) error {
-	comments, err := s.db.s.Comments(ctx, round.ID)
-	if err != nil {
-		return err
-	}
-	open, decided, err := s.roundOpen(ctx, review, round)
-	if err != nil {
-		return err
-	}
-	list := listView{ID: id}
-	for _, c := range comments {
-		if listID(c.Level, c.Path) == id {
-			list.Cards = append(list.Cards, cardOf(review.ID, c, open, decided))
-		}
-	}
-	parts := []fragment{{name: "commentlist", data: list}}
-	if open {
-		parts = append(parts, fragment{name: "tally", data: tallyView{Count: len(comments), OOB: true}})
-	}
-	return s.fragments(w, http.StatusOK, parts...)
-}
-
-// answerThread answers a stored line comment with the row under its line,
-// holding every comment on that line, and the tally beside it.
-func (s *Server) answerThread(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, path string, line int) error {
-	cards, err := s.rangeCards(ctx, review, round, store.LevelLine, path, line, line)
-	if err != nil {
-		return err
-	}
-	return s.answerGroup(ctx, w, review, round, fragment{name: "thread", data: threadView{ID: threadID(path, line), Cards: cards}})
-}
-
-// answerPassage answers a stored passage comment with the group under its
-// passage, holding every comment on that passage, and the tally beside it.
-func (s *Server) answerPassage(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, path string, first, last int) error {
-	cards, err := s.rangeCards(ctx, review, round, store.LevelPassage, path, first, last)
-	if err != nil {
-		return err
-	}
-	return s.answerGroup(ctx, w, review, round, fragment{name: "passagethread", data: threadView{ID: passageID(path, first, last), Cards: cards}})
-}
-
-// answerGroup writes a line's or a passage's group, and the tally while the
-// round has a bar.
-func (s *Server) answerGroup(ctx context.Context, w http.ResponseWriter, review store.Review, round store.Round, group fragment) error {
-	parts := []fragment{group}
-	open, _, err := s.roundOpen(ctx, review, round)
-	if err != nil {
-		return err
-	}
-	if open {
-		comments, err := s.db.s.Comments(ctx, round.ID)
-		if err != nil {
-			return err
-		}
-		parts = append(parts, fragment{name: "tally", data: tallyView{Count: len(comments), OOB: true}})
-	}
-	return s.fragments(w, http.StatusOK, parts...)
-}
-
-// rangeCards reads the comments at one level on one range of a file as of a
-// round: a line, or a passage.
-func (s *Server) rangeCards(ctx context.Context, review store.Review, round store.Round, level store.Level, path string, first, last int) ([]cardView, error) {
-	comments, err := s.db.s.Comments(ctx, round.ID)
-	if err != nil {
-		return nil, err
-	}
-	open, decided, err := s.roundOpen(ctx, review, round)
-	if err != nil {
-		return nil, err
-	}
-	var out []cardView
-	for _, c := range comments {
-		if c.Level == level && c.Path == path && c.StartLine == first && c.EndLine == last {
-			out = append(out, cardOf(review.ID, c, open, decided))
-		}
-	}
-	return out, nil
 }
 
 // card reads one comment as its card.
@@ -697,7 +334,7 @@ func cardOf(reviewID int64, c store.Comment, open bool, decided *store.Decision)
 	late := !open && (decided == nil || c.Created.After(decided.Decided))
 	return cardView{
 		ID:       c.ID,
-		Href:     fmt.Sprintf("/reviews/%d/comments/%d", reviewID, c.ID),
+		Href:     fmt.Sprintf("/api/reviews/%d/comments/%d", reviewID, c.ID),
 		Where:    where(c),
 		Quoted:   dedent(c.Quoted),
 		Body:     c.Body,
@@ -707,16 +344,16 @@ func cardOf(reviewID int64, c store.Comment, open bool, decided *store.Decision)
 }
 
 // tally counts the comments on the review's latest round.
-func (s *Server) tally(ctx context.Context, review store.Review) (tallyView, error) {
+func (s *Server) tally(ctx context.Context, review store.Review) (int, error) {
 	round, err := s.db.s.Round(ctx, review.ID, review.LatestRound)
 	if err != nil {
-		return tallyView{}, err
+		return 0, err
 	}
 	comments, err := s.db.s.Comments(ctx, round.ID)
 	if err != nil {
-		return tallyView{}, err
+		return 0, err
 	}
-	return tallyView{Count: len(comments), OOB: true}, nil
+	return len(comments), nil
 }
 
 // listID is the element id of the comment list an anchor's comments go in: one
@@ -746,73 +383,13 @@ func passageID(path string, first, last int) string {
 	return fmt.Sprintf("thread-%s-p%d-%d", pathKey(path), first, last)
 }
 
-// fragment renders one template block to HTML, for a page that writes it
-// inside content another package renders.
-func (s *Server) fragment(name string, data any) (template.HTML, error) {
-	t, err := s.pages.Clone()
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
-		return "", errors.Wrapf(err, "render %s", name)
-	}
-	return template.HTML(buf.String()), nil
-}
-
 // slotID is the element id of a file's composer slot, hashed as listID is.
 func slotID(path string) string {
 	return "slot-" + pathKey(path)
 }
 
-// commentsHref is where a comment posts, and decisionHref where a verdict
-// does.
-func commentsHref(reviewID int64) string {
-	return fmt.Sprintf("/reviews/%d/comments", reviewID)
-}
-
 func decisionHref(reviewID int64) string {
-	return fmt.Sprintf("/reviews/%d/decision", reviewID)
-}
-
-// optionalLine reads a line number that may be absent.
-func optionalLine(v string) (int, error) {
-	if v == "" {
-		return 0, nil
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil || n < 1 {
-		return 0, errors.Newf("line %q is not a line number", v)
-	}
-	return n, nil
-}
-
-// fragment is one named template block and its data.
-type fragment struct {
-	name string
-	data any
-}
-
-// fragments writes template blocks one after another, the first being the
-// answer htmx swaps into its target and any after it swapped by their ids.
-func (s *Server) fragments(w http.ResponseWriter, status int, parts ...fragment) error {
-	// Cloned for the same reason renderPage clones: a template that has been
-	// executed can no longer be cloned, and every page is rendered from a
-	// clone of s.pages.
-	t, err := s.pages.Clone()
-	if err != nil {
-		return err
-	}
-	var buf bytes.Buffer
-	for _, p := range parts {
-		if err := t.ExecuteTemplate(&buf, p.name, p.data); err != nil {
-			return errors.Wrapf(err, "render %s", p.name)
-		}
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = w.Write(buf.Bytes())
-	return nil
+	return fmt.Sprintf("/api/reviews/%d/decision", reviewID)
 }
 
 // plain answers with one sentence of plain text, which the page's failure

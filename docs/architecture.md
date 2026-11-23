@@ -726,12 +726,15 @@ body is `null`, and the card asks `GET /api/reviews/42/rounds/2/cards/{path}`
 for it. One function builds a body from one file and its comments, and both
 routes call it, so a body fetched later is the body the round would have sent.
 The cards route compares only the file it answers for, using
-`capture.ComparePaths`. The template route for a body builds the whole round and
-keeps one card, which compares every file in the round to answer for one. Both
-routes take `?against=base`, as the page does.
+`capture.ComparePaths`. It still builds the card as the round does: the comments
+on the file are placed as the round places them, and whether a document draws as
+the page itself depends on how many files the round moved, which
+`capture.MovedPaths` reads from the captures' digests with no diff. A path that
+did not move, or is outside the review's paths, answers 404. The route takes
+`?against=base`, as the page does.
 
 **A document arrives as a list of passages.** In the template page a document
-card is one piece of HTML, and the threads under its passages are written into
+card was one piece of HTML, and the threads under its passages were written into
 it through render's `After` hook. In the app a thread is a component, with a
 composer, an edit form and a delete button, so it cannot live inside HTML that
 is inserted as it is. render instead returns the document as a list. Each entry
@@ -760,6 +763,50 @@ fields: 4.8 MB as JSON, and 258 KB gzipped at level 6, the level the daemon
 uses. The daemon compressed nothing before this, and sent the 383 KB bundle as
 it is. A terser encoding, such as a token as an array, was rejected, since gzip
 removes the same repetition and the generated types stay readable.
+
+**A write sends JSON and is answered with what it changed.** The write routes
+under `/api` take a JSON body whose type is in `internal/view`, so the generator
+writes the request's type as it writes a view's, and a field renamed in Go fails
+the app's build. A comment names its round, its level, its path, its lines or
+the old line of a removed row, the comparison, its text and a submission key.
+The server still reads the quote from the round's frozen content, never from the
+request, and stores a comment on a round that is decided, withdrawn or followed
+by another as late. An added or edited comment is answered with the stored
+comment as the view sends it and the review's count of comments, and the app
+puts the comment at its anchor in the cached round or card body. A comment on a
+passage of a document, added or deleted, also refetches the round: whether a
+passage sits in a fold depends on whether it has a comment, which is the
+server's rule, and a copy of it in the app would have nothing checking that the
+two agree. A delete has no body, since its address names the comment, and is
+answered with the count. The count is the comments on the review's latest round,
+the number the bar shows. A verdict names its round, the verdict and its note,
+and is answered 204 with no body once it is stored. A request the server
+refuses, such as an empty comment or a verdict on a round no longer open, is
+answered 4xx with `Refusal`, one sentence, which the app shows beside the
+control while the text stays where it was typed. A change request with no
+comments and no note is answered 422 with the sentence, and the bar draws its
+own refused state from the status. A body that is not declared
+`application/json`, is larger than a megabyte, holds a field the type does not,
+or is followed by anything else is refused. The type check answers 415 with a
+`Refusal` instead of a decode failure. It is a second layer behind the
+cross-origin check every surface request passes, and has no reason beyond being
+explicit. A write that fails in the store is answered 500 with `Refusal`, since
+the error page would reach the app as text it cannot read. An edit of a comment
+already gone answers 404 with `Refusal`, where it answered 500, and a delete of
+one answers 200 with the count, so a delete sent twice reports no failure. The
+view names the `/api` routes for a comment's edit and delete and for the verdict
+in its `href` and `action`, and a write to the loopback listener carries the
+run's token, whose refusal under `/api` is a `Refusal` and not the page. The app
+builds a comment's request from its anchor in `composerAt.ts`, and a Vitest test
+compares it with the hidden fields of each composer answer the template routes
+gave, kept as they last came out, each anchor read from the request that wrote
+the answer, which `composers.ts` keeps. A request sent as a level the chips
+chose carries only the fields that level takes. No answer, a timeout or a 5xx
+leaves a comment unsent with a retry that sends the same submission key, so a
+first try that reached the store and lost its answer is stored once. A 4xx
+leaves the text in its composer with the server's sentence, since it would be
+refused again. Form bodies, which the template routes took, were rejected: the
+app would build a form from typed data, and nothing generated would check it.
 
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
@@ -790,44 +837,46 @@ so the view sends it as a string through json's `,string` option and the type is
 Routes, with the spec that built each. "Planned" is a route this document
 describes and no spec has built yet.
 
-| Pattern                                                    | Answers                                             | Spec    |
-| ---------------------------------------------------------- | --------------------------------------------------- | ------- |
-| `GET /{$}`                                                 | the shell, drawing the queue                        | 028     |
-| `GET /reviews/{review}`                                    | the shell, drawing the current round                | planned |
-| `GET /reviews/{review}/rounds/{round}`                     | the shell, drawing that round                       | planned |
-| `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | 030     |
-| `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | 030     |
-| `GET /projects/{project}`                                  | the shell, drawing the project view                 | 030     |
-| `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | 030     |
-| `GET /api/{$}`                                             | the queue's view, as JSON, with a stamp of its rows | 028     |
-| `GET /api/reviews/{review}/files/{path...}`                | the tree or the file at the latest round, as JSON   | 030     |
-| `GET /api/reviews/{review}/rounds/{round}/files/{path...}` | the tree or the file at that round, as JSON         | 030     |
-| `GET /api/projects/{project}`                              | the project view, as JSON                           | 030     |
-| `GET /api/projects/{project}/files/{path...}`              | a live file, by `copy`, as JSON                     | 030     |
-| `GET /api/reviews/{review}`                                | the current round's view, as JSON                   | 031     |
-| `GET /api/reviews/{review}/rounds/{round}`                 | that round's view, as JSON                          | 031     |
-| `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | 031     |
-| `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | planned |
-| `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | planned |
-| `DELETE /api/reviews/{review}/comments/{comment}`          | drop one before the verdict                         | planned |
-| `POST /api/reviews/{review}/decision`                      | the verdict, releasing the round                    | planned |
-| `GET /reviews/{review}/raw/{round}/{path...}`              | a file's bytes as of a round, 0 the base            | 010     |
-| `GET /events`                                              | the live stream, and therefore the connection       | 008     |
-| `GET /manifest.webmanifest`                                | what makes the page installable                     | 009     |
-| `GET /sw.js`                                               | the service worker, scoped to the surface           | 009     |
-| `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009     |
-| `GET /static/app.js`                                       | the app, bundled once from the binary               | 008     |
-| `GET /static/react.js`                                     | the React app, while screens are mixed              | 028     |
-| `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006     |
-| `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015     |
-| `POST /subscriptions`                                      | a device's push subscription                        | 009     |
-| `POST /taps`                                               | a beacon from a notification tap, logged            | 026     |
-| `GET /healthz`                                             | liveness, after touching the database               | 006     |
+| Pattern                                                    | Answers                                             | Spec |
+| ---------------------------------------------------------- | --------------------------------------------------- | ---- |
+| `GET /{$}`                                                 | the shell, drawing the queue                        | 028  |
+| `GET /reviews/{review}`                                    | the shell, drawing the current round                | 032  |
+| `GET /reviews/{review}/rounds/{round}`                     | the shell, drawing that round                       | 032  |
+| `GET /reviews/{review}/files/{path...}`                    | the shell, drawing a file or a directory            | 030  |
+| `GET /reviews/{review}/rounds/{round}/files/{path...}`     | the shell, drawing a file or a directory at a round | 030  |
+| `GET /projects/{project}`                                  | the shell, drawing the project view                 | 030  |
+| `GET /projects/{project}/files/{path...}`                  | the shell, drawing a live file, by `copy`           | 030  |
+| `GET /api/{$}`                                             | the queue's view, as JSON, with a stamp of its rows | 028  |
+| `GET /api/reviews/{review}/files/{path...}`                | the tree or the file at the latest round, as JSON   | 030  |
+| `GET /api/reviews/{review}/rounds/{round}/files/{path...}` | the tree or the file at that round, as JSON         | 030  |
+| `GET /api/projects/{project}`                              | the project view, as JSON                           | 030  |
+| `GET /api/projects/{project}/files/{path...}`              | a live file, by `copy`, as JSON                     | 030  |
+| `GET /api/reviews/{review}`                                | the current round's view, as JSON                   | 031  |
+| `GET /api/reviews/{review}/rounds/{round}`                 | that round's view, as JSON                          | 031  |
+| `GET /api/reviews/{review}/rounds/{round}/cards/{path...}` | one file card's body, as the card nears view        | 031  |
+| `POST /api/reviews/{review}/comments`                      | one comment, answered with the comment              | 032  |
+| `PUT /api/reviews/{review}/comments/{comment}`             | a comment's new body, before the verdict            | 032  |
+| `DELETE /api/reviews/{review}/comments/{comment}`          | drop one before the verdict                         | 032  |
+| `POST /api/reviews/{review}/decision`                      | the verdict, releasing the round                    | 032  |
+| `GET /reviews/{review}/raw/{round}/{path...}`              | a file's bytes as of a round, 0 the base            | 010  |
+| `GET /events`                                              | the live stream, and therefore the connection       | 008  |
+| `GET /manifest.webmanifest`                                | what makes the page installable                     | 009  |
+| `GET /sw.js`                                               | the service worker, scoped to the surface           | 009  |
+| `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009  |
+| `GET /static/app.js`                                       | the app, bundled once from the binary               | 008  |
+| `GET /static/react.js`                                     | the React app, while screens are mixed              | 028  |
+| `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006  |
+| `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015  |
+| `POST /subscriptions`                                      | a device's push subscription                        | 009  |
+| `POST /taps`                                               | a beacon from a notification tap, logged            | 026  |
+| `GET /healthz`                                             | liveness, after touching the database               | 006  |
 
-The routes that answered htmx with fragments go: the composer, a comment's card
-and its edit form. The app draws those from data it already holds.
-`/static/htmx.js` goes with htmx, and `/static/shell.css` joins the bundled
-stylesheet, since there is no tearout page left for it to stay out of.
+The routes that answered htmx with fragments are gone: the composer, a comment's
+card and its edit form. The app draws those from data it already holds. So are
+the template page's own writes, which took a form and answered a fragment, and
+the template route for a card's body, since the app writes and reads under
+`/api`. `/static/htmx.js` goes with htmx, and `/static/shell.css` joins the
+bundled stylesheet, since there is no tearout page left for it to stay out of.
 
 `GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
 every path, and would answer `/agent/daemon` on the surface's listener.
@@ -846,21 +895,23 @@ less than not having to remember what the letter meant.
 holding the store and the blob store, and each declares the narrow interface it
 needs rather than depending on a package-wide one.
 
-**Screens move one at a time.** Until the last one moves, the server answers a
-moved screen's address with the shell and every other address with its template,
-and a link from one kind to the other is a full page load. The order is in
-[specs/TODO.md](../specs/TODO.md). Rebuilding every screen on one branch was
-rejected: it is one review too large to read on a phone, and nothing ships until
-all of it does.
+**Screens moved one at a time.** While some were templates, the server answered
+a moved screen's address with the shell and every other address with its
+template, and a link from one kind to the other was a full page load. Every
+screen is now the app's: the queue, a project, a tree or a file and a review's
+round answer the shell. What is left of the templates is the error page and its
+notice, which the removal of htmx in [specs/TODO.md](../specs/TODO.md) takes.
+Rebuilding every screen on one branch was rejected: it is one review too large
+to read on a phone, and nothing shipped until all of it did.
 
-**While screens are mixed, two bundles have two addresses.** The templates keep
-`/static/app.js`, and the React app is served at `/static/react.js`. The cleanup
-that removes the last template makes the React bundle `/static/app.js`. The
-shell links `/static/app.css` and `/static/shell.css`, the files the templates
-link, since `app.css` stays one file through the mixed period and the React
-bundle imports no stylesheet. A row that leads to a template page is a plain
-anchor, so tapping it is a full page load. React Router intercepts only its own
-`Link`.
+**Until the last template goes, two bundles have two addresses.** The template
+bundle keeps `/static/app.js`, and the React app is served at
+`/static/react.js`. The cleanup that removes the last template makes the React
+bundle `/static/app.js`. The shell links `/static/app.css` and
+`/static/shell.css`, the files the templates link, since `app.css` stays one
+file until then and the React bundle imports no stylesheet. A link to an address
+the app does not draw is a plain anchor, so tapping it is a full page load.
+React Router intercepts only its own `Link`.
 
 **One client function says which addresses the app draws**, by matching an
 address against the router's routes. The link component draws a router link for
@@ -999,19 +1050,59 @@ four rules keep the copy correct.
   to the foreground, which TanStack Query does by default. The project view, the
   tree and the file pages have none yet. The review page's views carry the stamp
   `/events?review=N` sends, which covers the review's state, each round's
-  verdict and the agent's replies, and a change refetches the round and the card
-  bodies on screen. It leaves comments out, as it does for the template page,
-  since the reader's own comments reach the cache from the server's answers.
-- **A refetch never takes typed text away.** A composer is keyed by where it
-  opened, a line, a passage, a file or the review, so a refetch that redraws its
-  card keeps it mounted with its text. A browser test types into a composer,
-  moves the stamp, and reads the text back.
+  verdict and the agent's replies. A review's round and its bodies are fetched
+  when the screen opens, on a stamp that differs from the round's own, and after
+  the reader's own write where the server decides what is drawn, as a passage's
+  folds. Focus and reconnect do not refetch them: a fetch there would arrive
+  outside the hold, and the stream sends the stamp again when it returns, which
+  finds what was missed. A change refetches the round and the card bodies the
+  app asked for. It leaves comments out, since the reader's own comments reach
+  the cache from the server's answers. A verdict given elsewhere takes the bar
+  and its note away and turns an open composer late, so the change waits for
+  what the template's reload waited for: the round is not fetched while text in
+  a composer, an edit form, the review's box or the note is held, a comment is
+  on its way or one did not save, and a round that was fetched is not shown
+  until none is. The reader's own writes are put in what is shown at once, and a
+  write's answer cancels a fetch of the round already in flight and fetches
+  again, since that fetch may have read the store before the write. A stamp
+  whose fetch failed or was lost with the connection is asked for again when the
+  stream returns, which sends the same stamp.
+- **A refetch never takes typed text away.** The text of a composer, of each
+  open edit form, of the review's box and of the verdict's note is the screen's
+  state and not the element's, so a refetch that redraws a card keeps it. The
+  screen is keyed by the address it draws, so a newer round at the same address
+  reaches the screen as a newer view and is taken up through the hold, never by
+  drawing the screen again. A key that held the round's number would have
+  dropped the text the first time a refetch returned a new round. Browser tests
+  type into a composer, move the stamp, bring the app to the foreground, drop
+  and restore the connection, and add a comment on a passage after a verdict
+  elsewhere and a new round, and read the text back. A composer is keyed by
+  where it opened, a line, a passage, a file or the review, and a tap on another
+  place moves it there with what was typed, as the template page's did. A second
+  composer for each tap would scatter half-written comments through a long
+  review.
 - **A write updates the cache from the server's answer**, never from a guess. A
   verdict shows as decided only once the server has said so. A comment shows as
   sending until its answer arrives, and as unsent with its text and a retry if
-  the answer is a failure, as product.md requires.
+  the answer is a failure, as product.md requires. A verdict sets the blink mark
+  when it is sent and clears it if it fails. Once it is stored the router moves
+  to the queue, which reads the mark when it mounts, as it does after a page
+  load. The round's cached view and bodies and its draft are forgotten first.
+  Back to the review then fetches the decided round. The cached open round would
+  draw the bar again, and the note restored from the draft would hold the
+  fetched round back, so the decided round would never be taken up and a second
+  verdict would be refused as stale.
 - **What only this device knows stays on this device.** Drafts, the reader's
-  place and folded cards stay in `localStorage`, as they are today.
+  place and folded cards stay in `localStorage`, as they are today. The app
+  reads them through `web/ts/storage.ts`, which prefixes each key and wraps each
+  value with the time it was saved, under the keys and in the shapes the
+  template page saved, `drafts:R:N` and `place:R:N:against`, so text typed on
+  the template page before the switch is there after it. A draft keeps the
+  template's five parts key for key: the verdict's note, the review's box, the
+  composer with the query that opened it, each open edit form by its comment's
+  id, and each unsent card with its form's action, target and values. A decided
+  round keeps none, and the app prunes entries past thirty days as the template
+  bundle does when it opens.
 
 **Each screen holds its own stream**, for the build and connection notices and
 for the stamps it follows. The queue opens `/events?queue=1`, and a screen with
@@ -1026,6 +1117,44 @@ with React Router's `ScrollRestoration`, which does. Measured 2026-10-31 in
 headless Chromium with React Router 7.18.5 and a cached view: a list scrolled to
 4000 px, a row opened, and back returned to 4000 px. iOS is not measured.
 
+**The review screen sets its own scroll, after the router's.**
+`ScrollRestoration` scrolls in a layout effect at the root on every move: to the
+saved position on back and forward, to the element the hash names if it exists
+yet, and otherwise to the top. That is read from React Router 7.18.5's
+`useScrollRestoration`, not measured. The root draws the router's component
+after the screen, and layout effects run children first, so a layout effect of
+the screen would run before the router's. A screen drawn in the same commit as
+the move, from a cached view, is where the order shows. A review's view and its
+bodies arrive after the move otherwise, so the screen sets the reader's saved
+place in an effect, which runs after every layout effect, and again as each body
+arrives until the reader's first pointer down, click, wheel, touch move or key,
+or three seconds, as the template page did.
+
+Nothing is saved until that ends. The router's scroll to the top, and a place
+applied to a page that is still too short, would otherwise be saved over the
+place being restored. The scroll saved when the screen goes is the last one its
+handler saw, since by then the router may have moved the page for the screen
+that replaces it, and a page load saves it as the page is hidden. A review with
+no place saved is armed at once.
+
+A jump is an address with a hash that the reader did not come back to: a router
+move, or a page load with no place saved. The jump wins over the saved place
+there, and a reload or a move back keeps the place, since a reload after a jump
+would otherwise return to the card it named. At the move the target is not drawn
+when it is in a view fetched after the move, so the router scrolls to the top,
+and the screen scrolls to the target once it is drawn, below the page's header
+and the card's by the stylesheet's scroll margins. A link to a card or a comment
+on the same screen is a router link too, never a plain `#` anchor. A plain one
+pushes a history entry with no state, which the router files under the key
+`default`, the key of the first page the app loaded, and its scroll then
+restores that page's place. Measured 2026-11-01 with React Router 7.18.5 in
+headless Chromium: after a router move from a list scrolled to 1500 px, a plain
+anchor left the page at 1500 px, and a router link reached its target. The list
+of files keeps its `#` address as markup and moves the router on a plain click,
+with the query kept, since the comparison is part of the address. A card's fold
+is the screen's state, seeded from the saved place, since a card drawn with a
+constant `open` opens again whenever a refetch mounts it anew.
+
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
 build check and the keyboard fix in `viewport.ts` are framework-free modules,
@@ -1034,7 +1163,12 @@ template DOM, as push setup does with its page's buttons, the logic is a
 function both callers use and the template keeps its wiring. The binary embeds
 and stages `web/ts` beside `web/src`, so the app imports them. Rewriting them in
 React was rejected: two copies would have to agree on storage keys, such as the
-blink mark and the token, and nothing would check that they do.
+blink mark and the token, and nothing would check that they do. The review
+page's own modules were the exception, since each was wired to the template's
+markup and htmx's events: the composer, the drafts, the unsent cards, the
+deferred bodies and the reader's place. The app took their logic into the review
+screen and they are gone with the review template, so no two copies are left to
+agree.
 
 **The iOS behaviors tied to a screen move with that screen**, each re-checked on
 the phone when it moves: the deferred card bodies with their skeleton heights
@@ -1050,6 +1184,44 @@ heights measured once on the device, so a body arriving above the reader moves
 nothing. A file that moved more than 500 lines holds its body behind a line
 naming its size and a Load control, since a lock file loaded by accident is a
 long scroll past it.
+
+A body is a cached view of its own. Its query is keyed by the address its card
+names, query included, so `?against=base` stays distinct, and is enabled for a
+path the card has asked for, through its observer or a held card's Load. A
+disabled query still returns what the cache holds, so a review the reader
+returns to, from a file page, draws its bodies at once and reads them again
+behind them. The screen merges the bodies into the round to draw and to read it,
+and a write updates the shown round and each body's entry, each from its own
+latest value, so answers handled in one tick build on one another. A round
+fetched again cannot touch a body, and a body arriving does not pass through the
+round's writes. A fetch of a body already in flight when a write's answer lands
+is cancelled and made again, as the round's is, since it may have read the store
+before the write. A comment on a passage of a document reads that card's body
+again, since whether a passage sits in a fold is the server's rule. A newer
+round, once the screen takes it up, makes every body of that round stale: after
+a verdict given elsewhere their comments still offer Edit and Delete. Each body
+the screen has asked for is read again, on screen or not, and keeps its old data
+meanwhile. That costs a request for each card the reader scrolled past, which
+was accepted over dropping the bodies to load again near the reader, since a
+body above the reader turning back into a skeleton moves what is read. A body
+the cache holds for a card the screen has not asked for is only marked stale. A
+body is not read on focus or on reconnect, which would take the decided state
+into its comments while the bar is still drawn. A body that fails, or a held
+card's Load that does, fails at once with no retry and draws the failed line
+with a Retry in its card. The request carries the query's signal and ends when
+the screen goes. Measuring a skeleton's row heights happens once per run of the
+app, on the first open card, since the device decides them.
+
+A skeleton is only as tall as a guess, and a document's, six lines whatever its
+length, is a poor one. Safari has no scroll anchoring, so a body taller than its
+skeleton arriving above the reader would push what they were reading down. The
+screen keeps the card at the top of the screen where it was whenever a card
+above it changes height, as the template page's `holdPlace` did, and turns
+Chromium's own anchoring off so a browser test runs the path Safari runs. A page
+at its top holds nothing. What grows above the first card there, as the letter
+does when its font arrives, is what the reader is looking at, and scrolling past
+it would take them down the page. Browsers' own anchoring is off at the top for
+the same reason.
 
 Rows are drawn per body, not only near view. Measured 2026-11-01 with a probe
 page, not the real one: React and this stylesheet drew 26 cards of this
@@ -1069,8 +1241,11 @@ its cost: row heights would have to be known before rows are drawn, and the
 reader's place and a line's anchor would point at rows that may not exist.
 React's `style` prop set the skeleton heights with no violation of the policy,
 whose `default-src 'self'` refuses a style attribute, because React writes a
-style through the CSSOM rather than as an attribute. The next review-page spec
-measures the real page.
+style through the CSSOM rather than as an attribute. The real page, measured
+2026-11-22 on the same phone and the same 26 files, had no frame over 50 ms in a
+fling of 362 frames, the worst 33 ms. Its first card was drawn 1.3 s after the
+view's response ended on a cold load and 0.9 s with the service worker warm,
+time not yet divided between parsing the view and laying out the page.
 
 ## Notification
 
@@ -1138,8 +1313,8 @@ Cache Storage from holding a response, measured the same day in both. When the
 new worker activates it deletes every other build's cache.
 
 The worker answers nothing else. The live stream, the API, every write and every
-template page go to the daemon untouched, so a template page with the daemon
-down fails as it does today.
+address the app does not draw go to the daemon untouched, so such a page with
+the daemon down fails as it does today.
 
 **A page open across a rebuild offers to reload.** The live stream sends the
 daemon's build each time it connects, and when it differs from the build that
@@ -1246,6 +1421,9 @@ closes.
 - `tsc --noEmit` and `oxlint --type-aware` on the TypeScript.
 - Vitest over the components, including each story's interaction test and its
   accessibility audit, run in a real browser through Storybook's Vitest add-on.
+  A second Vitest project runs checks that have no screen, such as the app's
+  comment request against the template's hidden form fields, in the same
+  Chromium.
 - `web/deps/node_modules/` against a fresh run of the vendor step, and the
   generated API types against the Go structs. Either one stale fails.
 - `go test ./...`, which includes `internal/convention`, covering the Go

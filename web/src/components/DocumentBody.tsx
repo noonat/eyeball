@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DocPart, DocPassage } from "../api/types";
+import { classes } from "../../ts/classes";
 import { cx } from "./cx";
 
 interface DocumentBodyProps {
@@ -10,6 +11,14 @@ interface DocumentBodyProps {
    * it. A file page has none.
    */
   readonly renderAfter?: ((passage: DocPassage) => ReactNode) | undefined;
+  /**
+   * The file's path, for a document shown as the page itself, where no card
+   * holds it. A tap on a passage reads the path from the nearest element that
+   * carries one.
+   */
+  readonly path?: string | undefined;
+  /** Whether a passage is the one a composer is open on, drawn selected. */
+  readonly selected?: ((passage: DocPassage) => boolean) | undefined;
 }
 
 /**
@@ -25,17 +34,32 @@ interface DocumentBodyProps {
  * `react/no-danger` is on, and .oxlintrc.json turns it off for this file
  * alone.
  */
-export function DocumentBody({ passages, renderAfter }: DocumentBodyProps) {
+export function DocumentBody({
+  passages,
+  renderAfter,
+  selected,
+  path,
+}: DocumentBodyProps) {
   return (
-    <div className="prose">
+    <div className="prose" data-path={path}>
       {passages.map((part, i) =>
         part.passage !== null ? (
-          <Passage key={i} passage={part.passage} renderAfter={renderAfter} />
+          <Passage
+            key={i}
+            passage={part.passage}
+            renderAfter={renderAfter}
+            selected={selected}
+          />
         ) : (
           <details key={i} className="fold">
             <summary>{part.fold?.length ?? 0} unchanged passages</summary>
             {(part.fold ?? []).map((passage, j) => (
-              <Passage key={j} passage={passage} renderAfter={renderAfter} />
+              <Passage
+                key={j}
+                passage={passage}
+                renderAfter={renderAfter}
+                selected={selected}
+              />
             ))}
           </details>
         ),
@@ -47,13 +71,18 @@ export function DocumentBody({ passages, renderAfter }: DocumentBodyProps) {
 interface PassageProps {
   readonly passage: DocPassage;
   readonly renderAfter: ((passage: DocPassage) => ReactNode) | undefined;
+  readonly selected: ((passage: DocPassage) => boolean) | undefined;
 }
 
-function Passage({ passage, renderAfter }: PassageProps) {
+function Passage({ passage, renderAfter, selected }: PassageProps) {
   return (
     <>
       <div
-        className={cx("blk", passage.changed && "changed")}
+        className={cx(
+          "blk",
+          passage.changed && "changed",
+          selected?.(passage) === true && classes.sel,
+        )}
         data-lines={
           passage.first > 0 ? `${passage.first}-${passage.last}` : undefined
         }

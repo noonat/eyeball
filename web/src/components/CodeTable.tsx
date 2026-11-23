@@ -1,5 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import type { CodeRow, Token, TokenRole } from "../api/types";
+import { classes } from "../../ts/classes";
+import { cx } from "./cx";
 
 /** The class the stylesheet colors each role with. Plain text has none. */
 const roleClass: Readonly<Record<TokenRole, string | undefined>> = {
@@ -19,6 +21,8 @@ interface CodeTableProps {
    * line, or a composer. A page with no comments leaves it out.
    */
   readonly under?: ((row: CodeRow) => ReactNode) | undefined;
+  /** Whether a row is the one a composer is open on, which is drawn selected. */
+  readonly selected?: ((row: CodeRow) => boolean) | undefined;
 }
 
 /**
@@ -26,7 +30,7 @@ interface CodeTableProps {
  * and a word that changed within it is marked. The text is drawn from the
  * tokens the server cut, so no highlighting happens here.
  */
-export function CodeTable({ rows, under }: CodeTableProps) {
+export function CodeTable({ rows, under, selected }: CodeTableProps) {
   return (
     // A line can run past the screen, so the table scrolls, and a scrolling
     // region has to be reachable by keyboard. The template's page was not.
@@ -35,7 +39,7 @@ export function CodeTable({ rows, under }: CodeTableProps) {
         <tbody>
           {rows.map((row, i) => (
             <Fragment key={i}>
-              <CodeLine row={row} />
+              <CodeLine row={row} selected={selected?.(row) === true} />
               {under?.(row)}
             </Fragment>
           ))}
@@ -45,7 +49,13 @@ export function CodeTable({ rows, under }: CodeTableProps) {
   );
 }
 
-function CodeLine({ row }: { readonly row: CodeRow }) {
+function CodeLine({
+  row,
+  selected,
+}: {
+  readonly row: CodeRow;
+  readonly selected: boolean;
+}) {
   if (row.kind === "hunk") {
     return (
       <tr className="hunkhead">
@@ -62,7 +72,7 @@ function CodeLine({ row }: { readonly row: CodeRow }) {
   const tint =
     row.kind === "add" ? "add" : row.kind === "del" ? "del" : undefined;
   return (
-    <tr className={tint} {...number}>
+    <tr className={cx(tint, selected && classes.sel) || undefined} {...number}>
       <td className="ln">{row.number}</td>
       <td className="sign">{row.sign}</td>
       <td className="src">

@@ -72,6 +72,12 @@ const noToken = "This page cannot write to this eyeball. Open the address eyebal
 // which shows it beside the control, and a page to anything else.
 func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 	setSurfaceHeaders(w.Header())
+	// A write under /api is the app's, which reads JSON and shows the sentence
+	// beside its control.
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		refuseJSON(w, http.StatusForbidden, noToken)
+		return
+	}
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusForbidden)
@@ -179,10 +185,11 @@ type message struct {
 // an agent at a terminal.
 func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("surface request failed", "method", r.Method, "path", r.URL.Path, "err", err)
-	// htmx swaps no whole page and shows a plain answer beside the control
-	// that failed, so a request it sent gets the sentence alone.
-	if r.Header.Get("HX-Request") == "true" {
-		plain(w, http.StatusInternalServerError, failedWrite)
+	// A write under /api is answered by the app, which reads JSON and shows
+	// the sentence beside its control. A page would reach it as text it cannot
+	// parse, and the control would show nothing.
+	if r.Method != http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/") {
+		refuseJSON(w, http.StatusInternalServerError, failedWrite)
 		return
 	}
 	p := page{Title: "Something went wrong", Back: "/", BackLabel: "Queue", Body: message{Heading: "This page could not be read", Text: "The daemon's log says why."}}

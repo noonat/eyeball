@@ -184,3 +184,34 @@ func TestDiffers(t *testing.T) {
 	g := NewWithT(t)
 	g.Expect(Differs(nil, current, "deleted.txt")).To(BeTrue())
 }
+
+func TestMovedPaths(t *testing.T) {
+	g := NewWithT(t)
+	r := newRepo(g, t.TempDir())
+	r.write(g, "a.txt", "before\n")
+	r.write(g, "b.txt", "same\n")
+	base := r.commit(g, "base")
+	r.write(g, "a.txt", "after\n")
+	r.write(g, "c.txt", "new\n")
+	blobs, _ := newBlobs(g, t)
+	req, err := Freeze(t.Context(), Options{Round: 1, Root: r.root, Base: base, Blobs: blobs})
+	g.Expect(err).NotTo(HaveOccurred())
+	st, err := Inspect(t.Context(), r.root, base, false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// The paths are the ones Compare diffs, named without reading any of them:
+	// no lookup is made of git on either side.
+	before := st.Reader(blobs, nil)
+	now := st.Reader(blobs, req.Files)
+	paths := MovedPaths(before, now)
+	g.Expect(paths).To(Equal([]string{"a.txt", "c.txt"}), "b.txt did not move")
+	g.Expect(before.lookups).To(BeZero())
+	g.Expect(now.lookups).To(BeZero())
+	all, err := Compare(t.Context(), st.Reader(blobs, nil), st.Reader(blobs, req.Files))
+	g.Expect(err).NotTo(HaveOccurred())
+	var diffed []string
+	for _, m := range all {
+		diffed = append(diffed, m.Path)
+	}
+	g.Expect(paths).To(Equal(diffed))
+}

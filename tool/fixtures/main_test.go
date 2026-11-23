@@ -28,7 +28,10 @@ func TestGenerate_committedFilesAreCurrent(t *testing.T) {
 	}
 	for _, ps := range reviewPages {
 		g.Expect(files).To(HaveKey(ps.file + ".json"))
-		g.Expect(files).To(HaveKey(ps.file + ".html"))
+		g.Expect(files).NotTo(HaveKey(ps.file+".html"), "a page's markup is frozen")
+		frozen, err := os.ReadFile(filepath.Join("../..", outDir, ps.file+".html"))
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(frozen).NotTo(BeEmpty(), ps.file)
 	}
 	g.Expect(files).To(HaveKey("scenes.ts"))
 	for name, body := range files {

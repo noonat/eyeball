@@ -226,7 +226,7 @@
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/6/decision",
+      "action": "/api/reviews/6/decision",
       "count": 0
     }
   },

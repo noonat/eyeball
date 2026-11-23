@@ -1,31 +1,36 @@
 import type { ReactNode } from "react";
-import type { Card, CardBody, Comment, Review } from "../api/types";
+import { useLocation, useNavigate } from "react-router";
+import type { MouseEvent } from "react";
+import type { Card, Comment, Review } from "../api/types";
 import { AppLink } from "./AppLink";
 import { CommentGroup, CommentItems } from "./CommentList";
 import { Composer } from "./Composer";
-import type { ComposerAt } from "./composer";
+import type { ComposerAt } from "./composerAt";
 import { Counts } from "./Counts";
 import { DecisionBar, type BarGuard } from "./DecisionBar";
 import { DocumentBody } from "./DocumentBody";
 import { Icon } from "./Icon";
 import { Notice } from "./Notice";
 import { Pill } from "./Pill";
-import { ReviewCard } from "./ReviewCard";
+import { CardDocument, ReviewCard } from "./ReviewCard";
 import { ReviewUiContext, readOnly, type ReviewUi } from "./reviewUi";
 import { Screen } from "./Screen";
 
 interface ReviewScreenProps {
   /** The view of one round of a review. */
   readonly review: Review;
-  /**
-   * Bodies the app fetched for cards the round sent none with, by path. A card
-   * with no body in the view or here shows a skeleton.
-   */
-  readonly bodies?: Readonly<Record<string, CardBody>> | undefined;
   /** The page's own state: the open composer, a comment being edited. */
   readonly ui?: Partial<ReviewUi> | undefined;
   /** The verdict note as typed, and what stands between the reader and a verdict. */
-  readonly bar?: (BarGuard & { note?: string; refused?: boolean }) | undefined;
+  readonly bar?:
+    | (BarGuard & {
+        note?: string;
+        onNote?: (note: string) => void;
+        held?: boolean;
+        refused?: boolean;
+        failure?: string;
+      })
+    | undefined;
   readonly onDecide?:
     | ((verdict: "changes" | "approve", note: string) => void)
     | undefined;
@@ -42,7 +47,6 @@ interface ReviewScreenProps {
  */
 export function ReviewScreen({
   review,
-  bodies,
   ui,
   bar,
   onDecide,
@@ -90,6 +94,9 @@ export function ReviewScreen({
               at={reviewAt}
               id="comments-review"
               late={state.late}
+              text={state.reviewText}
+              onText={state.onReviewText}
+              failure={state.failures?.["review"]}
               onSubmit={(text) => {
                 state.onSubmit?.(reviewAt, text);
               }}
@@ -104,15 +111,13 @@ export function ReviewScreen({
         <Toolbar review={review} fresh={fresh} />
         {review.listed ? <FileList cards={cards} /> : null}
         {fresh !== undefined ? (
-          <DocumentBody passages={fresh.body?.passages ?? []} />
+          fresh.body === null ? (
+            <DocumentBody passages={[]} />
+          ) : (
+            <CardDocument card={fresh} body={fresh.body} />
+          )
         ) : (
-          cards.map((card) => (
-            <ReviewCard
-              key={card.id}
-              card={card}
-              fetched={bodies?.[card.path]}
-            />
-          ))
+          cards.map((card) => <ReviewCard key={card.id} card={card} />)
         )}
         <div className="tree">
           <AppLink className="treerow" href={review.all_files}>
@@ -297,32 +302,89 @@ function Toolbar({ review, fresh }: ToolbarProps) {
       )}
       {review.against === null ? null : (
         <span className="segmented">
-          {/* A query alone is relative to the page it is on, which only the
-              browser knows until the review has a route of its own. */}
-          <a
-            href="?against=previous"
-            aria-current={review.against.base ? undefined : true}
-          >
+          <CompareLink against="previous" current={!review.against.base}>
             {review.against.previous}
-          </a>
-          <a
-            href="?against=base"
-            aria-current={review.against.base ? true : undefined}
-          >
+          </CompareLink>
+          <CompareLink against="base" current={review.against.base}>
             Whole review
-          </a>
+          </CompareLink>
         </span>
       )}
     </div>
   );
 }
 
-/** A list of the files, each a link to its card, for a round past ten. */
+interface CompareLinkProps {
+  readonly against: "previous" | "base";
+  readonly current: boolean;
+  readonly children: string;
+}
+
+/**
+ * One setting of the comparison. The link keeps the query alone as its address,
+ * which the browser resolves against the page it is on, and a plain click moves
+ * the router to the same address, so the round is fetched and drawn with no
+ * page load. A router link here would write the resolved address into the
+ * markup, which differs from the approved page's.
+ */
+function CompareLink({ against, current, children }: CompareLinkProps) {
+  const navigate = useNavigate();
+  const search = `?against=${against}`;
+  return (
+    <a
+      href={search}
+      aria-current={current ? true : undefined}
+      onClick={(event) => {
+        if (!plainClick(event)) {
+          return;
+        }
+        event.preventDefault();
+        void navigate({ search });
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+/** Whether a click is the plain one that follows a link in place. */
+function plainClick(event: MouseEvent): boolean {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
+
+/**
+ * A list of the files, each a link to its card, for a round past ten. A plain
+ * `#` anchor pushes a history entry the router files under the key of the
+ * first page the app loaded, and its scroll then restores that page's place,
+ * which is the queue's after a move from a scrolled queue. The link keeps its
+ * address as the markup the stories compare and moves the router to it, which
+ * scrolls to the card as it does to any hash. The query stays, since a
+ * comparison is part of the address.
+ */
 function FileList({ cards }: { readonly cards: readonly Card[] }) {
+  const navigate = useNavigate();
+  const { search } = useLocation();
   return (
     <nav className="tree filelist" aria-label="Files">
       {cards.map((card) => (
-        <a key={card.id} className="treerow" href={`#${card.id}`}>
+        <a
+          key={card.id}
+          className="treerow"
+          href={`#${card.id}`}
+          onClick={(event) => {
+            if (!plainClick(event)) {
+              return;
+            }
+            event.preventDefault();
+            void navigate({ search, hash: `#${card.id}` });
+          }}
+        >
           <Icon name="file-text" />
           <span className="nm">
             <bdi>{card.path}</bdi>

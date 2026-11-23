@@ -55,6 +55,14 @@ func Compare(ctx context.Context, before, now *Reader) ([]Moved, error) {
 	return ComparePaths(ctx, before, now, moved(before.capture(), now.capture()))
 }
 
+// MovedPaths lists, in path order, the paths whose state differs between the
+// capture before reads and the capture now reads. It is the list Compare
+// diffs. Only the captures' digests are compared, so it reads no file and asks
+// git nothing.
+func MovedPaths(before, now *Reader) []string {
+	return moved(before.capture(), now.capture())
+}
+
 // ComparePaths diffs each of paths as before reads it against how now reads
 // it, in the order given.
 //

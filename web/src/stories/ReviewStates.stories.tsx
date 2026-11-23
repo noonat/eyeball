@@ -7,8 +7,10 @@ import { ScreenLoading } from "../components/ScreenLoading";
 import {
   reviewApproved,
   reviewCode,
+  reviewDeferred,
   reviewDoc,
   reviewFresh,
+  reviewHeld,
 } from "../fixtures";
 
 const meta = {
@@ -96,7 +98,7 @@ export const Unsent: Story = {
         },
       ],
     },
-    bar: { unsent: 1 },
+    bar: { unsent: 1, held: true },
   },
   play: async ({ canvasElement }) => {
     const card = pick(canvasElement, ".comment.unsent");
@@ -203,7 +205,7 @@ export const ComposerOnDecidedRound: Story = {
 export const EditingAComment: Story = {
   args: {
     review: reviewCode,
-    ui: { editing: "5" },
+    ui: { editing: ["5"] },
   },
   play: async ({ canvasElement }) => {
     await expect(
@@ -214,9 +216,153 @@ export const EditingAComment: Story = {
   },
 };
 
+/**
+ * A comment the server refused stays in its composer with the server's
+ * sentence at the foot of the form, and what was typed is still there.
+ */
+export const ComposerFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      composer: { level: "line", path: "internal/upload/worker.go", line: 12 },
+      composerText: "   ",
+      failures: { composer: "A comment needs some text." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const composer = pick(canvasElement, "tr.thread .composer");
+    await expect(within(composer).getByRole("alert")).toHaveTextContent(
+      "A comment needs some text.",
+    );
+    await expect(composer.querySelector("textarea")).toHaveValue("   ");
+  },
+};
+
+/** A save that reached no server says so in the edit form, which keeps its text. */
+export const EditFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      editing: ["5"],
+      editText: { "5": "A sharper note." },
+      failures: { "edit:5": "Cannot reach Eyeball." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const form = pick(canvasElement, "form#comment-5");
+    await expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Cannot reach Eyeball.",
+    );
+    await expect(form.querySelector("textarea")).toHaveValue("A sharper note.");
+  },
+};
+
+/** A delete that got no answer in time says so after the comment's actions. */
+export const CommentActionsFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      failures: {
+        "comment:5":
+          "Eyeball did not answer in time. Nothing is known to have been sent.",
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(canvasElement, "#comment-5");
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "Eyeball did not answer in time. Nothing is known to have been sent.",
+    );
+    await expect(
+      within(card).getByRole("link", { name: "Delete" }),
+    ).toBeVisible();
+  },
+};
+
+/**
+ * A body that did not come says so in its card, above the skeleton that still
+ * holds its place, with a Retry that asks again.
+ */
+export const BodyFailed: Story = {
+  args: {
+    review: reviewDeferred,
+    ui: {
+      onLoad: () => undefined,
+      failures: { "card:internal/deferred/big.go": "Cannot reach Eyeball." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(
+      canvasElement,
+      "details[data-path='internal/deferred/big.go']",
+    );
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "Cannot reach Eyeball. Retry",
+    );
+    await expect(
+      within(card).getByRole("button", { name: "Retry" }),
+    ).toBeVisible();
+    await expect(card.querySelector(".skeleton")).not.toBeNull();
+  },
+};
+
+/** A Load that failed says so after the link, with the same Retry. */
+export const LoadFailed: Story = {
+  args: {
+    review: reviewHeld,
+    ui: {
+      onLoad: () => undefined,
+      failures: { "card:internal/held/gen.go": "Eyeball could not do that." },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(canvasElement, ".filefacts");
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "Eyeball could not do that. Retry",
+    );
+    await expect(
+      within(card).getByRole("link", { name: "Load anyway" }),
+    ).toBeVisible();
+    await expect(
+      within(card).getByRole("button", { name: "Retry" }),
+    ).toBeVisible();
+  },
+};
+
+/** A retry that failed again says so beside the card's Retry and Delete. */
+export const UnsentFailed: Story = {
+  args: {
+    review: reviewCode,
+    ui: {
+      pending: [
+        {
+          at: { level: "line", path: "internal/upload/worker.go", line: 22 },
+          comment: pending(
+            3,
+            "internal/upload/worker.go:22",
+            "This second send ignores the context.",
+          ),
+          state: "unsent",
+        },
+      ],
+      failures: { "comment:pending-3": "Cannot reach Eyeball." },
+    },
+    bar: { unsent: 1, held: true },
+  },
+  play: async ({ canvasElement }) => {
+    const card = pick(canvasElement, ".comment.unsent");
+    await expect(within(card).getByRole("alert")).toHaveTextContent(
+      "Cannot reach Eyeball.",
+    );
+    await expect(
+      within(card).getByRole("button", { name: "Retry now" }),
+    ).toBeVisible();
+  },
+};
+
 /** A comment is still being written, so the verdict waits. */
 export const BarWhileWriting: Story = {
-  args: { review: reviewCode, bar: { unsaved: true } },
+  args: { review: reviewCode, bar: { unsaved: true, held: true } },
   play: async ({ canvasElement }) => {
     await expect(
       within(pick(canvasElement, ".decide")).getByText(
@@ -228,7 +374,7 @@ export const BarWhileWriting: Story = {
 
 /** The stream is down, so a verdict could not be sent. */
 export const BarOffline: Story = {
-  args: { review: reviewCode, bar: { offline: true } },
+  args: { review: reviewCode, bar: { offline: true, held: true } },
   play: async ({ canvasElement }) => {
     await expect(
       within(pick(canvasElement, ".decide")).getByText(
@@ -250,6 +396,21 @@ export const BarRefused: Story = {
         "Requesting changes needs something to act on.",
       ),
     ).toBeVisible();
+  },
+};
+
+/** A verdict that could not be sent says so at the foot of the bar, note kept. */
+export const BarFailed: Story = {
+  args: {
+    review: reviewCode,
+    bar: { failure: "Cannot reach Eyeball.", note: "Close it out." },
+  },
+  play: async ({ canvasElement }) => {
+    const bar = pick(canvasElement, ".decide");
+    await expect(within(bar).getByRole("alert")).toHaveTextContent(
+      "Cannot reach Eyeball.",
+    );
+    await expect(bar.querySelector("textarea")).toHaveValue("Close it out.");
   },
 };
 

@@ -162,6 +162,14 @@ func (f *fixture) comment(g *WithT, t *testing.T, reviewID int64, body string) s
 	return c
 }
 
+// comments reads a round's comments.
+func (f *fixture) comments(g *WithT, t *testing.T, roundID int64) []store.Comment {
+	g.THelper()
+	out, err := f.store.Comments(t.Context(), roundID)
+	g.Expect(err).NotTo(HaveOccurred())
+	return out
+}
+
 // wait waits on a review as the given caller and returns the result.
 func (f *fixture) wait(g *WithT, t *testing.T, reviewID int64, c api.Caller) api.WaitResult {
 	g.THelper()

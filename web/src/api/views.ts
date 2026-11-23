@@ -1,4 +1,4 @@
-import type { Files, NotFound, Project } from "./types";
+import type { Files, NotFound, Project, Review } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -26,6 +26,20 @@ export function isProject(value: unknown): value is Project {
     typeof value["root"] === "string" &&
     typeof value["open"] === "number" &&
     (value["copies"] === null || Array.isArray(value["copies"]))
+  );
+}
+
+/** Whether a decoded body is the view of one round of a review. */
+export function isReview(value: unknown): value is Review {
+  return (
+    isRecord(value) &&
+    isTopBar(value) &&
+    typeof value["id"] === "string" &&
+    typeof value["round"] === "number" &&
+    typeof value["review_title"] === "string" &&
+    typeof value["place"] === "string" &&
+    (value["cards"] === null || Array.isArray(value["cards"])) &&
+    (value["acting"] === null || isRecord(value["acting"]))
   );
 }
 
@@ -68,9 +82,16 @@ export function viewKey(address: string): readonly [string, string] {
 export async function fetchView<T>(
   address: string,
   isView: (value: unknown) => value is T,
+  signal?: AbortSignal,
 ): Promise<ViewAnswer<T>> {
+  // The query's signal ends the request when the query is cancelled. A fetch
+  // asked for again while one is in flight cancels it, and a request left
+  // running holds the browser's cache lock for the address, so the new one
+  // waits behind it, which measured 20 seconds in Chromium for a request that
+  // never answered.
   const res = await fetch(`/api${address}`, {
     headers: { Accept: "application/json" },
+    ...(signal === undefined ? {} : { signal }),
   });
   if (res.status !== 200 && res.status !== 404) {
     throw new Error(`GET /api${address} answered ${res.status}`);

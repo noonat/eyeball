@@ -6,7 +6,7 @@ import {
   RouterProvider,
   ScrollRestoration,
 } from "react-router";
-import { FilesRoute, ProjectRoute } from "./app/ViewRoutes";
+import { FilesRoute, ProjectRoute, ReviewRoute } from "./app/ViewRoutes";
 import { QueueRoute } from "./app/QueueRoute";
 import { drawnPatterns, type DrawnPattern } from "./app/routes";
 import { TapListener } from "./app/TapListener";
@@ -20,6 +20,8 @@ const client = new QueryClient();
  */
 const screens: Readonly<Record<DrawnPattern, ComponentType>> = {
   "/": QueueRoute,
+  "/reviews/:review": ReviewRoute,
+  "/reviews/:review/rounds/:round": ReviewRoute,
   "/projects/:project": ProjectRoute,
   "/projects/:project/files/*": FilesRoute,
   "/reviews/:review/files/*": FilesRoute,

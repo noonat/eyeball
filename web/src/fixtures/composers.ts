@@ -1,0 +1,66 @@
+// Kept as it last came out of tool/fixtures, which no longer writes it: the
+// template routes each query was sent to are gone, and the answers they gave are
+// the review-composer-*.html files beside it, also kept as they were.
+
+/** The query each composer answer was asked for, by its file. */
+export const composerScenes: Readonly<
+  Record<string, Readonly<Record<string, string>>>
+> = {
+  "review-composer-review": {
+    level: "review",
+    round: "1",
+  },
+  "review-composer-file": {
+    level: "file",
+    path: "internal/upload/backoff.go",
+    round: "1",
+  },
+  "review-composer-line": {
+    level: "line",
+    path: "internal/upload/worker.go",
+    round: "1",
+    start: "13",
+  },
+  "review-composer-line-empty": {
+    level: "line",
+    path: "internal/upload/worker.go",
+    round: "1",
+    start: "12",
+  },
+  "review-composer-removed": {
+    level: "file",
+    oldline: "13",
+    path: "internal/upload/worker.go",
+    round: "1",
+  },
+  "review-composer-passage": {
+    end: "9",
+    level: "passage",
+    path: "docs/product.md",
+    round: "2",
+    start: "9",
+  },
+  "review-composer-passage-commented": {
+    end: "7",
+    level: "passage",
+    path: "docs/product.md",
+    round: "2",
+    start: "7",
+  },
+  "review-composer-removed-base": {
+    against: "base",
+    level: "file",
+    oldline: "13",
+    path: "internal/upload/worker.go",
+    round: "1",
+  },
+  "review-composer-late": {
+    level: "file",
+    path: "internal/approved/limit.go",
+    round: "1",
+  },
+  "review-composer-late-review": {
+    level: "review",
+    round: "1",
+  },
+};

@@ -79,6 +79,11 @@ export const largeReviewStates: readonly ScreenState[] = [
   { id: "review-screen--held", caption: "a file held back" },
   { id: "review-screen--listed", caption: "twelve files, listed" },
   { id: "review-screen--rendered", caption: "files shown as themselves" },
+  { id: "review-states--body-failed", caption: "a body that did not load" },
+  {
+    id: "review-states--load-failed",
+    caption: "a held file that did not load",
+  },
 ];
 
 /** The states on the sheet of comments and composers. */
@@ -100,6 +105,13 @@ export const reviewCommentStates: readonly ScreenState[] = [
   { id: "review-states--editing-a-comment", caption: "a comment being edited" },
   { id: "review-states--sending", caption: "a comment sending" },
   { id: "review-states--unsent", caption: "a comment not saved" },
+  { id: "review-states--composer-failed", caption: "a comment refused" },
+  { id: "review-states--edit-failed", caption: "a save that failed" },
+  {
+    id: "review-states--comment-actions-failed",
+    caption: "a delete that failed",
+  },
+  { id: "review-states--unsent-failed", caption: "a retry that failed" },
 ];
 
 /** The states on the sheet of the decision bar and the screen before its view. */
@@ -109,6 +121,7 @@ export const reviewBarStates: readonly ScreenState[] = [
     caption: "a comment being written",
   },
   { id: "review-states--bar-offline", caption: "offline" },
+  { id: "review-states--bar-failed", caption: "a verdict that failed" },
   {
     id: "review-states--bar-refused",
     caption: "changes requested with nothing",

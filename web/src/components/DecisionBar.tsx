@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { Failed } from "./CommentCard";
 import { Icon } from "./Icon";
 import { Notice } from "./Notice";
 import { Pill } from "./Pill";
@@ -41,8 +42,24 @@ interface DecisionBarProps extends BarGuard {
   readonly count: number;
   /** The verdict note as typed. */
   readonly note?: string | undefined;
+  /**
+   * Called as the note is typed. A bar given it holds the note as the page
+   * keeps it, which a draft saves, and a bar given none keeps its own.
+   */
+  readonly onNote?: ((note: string) => void) | undefined;
+  /**
+   * The verdict is held back, which its buttons say and its handler honors.
+   * The screen decides it from what stands in the way, which the lines above
+   * the count explain, so that it is decided in one place.
+   */
+  readonly held?: boolean | undefined;
   /** A change request with nothing in it was refused. */
   readonly refused?: boolean | undefined;
+  /**
+   * What a verdict that was not stored failed with, at the foot of the form
+   * with the note as it was typed.
+   */
+  readonly failure?: string | undefined;
   readonly onDecide?:
     | ((verdict: "changes" | "approve", note: string) => void)
     | undefined;
@@ -57,12 +74,17 @@ interface DecisionBarProps extends BarGuard {
 export function DecisionBar({
   count,
   note,
+  onNote,
+  held,
   refused,
+  failure,
   unsent,
   unsaved,
   offline,
   onDecide,
 }: DecisionBarProps) {
+  // aria-disabled does not stop a button, so the screen drops a verdict it holds
+  // back when the bar hands it over.
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const native = event.nativeEvent;
@@ -112,7 +134,14 @@ export function DecisionBar({
         name="note"
         aria-label="Verdict note"
         placeholder="A note with the verdict…"
-        defaultValue={note}
+        {...(onNote === undefined
+          ? { defaultValue: note }
+          : {
+              value: note ?? "",
+              onChange: (event) => {
+                onNote(event.currentTarget.value);
+              },
+            })}
       />
       <div className="buttons">
         <button
@@ -120,6 +149,7 @@ export function DecisionBar({
           className="btn danger"
           name="verdict"
           value="changes"
+          aria-disabled={held === true ? true : undefined}
         >
           Request changes
         </button>
@@ -128,6 +158,7 @@ export function DecisionBar({
           className="btn primary"
           name="verdict"
           value="approve"
+          aria-disabled={held === true ? true : undefined}
         >
           Approve
         </button>
@@ -139,6 +170,7 @@ export function DecisionBar({
           </span>
         </div>
       ) : null}
+      {failure === undefined ? null : <Failed text={failure} />}
     </form>
   );
 }

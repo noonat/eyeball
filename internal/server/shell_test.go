@@ -3,12 +3,15 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/noonat/eyeball"
+	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 )
 
@@ -77,6 +80,32 @@ func TestServer_workerStamp(t *testing.T) {
 	g.Expect(first).To(ContainSubstring(stamp))
 }
 
+// A write under /api without the loopback token is refused with a Refusal the
+// app can show, and any other address with the page it always got.
+func TestServer_LoopbackSurface_apiRefusal(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	h := f.s.LoopbackSurface("a-token")
+	res := sendJSON(h, http.MethodPost, commentsAPI(id), view.CommentRequest{Level: view.CommentLevelReview, Round: 1, Body: "x"})
+	g.Expect(res.Code).To(Equal(http.StatusForbidden))
+	g.Expect(readRefusal(g, res).Message).To(Equal(noToken))
+	comments, err := f.store.Comments(t.Context(), f.latestRound(g, t, id))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(comments).To(BeEmpty())
+
+	req := httptest.NewRequest(http.MethodPost, "http://eyeball/api/reviews/"+itoa(id)+"/comments", strings.NewReader(`{"round":1,"level":"review","body":"x"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(tokenHeader, "a-token")
+	stored := httptest.NewRecorder()
+	h.ServeHTTP(stored, req)
+	g.Expect(stored.Code).To(Equal(http.StatusOK), stored.Body.String())
+
+	page := sendForm(h, http.MethodPost, "/reviews/"+itoa(id)+"/comments", url.Values{"round": {"1"}})
+	g.Expect(page.Code).To(Equal(http.StatusForbidden))
+	g.Expect(page.Header().Get("Content-Type")).To(HavePrefix("text/html"))
+}
+
 // A request made for another build is refused on both listeners, and a request
 // for this build or for none is served.
 func TestServer_Surface_otherBuild(t *testing.T) {
@@ -103,4 +132,32 @@ func TestServer_Surface_otherBuild(t *testing.T) {
 			g.Expect(ask("")).To(Equal(http.StatusOK))
 		})
 	}
+}
+
+// A review's round answers the shell at both addresses, and so does a review
+// that is not there, since the app draws the 404 from the view.
+func TestServer_Surface_reviewShell(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	addresses := []string{"/reviews/" + itoa(id), "/reviews/" + itoa(id) + "/rounds/1", "/reviews/999"}
+	for _, address := range addresses {
+		page := serveSurface(f.s.Surface(), http.MethodGet, address).Body.String()
+		g.Expect(page).To(ContainSubstring(`<div id="root"></div>`), address+" is the shell")
+		g.Expect(page).NotTo(ContainSubstring(` data-stamp="`), address)
+	}
+	g.Expect(getView(f, "/api/reviews/"+itoa(id), nil).Code).To(Equal(http.StatusOK))
+}
+
+// The view names the /api routes for a comment's Edit and Delete and for the
+// verdict, so the app sends each where the JSON routes are.
+func TestServer_Surface_viewAddresses(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	c := f.addComment(g, t, store.NewComment{RoundID: f.latestRound(g, t, id), Level: store.LevelReview, Body: "A point."})
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.Acting.Comments).To(HaveLen(1))
+	g.Expect(round.Acting.Comments[0].Href).To(Equal("/api/reviews/" + itoa(id) + "/comments/" + itoa(c.ID)))
+	g.Expect(round.Acting.Bar.Action).To(Equal("/api/reviews/" + itoa(id) + "/decision"))
 }

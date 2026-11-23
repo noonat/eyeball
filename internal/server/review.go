@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +42,7 @@ var heldHint = fmt.Sprintf("Past the %d a card shows on its own.", maxCardLines)
 // product.md's guess.
 const maxUnlistedFiles = 10
 
-// reviewPage is what the review template prints for one round.
+// reviewPage is what the view of one round is built from.
 type reviewPage struct {
 	// ID is the review's id.
 	ID int64
@@ -118,8 +118,6 @@ type actingView struct {
 	State string
 	// Against is the page's comparison, which a removed row's quote needs.
 	Against string
-	// Composer is the review's own box under the agent's note.
-	Composer composerView
 	// List is the review-level comments, where that box's answers go.
 	List listView
 	// Bar is the decision bar, and nil once the round is decided.
@@ -168,9 +166,6 @@ type fileView struct {
 	Diff render.File
 	// IsDocument says the file is shown as a document rather than as rows.
 	IsDocument bool
-	// Document is a markdown file rendered with what moved marked, joined with
-	// its threads as the template page draws it.
-	Document template.HTML
 	// Parts are the same document as a list, which the view sends.
 	Parts []render.Part
 	// PassageCards are the comments under each passage, keyed by its range,
@@ -279,6 +274,14 @@ type commentView struct {
 // address has no round. It reports false for a review or a round that does not
 // exist.
 func (s *Server) roundPage(r *http.Request) (store.Review, reviewPage, bool, error) {
+	return s.roundPageOf(r, "")
+}
+
+// roundPageOf is roundPage for one file's card. A path compares only that file
+// and builds only its card, with the comments placed as the whole round places
+// them. A path the round does not show leaves the page with no card. An empty
+// path builds every card.
+func (s *Server) roundPageOf(r *http.Request, only string) (store.Review, reviewPage, bool, error) {
 	id, err := strconv.ParseInt(r.PathValue("review"), 10, 64)
 	if err != nil {
 		return store.Review{}, reviewPage{}, false, nil
@@ -298,7 +301,7 @@ func (s *Server) roundPage(r *http.Request) (store.Review, reviewPage, bool, err
 	}
 	// A round the review does not have is the store's not-found, from the
 	// round's own read.
-	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base")
+	view, err := s.roundView(r.Context(), review, number, r.URL.Query().Get("against") == "base", only)
 	if errors.Is(err, store.ErrNotFound) {
 		return store.Review{}, reviewPage{}, false, nil
 	}
@@ -318,24 +321,8 @@ func (s *Server) roundAnswer(r *http.Request) (pageAnswer, error) {
 	return pageAnswer{page: page{Title: review.Title, Back: "/", BackLabel: "Queue", Body: view}}, nil
 }
 
-// handleReviewPage answers GET /reviews/{review}: the review's latest round.
-// handleRoundPage answers GET /reviews/{review}/rounds/{round}, any round, and
-// is the same page.
-func (s *Server) handleReviewPage(w http.ResponseWriter, r *http.Request) error {
-	ans, err := s.roundAnswer(r)
-	if err != nil {
-		return err
-	}
-	if ans.missing {
-		s.errorPage(w, http.StatusNotFound)
-		return nil
-	}
-	s.renderPage(w, http.StatusOK, "review", ans.page)
-	return nil
-}
-
 // roundView reads one round of a review and everything its page prints.
-func (s *Server) roundView(ctx context.Context, review store.Review, number int, wholeReview bool) (reviewPage, error) {
+func (s *Server) roundView(ctx context.Context, review store.Review, number int, wholeReview bool, only string) (reviewPage, error) {
 	project, err := s.db.s.Project(ctx, review.ProjectID)
 	if err != nil {
 		return reviewPage{}, err
@@ -374,15 +361,15 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	if err != nil {
 		return reviewPage{}, err
 	}
-	var moved []capture.Moved
-	var before, after *capture.Reader
+	var cmp comparison
 	if st.Measurable() {
-		if moved, before, after, err = s.compare(ctx, root, review, round, wholeReview); err != nil {
+		if cmp, err = s.compare(ctx, root, review, round, wholeReview, only); err != nil {
 			return reviewPage{}, err
 		}
-	} else if err := s.captured(ctx, &view, st, review, round); err != nil {
+	} else if err := s.captured(ctx, &view, st, review, round, only); err != nil {
 		return reviewPage{}, err
 	}
+	moved, before, after := cmp.moved, cmp.before, cmp.after
 	comments, err := s.db.s.Comments(ctx, round.ID)
 	if err != nil {
 		return reviewPage{}, err
@@ -432,7 +419,6 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	for _, f := range stored {
 		views[f.Path] = f.View
 	}
-	var renderErr error
 	files, added, removed := 0, 0, 0
 	byPath := map[string]int{}
 	// lastOld is the old side of the last document shown, which decides the
@@ -498,9 +484,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 		doc := at.page()
 		doc.HeadingIDs = false
 		doc.Fold = true
-		var after render.After
 		if byRange := passages[m.Path]; byRange != nil {
-			path := m.Path
 			doc.Commented = make(map[[2]int]struct{}, len(byRange))
 			file.PassageCards = make(map[[2]int][]cardView, len(byRange))
 			for key, comments := range byRange {
@@ -509,31 +493,25 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 					file.PassageCards[key] = append(file.PassageCards[key], cardOf(review.ID, c, open, decisionAt))
 				}
 			}
-			after = func(first, last int) template.HTML {
-				cards := file.PassageCards[[2]int{first, last}]
-				if len(cards) == 0 {
-					return ""
-				}
-				for _, c := range byRange[[2]int{first, last}] {
-					placed[c.ID] = true
-				}
-				out, err := s.fragment("passagethread", threadView{ID: passageID(path, first, last), Cards: cards})
-				if err != nil && renderErr == nil {
-					renderErr = err
-				}
-				return out
-			}
 		}
 		file.IsDocument = true
 		file.Parts = render.Document(old, content, doc)
-		file.Document = render.Join(file.Parts, after)
+		// A comment is placed once its passage is drawn, and a comment whose
+		// range is no passage of the document is listed with the others.
+		for _, part := range file.Parts {
+			for _, p := range append([]render.Passage{part.Passage}, part.Fold...) {
+				for _, c := range passages[m.Path][[2]int{p.First, p.Last}] {
+					placed[c.ID] = true
+				}
+			}
+		}
 		file.RawDiff = at.viewHref("source")
 		lastOld = old
 		view.Shown = append(view.Shown, file)
 	}
 	deferred := files > maxSentFiles || added+removed > maxSentLines
 	for i := range view.Shown {
-		href := fmt.Sprintf("/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
+		href := fmt.Sprintf("/api/reviews/%d/rounds/%d/cards/%s", review.ID, round.Number, escapePath(view.Shown[i].Path))
 		view.Shown[i].BodyHref = withQuery(href, against)
 		view.Shown[i].Deferred = deferred && view.Shown[i].Held == ""
 	}
@@ -543,14 +521,14 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 	// One new document on its own reads as a document, with nothing marked
 	// and no card around it: marking every passage marks none.
-	if len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
+	// The count of files the round shows, not the cards built: a card built
+	// alone is always the only one, and would read as a fresh document in a
+	// round of many.
+	if cmp.shown == 1 && len(view.Shown) == 1 && view.Shown[0].IsDocument && !render.HasBlocks(lastOld) {
 		view.Fresh = &view.Shown[0]
 	}
 	view.Listed = len(view.Shown) > maxUnlistedFiles
 
-	if renderErr != nil {
-		return reviewPage{}, renderErr
-	}
 	if acting {
 		view.Acting = s.acting(review, round, open, against.Get("against"))
 		for i := range view.Shown {
@@ -608,7 +586,7 @@ func (s *Server) roundView(ctx context.Context, review store.Review, number int,
 	}
 
 	if view.Acting != nil && view.Acting.Bar != nil {
-		view.Acting.Bar.Tally = tallyView{Count: len(comments)}
+		view.Acting.Bar.Count = len(comments)
 	}
 	view.Stream = fmt.Sprintf("/events?review=%d", review.ID)
 	view.Place = fmt.Sprintf("%d:%d:%s", review.ID, round.Number, against.Get("against"))
@@ -664,31 +642,56 @@ func verdictText(v store.Verdict) string {
 	return "Changes requested"
 }
 
+// comparison is what a round's comparison found.
+type comparison struct {
+	// moved is each path compared, in path order.
+	moved []capture.Moved
+	// before and after are the two readers, so a document reads its sides
+	// through the object ids the comparison already loaded in one batch.
+	before, after *capture.Reader
+	// shown is how many in-scope files the round moved, whether or not each was
+	// compared.
+	shown int
+}
+
 // compare diffs a round against the previous one, or against its base for the
 // whole review and on a first round. It is the comparison the round's stored
 // size was summed from, so the page's totals and the queue's agree.
 //
-// It returns the two readers as well, so a document reads its sides through
-// the object ids the comparison already loaded in one batch.
-func (s *Server) compare(ctx context.Context, root string, review store.Review, round store.Round, wholeReview bool) ([]capture.Moved, *capture.Reader, *capture.Reader, error) {
+// A path compares only that file. Which files moved is read from the captures'
+// digests, so it costs no diff, and a path that did not move compares nothing.
+func (s *Server) compare(ctx context.Context, root string, review store.Review, round store.Round, wholeReview bool, only string) (comparison, error) {
 	current, err := s.roundFiles(ctx, round.ID)
 	if err != nil {
-		return nil, nil, nil, err
+		return comparison{}, err
 	}
 	var previous []store.File
 	if round.Number > 1 && !wholeReview {
 		before, err := s.db.s.Round(ctx, review.ID, round.Number-1)
 		if err != nil {
-			return nil, nil, nil, err
+			return comparison{}, err
 		}
 		if previous, err = s.roundFiles(ctx, before.ID); err != nil {
-			return nil, nil, nil, err
+			return comparison{}, err
 		}
 	}
 	before := capture.NewReader(root, round.BaseCommit, s.blobs, previous)
 	now := capture.NewReader(root, round.BaseCommit, s.blobs, current)
-	moved, err := capture.Compare(ctx, before, now)
-	return moved, before, now, err
+	paths := capture.MovedPaths(before, now)
+	cmp := comparison{before: before, after: now}
+	for _, p := range paths {
+		if store.Covers(review.Paths, p) {
+			cmp.shown++
+		}
+	}
+	if only != "" {
+		if !store.Covers(review.Paths, only) || !slices.Contains(paths, only) {
+			return cmp, nil
+		}
+		paths = []string{only}
+	}
+	cmp.moved, err = capture.ComparePaths(ctx, before, now, paths)
+	return cmp, err
 }
 
 // cardRendering is a changed file's card shown as itself, a page in its
@@ -766,18 +769,17 @@ func thousands(n int) string {
 // acting is what the current round offers the reviewer.
 func (s *Server) acting(review store.Review, round store.Round, open bool, against string) *actingView {
 	a := &actingView{Review: review.ID, Round: round.Number, State: "late", Against: against}
-	a.Composer, _ = composer(review.ID, round.Number, store.LevelReview, "", 0, 0, 0, "", !open)
 	a.List = listView{ID: listID(store.LevelReview, "")}
 	if open {
 		a.State = "open"
-		a.Bar = &barView{Action: decisionHref(review.ID), Round: round.Number}
+		a.Bar = &barView{Action: decisionHref(review.ID)}
 	}
 	return a
 }
 
 // captured fills a page whose round cannot be compared with the files the
 // review changes, each as the round captured it, with no counts.
-func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.State, review store.Review, round store.Round) error {
+func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.State, review store.Review, round store.Round, only string) error {
 	stored, err := s.db.s.RoundFiles(ctx, round.ID)
 	if err != nil {
 		return err
@@ -794,6 +796,9 @@ func (s *Server) captured(ctx context.Context, view *reviewPage, st capture.Stat
 			continue
 		}
 		shown++
+		if only != "" && f.Path != only {
+			continue
+		}
 		at := fileAt{review: review, round: round, current: round.Number == review.LatestRound, path: f.Path, file: kind.ByName(f.Path)}
 		file := fileView{Path: f.Path, Whole: at.href(f.Path), Unmeasured: true}
 		if f.Digest == "" {
@@ -820,32 +825,6 @@ func shows(f render.File, line int) bool {
 		}
 	}
 	return false
-}
-
-// handleCardBody answers GET /reviews/{review}/rounds/{round}/cards/{path...}:
-// a deferred file card's body, once the card nears the screen.
-//
-// It builds the round's page and takes the one card from it, so the body is
-// the page's own markup and cannot drift from it. That costs comparing every
-// file of the round for each body asked for, which only a review past the
-// thresholds does.
-func (s *Server) handleCardBody(w http.ResponseWriter, r *http.Request) error {
-	_, view, ok, err := s.roundPage(r)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		plain(w, http.StatusNotFound, "There is no such review or round.")
-		return nil
-	}
-	for _, f := range view.Shown {
-		if f.Path == r.PathValue("path") {
-			f.Deferred = false
-			return s.fragments(w, http.StatusOK, fragment{name: "filebody", data: f})
-		}
-	}
-	plain(w, http.StatusNotFound, "This round shows no such file.")
-	return nil
 }
 
 // copyRoot is the root of the working copy a round was captured from, which is

@@ -4,10 +4,13 @@ import { matchPath } from "react-router";
  * The addresses the app draws, as React Router patterns. The server answers
  * each with the shell, and a test holds the two lists to each other: the Go
  * route table's shell routes are these patterns written in net/http's syntax.
- * An address in neither list is a template page, which only a full load opens.
+ * An address in neither list is not the app's: the daemon answers it with a
+ * page or a file of its own, which only a full load opens.
  */
 export const drawnPatterns = [
   "/",
+  "/reviews/:review",
+  "/reviews/:review/rounds/:round",
   "/projects/:project",
   "/projects/:project/files/*",
   "/reviews/:review/files/*",

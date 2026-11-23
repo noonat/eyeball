@@ -13,6 +13,8 @@ import (
 
 	"github.com/noonat/eyeball"
 	"github.com/noonat/eyeball/internal/api"
+	"github.com/noonat/eyeball/internal/store"
+	"github.com/noonat/eyeball/internal/view"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/html"
 )
@@ -297,16 +299,21 @@ func TestServer_Surface_eye(t *testing.T) {
 	repo := gitRepo(g, filepath.Join(t.TempDir(), "harbor"))
 	id := f.request(g, t, api.RequestBody{Caller: api.Caller{Dir: repo}, Paths: []string{"a.txt"}, Note: "look"}).Review.ID
 
-	pages := []string{"/reviews/" + itoa(id), "/nope"}
-	for _, target := range pages {
-		res := serveSurface(f.s.Surface(), http.MethodGet, target)
-		eye := find(parse(g, res.Body.String()), "eye")
-		g.Expect(attr(eye, "class")).To(Equal("eye"), target)
-		g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"), target)
-	}
+	// The review's view carries the count its top bar's eye draws.
+	round := f.roundAt(g, "/reviews/"+itoa(id))
+	g.Expect(round.WaitingCount).To(HaveValue(BeEquivalentTo(1)))
+	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	eye := find(parse(g, res.Body.String()), "eye")
+	g.Expect(attr(eye, "class")).To(Equal("eye"))
+	g.Expect(attr(eye, "aria-label")).To(Equal("1 waiting"))
 
 	g.Expect(f.store.Close()).To(Succeed())
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/nope")
+	res = getView(f, "/api/reviews/abc", nil)
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
+	var missing view.NotFound
+	g.Expect(json.Unmarshal(res.Body.Bytes(), &missing)).To(Succeed())
+	g.Expect(missing.WaitingCount).To(BeNil(), "no count, so no eye")
+	res = serveSurface(f.s.Surface(), http.MethodGet, "/nope")
 	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 	doc := parse(g, res.Body.String())
 	g.Expect(find(doc, "topbar")).NotTo(BeNil(), "the page still renders")
@@ -389,8 +396,9 @@ func TestServer_Surface_healthzTouchesTheStore(t *testing.T) {
 func TestServer_Surface_htmxConfig(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
-	// A template page, since the queue is the React app and loads no htmx.
-	doc := f.page(g, "/reviews/"+itoa(actingReview(g, t, f)), http.StatusOK)
+	// The error page is the one template page left that loads htmx, since the
+	// queue is the React app.
+	doc := f.page(g, "/nope", http.StatusNotFound)
 	meta := findAll(doc, func(n *html.Node) bool {
 		return n.Type == html.ElementNode && n.Data == "meta" && attr(n, "name") == "htmx-config"
 	})
@@ -497,6 +505,48 @@ func TestServer_Surface_keepsAHandlersOwn404(t *testing.T) {
 	g.Expect(res.Header().Get("Content-Security-Policy")).To(Equal(contentSecurityPolicy))
 }
 
+// The template page's writes and fragments are gone: each address answers 404,
+// and a write sent to one stores nothing.
+func TestServer_Surface_removedTemplateRoutes(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	c := f.addComment(g, t, store.NewComment{RoundID: f.latestRound(g, t, id), Level: store.LevelReview, Body: "Stays."})
+	review := "/reviews/" + itoa(id)
+	gone := []struct{ method, path string }{
+		{method: http.MethodPost, path: review + "/comments"},
+		{method: http.MethodPut, path: review + "/comments/" + itoa(c.ID)},
+		{method: http.MethodDelete, path: review + "/comments/" + itoa(c.ID)},
+		{method: http.MethodGet, path: review + "/comments/" + itoa(c.ID)},
+		{method: http.MethodGet, path: review + "/composer?round=1&level=review"},
+		{method: http.MethodPost, path: review + "/decision"},
+		{method: http.MethodGet, path: review + "/rounds/1/cards/a.txt"},
+	}
+	for _, r := range gone {
+		g.Expect(serveSurface(f.s.Surface(), r.method, r.path).Code).To(Equal(http.StatusNotFound), r.method+" "+r.path)
+	}
+	comments, err := f.store.Comments(t.Context(), f.latestRound(g, t, id))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(comments).To(HaveLen(1))
+	g.Expect(comments[0].Body).To(Equal("Stays."))
+	_, err = f.store.Decision(t.Context(), f.latestRound(g, t, id))
+	g.Expect(err).To(MatchError(store.ErrNotFound))
+}
+
+// The template bundle is what the error page loads, and holds nothing of the
+// review page's scripts: no composer, no drafts, no bodies, no saved place.
+func TestServer_Surface_templateBundle(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	res := serveSurface(f.s.Surface(), http.MethodGet, "/static/app.js")
+	g.Expect(res.Code).To(Equal(http.StatusOK))
+	script := res.Body.String()
+	gone := []string{"form.composer", "eyeball:near", "data-body", "hx-get", "keepPlace"}
+	for _, text := range gone {
+		g.Expect(script).NotTo(ContainSubstring(text), text)
+	}
+}
+
 // serveSurface sends one request to a surface handler.
 func serveSurface(h http.Handler, method, path string) *httptest.ResponseRecorder {
 	res := httptest.NewRecorder()
@@ -508,8 +558,7 @@ func serveSurface(h http.Handler, method, path string) *httptest.ResponseRecorde
 // reads rather than matching markup.
 func pageText(g *WithT, body string) string {
 	g.THelper()
-	doc, err := html.Parse(strings.NewReader(body))
-	g.Expect(err).NotTo(HaveOccurred())
+	doc := parse(g, body)
 	var b strings.Builder
 	var walk func(n *html.Node)
 	walk = func(n *html.Node) {

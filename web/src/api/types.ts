@@ -245,6 +245,98 @@ export interface Comment {
 }
 
 /**
+ * CommentDeleted is the answer to a comment that was deleted, or was already
+ * gone.
+ */
+export interface CommentDeleted {
+  /**
+   * Count is the comments on the review's latest round.
+   */
+  count: number;
+}
+
+/**
+ * CommentEdit is the body of PUT /api/reviews/{review}/comments/{comment}.
+ */
+export interface CommentEdit {
+  /**
+   * Body is the comment's new text.
+   */
+  body: string;
+}
+
+/**
+ * CommentLevel is what a comment attaches to.
+ */
+export type CommentLevel = "file" | "line" | "passage" | "review";
+
+/**
+ * CommentRequest is the body of POST /api/reviews/{review}/comments: one
+ * comment, with the anchor the reader tapped. The round, the anchor and the
+ * comparison say what the reader was looking at.
+ */
+export interface CommentRequest {
+  /**
+   * Round is the number of the round the reader was looking at, so a comment
+   * is never stored on a round the reader did not see.
+   */
+  round: number;
+  /**
+   * Level says what the comment attaches to.
+   */
+  level: CommentLevel;
+  /**
+   * Path is the file, and is empty for the review's own comment.
+   */
+  path: string;
+  /**
+   * Start and End are a line's or a passage's range. Zero is absent, and End
+   * is absent for a single line.
+   */
+  start: number;
+  /**
+   * End is the last line of a passage.
+   */
+  end: number;
+  /**
+   * OldLine is a removed row's number on the side it was removed from, and
+   * zero where the comment is not on a removed row.
+   */
+  old_line: number;
+  /**
+   * Against is the comparison the reader was in, "base" or empty, which says
+   * which side a removed row was read from.
+   */
+  against: string;
+  /**
+   * Body is the comment's text.
+   */
+  body: string;
+  /**
+   * Submission is the key the app drew when it first sent the comment. A retry
+   * sends the same key, so a first try that reached the store and lost its
+   * answer is stored once.
+   */
+  submission: string;
+}
+
+/**
+ * CommentStored is the answer to a comment that was added or edited: the
+ * comment as the round's view sends it, and the count of comments the review's
+ * latest round holds, which the bar shows.
+ */
+export interface CommentStored {
+  /**
+   * Comment is the stored comment.
+   */
+  comment: Comment;
+  /**
+   * Count is the comments on the review's latest round.
+   */
+  count: number;
+}
+
+/**
  * Decided is a round's verdict as the page shows it.
  */
 export interface Decided {
@@ -264,6 +356,25 @@ export interface Decided {
    * Note is the verdict note, a paragraph to an entry.
    */
   note: string[] | null;
+}
+
+/**
+ * DecisionRequest is the body of POST /api/reviews/{review}/decision.
+ */
+export interface DecisionRequest {
+  /**
+   * Round is the number of the round the reader was looking at, which must
+   * still be the open review's latest.
+   */
+  round: number;
+  /**
+   * Verdict is the decision.
+   */
+  verdict: Verdict;
+  /**
+   * Note is the text sent with the verdict, and is empty for none.
+   */
+  note: string;
 }
 
 /**
@@ -606,6 +717,18 @@ export interface Queue {
    * stamp for the queue, and the app refetches when the two differ.
    */
   stamp: string;
+}
+
+/**
+ * Refusal is what a write answers with when the server will not do it, with a
+ * 4xx status. The app shows the sentence beside the control that sent the
+ * request, and leaves the text where it was typed.
+ */
+export interface Refusal {
+  /**
+   * Message is one sentence saying what happened in the reader's terms.
+   */
+  message: string;
 }
 
 /**
@@ -1036,6 +1159,11 @@ export interface TreeRow {
    */
   removed: string;
 }
+
+/**
+ * Verdict is a decision on a round.
+ */
+export type Verdict = "approve" | "changes";
 
 /**
  * WorkingCopy is one working copy on the project view.

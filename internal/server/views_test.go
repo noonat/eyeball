@@ -422,7 +422,7 @@ func Test_shellRoutesAnswerTheShell(t *testing.T) {
 		g.Expect(res.Body.String()).To(ContainSubstring("/static/react.js"), path)
 		asked++
 	}
-	g.Expect(asked).To(Equal(5))
+	g.Expect(asked).To(Equal(7))
 }
 
 func Test_shellRoutesAreTheAppsRoutes(t *testing.T) {

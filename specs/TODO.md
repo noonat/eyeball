@@ -16,18 +16,14 @@ requirement in either document that none of them names is a gap in this list.
 
 The surface moves from htmx to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
-client code. Each item is a spec.
+client code. Each item is a spec. [032](done/032-react-review.md).
 
-- [ ] product: the review page in React: the route, the writes, the deferred
-      bodies, the reader's place, the stream and the browser tests, removing the
-      review templates, and a long review measured on the phone. The cards route
-      answers from its file's comparison alone. Today it builds the whole round
-      and keeps one card, so each body fetched on a long review compares every
-      file again. The tearout's components hold no form fields, so nothing yet
-      checks that a composer's anchor sends the level, path, range and old line
-      the template's hidden fields send.
 - [ ] tooling: removing htmx, the templates and any static tearouts left, and
-      moving the tearout checks to the rendered stories.
+      moving the tearout checks to the rendered stories. Iteration 6 of spec 032
+      left these for it: the `htmx` declaration in `web/ts/globals.d.ts`, the
+      htmx branch of `refuseWithoutToken` in `internal/server/surface.go` with
+      the test that sends `HX-Request`, `render.Join`'s `after` hook, which only
+      the render tests still use, and the `/static/htmx.js` route.
 - [ ] tooling: a tapped notification opens the review it names. Spec
       [026](026-tap-opens-the-review.md) is blocked. The fault was seen again on
       2026-10-31 with no beacon at all, so its next step is a beacon sent first
@@ -35,6 +31,10 @@ client code. Each item is a spec.
 
 ## Unscheduled
 
+- [ ] daemon: a next round whose first round's base commit no longer exists
+      answers 500, and the agent reads "the daemon failed to answer". Seen on
+      2026-11-22, when a scratch repository under `/tmp` was cleared and
+      rebuilt. A refusal naming the missing commit would say what to do.
 - [ ] tests: rewrite the Go tests that read the project, tree and file screens
       through `internal/viewdoc` as assertions over the views' fields, then
       delete the package. They were left reading the old class names because
@@ -67,7 +67,11 @@ client code. Each item is a spec.
       failure was at exactly 3482px, so the fault predates the branch. The cause
       is not found. An identical offset each time is a guess that points at a
       scroll that did not happen, or at a layout that comes out the same way
-      every time it fails, more than at a timing race.
+      every time it fails, more than at a timing race. The test was ported to
+      the React screen on 2026-11-02 and run 20 times with `-count=20`: 20
+      passed, 0 failed. The port is a different test. It reaches the review from
+      a scrolled queue by a router move and delays each body by 400ms. The pass
+      does not show the old cause fixed, so the entry stays open.
 - [ ] product: agents report status and send messages to the owner through
       eyeball, in the same place they ask for review, replacing the separate
       channel used for that today. The empty state would then list active
@@ -307,6 +311,22 @@ client code. Each item is a spec.
 - [ ] design: a comment on an earlier round, one a newer round has replaced. Its
       page is built with no acting view, so nothing on it opens a composer,
       where product.md allows a comment on any closed round. 025 left it.
+
+- [ ] product: a submission key sent for a comment on one review and sent again
+      for another answers with the first review's comment and stores nothing.
+      `AddComment` in `internal/store/comments.go` looks the key up across every
+      review, where it should look within the round it is stored on. The app
+      draws a fresh key for each comment, so the way to reach it is a client
+      that reuses one. It predates spec [032](done/032-react-review.md), which
+      kept the lookup as it was.
+
+- [ ] product: the review screen is keyed by the address it draws, so a move
+      between `/reviews/N` and `/reviews/N/rounds/R` for the same round draws it
+      again, and a comment still sending at that moment leaves its outbox with
+      the old screen. If the send then fails, its text is lost, since only
+      unsent comments are saved in the draft. Found by the end-of-branch review
+      of spec [032](done/032-react-review.md), not probed, and no known link
+      makes that move during a send.
 
 ## Open questions
 

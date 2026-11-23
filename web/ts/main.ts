@@ -1,24 +1,13 @@
-import {
-  guardVerdicts,
-  keyComments,
-  openComposers,
-  settleComposers,
-} from "./composer";
-import { blinkOnLoad, keepBlink } from "./blink";
-import { holdPlace, loadBodies } from "./bodies";
-import { keepDrafts } from "./drafts";
+import { blinkOnLoad } from "./blink";
 import { trackHead } from "./head";
-import { reportFailures } from "./failures";
-import { keepPlace } from "./place";
 import { prune } from "./storage";
 import { followStream } from "./stream";
 import { refreshOnTap } from "./update";
 import { registerWorker } from "./worker";
 import { restoreViewport } from "./viewport";
-import { catchFailedSaves } from "./unsent";
 import { followTheme } from "./theme";
 import { answerTaps, load } from "./tap";
-import { sendToken, takeToken } from "./token";
+import { takeToken } from "./token";
 
 // The bundle is loaded without defer so the theme is set before the first
 // paint. A deferred script would paint light first on a dark device. The
@@ -26,16 +15,8 @@ import { sendToken, takeToken } from "./token";
 // anything else can read it.
 followTheme();
 takeToken();
-sendToken();
-reportFailures();
-keyComments();
-openComposers();
-settleComposers();
-guardVerdicts();
-keepBlink();
-catchFailedSaves();
-// The stream reads the page's stamp, which is in the body, and the bundle runs
-// in the head before the body is parsed.
+// The bundle runs in the head before the body is parsed, so what reads the page
+// waits for it.
 document.addEventListener("DOMContentLoaded", () => {
   registerWorker();
   answerTaps(load);
@@ -43,10 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
   refreshOnTap();
   followStream();
   prune();
-  keepPlace();
-  loadBodies();
-  holdPlace();
-  keepDrafts();
   blinkOnLoad();
   restoreViewport();
 });

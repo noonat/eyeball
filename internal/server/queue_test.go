@@ -343,6 +343,9 @@ func (q *queueFixture) decide(g *WithT, t *testing.T, reviewID int64, verdict st
 // parse parses a page.
 func parse(g *WithT, body string) *html.Node {
 	g.THelper()
+	// The template review page prints these two for its script. A test about a
+	// round reads the round's view instead, so the page is never parsed.
+	g.Expect(body).NotTo(SatisfyAny(ContainSubstring(` data-stamp="`), ContainSubstring(` data-review="`)), "the template review page is read through its view")
 	doc, err := html.Parse(strings.NewReader(body))
 	g.Expect(err).NotTo(HaveOccurred())
 	return doc

@@ -13,6 +13,8 @@ export type CommentState = "sending" | "unsent";
 interface CommentCardProps {
   readonly comment: Comment;
   readonly state?: CommentState | undefined;
+  /** What a request for one of its actions failed with, shown after them. */
+  readonly failure?: string | undefined;
   readonly onEdit?: (() => void) | undefined;
   readonly onDelete?: (() => void) | undefined;
   readonly onRetry?: (() => void) | undefined;
@@ -27,6 +29,7 @@ interface CommentCardProps {
 export function CommentCard({
   comment,
   state,
+  failure,
   onEdit,
   onDelete,
   onRetry,
@@ -35,7 +38,11 @@ export function CommentCard({
   const id = own ? `comment-${comment.id}` : undefined;
   const className = state === "unsent" ? "comment unsent" : "comment";
   return (
-    <div className={className} id={id}>
+    <div
+      className={className}
+      id={id}
+      data-sending={state === "sending" ? "" : undefined}
+    >
       <div className="anchor">
         <span className="where">{comment.where}</span>
         {comment.late ? <span>after the verdict</span> : null}
@@ -64,7 +71,49 @@ export function CommentCard({
           </Action>
         </div>
       ) : null}
+      {failure === undefined ? null : <Failed text={failure} />}
     </div>
+  );
+}
+
+/**
+ * The line a request that failed leaves beside the control that made it,
+ * because that is where the reader is looking. It is an alert, so a screen
+ * reader says it as it appears. A body that failed to load carries a link that
+ * asks again, drawn at the end of the line as the template page drew it.
+ */
+export function Failed({
+  text,
+  onRetry,
+}: {
+  readonly text: string;
+  readonly onRetry?: (() => void) | undefined;
+}) {
+  return (
+    <span className="failed" role="alert">
+      {text}
+      {onRetry === undefined ? null : (
+        <>
+          {" "}
+          <a
+            className="retry"
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              onRetry();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onRetry();
+              }
+            }}
+          >
+            Retry
+          </a>
+        </>
+      )}
+    </span>
   );
 }
 

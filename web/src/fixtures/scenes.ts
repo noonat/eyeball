@@ -4431,7 +4431,7 @@ export const reviewDoc: Review = {
                 "comments": [
                   {
                     "id": "3",
-                    "href": "/reviews/1/comments/3",
+                    "href": "/api/reviews/1/comments/3",
                     "where": "docs/product.md:7",
                     "quoted": "**From a hunk to the whole file**, with the change still marked in place.",
                     "body": "Name the control here.",
@@ -4542,7 +4542,7 @@ export const reviewDoc: Review = {
     "comments": [
       {
         "id": "4",
-        "href": "/reviews/1/comments/4",
+        "href": "/api/reviews/1/comments/4",
         "where": "This review",
         "quoted": "",
         "body": "Good. Check the links in See also.",
@@ -4551,7 +4551,7 @@ export const reviewDoc: Review = {
       }
     ],
     "bar": {
-      "action": "/reviews/1/decision",
+      "action": "/api/reviews/1/decision",
       "count": 2
     }
   },
@@ -4647,7 +4647,7 @@ export const reviewDocWhole: Review = {
                 "comments": [
                   {
                     "id": "3",
-                    "href": "/reviews/1/comments/3",
+                    "href": "/api/reviews/1/comments/3",
                     "where": "docs/product.md:7",
                     "quoted": "**From a hunk to the whole file**, with the change still marked in place.",
                     "body": "Name the control here.",
@@ -4758,7 +4758,7 @@ export const reviewDocWhole: Review = {
     "comments": [
       {
         "id": "4",
-        "href": "/reviews/1/comments/4",
+        "href": "/api/reviews/1/comments/4",
         "where": "This review",
         "quoted": "",
         "body": "Good. Check the links in See also.",
@@ -4767,7 +4767,7 @@ export const reviewDocWhole: Review = {
       }
     ],
     "bar": {
-      "action": "/reviews/1/decision",
+      "action": "/api/reviews/1/decision",
       "count": 2
     }
   },
@@ -5145,7 +5145,7 @@ export const reviewCode: Review = {
         "comments": [
           {
             "id": "6",
-            "href": "/reviews/2/comments/6",
+            "href": "/api/reviews/2/comments/6",
             "where": "internal/upload/backoff.go",
             "quoted": "",
             "body": "Is thirty seconds long enough for a cold connection?",
@@ -5899,7 +5899,7 @@ export const reviewCode: Review = {
             "comments": [
               {
                 "id": "5",
-                "href": "/reviews/2/comments/5",
+                "href": "/api/reviews/2/comments/5",
                 "where": "internal/upload/worker.go:13",
                 "quoted": "if err := w.send(ctx); err == nil {",
                 "body": "What does send return on a cancelled context?",
@@ -5929,7 +5929,7 @@ export const reviewCode: Review = {
     "comments": [
       {
         "id": "7",
-        "href": "/reviews/2/comments/7",
+        "href": "/api/reviews/2/comments/7",
         "where": "This review",
         "quoted": "",
         "body": "Add a test for the give-up path.",
@@ -5938,7 +5938,7 @@ export const reviewCode: Review = {
       }
     ],
     "bar": {
-      "action": "/reviews/2/decision",
+      "action": "/api/reviews/2/decision",
       "count": 3
     }
   },
@@ -6086,7 +6086,7 @@ export const reviewApproved: Review = {
         "comments": [
           {
             "id": "8",
-            "href": "/reviews/3/comments/8",
+            "href": "/api/reviews/3/comments/8",
             "where": "internal/approved/limit.go",
             "quoted": "",
             "body": "Fine, if the backoff caps at thirty seconds.",
@@ -6112,7 +6112,7 @@ export const reviewApproved: Review = {
     "comments": [
       {
         "id": "9",
-        "href": "/reviews/3/comments/9",
+        "href": "/api/reviews/3/comments/9",
         "where": "This review",
         "quoted": "",
         "body": "One more thing: log the limit at startup.",
@@ -6212,7 +6212,7 @@ export const reviewDeferred: Review = {
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/4/decision",
+      "action": "/api/reviews/4/decision",
       "count": 3
     }
   },
@@ -6290,7 +6290,7 @@ export const reviewHeld: Review = {
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/5/decision",
+      "action": "/api/reviews/5/decision",
       "count": 0
     }
   },
@@ -6528,7 +6528,7 @@ export const reviewListed: Review = {
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/6/decision",
+      "action": "/api/reviews/6/decision",
       "count": 0
     }
   },
@@ -6641,7 +6641,7 @@ export const reviewFresh: Review = {
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/10/decision",
+      "action": "/api/reviews/10/decision",
       "count": 0
     }
   },
@@ -6765,7 +6765,7 @@ export const reviewUnmeasurable: Review = {
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/9/decision",
+      "action": "/api/reviews/9/decision",
       "count": 0
     }
   },
@@ -7120,7 +7120,7 @@ export const reviewCards: Review = {
     "list_id": "comments-review",
     "comments": null,
     "bar": {
-      "action": "/reviews/4/decision",
+      "action": "/api/reviews/4/decision",
       "count": 0
     }
   },

@@ -28,7 +28,7 @@ export function Banners({ offline, updateReady, onRetry }: BannersProps) {
       <div id="offline" hidden={offline !== true}>
         <div className="offline">
           <Icon name="triangle-alert" />
-          <span>Cannot reach eyeball.</span>
+          <span>Cannot reach Eyeball.</span>
           <a className="retry" role="button" tabIndex={0} onClick={onRetry}>
             Retry
           </a>

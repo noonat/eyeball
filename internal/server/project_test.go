@@ -260,8 +260,7 @@ func TestServer_Surface_projectFromAReview(t *testing.T) {
 
 	// The review's header links to the project view, which reads the project
 	// by its id, flag included, so it still refuses after the .git moved.
-	review := f.page(g, "/reviews/"+itoa(id), http.StatusOK)
-	href := attr(find(find(review, "who"), "bit"), "href")
+	href := f.roundAt(g, "/reviews/"+itoa(id)).ProjectHref
 	g.Expect(href).To(Equal(projectHref(1)))
 	doc := f.page(g, href, http.StatusOK)
 	g.Expect(notices(doc)).To(Equal([]string{"warn: Live browsing is unavailable. The checkout the project sat inside has lost its repository."}))

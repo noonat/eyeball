@@ -3,12 +3,13 @@
 //
 // A queue state is built in a store of its own. The project view, the tree and
 // the file pages are read from a few worlds of real repositories, and the files
-// their views point at are read through the raw route. The review page's
-// template pages, and the answers the template routes give for the composer, a
-// comment, the decision bar and the other writes, are written here from the
-// templates, as review-*.html and review-*.txt. The other markup files beside
-// the views, which a story compares its component with, are frozen from the
-// template pages that drew them and are not written here.
+// their views point at are read through the raw route. The markup files beside
+// the views, which a story compares its component with, and the answers the
+// template routes gave for a composer, a comment, the decision bar and the other
+// writes, review-*.html and review-*.txt, are kept as they last came out, from
+// the template pages and routes that drew them, and are not written or checked
+// here. composers.ts, the query each composer answer was asked for, is kept the
+// same way.
 //
 // Every state is built through the server's own handlers, on a fixed clock, so
 // a review's id and a row's age are the same on every run.
@@ -24,13 +25,11 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -199,87 +198,38 @@ func readScenes(ctx context.Context, key string, out map[string][]byte) error {
 			return errors.Wrapf(err, "page %s", ps.file)
 		}
 	}
-	// The writes come last, since each one changes what the next reads.
-	for _, ws := range reviewWrites {
-		if ws.world != key {
-			continue
-		}
-		if err := readWrite(w, ws, out); err != nil {
-			return errors.Wrapf(err, "write %s", ws.file)
-		}
-	}
 	return nil
 }
 
-// rawAddress finds the address of a file a template page shows, which the raw
-// route answers.
-var rawAddress = regexp.MustCompile(`(?:src|href)="(/reviews/\d+/raw/[^"]+)"`)
-
-// readPage reads a review page as its template draws it and writes the markup a
-// component draws, with the raw files it points at.
+// readPage reads a review page's view and the raw files its cards point at. The
+// page's template markup, review-*.html, is frozen as the other template pages'
+// are: the review routes answer the shell, so no route draws the template page
+// any more, and the files stay as they last came out. A story still compares
+// its component with each one.
 func readPage(w *world, ps pageState, out map[string][]byte) error {
 	address := ps.address(w.ids)
-	page, err := w.get(address)
+	body, err := w.get("/api" + address)
 	if err != nil {
 		return err
 	}
-	if out[ps.file+".json"], err = w.get("/api" + address); err != nil {
-		return err
+	out[ps.file+".json"] = body
+	var review view.Review
+	if err := json.Unmarshal(body, &review); err != nil {
+		return errors.WithStack(err)
 	}
-	markup, err := pageMarkup(page)
-	if err != nil {
-		return err
-	}
-	out[ps.file+".html"] = markup
 	var addresses []string
-	for _, m := range rawAddress.FindAllSubmatch(markup, -1) {
-		addresses = append(addresses, string(m[1]))
+	for _, card := range review.Cards {
+		if card.Body == nil || card.Body.Rendered == nil {
+			continue
+		}
+		for _, side := range card.Body.Rendered.Sides {
+			addresses = append(addresses, side.Src)
+		}
+		if card.Body.Rendered.Frame != "" {
+			addresses = append(addresses, card.Body.Rendered.Frame)
+		}
 	}
 	return fetchRaw(w, addresses, out)
-}
-
-// readWrite sends one request to a template route and writes what it answered,
-// whatever its status. A status other than 200 is in the file's name, and a
-// plain-text answer is a .txt file.
-func readWrite(w *world, ws writeState, out map[string][]byte) error {
-	var form url.Values
-	if ws.form != nil {
-		form = ws.form(w.ids)
-	}
-	status, header, body, err := w.send(ws.method, ws.address(w.ids), form)
-	if err != nil {
-		return err
-	}
-	name := ws.file
-	if status != http.StatusOK {
-		name += "-" + strconv.Itoa(status)
-	}
-	ext := ".html"
-	if strings.HasPrefix(header.Get("Content-Type"), "text/plain") {
-		ext = ".txt"
-	}
-	if redirect := header.Get("HX-Redirect"); redirect != "" {
-		body = []byte("HX-Redirect: " + redirect + "\n")
-		ext = ".txt"
-	}
-	out[name+ext] = body
-	if ws.keep == "" {
-		return nil
-	}
-	review, _, _ := strings.Cut(ws.keep, "-")
-	r, err := w.db.Round(w.ctx, w.ids[review], 1)
-	if err != nil {
-		return err
-	}
-	comments, err := w.db.Comments(w.ctx, r.ID)
-	if err != nil {
-		return err
-	}
-	if len(comments) == 0 {
-		return errors.Newf("%s stored no comment", ws.file)
-	}
-	w.ids["comment:"+ws.keep] = comments[len(comments)-1].ID
-	return nil
 }
 
 // stylesheetLink finds a stylesheet a page links by a relative address.

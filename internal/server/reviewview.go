@@ -15,10 +15,12 @@ func (s *Server) handleReviewView(w http.ResponseWriter, r *http.Request) error 
 }
 
 // handleCardView answers GET /api/reviews/{review}/rounds/{round}/cards/
-// {path...}: one card's body. It builds the round and keeps the card, so the
-// body is the one the round's own view would hold.
+// {path...}: one card's body. It compares only its own file, so a long review
+// does not compare every file again for each body it asks for. The round's view
+// and this route both build the body with cardBody, and a Go test finds the
+// two equal for every card.
 func (s *Server) handleCardView(w http.ResponseWriter, r *http.Request) error {
-	_, page, ok, err := s.roundPage(r)
+	_, page, ok, err := s.roundPageOf(r, r.PathValue("path"))
 	if err != nil {
 		return err
 	}
@@ -77,7 +79,7 @@ func reviewView(p page, body reviewPage, waiting *int32) view.Review {
 	if a := body.Acting; a != nil {
 		acting := &view.Acting{State: a.State, Against: a.Against, ListID: a.List.ID, Comments: viewCards(a.List.Cards)}
 		if a.Bar != nil {
-			acting.Bar = &view.Bar{Action: a.Bar.Action, Count: int32(a.Bar.Tally.Count)}
+			acting.Bar = &view.Bar{Action: a.Bar.Action, Count: int32(a.Bar.Count)}
 		}
 		out.Acting = acting
 	}
@@ -101,7 +103,7 @@ func reviewCard(f fileView) view.Card {
 		Held:          f.Held,
 		HeldHint:      f.HeldHint,
 		Deferred:      f.Deferred,
-		BodyHref:      "/api" + f.BodyHref,
+		BodyHref:      f.BodyHref,
 		SkeletonHunks: int32(f.SkeletonHunks()),
 		SkeletonLines: int32(f.SkeletonLines()),
 	}

@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -227,19 +226,18 @@ func TestRun_reviewLoopOnLoopback(t *testing.T) {
 	g.Expect(send(g, t, p, http.MethodPost, "/agent/requests", body, &opened)).To(Equal(http.StatusOK))
 	review := strconv.FormatInt(opened.Review.ID, 10)
 
-	write := func(path string, form url.Values) int {
-		req, err := http.NewRequest(http.MethodPost, "http://"+addr+path, strings.NewReader(form.Encode()))
+	write := func(path, body string) int {
+		req, err := http.NewRequest(http.MethodPost, "http://"+addr+path, strings.NewReader(body))
 		g.Expect(err).NotTo(HaveOccurred())
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Set("HX-Request", "true")
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Eyeball-Token", token)
 		res, err := http.DefaultClient.Do(req)
 		g.Expect(err).NotTo(HaveOccurred())
 		_ = res.Body.Close()
 		return res.StatusCode
 	}
-	g.Expect(write("/reviews/"+review+"/comments", url.Values{"round": {"1"}, "level": {"line"}, "path": {"a.txt"}, "start": {"2"}, "body": {"Why two?"}})).To(Equal(http.StatusOK))
-	g.Expect(write("/reviews/"+review+"/decision", url.Values{"round": {"1"}, "verdict": {"changes"}, "note": {"Try again."}})).To(Equal(http.StatusOK))
+	g.Expect(write("/api/reviews/"+review+"/comments", `{"round": 1, "level": "line", "path": "a.txt", "start": 2, "body": "Why two?"}`)).To(Equal(http.StatusOK))
+	g.Expect(write("/api/reviews/"+review+"/decision", `{"round": 1, "verdict": "changes", "note": "Try again."}`)).To(Equal(http.StatusNoContent))
 
 	var waited api.WaitResult
 	g.Expect(get(g, t, p, "/agent/reviews/"+review+"/wait?dir="+repo, &waited)).To(Equal(http.StatusOK))
