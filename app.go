@@ -64,9 +64,9 @@ func BuildApp(deps fs.FS) (AppBundle, error) {
 	if err := os.WriteFile(manifest, []byte(`{"type":"module"}`), 0o644); err != nil {
 		return AppBundle{}, errors.WithStack(err)
 	}
-	// The app calls the framework-free modules the template pages run, so a
-	// storage key or a header name has one copy. They sit beside web/src, where
-	// its imports reach them.
+	// The app imports the framework-free modules in web/ts, which the service
+	// worker shares, so a storage key or a header name has one copy. They sit
+	// beside web/src, where its imports reach them.
 	if err := writeTree(Scripts, "web/ts", filepath.Join(dir, "web", "ts")); err != nil {
 		return AppBundle{}, err
 	}

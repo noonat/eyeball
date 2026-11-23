@@ -537,7 +537,7 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 		if at.document() {
 			view.ShowDocument = true
 			view.Parts = render.Document(old, content, at.page())
-			view.Document = render.Join(view.Parts, nil)
+			view.Document = render.Join(view.Parts)
 			return nil
 		}
 		view.Diff = render.Whole(at.path, result)
@@ -568,7 +568,7 @@ func (v *filePage) showPlain(at fileAt, content []byte, tooLarge bool) {
 	if r := diff.Plain(content); at.document() && !r.Binary && !r.TooLarge {
 		v.ShowDocument = true
 		v.Parts = render.Document(nil, content, at.page())
-		v.Document = render.Join(v.Parts, nil)
+		v.Document = render.Join(v.Parts)
 		return
 	}
 	v.Diff = render.Plain(at.path, content)

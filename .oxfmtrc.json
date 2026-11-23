@@ -1,5 +1,5 @@
 {
   "printWidth": 80,
   "proseWrap": "always",
-  "ignorePatterns": ["web/vendor/**", "web/deps/**"]
+  "ignorePatterns": ["web/deps/**"]
 }

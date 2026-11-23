@@ -41,9 +41,9 @@ export function ReviewCard({ card }: ReviewCardProps) {
   // nothing between a card and the viewport clips, so the margin reaches a
   // screen below it. An observer is made only while a body is wanted, so a card
   // unfolded on screen asks at once and a folded one asks for nothing. The
-  // template page's htmx intersect trigger could do neither: it has no margin,
-  // and telling an open card from a folded one needs a trigger filter, which
-  // its allowEval: false turned off.
+  // template page's intersect trigger could do neither: it had no margin, and
+  // telling an open card from a folded one needed a trigger filter, which its
+  // library's allowEval: false turned off.
   useEffect(() => {
     if (!wanted || element.current === null) {
       return undefined;

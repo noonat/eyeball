@@ -7,8 +7,8 @@
 // the views, which a story compares its component with, and the answers the
 // template routes gave for a composer, a comment, the decision bar and the other
 // writes, review-*.html and review-*.txt, are kept as they last came out, from
-// the template pages and routes that drew them, and are not written or checked
-// here. composers.ts, the query each composer answer was asked for, is kept the
+// template pages and routes that no longer exist, and are not written or
+// checked here. composers.ts, the query each composer answer was asked for, is kept the
 // same way.
 //
 // Every state is built through the server's own handlers, on a fixed clock, so

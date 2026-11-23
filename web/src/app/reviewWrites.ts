@@ -16,7 +16,7 @@ const anError = "Eyeball could not do that.";
 const tooSlow =
   "Eyeball did not answer in time. Nothing is known to have been sent.";
 
-// How long a write has to answer. The template page's htmx waited ten seconds.
+// How long a write has to answer. The earlier template page waited ten seconds.
 const timeout = 10_000;
 
 /**
@@ -113,7 +113,7 @@ async function exchange<T>(
       headers: {
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        // A read carries no token, as the template's htmx sent none.
+        // A read carries no token, as the template's script sent none.
         ...(method === "GET" ? {} : tokenHeaders()),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),

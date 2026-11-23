@@ -13,7 +13,6 @@ __pycache__/
 /tool/icons/icons
 /tool/tearout/tearout
 
-# Node's packages and Storybook's build output. web/vendor/node_modules is
-# committed and is not matched, because it is not the top-level directory.
+# Node's packages and Storybook's build output.
 /web/node_modules/
 /web/storybook-static/

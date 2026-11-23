@@ -14,23 +14,11 @@ import (
 )
 
 var (
-	bundleOnce sync.Once
-	bundled    []byte
-	bundleErr  error
-
 	workerOnce sync.Once
 	worker     []byte
 	workerErr  error
 	stamp      string
 )
-
-// Bundle is web/ts compiled into one script, built the first time it is asked
-// for and kept. Building in the binary keeps the daemon a single file with no
-// build step outside go build; it costs esbuild's size in the binary.
-func Bundle() ([]byte, error) {
-	bundleOnce.Do(func() { bundled, bundleErr = build("web/ts/main.ts") })
-	return bundled, bundleErr
-}
 
 // Worker is web/ts/sw.ts, the service worker, compiled the same way. It is a
 // separate script because a worker's scope is not a page's.
@@ -78,14 +66,10 @@ func stamped(run builder) ([]byte, string, error) {
 	return out, id, err
 }
 
-// build runs esbuild over the embedded sources. A warning fails the build as an
-// error does, so a source esbuild only half understands is caught by the test
-// rather than shipped.
-func build(entry string) ([]byte, error) {
-	return buildWith(entry, stampPlaceholder)
-}
-
-// buildWith is build with the worker's stamp defined as the given string.
+// buildWith runs esbuild over the embedded sources, with the worker's stamp
+// defined as the given string. A warning fails the build as an error does, so a
+// source esbuild only half understands is caught by the test rather than
+// shipped.
 func buildWith(entry, workerStamp string) ([]byte, error) {
 	res := api.Build(api.BuildOptions{
 		Define:      map[string]string{"workerBuild": strconv.Quote(workerStamp)},

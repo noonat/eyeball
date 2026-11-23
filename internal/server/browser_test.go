@@ -37,7 +37,7 @@ const browserToken = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 // The review page the app draws, driven in headless Chromium: the token handed
 // over, a line comment added, edited and deleted through the JSON routes, a
 // review comment, and text still being written held in the bar's notice. The
-// verdict's half is the template page's until it moves.
+// verdict goes through the same JSON routes.
 func TestServer_Surface_browserActing(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)
@@ -213,7 +213,7 @@ func TestServer_Surface_browserActingVerdict(t *testing.T) {
 }
 
 // The queue is the React app, served by the surface at the queue's address: a
-// shell that loads the bundle and the stylesheets the template pages load, and
+// shell that loads the bundle and the stylesheets the shell links, and
 // an app that draws the queue from /api/ with the stylesheet applied.
 func TestServer_Surface_browserApp(t *testing.T) {
 	g := NewWithT(t)
@@ -1118,9 +1118,9 @@ func TestServer_Surface_browserDocumentScrolls(t *testing.T) {
 	g.Expect(b.eval(g, `document.documentElement.style.getPropertyValue("--head-height") === document.querySelector(".head").getBoundingClientRect().height + "px"`)).To(BeTrue())
 }
 
-// What is typed is saved as it is typed, in the shape the template page saved
-// it, and is back after a reload: the review's box, the verdict's note, the open
-// composer where it was, and a comment's edit form. A draft the template page
+// What is typed is saved as it is typed, in the shape the earlier template page
+// saved it, and is back after a reload: the review's box, the verdict's note,
+// the open composer where it was, and a comment's edit form. A draft that page
 // saved is read, and one is cleared once its text is stored.
 func TestServer_Surface_browserDrafts(t *testing.T) {
 	g := NewWithT(t)
@@ -2903,7 +2903,7 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	b := openBrowser(g, t)
 	b.navigate(g, "http://"+addr+"/")
 	b.waitFor(g, `!!document.getElementById("update")`)
-	g.Expect(b.eval(g, `!!document.querySelector("script[src^='/static/react.js']")`)).To(BeTrue(), "the queue is the React app, whose notices the template pages' do not stand in for")
+	g.Expect(b.eval(g, `!!document.querySelector("script[src^='/static/app.js']")`)).To(BeTrue(), "the queue is the React app, whose notices the template pages' do not stand in for")
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the running build")
 
 	// A daemon restarted on a newer build: the stream reconnects and hears it.

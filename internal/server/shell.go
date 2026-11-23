@@ -31,7 +31,7 @@ func (s *Server) buildToken() string {
 func shellFiles(token string) []string {
 	files := []string{
 		"/",
-		"/static/react.js?b=" + token,
+		"/static/app.js?b=" + token,
 		"/static/app.css?b=" + token,
 		"/static/shell.css?b=" + token,
 		"/manifest.webmanifest",

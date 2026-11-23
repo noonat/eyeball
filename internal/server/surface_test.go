@@ -43,7 +43,6 @@ func TestServer_LoopbackSurface(t *testing.T) {
 	cases := []struct {
 		name    string
 		token   string
-		htmx    bool
 		status  int
 		text    string
 		tailnet int
@@ -64,7 +63,6 @@ func TestServer_LoopbackSurface(t *testing.T) {
 		{
 			name:    "an earlier run's token",
 			token:   "EARLIER",
-			htmx:    true,
 			status:  http.StatusForbidden,
 			text:    noToken,
 			tailnet: http.StatusMethodNotAllowed,
@@ -85,20 +83,13 @@ func TestServer_LoopbackSurface(t *testing.T) {
 				if c.token != "" {
 					r.Header.Set("X-Eyeball-Token", c.token)
 				}
-				if c.htmx {
-					r.Header.Set("HX-Request", "true")
-				}
 				return r
 			}
 			res := httptest.NewRecorder()
 			f.s.LoopbackSurface("RUN").ServeHTTP(res, req())
 			g.Expect(res.Code).To(Equal(c.status))
 			g.Expect(res.Header().Get("Content-Security-Policy")).To(Equal(contentSecurityPolicy))
-			switch {
-			case c.text != "" && c.htmx:
-				g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/plain"))
-				g.Expect(res.Body.String()).To(Equal(c.text))
-			case c.text != "":
+			if c.text != "" {
 				g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/plain"))
 				g.Expect(res.Body.String()).To(Equal(c.text + "\n"))
 			}
@@ -137,17 +128,17 @@ func TestServer_Surface(t *testing.T) {
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/css"))
 	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Shell))
 
-	res = serveSurface(surface, http.MethodGet, "/static/htmx.js")
-	g.Expect(res.Code).To(Equal(http.StatusOK))
-	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/javascript"))
-	g.Expect(res.Body.Bytes()).To(Equal(eyeball.Htmx))
-
-	bundle, err := eyeball.Bundle()
+	app, err := eyeball.App()
 	g.Expect(err).NotTo(HaveOccurred())
 	res = serveSurface(surface, http.MethodGet, "/static/app.js")
 	g.Expect(res.Code).To(Equal(http.StatusOK))
 	g.Expect(res.Header().Get("Content-Type")).To(HavePrefix("text/javascript"))
-	g.Expect(res.Body.Bytes()).To(Equal(bundle))
+	g.Expect(res.Body.Bytes()).To(Equal(app.Script))
+
+	// The bundle moved from react.js, and no alias is kept: a worker that
+	// still holds the old address holds it by that exact address.
+	res = serveSurface(surface, http.MethodGet, "/static/react.js")
+	g.Expect(res.Code).To(Equal(http.StatusNotFound))
 }
 
 func TestServer_Surface_concurrentPages(t *testing.T) {
@@ -478,20 +469,6 @@ func TestServer_Surface_removedTemplateRoutes(t *testing.T) {
 	g.Expect(comments[0].Body).To(Equal("Stays."))
 	_, err = f.store.Decision(t.Context(), f.latestRound(g, t, id))
 	g.Expect(err).To(MatchError(store.ErrNotFound))
-}
-
-// The template bundle is what the error page loads, and holds nothing of the
-// review page's scripts: no composer, no drafts, no bodies, no saved place.
-func TestServer_Surface_templateBundle(t *testing.T) {
-	g := NewWithT(t)
-	f := newFixture(g, t)
-	res := serveSurface(f.s.Surface(), http.MethodGet, "/static/app.js")
-	g.Expect(res.Code).To(Equal(http.StatusOK))
-	script := res.Body.String()
-	gone := []string{"form.composer", "eyeball:near", "data-body", "hx-get", "keepPlace"}
-	for _, text := range gone {
-		g.Expect(script).NotTo(ContainSubstring(text), text)
-	}
 }
 
 // serveSurface sends one request to a surface handler.

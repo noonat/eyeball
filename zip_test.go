@@ -75,7 +75,7 @@ func pathsIn(g *WithT, trees ...fs.FS) []string {
 func Test_embedsReachModuleZip(t *testing.T) {
 	g := NewWithT(t)
 	paths := pathsIn(g, Fonts, Templates, Scripts, Sources, Deps, Icons)
-	paths = append(paths, "web/vendor/htmx.min.js", "docs/design/app.css", "web/static/shell.css")
+	paths = append(paths, "docs/design/app.css", "web/static/shell.css")
 	g.Expect(paths).To(ContainElement(ContainSubstring("node_modules/react/")))
 	g.Expect(paths).To(ContainElement(HavePrefix("web/src/")))
 	g.Expect(paths).To(ContainElement(HavePrefix("web/ts/")), "the app stages the shared scripts, so the binary has to hold them")
@@ -91,15 +91,15 @@ func Test_embedsReachModuleZip(t *testing.T) {
 }
 
 // The check has to be able to fail. A package under web/vendor is the first
-// design, and the zip drops it, while htmx directly in web/vendor survives.
+// design, and the zip drops it, while a file directly in web/vendor survives.
 func Test_moduleZipDropsVendor(t *testing.T) {
 	g := NewWithT(t)
 	tree := fstest.MapFS{
 		"go.mod":                                 {Data: []byte("module example.com/m\n\ngo 1.26\n")},
 		"web/vendor/node_modules/react/index.js": {Data: []byte("x")},
-		"web/vendor/htmx.min.js":                 {Data: []byte("x")},
+		"web/vendor/lib.min.js":                  {Data: []byte("x")},
 	}
-	paths := []string{"web/vendor/node_modules/react/index.js", "web/vendor/htmx.min.js"}
+	paths := []string{"web/vendor/node_modules/react/index.js", "web/vendor/lib.min.js"}
 	refused := refusedByZip(tree, paths)
 	g.Expect(refused).To(HaveLen(1))
 	g.Expect(refused[0]).To(HavePrefix("web/vendor/node_modules/react/index.js"))

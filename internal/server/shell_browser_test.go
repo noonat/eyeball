@@ -124,7 +124,7 @@ func TestServer_Surface_browserShellRebuilt(t *testing.T) {
 	surfaceAt(g, t, addr, f.s.LoopbackSurface(browserToken))
 	b.navigate(g, base+"/")
 	g.Expect(b.eval(g, `document.querySelector("meta[name='eyeball-build']").content`)).To(Equal("second"))
-	g.Expect(b.eval(g, `document.querySelector("script[src^='/static/react.js']").getAttribute("src")`)).To(Equal("/static/react.js?b=" + newToken))
+	g.Expect(b.eval(g, `document.querySelector("script[src^='/static/app.js']").getAttribute("src")`)).To(Equal("/static/app.js?b=" + newToken))
 	b.waitFor(g, `!!document.querySelector("#root .empty .headline")`)
 	b.waitFor(g, `document.getElementById("offline").hidden === true`)
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the build running now")

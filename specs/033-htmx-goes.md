@@ -107,6 +107,32 @@ Where the work went differently from the paragraphs above.
 - The Iteration 2 todo for the Go tests says four failures. The tests cover the
   five paths, the 404 and the 405 separately, each as a page, an image, a fetch,
   a frame and with no header.
+- The `page` type keeps its `Back`, `BackLabel` and `Body` fields, which the
+  view builders still read, and loses only `Eye` and the `eye` type. The spec
+  did not name them, and removing `renderPage` left them unused.
+- `TestServer_Surface_templateBundle` was deleted. It held the template bundle
+  at `/static/app.js` to omit the review page's scripts, which says nothing of
+  the React bundle that now has that address.
+- `TestBundle`, `build` and the `bundleOnce` state in `bundle.go` went with
+  `eyeball.Bundle`. Only `buildWith` remains, for the worker.
+- No test asserts that `/static/htmx.js` answers 404. The spec's last todo for
+  this iteration requires `git grep -i htmx` to match nothing else, and that
+  assertion would have been one more match. The route is gone from the table.
+- `docs/design/review.html` named htmx in two lines of a to-do item. They now
+  say "the template script", since the spec's grep allows no other match in
+  `docs/design/`. `specs/TODO.md` still names htmx in the item for this spec,
+  which leaves with the spec when it moves to `specs/done/`.
+- `render.Join`'s three tests lose their `after` assertions. The two fold tests
+  still fail when the fold's closing tag or a passage is not written. `TestJoin`
+  checks the passages are written in order and with no `aside`, and fails when
+  none is written, but a fold fault alone cannot fail it, since its input has no
+  unchanged run.
+- `/static/app.js` is served gzipped, as `/static/react.js` was, since the
+  bundle is the React one.
+- The binary `seed` at the repository root is tracked and holds the string htmx
+  from an older build. `git grep -i htmx` reports it as a binary match, and this
+  spec leaves it. That one binary breaks the todo's list of allowed matches.
+  Removing it is the unscheduled item in `specs/TODO.md`.
 
 ## Iteration 1: The error screen
 
@@ -148,26 +174,32 @@ Where the work went differently from the paragraphs above.
 
 ## Iteration 3: htmx and the template bundle go
 
-- [ ] `web/templates/error.html`, `file.html` and the `layout` template are
+- [x] `web/templates/error.html`, `file.html` and the `layout` template are
       deleted, with `renderPage` and every caller moved to the function from
       Iteration 2. `layout.html` keeps `headmeta` and `shell` only.
-- [ ] The `HX-Request` branch of `refuseWithoutToken`, its test case, and the
+- [x] The `HX-Request` branch of `refuseWithoutToken`, its test case, and the
       htmx configuration test in `surface_test.go` are gone.
-- [ ] `/static/htmx.js`, `eyeball.Htmx`, `Test_htmxIsTheVendoredRelease` and
+- [x] `/static/htmx.js`, `eyeball.Htmx`, `Test_htmxIsTheVendoredRelease` and
       `web/vendor/` are gone, with the `web/vendor/` ignore patterns in
       `.oxfmtrc.json`, `.oxlintrc.json` and the Makefile.
-- [ ] `web/ts/main.ts`, `web/ts/stream.ts`, the `htmx` declaration in
+- [x] `web/ts/main.ts`, `web/ts/stream.ts`, the `htmx` declaration in
       `web/ts/globals.d.ts` and `eyeball.Bundle` are gone. Every other `web/ts`
       module stays, since the app imports it.
-- [ ] The React bundle is served at `/static/app.js`, in the route, the shell's
+- [x] The React bundle is served at `/static/app.js`, in the route, the shell's
       head and `shellFiles`, and `/static/react.js` answers 404.
-- [ ] `render.Join` loses its `after` hook, and the three tests that passed it
+- [x] `render.Join` loses its `after` hook, and the three tests that passed it
       assert the same outlines without it.
-- [ ] `git grep -i htmx` matches only this spec, finished specs, the fixtures
+- [x] `git grep -i htmx` matches only this spec, finished specs, the fixtures
       named in Out of scope, and architecture.md's rejected alternative.
-- [ ] architecture.md's routes table and the paragraphs on the screens' move,
+- [x] architecture.md's routes table and the paragraphs on the screens' move,
       the two bundles and `web/vendor/`, the import-order example in
       conventions.md, and the comments in `assets.go` describe what is left.
+
+> **Completed** 2026-11-23 03:11 UTC
+>
+> - `make check` — 38.7s
+> - `go test -race ./...` — 55.4s
+> - `go test -count=1 -tags browser ./internal/server` — 126.1s
 
 ## Iteration 4: On the phone
 

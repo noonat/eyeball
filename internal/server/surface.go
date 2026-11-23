@@ -66,20 +66,14 @@ const tokenHeader = "X-Eyeball-Token"
 // told.
 const noToken = "This page cannot write to this eyeball. Open the address eyeball serve printed."
 
-// refuseWithoutToken answers a write that lacks the token: plain text to htmx,
-// which shows it beside the control, and a page to anything else.
+// refuseWithoutToken answers a write that lacks the token: JSON under /api, and
+// otherwise a failure, which fail answers by who asked.
 func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 	setSurfaceHeaders(w.Header())
 	// A write under /api is the app's, which reads JSON and shows the sentence
 	// beside its control.
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		refuseJSON(w, http.StatusForbidden, noToken)
-		return
-	}
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(noToken))
 		return
 	}
 	s.fail(w, r, http.StatusForbidden, failNoToken)
@@ -131,21 +125,16 @@ func (c *statusCatcher) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// page is what the layout prints around one page template: the document's
-// title, the topbar, and the data the page template reads as its dot.
+// page is the data a view builds its JSON from, and what the shell template
+// prints around the app: the title, the build's identity and the failure.
 type page struct {
-	// Title is the document's title and the topbar's heading.
+	// Title is the document's title and the view's heading.
 	Title string
-	// Back is where the topbar's back link goes. It is empty on the queue,
-	// whose topbar carries the wordmark instead.
+	// Back is where the view's back link goes. It is empty on the queue.
 	Back string
 	// BackLabel is the back link's text.
 	BackLabel string
-	// Eye is the waiting count the top bar's eye shows, on every page. Nil
-	// draws no eye, which is what a page gets when the count cannot be read: a
-	// shut eye would say nothing waits.
-	Eye *eye
-	// Body is the page template's data.
+	// Body is the view's own data.
 	Body any
 	// VAPID is the public key a device subscribes to push with, and empty
 	// where it could not be read.
@@ -162,15 +151,8 @@ type page struct {
 	Token string
 }
 
-// eye is the top bar's count of reviews waiting on the reviewer. Zero shuts it.
-type eye struct {
-	// Count is how many reviews are in the queue's Waiting section.
-	Count int
-}
-
-// eyeTimeout bounds the count's query on a page that did not read it already.
-// A failure page is often the store failing, and its answer should not wait
-// on the store a second time.
+// eyeTimeout bounds the count's query. A failure is often the store failing,
+// and its answer should not wait on the store a second time.
 const eyeTimeout = time.Second
 
 // failurePage answers a surface request whose handler failed, as a page. The
@@ -230,9 +212,8 @@ func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) error {
 	return s.writeShell(w, http.StatusOK, page{Title: title})
 }
 
-// handleReact serves the React app's bundle, which loads beside the template
-// pages' bundle until the last screen moves.
-func (s *Server) handleReact(w http.ResponseWriter, _ *http.Request) error {
+// handleBundle serves the React app's bundle.
+func (s *Server) handleBundle(w http.ResponseWriter, _ *http.Request) error {
 	app, err := eyeball.App()
 	if err != nil {
 		return err
@@ -263,25 +244,6 @@ func (s *Server) handleStylesheet(w http.ResponseWriter, _ *http.Request) error 
 func (s *Server) handleShell(w http.ResponseWriter, _ *http.Request) error {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	_, _ = w.Write(eyeball.Shell)
-	return nil
-}
-
-// handleHtmx serves the vendored htmx from the binary.
-func (s *Server) handleHtmx(w http.ResponseWriter, _ *http.Request) error {
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	_, _ = w.Write(eyeball.Htmx)
-	return nil
-}
-
-// handleScript serves the client's bundle. A bundle that failed to build is a
-// 500 and a log line, so a page still renders without its script.
-func (s *Server) handleScript(w http.ResponseWriter, _ *http.Request) error {
-	js, err := eyeball.Bundle()
-	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	_, _ = w.Write(js)
 	return nil
 }
 

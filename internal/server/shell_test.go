@@ -32,7 +32,7 @@ func Test_shellFiles(t *testing.T) {
 	for _, s := range findAll(doc, isElement("script")) {
 		linked = append(linked, attr(s, "src"))
 	}
-	g.Expect(linked).To(ContainElement("/static/react.js?b=" + token))
+	g.Expect(linked).To(ContainElement("/static/app.js?b=" + token))
 	for _, address := range linked {
 		g.Expect(files).To(ContainElement(address), "the head links it")
 	}

@@ -14,7 +14,7 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-The surface moves from htmx to React, one screen at a time, as
+The surface moves from templates to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
 client code. Each item is a spec. [032](done/032-react-review.md).
 

@@ -1,6 +1,6 @@
-// The live stream's connection, with no page in it. The template pages wire it
-// to the notices in their markup, and the React app wires it to its state, so
-// the delay before a loss shows, and what counts as a loss, are written once.
+// The live stream's connection, with no page in it. The React app wires it to
+// its state, so the delay before a loss shows, and what counts as a loss, are
+// written once.
 
 // noticeDelay is how long a stream may be down before the loss is reported, so
 // a phone waking from sleep does not flash it. Two seconds is a guess.

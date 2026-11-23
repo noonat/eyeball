@@ -152,22 +152,13 @@ func Document(old, new []byte, p Page) []Part {
 	return parts
 }
 
-// After writes what follows a passage that has a range, given its first and
-// last source line: the comments on that passage, on a page that shows them.
-type After func(first, last int) template.HTML
-
 // Join writes a document's parts as one piece of markup, as the template page
-// draws a document. after is called once for each passage with a range, folded
-// or not, and may be nil. Raw HTML is omitted, every destination went through
-// the allowlist, and goldmark escapes text, so the markup is the renderer's
-// own.
-func Join(parts []Part, after After) template.HTML {
+// draws a document. Raw HTML is omitted, every destination went through the
+// allowlist, and goldmark escapes text, so the markup is the renderer's own.
+func Join(parts []Part) template.HTML {
 	var b strings.Builder
 	write := func(p Passage) {
 		b.WriteString(string(p.HTML))
-		if p.First > 0 && after != nil {
-			b.WriteString(string(after(p.First, p.Last)))
-		}
 	}
 	for _, part := range parts {
 		if len(part.Fold) == 0 {

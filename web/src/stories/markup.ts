@@ -19,7 +19,7 @@ function keepsSpace(text: Node): boolean {
 
 /**
  * Attributes the template pages carry for the script that drove them and the
- * app has no use for: htmx's, the hooks its script found elements by, and the
+ * app has no use for: the hx- ones, the hooks its script found elements by, and the
  * facts a page printed for its own script to read. A component draws none of
  * them, and none changes what a page looks like.
  */

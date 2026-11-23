@@ -22,7 +22,8 @@ var Stylesheet []byte
 //go:embed docs/design/fonts
 var Fonts embed.FS
 
-// Templates is web/templates, the surface's pages, seeded from the tearouts.
+// Templates is web/templates: the shell every address answers with, and the
+// head it shares with nothing else.
 //
 //go:embed web/templates
 var Templates embed.FS
@@ -33,16 +34,11 @@ var Templates embed.FS
 //go:embed web/static/shell.css
 var Shell []byte
 
-// Scripts is web/ts, the client's TypeScript, which Bundle compiles.
+// Scripts is web/ts, the client's TypeScript: the modules the app imports and
+// the service worker, which Worker compiles.
 //
 //go:embed web/ts
 var Scripts embed.FS
-
-// Htmx is the vendored htmx, served as it was released. web/vendor/VERSION
-// names the release and its sha256, which a test holds the file to.
-//
-//go:embed web/vendor/htmx.min.js
-var Htmx []byte
 
 // Icons is web/static/icons, the installed page's icons, which tool/appicon
 // renders and commits.

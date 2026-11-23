@@ -419,7 +419,7 @@ func Test_shellRoutesAnswerTheShell(t *testing.T) {
 		res := serveSurface(f.s.Surface(), http.MethodGet, fill.Replace(path))
 		g.Expect(res.Code).To(Equal(http.StatusOK), path)
 		g.Expect(res.Body.String()).To(ContainSubstring(`<div id="root"></div>`), path)
-		g.Expect(res.Body.String()).To(ContainSubstring("/static/react.js"), path)
+		g.Expect(res.Body.String()).To(ContainSubstring("/static/app.js"), path)
 		asked++
 	}
 	g.Expect(asked).To(Equal(7))

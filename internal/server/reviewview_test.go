@@ -198,7 +198,7 @@ func Test_compressed(t *testing.T) {
 		"/api/reviews/" + itoa(id),
 		"/api/reviews/" + itoa(id) + "/rounds/1/cards/a.txt",
 		"/api/",
-		"/static/react.js",
+		"/static/app.js",
 		"/static/app.css",
 		"/static/shell.css",
 	}
@@ -289,7 +289,7 @@ func Test_compressedLeftAlone(t *testing.T) {
 			"GET /api/projects/{project}/files/{path...}",
 			"GET /static/app.css",
 			"GET /static/shell.css",
-			"GET /static/react.js",
+			"GET /static/app.js",
 		))
 	})
 

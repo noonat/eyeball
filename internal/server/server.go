@@ -384,18 +384,8 @@ var routes = []route{
 	},
 	{
 		side:    sideSurface,
-		pattern: "GET /static/htmx.js",
-		handle:  (*Server).handleHtmx,
-	},
-	{
-		side:    sideSurface,
 		pattern: "GET /static/app.js",
-		handle:  (*Server).handleScript,
-	},
-	{
-		side:    sideSurface,
-		pattern: "GET /static/react.js",
-		handle:  (*Server).handleReact,
+		handle:  (*Server).handleBundle,
 		gzip:    true,
 	},
 }

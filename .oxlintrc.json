@@ -18,6 +18,6 @@
       "rules": { "react/no-danger": "off" }
     }
   ],
-  "ignorePatterns": ["web/vendor/**", "web/deps/**"],
+  "ignorePatterns": ["web/deps/**"],
   "plugins": ["oxc", "typescript", "unicorn", "react"]
 }
