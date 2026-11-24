@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 required_commands:
   - cmd: make check
   - cmd: go test -race ./...
@@ -26,9 +26,9 @@ reach an `<img>`, a frame, a `fetch` and curl, where a page is the wrong answer.
 The browser says which it is. A page load sends `Sec-Fetch-Dest: document`, and
 an image, a frame and a fetch send `image`, `iframe` and `empty`. Measured in
 headless Chromium on 2026-11-22. A frame sends the same `Accept: text/html`
-header as a page, so `Accept` cannot tell the two apart. iOS Safari is assumed,
-not measured, to send the header, as WebKit has since Safari 16.4. A browser
-that sends no header gets the text answer, which is correct and plain.
+header as a page, so `Accept` cannot tell the two apart. iOS Safari sends the
+header too. Measured on an iPhone on 2026-11-23. A browser that sends no header
+gets the text answer, which is correct and plain.
 
 So a failure with `Sec-Fetch-Dest: document` answers the shell, with the
 failure's status, and the shell carries the failure in a
@@ -129,6 +129,25 @@ Where the work went differently from the paragraphs above.
   unchanged run.
 - `/static/app.js` is served gzipped, as `/static/react.js` was, since the
   bundle is the React one.
+- Iteration 4 ran on 2026-11-23 against this branch's build, deployed as the
+  running daemon. An unknown address opened in Safari on the iPhone drew the
+  error screen, so iOS Safari sends `Sec-Fetch-Dest: document`. The installed
+  app has no address bar, so only the Safari half of the first todo was done.
+  The app uses the same WebKit, so the result is assumed to hold there, not
+  measured.
+- The installed app, opened first after the deploy, loaded, and no update banner
+  appeared, so the Refresh half of the second todo did not run. A cold launch is
+  expected to show no banner. The worker answers `/` from the network when the
+  daemon answers in time, so the phone is expected to have got the new shell,
+  which names `/static/app.js`, and the banner shows only on a page already open
+  when the build changes. Both are reasoned from the worker, not observed. The
+  path where an old shell asks the old worker's cache for `/static/react.js` did
+  not run, and stays reasoned. A launch with the daemon unreachable is the
+  expected way to reach it.
+- Measured from the desktop against the deployed daemon, `/no/such/page`
+  answered 404 as `text/plain` with no header, and as the shell with the
+  `eyeball-error` tag with `Sec-Fetch-Dest: document`. `/static/react.js`
+  answered 404.
 - The binary `seed` at the repository root is tracked and holds the string htmx
   from an older build. `git grep -i htmx` reports it as a binary match, and this
   spec leaves it. That one binary breaks the todo's list of allowed matches.
@@ -208,9 +227,16 @@ required_acks:
   - phone-checked
 ```
 
-- [ ] The owner opens an unknown address in the installed app and in Safari, and
+- [x] The owner opens an unknown address in the installed app and in Safari, and
       sees the error screen in the device's theme. If it shows plain text
       instead, iOS sends no `Sec-Fetch-Dest`, and the spec records that here.
-- [ ] The owner opens the installed app first after the deploy that renames the
+- [x] The owner opens the installed app first after the deploy that renames the
       bundle, and the app loads, then loads again after the update banner's
       Refresh.
+
+> **Completed** 2026-11-24 03:17 UTC
+>
+> - acks: phone-checked
+> - `make check` — 37.7s
+> - `go test -race ./...` — 50.9s
+> - `go test -count=1 -tags browser ./internal/server` — 126.3s

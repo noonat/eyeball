@@ -888,9 +888,9 @@ a frame, a `fetch` and curl send another value, or none, and get `text/plain`
 with the status and the sentence. The tag is needed because a raw file's address
 has no route in the app, so the app alone would draw "Nothing here" for a file
 that exists and is too large. `Accept` cannot decide this, since a frame sends
-the `text/html` a page does. Measured in headless Chromium on 2026-11-22; iOS
-Safari is assumed, not measured, to send the header. A browser that sends none
-gets the text, which is plain and correct.
+the `text/html` a page does. Measured in headless Chromium on 2026-11-22 and in
+iOS Safari on 2026-11-23. A browser that sends none gets the text, which is
+plain and correct.
 
 Two alternatives lost. A scriptless template page keeps an HTML page for every
 client, but the bundle is what sets the theme, so it shows light on a dark
