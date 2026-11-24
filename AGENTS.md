@@ -7,7 +7,6 @@ instance serves every project on the machine.
 [docs/product.md](docs/product.md) is what it does and why.
 [docs/architecture.md](docs/architecture.md) is how it is built, and is derived
 from it. [docs/conventions.md](docs/conventions.md) is how the code is written.
-[specs/TODO.md](specs/TODO.md) is what is next.
 
 **This file is an index. Keep it that way.** Nothing belongs here that is not a
 pointer or a rule short enough to fit on one line. A context file that grows
