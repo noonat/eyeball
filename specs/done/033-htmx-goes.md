@@ -8,11 +8,11 @@ required_commands:
 
 # 033 htmx and the error page go
 
-Every screen is the React app's since spec [032](done/032-react-review.md). What
-is left of the template surface is the error page, the layout that wraps it,
-htmx, and the template bundle at `/static/app.js` that the error page loads.
-This spec removes them, and the React bundle takes the address `/static/app.js`,
-as [architecture.md](../docs/architecture.md) says under "Until the last
+Every screen is the React app's since spec [032](032-react-review.md). What is
+left of the template surface is the error page, the layout that wraps it, htmx,
+and the template bundle at `/static/app.js` that the error page loads. This spec
+removes them, and the React bundle takes the address `/static/app.js`, as
+[architecture.md](../../docs/architecture.md) says under "Until the last
 template goes". The shell stays a template, and is the only one left.
 
 **A failure answers the person with the app and anything else with text.** The
@@ -68,7 +68,7 @@ describes a removed route.
   the rendered stories, deleting the sheets in `docs/design/`, and moving
   `shell.css` into the bundled stylesheet. `shell.css` sets a height on `body`
   that would change how the sheets lay out, so it waits for them. That is the
-  next spec, listed in [TODO.md](TODO.md).
+  next spec, listed in [TODO.md](../TODO.md).
 - The frozen template markup in `web/src/fixtures/review-*.html`, which still
   holds `hx-` attributes. Spec 032 kept the comparisons that read them, and the
   next spec decides their fate with the other checks.

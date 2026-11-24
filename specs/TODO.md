@@ -16,11 +16,9 @@ requirement in either document that none of them names is a gap in this list.
 
 The surface moves from templates to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
-client code. Each item is a spec. [032](done/032-react-review.md).
+client code. Each item is a spec. [032](done/032-react-review.md) and
+[033](done/033-htmx-goes.md) moved the last screen and removed the templates.
 
-- [ ] tooling: htmx, the error page and the template bundle go, and a failure
-      answers a page load with the app's error screen. Spec
-      [033](033-htmx-goes.md).
 - [ ] tooling: the markup checks in `internal/convention` move from the static
       sheets to the rendered stories, then the sheets in `docs/design/` are
       deleted, `shell.css` joins the bundled stylesheet, and the frozen
