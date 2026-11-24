@@ -42,8 +42,7 @@ export function answerTaps(move: (to: string) => void): () => void {
   };
 }
 
-// load moves a page to an address by loading it, which is all a template page
-// can do.
+// load moves a page to an address by loading it, for a page with no router.
 export function load(to: string): void {
   location.assign(to);
 }

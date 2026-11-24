@@ -670,6 +670,14 @@ func TestServer_Surface_fileNotFound(t *testing.T) {
 			if strings.Contains(p, "/locked/") && os.Geteuid() == 0 {
 				t.Skip("permission bits are not enforced for root")
 			}
+			if strings.Contains(p, "/../") {
+				// The mux redirects an address that is not clean, which the
+				// surface answers as its own 404, carried by the shell.
+				res := loadPage(f.s.Surface(), http.MethodGet, "/api"+p)
+				g.Expect(res.Code).To(Equal(http.StatusNotFound))
+				g.Expect(failureTag(g, res.Body.String()).Text).To(Equal("There is no page at this address."))
+				return
+			}
 			doc := f.page(g, p, http.StatusNotFound)
 			g.Expect(text(find(doc, "empty"))).To(ContainSubstring("There is no page at this address."))
 			g.Expect(find(doc, "notice")).To(BeNil(), "a live read was allowed, so nothing was refused")

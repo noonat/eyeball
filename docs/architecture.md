@@ -49,7 +49,7 @@ their fonts, the icon masks, the SQL migrations.
 
 ```
 cmd/eyeball/          the entry point: one function, one error
-assets.go             the files the binary embeds: the app's sources, web/vendor, web/deps, the stylesheets and fonts
+assets.go             the files the binary embeds: the app's sources, web/deps, the stylesheets and fonts
 internal/api/         the agent API's wire types, shared by the server and the CLI
 internal/appbuild/    esbuild's options for the app's bundle, shared by the vendor step and the binary
 internal/blob/        content-addressed store for captured file content
@@ -74,9 +74,8 @@ tool/seed/            writes a backdated, populated state directory to look at
 tool/tearout/         serves the built Storybook over the tailnet
 tool/vendor/          copies the files the app's bundle reads from web/node_modules into web/deps
 web/src/              the app: routes, components and their stylesheets, the API client, the stream
-web/vendor/           htmx, as released
 web/deps/            node_modules/: the files of each pinned package the app's bundle reads
-web/ts/               framework-free behaviors the templates and the app share
+web/ts/               framework-free behaviors the app and the service worker share
 web/                  the manifest, the icons, the service worker
 ```
 
@@ -94,9 +93,8 @@ module zip, which is what `go install pkg@version` downloads, drops every file
 that is more than one level below a `vendor/` directory, since it takes them for
 vendored Go packages. A path such as `web/vendor/node_modules/react/index.js` is
 missing from that zip, and the `//go:embed` that names it then matches nothing
-and fails the build. A file directly in `vendor/` survives, which is why htmx
-can stay in `web/vendor/`. A test builds the module zip the way the Go command
-does and fails when an embedded file is not in it.
+and fails the build. A test builds the module zip the way the Go command does
+and fails when an embedded file is not in it.
 
 ## The daemon's lifetime
 
@@ -639,11 +637,11 @@ phone to re-derive what the server already knows.
 
 **A React app in the browser, over data the Go server builds.** The server
 compares, highlights, renders markdown and marks changed words, exactly as it
-does for the templates today. What changes is what it sends: JSON views of the
-same models, which the app draws and keeps in a cache. Moving between screens
-then loads no page, a change reported by the live stream updates the screen in
-place, and the installed app opens from a cached shell when the daemon cannot
-answer.
+did for the template pages it replaced. What changes is what it sends: JSON
+views of the same models, which the app draws and keeps in a cache. Moving
+between screens then loads no page, a change reported by the live stream updates
+the screen in place, and the installed app opens from a cached shell when the
+daemon cannot answer.
 
 The alternative, server-rendered `html/template` with htmx, is what the surface
 was built on first. Every review, round and file was a page load, every change
@@ -700,8 +698,8 @@ read was refused, the banner saying why. The app draws the 404 screen from that
 body. The cost is that a bookmark to a missing address gets a 200, and the 404
 shows only once the view has loaded. Nothing relied on the page's 404: the CLI
 reads a 404 only from API routes, as "the daemon predates the route", and the
-service worker has no 404 branch. The waiting count is read for a view as
-`renderPage` reads it for the eye, by one helper, with a bound and the error
+service worker has no 404 branch. The waiting count is read for a view as `fail`
+reads it for the eye, by one helper, `waitingCount`, with a bound and the error
 logged. A count that cannot be read is `null` in the view, and the screen draws
 no eye, since a zero would say nothing waits.
 
@@ -791,22 +789,23 @@ or is followed by anything else is refused. The type check answers 415 with a
 `Refusal` instead of a decode failure. It is a second layer behind the
 cross-origin check every surface request passes, and has no reason beyond being
 explicit. A write that fails in the store is answered 500 with `Refusal`, since
-the error page would reach the app as text it cannot read. An edit of a comment
-already gone answers 404 with `Refusal`, where it answered 500, and a delete of
-one answers 200 with the count, so a delete sent twice reports no failure. The
-view names the `/api` routes for a comment's edit and delete and for the verdict
-in its `href` and `action`, and a write to the loopback listener carries the
-run's token, whose refusal under `/api` is a `Refusal` and not the page. The app
-builds a comment's request from its anchor in `composerAt.ts`, and a Vitest test
-compares it with the hidden fields of each composer answer the template routes
-gave, kept as they last came out, each anchor read from the request that wrote
-the answer, which `composers.ts` keeps. A request sent as a level the chips
-chose carries only the fields that level takes. No answer, a timeout or a 5xx
-leaves a comment unsent with a retry that sends the same submission key, so a
-first try that reached the store and lost its answer is stored once. A 4xx
-leaves the text in its composer with the server's sentence, since it would be
-refused again. Form bodies, which the template routes took, were rejected: the
-app would build a form from typed data, and nothing generated would check it.
+a fetch is answered with plain text, which the app cannot parse. An edit of a
+comment already gone answers 404 with `Refusal`, where it answered 500, and a
+delete of one answers 200 with the count, so a delete sent twice reports no
+failure. The view names the `/api` routes for a comment's edit and delete and
+for the verdict in its `href` and `action`, and a write to the loopback listener
+carries the run's token, whose refusal under `/api` is a `Refusal` and not the
+page. The app builds a comment's request from its anchor in `composerAt.ts`, and
+a Vitest test compares it with the hidden fields of each composer answer the
+template routes gave, kept as they last came out, each anchor read from the
+request that wrote the answer, which `composers.ts` keeps. A request sent as a
+level the chips chose carries only the fields that level takes. No answer, a
+timeout or a 5xx leaves a comment unsent with a retry that sends the same
+submission key, so a first try that reached the store and lost its answer is
+stored once. A 4xx leaves the text in its composer with the server's sentence,
+since it would be refused again. Form bodies, which the template routes took,
+were rejected: the app would build a form from typed data, and nothing generated
+would check it.
 
 **Types come from Go.** The API's response structs are the source, and a
 generator writes the TypeScript types from them into a committed file.
@@ -863,20 +862,46 @@ describes and no spec has built yet.
 | `GET /manifest.webmanifest`                                | what makes the page installable                     | 009  |
 | `GET /sw.js`                                               | the service worker, scoped to the surface           | 009  |
 | `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009  |
-| `GET /static/app.js`                                       | the app, bundled once from the binary               | 008  |
-| `GET /static/react.js`                                     | the React app, while screens are mixed              | 028  |
+| `GET /static/app.js`                                       | the app, bundled once from the binary               | 033  |
 | `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006  |
+| `GET /static/shell.css`                                    | the page around the app, which the shell links      | 006  |
 | `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015  |
 | `POST /subscriptions`                                      | a device's push subscription                        | 009  |
 | `POST /taps`                                               | a beacon from a notification tap, logged            | 026  |
 | `GET /healthz`                                             | liveness, after touching the database               | 006  |
 
-The routes that answered htmx with fragments are gone: the composer, a comment's
-card and its edit form. The app draws those from data it already holds. So are
-the template page's own writes, which took a form and answered a fragment, and
-the template route for a card's body, since the app writes and reads under
-`/api`. `/static/htmx.js` goes with htmx, and `/static/shell.css` joins the
-bundled stylesheet, since there is no tearout page left for it to stay out of.
+The routes that answered with fragments are gone: the composer, a comment's card
+and its edit form. The app draws those from data it already holds. So are the
+template page's own writes, which took a form and answered a fragment, and the
+template route for a card's body, since the app writes and reads under `/api`.
+`/static/shell.css` joins the bundled stylesheet once the tearout pages it stays
+out of are gone.
+
+**A failure answers the person with the app and anything else with text.** The
+surface fails with a 404 or 405 where the mux has no route, a 413 for a raw file
+past the send limit, a 500 where a handler fails, and a 403 for a write outside
+`/api` without the token. A browser loading the address as a page sends
+`Sec-Fetch-Dest: document`, and then the answer is the shell with the failure's
+status and a `<meta name="eyeball-error">` tag holding a `view.Failure` as JSON:
+the title, the heading, the sentence and the waiting count for the eye. The app
+reads the tag before it routes and draws an error screen in place of any route.
+An image, a frame, a `fetch` and curl send another value, or none, and get
+`text/plain` with the status and the sentence. The tag is needed because a raw
+file's address has no route in the app, and the router has no catch-all route,
+so without the tag an address the app does not draw would show the router's
+default error page. `Accept` cannot decide this, since a frame sends the
+`text/html` a page does. Measured in headless Chromium on 2026-11-22 and in iOS
+Safari on 2026-11-23. The installed app was assumed, not measured, to send the
+same header, since it shares Safari's WebKit and has no address bar to type an
+address into. A browser that sends none gets the text, which is plain and
+correct.
+
+Two alternatives lost. A scriptless template page keeps an HTML page for every
+client, but the bundle is what sets the theme, so it shows light on a dark
+phone, and a frame gets a page inside a card. Answering every failure with the
+shell sends a frame and curl an app they cannot use. The worker's cached shell
+never carries a tag: it answers a navigation from the network and falls back to
+the cache only for `/` when the daemon cannot answer.
 
 `GET /{$}` rather than `GET /`, because `/` is a prefix pattern that matches
 every path, and would answer `/agent/daemon` on the surface's listener.
@@ -899,29 +924,28 @@ needs rather than depending on a package-wide one.
 a moved screen's address with the shell and every other address with its
 template, and a link from one kind to the other was a full page load. Every
 screen is now the app's: the queue, a project, a tree or a file and a review's
-round answer the shell. What is left of the templates is the error page and its
-notice, which the removal of htmx in [specs/TODO.md](../specs/TODO.md) takes.
-Rebuilding every screen on one branch was rejected: it is one review too large
-to read on a phone, and nothing shipped until all of it did.
+round answer the shell, which is the only template left. Rebuilding every screen
+on one branch was rejected: it is one review too large to read on a phone, and
+nothing shipped until all of it did.
 
-**Until the last template goes, two bundles have two addresses.** The template
-bundle keeps `/static/app.js`, and the React app is served at
-`/static/react.js`. The cleanup that removes the last template makes the React
-bundle `/static/app.js`. The shell links `/static/app.css` and
-`/static/shell.css`, the files the templates link, since `app.css` stays one
-file until then and the React bundle imports no stylesheet. A link to an address
-the app does not draw is a plain anchor, so tapping it is a full page load.
-React Router intercepts only its own `Link`.
+**One bundle, at `/static/app.js`.** The shell links it with `/static/app.css`
+and `/static/shell.css`, since `app.css` stays one file and the bundle imports
+no stylesheet. A link to an address the app does not draw is a plain anchor, so
+tapping it is a full page load. React Router intercepts only its own `Link`. The
+bundle was `/static/react.js` while a template bundle held this address. The
+worker caches by exact address, so a phone with the old shell keeps asking for
+`react.js` until its new worker takes over, and no alias for it is kept. That is
+reasoned from the worker, not measured.
 
 **One client function says which addresses the app draws**, by matching an
 address against the router's routes. The link component draws a router link for
 such an address and a plain anchor for any other, and the tap listener moves the
-router for one and loads any other. Go builds every href, escaped, as the
-templates do, and the app follows it. A view is fetched from `/api` plus the
-page's raw path and query, so a query such as `?copy=` reaches the view
-unchanged. Measured 2026-10-31 with React Router 7.18.5's memory router: a link
-keeps an escaped href, `%20`, `%25`, `%23`, `%3F` and UTF-8 alike, and
-`useLocation` keeps the path escaped where the splat parameter decodes it.
+router for one and loads any other. Go builds every href, escaped, and the app
+follows it. A view is fetched from `/api` plus the page's raw path and query, so
+a query such as `?copy=` reaches the view unchanged. Measured 2026-10-31 with
+React Router 7.18.5's memory router: a link keeps an escaped href, `%20`, `%25`,
+`%23`, `%3F` and UTF-8 alike, and `useLocation` keeps the path escaped where the
+splat parameter decodes it.
 
 ## The client code
 
@@ -959,7 +983,7 @@ that reason. The cost of the replacement is a write to a temporary directory the
 first time a page asks for the bundle. Measured 2026-10-30 with the router and
 the query library imported, that is about 1.6 MB: 1.4 MB of vendored packages in
 68 files, 110 KB of the app's sources and fixtures, and 76 KB of the scripts it
-shares with the template pages. The bundle it builds is 313,446 bytes minified
+shares with the service worker. The bundle it builds is 313,446 bytes minified
 and 98,259 gzipped at level 9, which agrees with the 313 KB and 98 KB first
 written.
 
@@ -986,7 +1010,7 @@ esbuild's bundle has would not show in development. The browser tests under
 bundle the gate checks.
 
 **`web/deps/node_modules/` holds only the files the app's bundle reads.** It is
-not under `web/vendor/`, where htmx is, for the reason in "The binary".
+not under a directory named `vendor`, for the reason in "The binary".
 `make vendor` bundles the app from `web/node_modules` after `npm ci`, and copies
 each file esbuild's metafile lists, plus each package's `package.json`, into it.
 It is committed because the binary embeds it.
@@ -1019,16 +1043,16 @@ Query and React DOM, and failed on a planted `exactOptionalPropertyTypes`
 violation.
 
 **Plain CSS, one stylesheet per component, in the end.** A component imports its
-own stylesheet, and both bundlers join them into `app.css`. Until the last
-template goes, `app.css` stays one file that the templates and the components
-both use, so the two cannot drift while both exist. It splits into one
-stylesheet per component when the templates are gone. The class names, the
-tokens and the reading-desk design in today's `app.css` carry over as they are,
-because they were judged on the phone and chosen against an alternative in 013.
-Tailwind was considered and rejected. It would rewrite approved styling into
-utility classes and put every screen back in front of the phone for no visible
-change. The class checks in [conventions.md](conventions.md) also read plain
-CSS, and would have to be rebuilt for utilities.
+own stylesheet, and both bundlers join them into `app.css`. While the tearouts
+link it, `app.css` stays one file that they and the components both use, so the
+two cannot drift while both exist. It splits into one stylesheet per component
+when the tearouts are gone. The class names, the tokens and the reading-desk
+design in today's `app.css` carry over as they are, because they were judged on
+the phone and chosen against an alternative in 013. Tailwind was considered and
+rejected. It would rewrite approved styling into utility classes and put every
+screen back in front of the phone for no visible change. The class checks in
+[conventions.md](conventions.md) also read plain CSS, and would have to be
+rebuilt for utilities.
 
 **The tearouts are Storybook stories of these components.** Every state a screen
 has is a story on fixture data, and the fixtures are views the Go server
@@ -1039,9 +1063,9 @@ Storybook, and the Node it needs, are development dependencies only.
 ### Client state
 
 **The server is the truth, and the cache is a copy the server corrects.** The
-htmx design rejected client state because the tally, the comment list and the
-selection would exist twice and could disagree. Here they still exist twice, and
-four rules keep the copy correct.
+template design rejected client state because the tally, the comment list and
+the selection would exist twice and could disagree. Here they still exist twice,
+and four rules keep the copy correct.
 
 - **The stream says when to refetch.** Each stamp from `/events` names the view
   it covers, where today one stamp covers a whole page, and the app invalidates
@@ -1158,17 +1182,14 @@ constant `open` opens again whenever a refetch mounts it anew.
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
 build check and the keyboard fix in `viewport.ts` are framework-free modules,
-and several were settled on a real phone. Where a module mixes its logic with
-template DOM, as push setup does with its page's buttons, the logic is a
-function both callers use and the template keeps its wiring. The binary embeds
-and stages `web/ts` beside `web/src`, so the app imports them. Rewriting them in
-React was rejected: two copies would have to agree on storage keys, such as the
-blink mark and the token, and nothing would check that they do. The review
-page's own modules were the exception, since each was wired to the template's
-markup and htmx's events: the composer, the drafts, the unsent cards, the
-deferred bodies and the reader's place. The app took their logic into the review
-screen and they are gone with the review template, so no two copies are left to
-agree.
+and several were settled on a real phone. The binary embeds and stages `web/ts`
+beside `web/src`, so the app imports them. Rewriting them in React was rejected:
+two copies would have to agree on storage keys, such as the blink mark and the
+token, and nothing would check that they do. The review page's own modules were
+the exception, since each was wired to the template's markup and its events: the
+composer, the drafts, the unsent cards, the deferred bodies and the reader's
+place. The app took their logic into the review screen and they are gone with
+the review template, so no two copies are left to agree.
 
 **The iOS behaviors tied to a screen move with that screen**, each re-checked on
 the phone when it moves: the deferred card bodies with their skeleton heights

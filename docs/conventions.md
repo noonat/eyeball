@@ -423,9 +423,9 @@ without breaking it.
 
 **A reference table is sorted by its key.** The dependency table in
 `docs/architecture.md` sorts on the full module path, not the short name, so
-`htmx.org` falls after the `github.com/` entries where a reader looking it up
-would expect it. A table nobody can predict the order of has to be read start to
-finish.
+`golang.org/x/net/html` falls after the `github.com/` entries, where a reader
+looking it up as `html` would not expect it. A table nobody can predict the
+order of has to be read start to finish.
 
 **Specs are formatted like anything else.** punchcard derives a todo's id by
 hashing its text as wrapped, so moving a line break changes the id and reflowing
@@ -479,8 +479,9 @@ which is why none of them can be left to a reading.
 - `template-classes`: a class a surface template uses is defined by `app.css`
   alone. `tearout.css` is the tearouts' own chrome and is not shipped, and a
   template drifting from the tearout it was seeded from renders its text
-  unstyled. The surface keeps the layout, the error page and the notice, so the
-  check reads those. The review's classes are held by `component-classes`.
+  unstyled. The surface keeps one template file, `layout.html`, with the head
+  and the shell, and the check reads every file in `web/templates`. The review's
+  classes are held by `component-classes`.
 
 The markup is tokenized, never matched with a regular expression. A pattern
 expecting `<span class="agent">` written tightly stops matching when a line

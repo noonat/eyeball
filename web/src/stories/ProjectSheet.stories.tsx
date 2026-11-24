@@ -43,10 +43,10 @@ export const States: Story = {
           waits. The eye returns with the count.
         </>,
         <>
-          <b>A 404 draws the template error page&rsquo;s bar and box.</b> The
-          view carries a waiting count and, where a live read was refused, the
-          banner saying why. It has no title or way back, so the bar says Not
-          found and leads to the queue.
+          <b>A 404 draws the error screen&rsquo;s bar and box.</b> The view
+          carries a waiting count and, where a live read was refused, the banner
+          saying why. It has no title or way back, so the bar says Not found and
+          leads to the queue.
         </>,
         <>
           <b>The working copy is live.</b> Its rows read the disk when the

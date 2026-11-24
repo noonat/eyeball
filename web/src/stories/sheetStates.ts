@@ -128,3 +128,11 @@ export const reviewBarStates: readonly ScreenState[] = [
   },
   { id: "review-states--loading", caption: "before the view arrives" },
 ];
+
+/** The states on the sheet of failures answered to a page load. */
+export const errorStates: readonly ScreenState[] = [
+  { id: "screen-error--not-found", caption: "404, nothing at the address" },
+  { id: "screen-error--not-allowed", caption: "405, a method not answered" },
+  { id: "screen-error--too-large", caption: "413, past the send limit" },
+  { id: "screen-error--failed", caption: "500, no count for the eye" },
+];

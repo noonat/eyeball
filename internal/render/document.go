@@ -31,10 +31,6 @@ const (
 	// wholeHTML opens a new passage that replaced no one passage, tinted as a
 	// whole rather than marked word by word.
 	wholeHTML = `<ins class="` + classWhole + `">`
-	// foldHTML opens a run of unchanged passages folded into one line, with
-	// the count it holds. It is a details element, so it opens with no
-	// script. A run is two or more, so the count is never one.
-	foldHTML = `<details class="` + classFold + `"><summary>%d unchanged passages</summary>` + "\n"
 )
 
 // Passage is one passage of a rendered document, as markup the renderer wrote.
@@ -150,37 +146,6 @@ func Document(old, new []byte, p Page) []Part {
 		i = end
 	}
 	return parts
-}
-
-// After writes what follows a passage that has a range, given its first and
-// last source line: the comments on that passage, on a page that shows them.
-type After func(first, last int) template.HTML
-
-// Join writes a document's parts as one piece of markup, as the template page
-// draws a document. after is called once for each passage with a range, folded
-// or not, and may be nil. Raw HTML is omitted, every destination went through
-// the allowlist, and goldmark escapes text, so the markup is the renderer's
-// own.
-func Join(parts []Part, after After) template.HTML {
-	var b strings.Builder
-	write := func(p Passage) {
-		b.WriteString(string(p.HTML))
-		if p.First > 0 && after != nil {
-			b.WriteString(string(after(p.First, p.Last)))
-		}
-	}
-	for _, part := range parts {
-		if len(part.Fold) == 0 {
-			write(part.Passage)
-			continue
-		}
-		b.WriteString(fmt.Sprintf(foldHTML, len(part.Fold)))
-		for _, p := range part.Fold {
-			write(p)
-		}
-		b.WriteString("</details>\n")
-	}
-	return template.HTML(b.String())
 }
 
 // shownItems says which items a folded document shows: every changed item,

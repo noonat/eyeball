@@ -34,8 +34,8 @@ type answerer func(r *http.Request) (pageAnswer, error)
 
 // serveView answers a page route's view under /api with JSON.
 //
-// The waiting count is read here, once, as renderPage reads it for the eye. A
-// count that cannot be read is sent as null, as the page draws no eye.
+// The waiting count is read here, once, as the failure answer reads it for the
+// eye. A count that cannot be read is sent as null, and the app draws no eye.
 func (s *Server) serveView(w http.ResponseWriter, r *http.Request, answer answerer) error {
 	ans, err := answer(r)
 	if err != nil {

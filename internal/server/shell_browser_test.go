@@ -50,6 +50,25 @@ func (b *browser) kept(g *WithT, base, token string) {
 	b.waitFor(g, `caches.keys().then(k => k.join() === "shell-`+token+`")`)
 }
 
+// A failing address gets the network's answer with the worker in control: the
+// shell carrying the failure, not the cached shell, which carries none. The
+// raw address has no route in the app, so the screen can only come from the tag.
+func TestServer_Surface_browserShellFailurePage(t *testing.T) {
+	g := NewWithT(t)
+	f := newFixture(g, t)
+	id := actingReview(g, t, f)
+	addr := freeAddress(g)
+	base := "http://" + addr
+	surfaceAt(g, t, addr, f.s.LoopbackSurface(browserToken))
+	b := openBrowser(g, t)
+	b.kept(g, base, f.s.buildToken())
+
+	b.navigate(g, base+"/reviews/"+itoa(id)+"/raw/1/missing.txt")
+	b.waitFor(g, `!!document.querySelector("#root .empty .headline")`)
+	g.Expect(b.eval(g, `document.querySelector("#root .empty .headline").textContent`)).To(Equal("Nothing here"))
+	g.Expect(b.eval(g, `performance.getEntriesByType("navigation")[0].responseStatus`)).To(BeEquivalentTo(404))
+}
+
 // A launch with the daemon stopped draws the loading state, from the
 // worker's cache: an eye and one line, with no bar and no notices. Once the
 // daemon is back the page draws the queue with no reload: the stream's stamp
@@ -105,7 +124,7 @@ func TestServer_Surface_browserShellRebuilt(t *testing.T) {
 	surfaceAt(g, t, addr, f.s.LoopbackSurface(browserToken))
 	b.navigate(g, base+"/")
 	g.Expect(b.eval(g, `document.querySelector("meta[name='eyeball-build']").content`)).To(Equal("second"))
-	g.Expect(b.eval(g, `document.querySelector("script[src^='/static/react.js']").getAttribute("src")`)).To(Equal("/static/react.js?b=" + newToken))
+	g.Expect(b.eval(g, `document.querySelector("script[src^='/static/app.js']").getAttribute("src")`)).To(Equal("/static/app.js?b=" + newToken))
 	b.waitFor(g, `!!document.querySelector("#root .empty .headline")`)
 	b.waitFor(g, `document.getElementById("offline").hidden === true`)
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the build running now")
@@ -144,22 +163,4 @@ func TestServer_Surface_browserShellRefusedInstall(t *testing.T) {
 	b.waitFor(g, `navigator.serviceWorker.getRegistration().then(r => !r.installing && !r.waiting)`)
 	g.Expect(b.eval(g, `navigator.serviceWorker.getRegistration().then(r => r.active === window.__active)`)).To(BeTrue(), "the new worker replaced the old one")
 	g.Expect(b.eval(g, `caches.keys().then(k => k.join())`)).To(Equal("shell-" + oldToken))
-}
-
-// A template page's address gets the template with the worker in control.
-func TestServer_Surface_browserShellTemplatePage(t *testing.T) {
-	g := NewWithT(t)
-	f := newFixture(g, t)
-	id := actingReview(g, t, f)
-	addr := freeAddress(g)
-	base := "http://" + addr
-	surfaceAt(g, t, addr, f.s.LoopbackSurface(browserToken))
-	b := openBrowser(g, t)
-	b.kept(g, base, f.s.buildToken())
-
-	// The error page is the template page left: a raw address with nothing at it
-	// answers with it.
-	b.navigate(g, base+"/reviews/"+itoa(id)+"/raw/1/missing.txt")
-	g.Expect(b.eval(g, `!!document.querySelector(".empty .headline")`)).To(BeTrue())
-	g.Expect(b.eval(g, `!!document.getElementById("root")`)).To(BeFalse(), "the shell answered a template page")
 }

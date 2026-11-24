@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,7 +18,7 @@ import (
 	"github.com/noonat/eyeball/internal/store"
 )
 
-// filePage is what the filepage template prints for one path at one round.
+// filePage is what the file view is built from, for one path at one round.
 type filePage struct {
 	// Dir is the path's directory with a trailing slash, empty at the root,
 	// and Name its last segment.
@@ -34,8 +33,6 @@ type filePage struct {
 	Deleted string
 	// ShowDocument says the file is shown as a document rather than as rows.
 	ShowDocument bool
-	// Document is a markdown file rendered, with heading ids.
-	Document template.HTML
 	// Parts are the same document as a list, which the view sends.
 	Parts []render.Part
 	// Diff is the file's rows, or the flag saying why it has none.
@@ -113,13 +110,12 @@ func (s *Server) reviewFromPath(r *http.Request) (store.Review, bool, error) {
 	return review, err == nil, err
 }
 
-// missing answers with the 404 page where err is nil, and passes err on
-// otherwise.
-func (s *Server) missing(w http.ResponseWriter, err error) error {
+// missing answers a 404 failure where err is nil, and passes err on otherwise.
+func (s *Server) missing(w http.ResponseWriter, r *http.Request, err error) error {
 	if err != nil {
 		return err
 	}
-	s.errorPage(w, http.StatusNotFound)
+	s.errorPage(w, r, http.StatusNotFound)
 	return nil
 }
 
@@ -537,7 +533,6 @@ func (s *Server) compareView(ctx context.Context, view *filePage, at fileAt, st 
 		if at.document() {
 			view.ShowDocument = true
 			view.Parts = render.Document(old, content, at.page())
-			view.Document = render.Join(view.Parts, nil)
 			return nil
 		}
 		view.Diff = render.Whole(at.path, result)
@@ -568,7 +563,6 @@ func (v *filePage) showPlain(at fileAt, content []byte, tooLarge bool) {
 	if r := diff.Plain(content); at.document() && !r.Binary && !r.TooLarge {
 		v.ShowDocument = true
 		v.Parts = render.Document(nil, content, at.page())
-		v.Document = render.Join(v.Parts, nil)
 		return
 	}
 	v.Diff = render.Plain(at.path, content)

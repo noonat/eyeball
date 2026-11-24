@@ -1,4 +1,4 @@
-import type { Files, NotFound, Project, Review } from "./types";
+import type { Failure, Files, NotFound, Project, Review } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -107,4 +107,15 @@ export async function fetchView<T>(
     throw new Error(`GET /api${address} answered a body of the wrong shape`);
   }
   return { found: true, body };
+}
+
+/** Whether a decoded tag is the failure the shell carries. */
+export function isFailure(value: unknown): value is Failure {
+  return (
+    isRecord(value) &&
+    typeof value["title"] === "string" &&
+    typeof value["heading"] === "string" &&
+    typeof value["text"] === "string" &&
+    isCount(value["waiting_count"])
+  );
 }

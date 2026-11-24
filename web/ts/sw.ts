@@ -5,9 +5,9 @@
 //     daemon refuses the connection or has not answered within a second;
 //   - a file in the shell's list, from whichever cache holds its exact address.
 //
-// The live stream, the API, every write, the beacons and every template page go
-// to the daemon untouched, so a template page with the daemon down fails as it
-// did before the worker kept anything.
+// The live stream, the API, every write, the beacons and every other address go
+// to the daemon untouched, so a page with the daemon down fails as it did
+// before the worker kept anything.
 //
 // The worker also exists for push, because iOS delivers web push only to an
 // installed page with a registered worker.

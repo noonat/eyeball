@@ -244,22 +244,22 @@ func TestDocument_foldAroundComments(t *testing.T) {
 		{
 			name:      "first of the run",
 			commented: []int{5},
-			want:      []string{"marked: New.", "A.", "B.", "after 5", "fold 6: C. / D. / E. / F. / G. / H."},
+			want:      []string{"marked: New.", "A.", "B.", "fold 6: C. / D. / E. / F. / G. / H."},
 		},
 		{
 			name:      "middle of the run",
 			commented: []int{11},
-			want:      []string{"marked: New.", "A.", "fold 3: B. / C. / D.", "E.", "after 11", "fold 3: F. / G. / H."},
+			want:      []string{"marked: New.", "A.", "fold 3: B. / C. / D.", "E.", "fold 3: F. / G. / H."},
 		},
 		{
 			name:      "end of the run",
 			commented: []int{17},
-			want:      []string{"marked: New.", "A.", "fold 6: B. / C. / D. / E. / F. / G.", "H.", "after 17"},
+			want:      []string{"marked: New.", "A.", "fold 6: B. / C. / D. / E. / F. / G.", "H."},
 		},
 		{
 			name:      "two, leaving a run of one between",
 			commented: []int{5, 9},
-			want:      []string{"marked: New.", "A.", "B.", "after 5", "C.", "D.", "after 9", "fold 4: E. / F. / G. / H."},
+			want:      []string{"marked: New.", "A.", "B.", "C.", "D.", "fold 4: E. / F. / G. / H."},
 		},
 	}
 	for _, c := range cases {
@@ -271,44 +271,28 @@ func TestDocument_foldAroundComments(t *testing.T) {
 			for _, line := range c.commented {
 				p.Commented[[2]int{line, line}] = struct{}{}
 			}
-			after := func(first, last int) template.HTML {
-				if _, ok := p.Commented[[2]int{first, last}]; ok {
-					return template.HTML(fmt.Sprintf(`<aside data-after="%d"></aside>`, first))
-				}
-				return ""
-			}
 			parts := Document([]byte(old), []byte(new), p)
-			g.Expect(outline(g, Join(parts, after))).To(Equal(c.want))
+			g.Expect(outline(g, join(parts))).To(Equal(c.want))
 		})
 	}
 }
 
 // A passage with a comment under it is never folded, so no comment is hidden
-// in a fold. After is asked once for every passage with a range, folded or not.
+// in a fold.
 func TestDocument_foldKeepsComments(t *testing.T) {
 	g := NewWithT(t)
 	old := "Old.\n\nA.\n\nB.\n\nC.\n\nNoted.\n\nD.\n\nE.\n"
 	new := "New.\n\nA.\n\nB.\n\nC.\n\nNoted.\n\nD.\n\nE.\n"
 	p := testPage()
 	p.Fold = true
-	var asked []string
-	after := func(first, last int) template.HTML {
-		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
-		if first == 9 {
-			return `<aside data-after="9"></aside>`
-		}
-		return ""
-	}
 	p.Commented = map[[2]int]struct{}{{9, 9}: {}}
-	g.Expect(outline(g, Join(Document([]byte(old), []byte(new), p), after))).To(Equal([]string{
+	g.Expect(outline(g, docHTML([]byte(old), []byte(new), p))).To(Equal([]string{
 		"marked: New.",
 		"A.",
 		"fold 2: B. / C.",
 		"Noted.",
-		"after 9",
 		"fold 2: D. / E.",
 	}))
-	g.Expect(asked).To(Equal([]string{"1-1", "3-3", "5-5", "7-7", "9-9", "11-11", "13-13"}))
 }
 
 // An ordered item keeps its own number, so the item after a fold counts on
@@ -1406,24 +1390,31 @@ func TestHasBlocks(t *testing.T) {
 	}
 }
 
-// docHTML is a document joined as the template page joins it, with nothing
-// under a passage.
+// foldHTML opens a run of unchanged passages folded into one line, with the
+// count it holds, as the app's fold draws it.
+const foldHTML = `<details class="` + classFold + `"><summary>%d unchanged passages</summary>` + "\n"
+
+// docHTML writes a document's parts as one piece of markup, so a test can read
+// a document by its structure. A run of unchanged passages is a fold.
 func docHTML(old, new []byte, p Page) template.HTML {
-	return Join(Document(old, new, p), nil)
+	return join(Document(old, new, p))
 }
 
-// Join writes what a page shows under a passage, given its range.
-func TestJoin(t *testing.T) {
-	g := NewWithT(t)
-	p := testPage()
-	var asked []string
-	after := func(first, last int) template.HTML {
-		asked = append(asked, fmt.Sprintf("%d-%d", first, last))
-		return template.HTML(fmt.Sprintf(`<aside data-after="%d"></aside>`, first))
+// join writes each part's passages in order, with a fold around a run.
+func join(parts []Part) template.HTML {
+	var b strings.Builder
+	for _, part := range parts {
+		if len(part.Fold) == 0 {
+			b.WriteString(string(part.Passage.HTML))
+			continue
+		}
+		b.WriteString(fmt.Sprintf(foldHTML, len(part.Fold)))
+		for _, p := range part.Fold {
+			b.WriteString(string(p.HTML))
+		}
+		b.WriteString("</details>\n")
 	}
-	out := string(Join(Document(nil, []byte("One.\n\n---\n\nTwo.\n"), p), after))
-	g.Expect(asked).To(Equal([]string{"1-1", "5-5"}))
-	g.Expect(out).To(MatchRegexp(`(?s)One\..*data-after="1".*<hr>.*Two\..*data-after="5"`))
+	return template.HTML(b.String())
 }
 
 // shape is one block of a rendered document as a reader sees it.
@@ -1521,7 +1512,7 @@ func marks(g *WithT, out template.HTML) []string {
 }
 
 // outline reads a rendered document's top level: each passage's mark and
-// text, each fold as its count and the passages in it, and what After wrote.
+// text, and each fold as its count and the passages in it.
 // A fold's count must be the number of passages it holds.
 func outline(g *WithT, out template.HTML) []string {
 	g.THelper()
@@ -1538,8 +1529,6 @@ func outline(g *WithT, out template.HTML) []string {
 			}
 			g.Expect(textOf(children[0])).To(Equal(fmt.Sprintf("%d unchanged passages", len(texts))))
 			lines = append(lines, fmt.Sprintf("fold %d: %s", len(texts), strings.Join(texts, " / ")))
-		case n.Data == "aside":
-			lines = append(lines, "after "+attr(n, "data-after"))
 		default:
 			s := shapesOf(g, template.HTML(renderHTML(g, n)))
 			g.Expect(s).To(HaveLen(1))

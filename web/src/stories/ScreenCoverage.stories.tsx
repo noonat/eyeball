@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect } from "storybook/test";
 import * as arrival from "./Arrival.stories";
+import * as error from "./Error.stories";
 import * as file from "./File.stories";
 import * as project from "./Project.stories";
 import * as review from "./Review.stories";
 import * as reviewStatesModule from "./ReviewStates.stories";
 import { entries } from "./Sheet";
 import {
+  errorStates,
   fileStates,
   largeReviewStates,
   mediaStates,
@@ -28,6 +30,7 @@ type Story = StoryObj<typeof meta>;
 
 const screens = entries({
   "./Arrival.stories.tsx": arrival,
+  "./Error.stories.tsx": error,
   "./File.stories.tsx": file,
   "./Project.stories.tsx": project,
   "./Review.stories.tsx": review,
@@ -37,6 +40,7 @@ const screens = entries({
 
 const sheeted = [
   ...projectStates,
+  ...errorStates,
   ...treeStates,
   ...fileStates,
   ...mediaStates,

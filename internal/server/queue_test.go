@@ -222,7 +222,7 @@ func TestServer_queueViewWritesLargeCountsWithSeparators(t *testing.T) {
 }
 
 // The shell holds what every load needs and nothing the store changes: the
-// head the template pages write, the React bundle and an element to draw into.
+// head the shell writes, the React bundle and an element to draw into.
 func TestServer_Surface_appShell(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)
@@ -239,7 +239,6 @@ func TestServer_Surface_appShell(t *testing.T) {
 	}
 	g.Expect(metas).To(HaveKeyWithValue("eyeball-build", "the-build"))
 	g.Expect(metas).To(HaveKey("theme-color"))
-	g.Expect(metas).NotTo(HaveKey("htmx-config"))
 
 	var hrefs, srcs []string
 	for _, n := range findAll(doc, func(n *html.Node) bool { return n.Type == html.ElementNode && (n.Data == "link" || n.Data == "script") }) {
@@ -250,12 +249,12 @@ func TestServer_Surface_appShell(t *testing.T) {
 		}
 	}
 	g.Expect(hrefs).To(ContainElements("stylesheet /static/app.css?b="+q.s.buildToken(), "stylesheet /static/shell.css?b="+q.s.buildToken(), "manifest /manifest.webmanifest"))
-	g.Expect(srcs).To(Equal([]string{"/static/react.js?b=" + q.s.buildToken()}))
+	g.Expect(srcs).To(Equal([]string{"/static/app.js?b=" + q.s.buildToken()}))
 	g.Expect(findAll(doc, func(n *html.Node) bool { return attr(n, "id") == "root" })).To(HaveLen(1))
 	g.Expect(res.Body.String()).NotTo(ContainSubstring("data-stamp"), "the app takes its stamp from the view")
 	g.Expect(res.Body.String()).NotTo(ContainSubstring(`class="row`), "the shell draws no rows")
 
-	js := serveSurface(q.s.Surface(), http.MethodGet, "/static/react.js")
+	js := serveSurface(q.s.Surface(), http.MethodGet, "/static/app.js")
 	g.Expect(js.Code).To(Equal(http.StatusOK))
 	g.Expect(js.Header().Get("Content-Type")).To(Equal("text/javascript; charset=utf-8"))
 	g.Expect(js.Body.Len()).To(BeNumerically(">", 100000))

@@ -14,22 +14,28 @@ Each becomes `specs/NNN-*.md` when it reaches the front. Together they are
 everything product.md and architecture.md describe that does not exist yet, so a
 requirement in either document that none of them names is a gap in this list.
 
-The surface moves from htmx to React, one screen at a time, as
+The surface moves from templates to React, one screen at a time, as
 [architecture.md](../docs/architecture.md) describes under The surface and The
-client code. Each item is a spec. [032](done/032-react-review.md).
+client code. Each item is a spec. [032](done/032-react-review.md) and
+[033](done/033-htmx-goes.md) moved the last screen and removed the templates.
 
-- [ ] tooling: removing htmx, the templates and any static tearouts left, and
-      moving the tearout checks to the rendered stories. Iteration 6 of spec 032
-      left these for it: the `htmx` declaration in `web/ts/globals.d.ts`, the
-      htmx branch of `refuseWithoutToken` in `internal/server/surface.go` with
-      the test that sends `HX-Request`, `render.Join`'s `after` hook, which only
-      the render tests still use, and the `/static/htmx.js` route.
+- [ ] tooling: the markup checks in `internal/convention` move from the static
+      sheets to the rendered stories, then the sheets in `docs/design/` are
+      deleted, `shell.css` joins the bundled stylesheet, and the frozen
+      `web/src/fixtures/review-*.html` markup is kept or dropped with its
+      comparisons. `foundations.html` waits for an ack, since no spec records
+      its stories judged on the phone against it. The `template-classes` check
+      reads only `layout.html`, which has no class attribute, so it checks
+      nothing until it moves.
 - [ ] tooling: a tapped notification opens the review it names. Spec
       [026](026-tap-opens-the-review.md) is blocked. The fault was seen again on
       2026-10-31 with no beacon at all, so its next step is a beacon sent first
       thing in the click handler.
 
 ## Unscheduled
+
+- [ ] tooling: a built binary, `seed`, is committed at the repository's root,
+      added by 6b1602e. Nothing reads it, and `git grep` matches inside it.
 
 - [ ] daemon: a next round whose first round's base commit no longer exists
       answers 500, and the agent reads "the daemon failed to answer". Seen on
@@ -48,9 +54,11 @@ client code. Each item is a spec. [032](done/032-react-review.md).
       on 2026-10-31.
 - [ ] product: the worker answers a moved screen's navigation with the shell
       when the daemon cannot answer. It answers `/` only, so a reload of the
-      project view or a file page with the daemon down fails as a template page
-      does, and those screens have no state yet for a view that cannot load.
-      Left out of spec [030](done/030-react-files.md).
+      project view or a file page with the daemon down shows the browser's own
+      error page, since the worker leaves every other address to the network,
+      and those screens have no state yet for a view that cannot load. That
+      claim is read from `sw.ts` and not run on a phone. Left out of spec
+      [030](done/030-react-files.md).
 - [ ] product: a stream that never connects shows no offline notice. The notice
       waits for the stream's `error` event, and a phone's connection to a daemon
       whose tailnet node is offline gets no error: the packets are dropped, and

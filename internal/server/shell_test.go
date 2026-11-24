@@ -32,7 +32,7 @@ func Test_shellFiles(t *testing.T) {
 	for _, s := range findAll(doc, isElement("script")) {
 		linked = append(linked, attr(s, "src"))
 	}
-	g.Expect(linked).To(ContainElement("/static/react.js?b=" + token))
+	g.Expect(linked).To(ContainElement("/static/app.js?b=" + token))
 	for _, address := range linked {
 		g.Expect(files).To(ContainElement(address), "the head links it")
 	}
@@ -103,7 +103,7 @@ func TestServer_LoopbackSurface_apiRefusal(t *testing.T) {
 
 	page := sendForm(h, http.MethodPost, "/reviews/"+itoa(id)+"/comments", url.Values{"round": {"1"}})
 	g.Expect(page.Code).To(Equal(http.StatusForbidden))
-	g.Expect(page.Header().Get("Content-Type")).To(HavePrefix("text/html"))
+	g.Expect(page.Header().Get("Content-Type")).To(HavePrefix("text/plain"), "a form post names no document, so it gets the sentence")
 }
 
 // A request made for another build is refused on both listeners, and a request

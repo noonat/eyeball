@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
-
 	"github.com/noonat/eyeball"
 )
 
@@ -27,8 +25,8 @@ import (
 const contentSecurityPolicy = "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
 
 // Surface is the handler for the reviewer's listeners: the surface's mux, with
-// the headers every response carries and a page in place of the mux's own
-// plain-text 404 and 405.
+// the headers every response carries and the mux's own plain-text 404 and 405
+// answered as a failure, which is a page only for a page load.
 //
 // An empty pattern from the mux means its fallback will answer, and only then
 // is the request served through a writer that catches the fallback's status.
@@ -68,8 +66,8 @@ const tokenHeader = "X-Eyeball-Token"
 // told.
 const noToken = "This page cannot write to this eyeball. Open the address eyeball serve printed."
 
-// refuseWithoutToken answers a write that lacks the token: plain text to htmx,
-// which shows it beside the control, and a page to anything else.
+// refuseWithoutToken answers a write that lacks the token: JSON under /api, and
+// otherwise a failure, which fail answers by who asked.
 func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 	setSurfaceHeaders(w.Header())
 	// A write under /api is the app's, which reads JSON and shows the sentence
@@ -78,18 +76,11 @@ func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 		refuseJSON(w, http.StatusForbidden, noToken)
 		return
 	}
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(noToken))
-		return
-	}
-	p := page{Title: "Not allowed", Back: "/", BackLabel: "Queue", Body: message{Heading: "Not allowed", Text: noToken}}
-	s.renderPage(w, http.StatusForbidden, "error", p)
+	s.fail(w, r, http.StatusForbidden, failNoToken)
 }
 
-// surfaceMux is the mux with the headers every response carries and a page in
-// place of the mux's own 404 and 405.
+// surfaceMux is the mux with the headers every response carries and a failure
+// answer in place of the mux's own 404 and 405.
 func (s *Server) surfaceMux() http.Handler {
 	mux := s.SurfaceHandler()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +95,7 @@ func (s *Server) surfaceMux() http.Handler {
 		}
 		caught := &statusCatcher{header: h}
 		mux.ServeHTTP(caught, r)
-		s.errorPage(w, caught.status)
+		s.errorPage(w, r, caught.status)
 	})
 }
 
@@ -134,21 +125,16 @@ func (c *statusCatcher) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// page is what the layout prints around one page template: the document's
-// title, the topbar, and the data the page template reads as its dot.
+// page is the data a view builds its JSON from, and what the shell template
+// prints around the app: the title, the build's identity and the failure.
 type page struct {
-	// Title is the document's title and the topbar's heading.
+	// Title is the document's title and the view's heading.
 	Title string
-	// Back is where the topbar's back link goes. It is empty on the queue,
-	// whose topbar carries the wordmark instead.
+	// Back is where the view's back link goes. It is empty on the queue.
 	Back string
 	// BackLabel is the back link's text.
 	BackLabel string
-	// Eye is the waiting count the top bar's eye shows, on every page. Nil
-	// draws no eye, which is what a page gets when the count cannot be read: a
-	// shut eye would say nothing waits.
-	Eye *eye
-	// Body is the page template's data.
+	// Body is the view's own data.
 	Body any
 	// VAPID is the public key a device subscribes to push with, and empty
 	// where it could not be read.
@@ -156,33 +142,23 @@ type page struct {
 	// Build is the daemon's build, which the stream compares with the build
 	// running when it connects, so a page served by an older daemon says so.
 	Build string
+	// Failure is the failure the shell carries to the app as JSON, and empty
+	// for every shell that carries none. The template escapes it as an
+	// attribute.
+	Failure string
 	// Token is the build's short hash, which the head writes into the address
 	// of each script and stylesheet it links.
 	Token string
 }
 
-// eye is the top bar's count of reviews waiting on the reviewer. Zero shuts it.
-type eye struct {
-	// Count is how many reviews are in the queue's Waiting section.
-	Count int
-}
-
-// eyeTimeout bounds the count's query on a page that did not read it already.
-// A failure page is often the store failing, and its answer should not wait
-// on the store a second time.
+// eyeTimeout bounds the count's query. A failure is often the store failing,
+// and its answer should not wait on the store a second time.
 const eyeTimeout = time.Second
 
-// message is a page that says one thing.
-type message struct {
-	// Heading is what happened, and Text says more.
-	Heading, Text string
-	// Notice is a banner above it saying why, and nil for none.
-	Notice *notice
-}
-
-// failurePage answers a surface request whose handler failed, as a page. The
-// agent API's JSON refusal would reach a phone as text, and its fix speaks to
-// an agent at a terminal.
+// failurePage answers a surface request whose handler failed. The agent API's
+// JSON refusal would reach a phone as text, and its fix speaks to an agent at a
+// terminal, so the answer is a failure: the shell for a page load, and the
+// sentence as text for anything else.
 func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("surface request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 	// A write under /api is answered by the app, which reads JSON and shows
@@ -192,20 +168,17 @@ func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) 
 		refuseJSON(w, http.StatusInternalServerError, failedWrite)
 		return
 	}
-	p := page{Title: "Something went wrong", Back: "/", BackLabel: "Queue", Body: message{Heading: "This page could not be read", Text: "The daemon's log says why."}}
-	s.renderPage(w, http.StatusInternalServerError, "error", p)
+	s.fail(w, r, http.StatusInternalServerError, failFailed)
 }
 
-// errorPage writes a page for a status the surface answers with on its own.
-func (s *Server) errorPage(w http.ResponseWriter, status int) {
-	p := page{Title: "Not found", Back: "/", BackLabel: "Queue", Body: message{Heading: "Nothing here", Text: "There is no page at this address."}}
+// errorPage answers a status the surface answers with on its own: a 405, and
+// a 404 for anything else.
+func (s *Server) errorPage(w http.ResponseWriter, r *http.Request, status int) {
 	if status == http.StatusMethodNotAllowed {
-		p.Title = "Not allowed"
-		p.Body = message{Heading: "Not allowed", Text: "This address does not answer that kind of request."}
-	} else {
-		status = http.StatusNotFound
+		s.fail(w, r, status, failNotAllowed)
+		return
 	}
-	s.renderPage(w, status, "error", p)
+	s.fail(w, r, http.StatusNotFound, failNotFound)
 }
 
 // waitingCount is the number of reviews waiting, for the top bar's eye, and nil
@@ -225,38 +198,6 @@ func (s *Server) waitingCount(what string) *int32 {
 	return &count
 }
 
-// renderPage executes a page template inside the layout and writes it.
-func (s *Server) renderPage(w http.ResponseWriter, status int, name string, data page) {
-	data.VAPID = s.vapidPublic()
-	data.Build = s.daemon.Build
-	data.Token = s.buildToken()
-	if data.Eye == nil {
-		if n := s.waitingCount(name); n != nil {
-			data.Eye = &eye{Count: int(*n)}
-		}
-	}
-	// The clone's own copy of the page's tree, never s.pages's: executing a
-	// template escapes its tree in place, so adding the shared tree let every
-	// request write to it while others cloned it, which the race detector
-	// reported for two pages rendered at once.
-	t, err := s.pages.Clone()
-	if err == nil {
-		_, err = t.AddParseTree("page", t.Lookup(name).Tree)
-	}
-	var buf bytes.Buffer
-	if err == nil {
-		err = t.ExecuteTemplate(&buf, "layout", data)
-	}
-	if err != nil {
-		s.log.Error("render page", "page", name, "err", err)
-		http.Error(w, "the page could not be rendered", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	_, _ = w.Write(buf.Bytes())
-}
-
 // handleApp answers every address the React app draws with the shell: the head
 // every page writes, the React bundle and the element it draws into. The app
 // fetches the address's view from /api and opens its own stream, so the shell
@@ -269,25 +210,11 @@ func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) error {
 	if r.URL.Path == "/" {
 		title = "Queue"
 	}
-	data := page{Title: title, VAPID: s.vapidPublic(), Build: s.daemon.Build, Token: s.buildToken()}
-	// A clone, since executing a template escapes its tree in place and the
-	// shared one is read by every request.
-	t, err := s.pages.Clone()
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "shell", data); err != nil {
-		return errors.WithStack(err)
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(buf.Bytes())
-	return nil
+	return s.writeShell(w, http.StatusOK, page{Title: title})
 }
 
-// handleReact serves the React app's bundle, which loads beside the template
-// pages' bundle until the last screen moves.
-func (s *Server) handleReact(w http.ResponseWriter, _ *http.Request) error {
+// handleBundle serves the React app's bundle.
+func (s *Server) handleBundle(w http.ResponseWriter, _ *http.Request) error {
 	app, err := eyeball.App()
 	if err != nil {
 		return err
@@ -321,25 +248,6 @@ func (s *Server) handleShell(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-// handleHtmx serves the vendored htmx from the binary.
-func (s *Server) handleHtmx(w http.ResponseWriter, _ *http.Request) error {
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	_, _ = w.Write(eyeball.Htmx)
-	return nil
-}
-
-// handleScript serves the client's bundle. A bundle that failed to build is a
-// 500 and a log line, so a page still renders without its script.
-func (s *Server) handleScript(w http.ResponseWriter, _ *http.Request) error {
-	js, err := eyeball.Bundle()
-	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	_, _ = w.Write(js)
-	return nil
-}
-
 // setSurfaceHeaders sets the headers every surface response carries.
 func setSurfaceHeaders(h http.Header) {
 	h.Set("Content-Security-Policy", contentSecurityPolicy)
@@ -355,7 +263,7 @@ func setSurfaceHeaders(h http.Header) {
 func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) error {
 	data, err := fs.ReadFile(eyeball.Icons, "web/static/icons/"+path.Base(r.PathValue("name")))
 	if err != nil {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	w.Header().Set("Content-Type", "image/png")
@@ -397,7 +305,7 @@ func (s *Server) handleFont(w http.ResponseWriter, r *http.Request) error {
 	name := r.PathValue("path")
 	tag, ok := fontTags()[name]
 	if !ok {
-		s.errorPage(w, http.StatusNotFound)
+		s.errorPage(w, r, http.StatusNotFound)
 		return nil
 	}
 	data, err := fs.ReadFile(eyeball.Fonts, fontRoot+"/"+name)
