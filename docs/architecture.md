@@ -864,6 +864,7 @@ describes and no spec has built yet.
 | `GET /static/icons/{name}`                                 | the installed page's icons, from the binary         | 009  |
 | `GET /static/app.js`                                       | the app, bundled once from the binary               | 033  |
 | `GET /static/app.css`                                      | the components' stylesheets, bundled with the app   | 006  |
+| `GET /static/shell.css`                                    | the page around the app, which the shell links      | 006  |
 | `GET /static/fonts/{path...}`                              | a font the stylesheet names, with an ETag           | 015  |
 | `POST /subscriptions`                                      | a device's push subscription                        | 009  |
 | `POST /taps`                                               | a beacon from a notification tap, logged            | 026  |
@@ -882,15 +883,18 @@ past the send limit, a 500 where a handler fails, and a 403 for a write outside
 `/api` without the token. A browser loading the address as a page sends
 `Sec-Fetch-Dest: document`, and then the answer is the shell with the failure's
 status and a `<meta name="eyeball-error">` tag holding a `view.Failure` as JSON:
-the heading, the sentence and the waiting count for the eye. The app reads the
-tag before it routes and draws an error screen in place of any route. An image,
-a frame, a `fetch` and curl send another value, or none, and get `text/plain`
-with the status and the sentence. The tag is needed because a raw file's address
-has no route in the app, so the app alone would draw "Nothing here" for a file
-that exists and is too large. `Accept` cannot decide this, since a frame sends
-the `text/html` a page does. Measured in headless Chromium on 2026-11-22 and in
-iOS Safari on 2026-11-23. A browser that sends none gets the text, which is
-plain and correct.
+the title, the heading, the sentence and the waiting count for the eye. The app
+reads the tag before it routes and draws an error screen in place of any route.
+An image, a frame, a `fetch` and curl send another value, or none, and get
+`text/plain` with the status and the sentence. The tag is needed because a raw
+file's address has no route in the app, and the router has no catch-all route,
+so without the tag an address the app does not draw would show the router's
+default error page. `Accept` cannot decide this, since a frame sends the
+`text/html` a page does. Measured in headless Chromium on 2026-11-22 and in iOS
+Safari on 2026-11-23. The installed app was assumed, not measured, to send the
+same header, since it shares Safari's WebKit and has no address bar to type an
+address into. A browser that sends none gets the text, which is plain and
+correct.
 
 Two alternatives lost. A scriptless template page keeps an HTML page for every
 client, but the bundle is what sets the theme, so it shows light on a dark
@@ -936,12 +940,12 @@ reasoned from the worker, not measured.
 **One client function says which addresses the app draws**, by matching an
 address against the router's routes. The link component draws a router link for
 such an address and a plain anchor for any other, and the tap listener moves the
-router for one and loads any other. Go builds every href, escaped, as the
-templates do, and the app follows it. A view is fetched from `/api` plus the
-page's raw path and query, so a query such as `?copy=` reaches the view
-unchanged. Measured 2026-10-31 with React Router 7.18.5's memory router: a link
-keeps an escaped href, `%20`, `%25`, `%23`, `%3F` and UTF-8 alike, and
-`useLocation` keeps the path escaped where the splat parameter decodes it.
+router for one and loads any other. Go builds every href, escaped, and the app
+follows it. A view is fetched from `/api` plus the page's raw path and query, so
+a query such as `?copy=` reaches the view unchanged. Measured 2026-10-31 with
+React Router 7.18.5's memory router: a link keeps an escaped href, `%20`, `%25`,
+`%23`, `%3F` and UTF-8 alike, and `useLocation` keeps the path escaped where the
+splat parameter decodes it.
 
 ## The client code
 
@@ -1178,16 +1182,14 @@ constant `open` opens again whenever a refetch mounts it anew.
 **Shared behaviors stay in `web/ts`, and the React app calls them.** Theme, the
 loopback token, worker registration, push setup, the verdict's blink mark, the
 build check and the keyboard fix in `viewport.ts` are framework-free modules,
-and several were settled on a real phone. Where a module mixes its logic with
-template DOM, as push setup does with its page's buttons, the logic is a
-function both callers use and the template keeps its wiring. The binary embeds
-and stages `web/ts` beside `web/src`, so the app imports them. Rewriting them in
-React was rejected: two copies would have to agree on storage keys, such as the
-blink mark and the token, and nothing would check that they do. The review
-page's own modules were the exception, since each was wired to the template's
-markup and its events: the composer, the drafts, the unsent cards, the deferred
-bodies and the reader's place. The app took their logic into the review screen
-and they are gone with the review template, so no two copies are left to agree.
+and several were settled on a real phone. The binary embeds and stages `web/ts`
+beside `web/src`, so the app imports them. Rewriting them in React was rejected:
+two copies would have to agree on storage keys, such as the blink mark and the
+token, and nothing would check that they do. The review page's own modules were
+the exception, since each was wired to the template's markup and its events: the
+composer, the drafts, the unsent cards, the deferred bodies and the reader's
+place. The app took their logic into the review screen and they are gone with
+the review template, so no two copies are left to agree.
 
 **The iOS behaviors tied to a screen move with that screen**, each re-checked on
 the phone when it moves: the deferred card bodies with their skeleton heights

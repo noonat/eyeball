@@ -272,7 +272,7 @@ func TestDocument_foldAroundComments(t *testing.T) {
 				p.Commented[[2]int{line, line}] = struct{}{}
 			}
 			parts := Document([]byte(old), []byte(new), p)
-			g.Expect(outline(g, Join(parts))).To(Equal(c.want))
+			g.Expect(outline(g, join(parts))).To(Equal(c.want))
 		})
 	}
 }
@@ -286,7 +286,7 @@ func TestDocument_foldKeepsComments(t *testing.T) {
 	p := testPage()
 	p.Fold = true
 	p.Commented = map[[2]int]struct{}{{9, 9}: {}}
-	g.Expect(outline(g, Join(Document([]byte(old), []byte(new), p)))).To(Equal([]string{
+	g.Expect(outline(g, docHTML([]byte(old), []byte(new), p))).To(Equal([]string{
 		"marked: New.",
 		"A.",
 		"fold 2: B. / C.",
@@ -1390,19 +1390,31 @@ func TestHasBlocks(t *testing.T) {
 	}
 }
 
-// docHTML is a document joined as the template page joins it, with nothing
-// under a passage.
+// foldHTML opens a run of unchanged passages folded into one line, with the
+// count it holds, as the app's fold draws it.
+const foldHTML = `<details class="` + classFold + `"><summary>%d unchanged passages</summary>` + "\n"
+
+// docHTML writes a document's parts as one piece of markup, so a test can read
+// a document by its structure. A run of unchanged passages is a fold.
 func docHTML(old, new []byte, p Page) template.HTML {
-	return Join(Document(old, new, p))
+	return join(Document(old, new, p))
 }
 
-// Join writes each passage in order, with a fold around a run of unchanged ones.
-func TestJoin(t *testing.T) {
-	g := NewWithT(t)
-	p := testPage()
-	out := string(Join(Document(nil, []byte("One.\n\n---\n\nTwo.\n"), p)))
-	g.Expect(out).To(MatchRegexp(`(?s)One\..*<hr>.*Two\.`))
-	g.Expect(out).NotTo(ContainSubstring("<aside"))
+// join writes each part's passages in order, with a fold around a run.
+func join(parts []Part) template.HTML {
+	var b strings.Builder
+	for _, part := range parts {
+		if len(part.Fold) == 0 {
+			b.WriteString(string(part.Passage.HTML))
+			continue
+		}
+		b.WriteString(fmt.Sprintf(foldHTML, len(part.Fold)))
+		for _, p := range part.Fold {
+			b.WriteString(string(p.HTML))
+		}
+		b.WriteString("</details>\n")
+	}
+	return template.HTML(b.String())
 }
 
 // shape is one block of a rendered document as a reader sees it.

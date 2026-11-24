@@ -2903,7 +2903,7 @@ func TestServer_Surface_browserUpdate(t *testing.T) {
 	b := openBrowser(g, t)
 	b.navigate(g, "http://"+addr+"/")
 	b.waitFor(g, `!!document.getElementById("update")`)
-	g.Expect(b.eval(g, `!!document.querySelector("script[src^='/static/app.js']")`)).To(BeTrue(), "the queue is the React app, whose notices the template pages' do not stand in for")
+	g.Expect(b.eval(g, `!!document.querySelector("script[src^='/static/app.js']")`)).To(BeTrue(), "the queue is the React app, whose notices come from its own stream")
 	g.Expect(b.eval(g, `document.getElementById("update").hidden`)).To(BeTrue(), "the page is the running build")
 
 	// A daemon restarted on a newer build: the stream reconnects and hears it.

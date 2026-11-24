@@ -22,8 +22,9 @@ var Stylesheet []byte
 //go:embed docs/design/fonts
 var Fonts embed.FS
 
-// Templates is web/templates: the shell every address answers with, and the
-// head it shares with nothing else.
+// Templates is web/templates: the shell the app's addresses answer with, and
+// the head it writes. A raw file, a static file and an address under /api do
+// not answer with it.
 //
 //go:embed web/templates
 var Templates embed.FS

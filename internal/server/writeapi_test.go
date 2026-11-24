@@ -228,7 +228,7 @@ func TestServer_addCommentJSON(t *testing.T) {
 }
 
 // A write that fails in the store answers JSON, which the app reads, and not
-// the error page.
+// a failure answer.
 func TestServer_addCommentJSONFailure(t *testing.T) {
 	g := NewWithT(t)
 	f := newFixture(g, t)

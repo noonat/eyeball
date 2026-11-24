@@ -8,8 +8,8 @@
 // template routes gave for a composer, a comment, the decision bar and the other
 // writes, review-*.html and review-*.txt, are kept as they last came out, from
 // template pages and routes that no longer exist, and are not written or
-// checked here. composers.ts, the query each composer answer was asked for, is kept the
-// same way.
+// checked here. composers.ts, the query each composer answer was asked for, is
+// kept the same way.
 //
 // Every state is built through the server's own handlers, on a fixed clock, so
 // a review's id and a row's age are the same on every run.

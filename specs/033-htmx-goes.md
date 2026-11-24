@@ -32,12 +32,12 @@ gets the text answer, which is correct and plain.
 
 So a failure with `Sec-Fetch-Dest: document` answers the shell, with the
 failure's status, and the shell carries the failure in a
-`<meta name="eyeball-error">` tag: its heading, its sentence and the waiting
-count for the eye. The app reads the tag before it routes, and draws an error
-screen in place of any route. Everything else answers `text/plain` with the
-status and the sentence. The tag is needed because a raw file's address has no
-route in the app, so the app alone would draw "Nothing here" for a file that
-exists and is too large.
+`<meta name="eyeball-error">` tag: its title, its heading, its sentence and the
+waiting count for the eye. The app reads the tag before it routes, and draws an
+error screen in place of any route. Everything else answers `text/plain` with
+the status and the sentence. The tag is needed because a raw file's address has
+no route in the app, and the router has no catch-all route, so without the tag
+it would show its default error page for a file that exists and is too large.
 
 Two alternatives lost. A scriptless template page keeps an HTML page for every
 client, but the bundle is what sets the theme, so it shows light on a dark
@@ -119,14 +119,15 @@ Where the work went differently from the paragraphs above.
   this iteration requires `git grep -i htmx` to match nothing else, and that
   assertion would have been one more match. The route is gone from the table.
 - `docs/design/review.html` named htmx in two lines of a to-do item. They now
-  say "the template script", since the spec's grep allows no other match in
+  say "the script's 52 KB", since the spec's grep allows no other match in
   `docs/design/`. `specs/TODO.md` still names htmx in the item for this spec,
   which leaves with the spec when it moves to `specs/done/`.
-- `render.Join`'s three tests lose their `after` assertions. The two fold tests
-  still fail when the fold's closing tag or a passage is not written. `TestJoin`
-  checks the passages are written in order and with no `aside`, and fails when
-  none is written, but a fold fault alone cannot fail it, since its input has no
-  unchanged run.
+- `render.Join` and `foldHTML` were removed from production code, not only
+  stripped of `after`. Once `filePage.Document` and its two writes went, only
+  tests called them. They now live in `document_test.go` as the test-only `join`
+  and `foldHTML`, and `TestJoin` was deleted. The two fold tests that passed
+  `after` lose those assertions and still fail when the fold's closing tag or a
+  passage is not written.
 - `/static/app.js` is served gzipped, as `/static/react.js` was, since the
   bundle is the React one.
 - Iteration 4 ran on 2026-11-23 against this branch's build, deployed as the

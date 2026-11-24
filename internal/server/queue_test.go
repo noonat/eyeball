@@ -222,7 +222,7 @@ func TestServer_queueViewWritesLargeCountsWithSeparators(t *testing.T) {
 }
 
 // The shell holds what every load needs and nothing the store changes: the
-// head the template pages write, the React bundle and an element to draw into.
+// head the shell writes, the React bundle and an element to draw into.
 func TestServer_Surface_appShell(t *testing.T) {
 	g := NewWithT(t)
 	q := newQueueFixture(g, t)

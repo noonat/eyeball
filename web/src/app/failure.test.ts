@@ -64,10 +64,10 @@ test("a failure is drawn in place of every route", async () => {
   expect(host.querySelector(".topbar a.back")?.getAttribute("href")).toBe("/");
 });
 
-test("with no failure the router draws the address", async () => {
+test("with no failure the app draws no error screen and routes as usual", async () => {
   const host = await draw(null);
-  // The address has no route, so the router's own screen is what it draws.
-  // It never draws the failure's box.
+  // The address has no route, so the router's default error page is what it
+  // draws. It never draws the failure's box.
   await expect.poll(() => host.textContent).not.toBe("");
   expect(host.querySelector(".empty .headline")?.textContent).not.toBe(
     "Too large",

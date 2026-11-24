@@ -25,8 +25,8 @@ import (
 const contentSecurityPolicy = "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
 
 // Surface is the handler for the reviewer's listeners: the surface's mux, with
-// the headers every response carries and a page in place of the mux's own
-// plain-text 404 and 405.
+// the headers every response carries and the mux's own plain-text 404 and 405
+// answered as a failure, which is a page only for a page load.
 //
 // An empty pattern from the mux means its fallback will answer, and only then
 // is the request served through a writer that catches the fallback's status.
@@ -79,8 +79,8 @@ func (s *Server) refuseWithoutToken(w http.ResponseWriter, r *http.Request) {
 	s.fail(w, r, http.StatusForbidden, failNoToken)
 }
 
-// surfaceMux is the mux with the headers every response carries and a page in
-// place of the mux's own 404 and 405.
+// surfaceMux is the mux with the headers every response carries and a failure
+// answer in place of the mux's own 404 and 405.
 func (s *Server) surfaceMux() http.Handler {
 	mux := s.SurfaceHandler()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -155,9 +155,10 @@ type page struct {
 // and its answer should not wait on the store a second time.
 const eyeTimeout = time.Second
 
-// failurePage answers a surface request whose handler failed, as a page. The
-// agent API's JSON refusal would reach a phone as text, and its fix speaks to
-// an agent at a terminal.
+// failurePage answers a surface request whose handler failed. The agent API's
+// JSON refusal would reach a phone as text, and its fix speaks to an agent at a
+// terminal, so the answer is a failure: the shell for a page load, and the
+// sentence as text for anything else.
 func (s *Server) failurePage(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("surface request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 	// A write under /api is answered by the app, which reads JSON and shows

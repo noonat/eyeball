@@ -16,9 +16,9 @@ interface AppLinkProps {
 /**
  * A link the server wrote. An address the app draws moves the router, so the
  * move loads no page and the cache and the scroll survive it. Any other is a
- * plain anchor, which loads the page the way a template page needs. So is every
- * link outside a router, such as the error screen's way back, where a router
- * link would have nothing to move.
+ * plain anchor, which loads the page. So is every link outside a router, such
+ * as the error screen's way back, where a router link would have nothing to
+ * move.
  */
 export function AppLink({
   href,
